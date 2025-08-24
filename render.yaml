@@ -3,7 +3,7 @@ services:
   - type: web
     name: chaines-chat-site
     runtime: static
-    repo: https://github.com/<you>/<repo>.git
+    repo: https://github.com/SECUREA1/CHAINES.IO-CHAT.git
     branch: main
     buildCommand: ""
     staticPublishPath: .
@@ -14,7 +14,7 @@ services:
   - type: web
     name: chaines-chat-ws
     runtime: node
-    repo: https://github.com/<you>/<repo>.git
+    repo: https://github.com/SECUREA1/CHAINES.IO-CHAT.git
     rootDir: ws-server
     plan: starter
     buildCommand: npm ci
