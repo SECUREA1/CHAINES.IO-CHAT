@@ -1,12 +1,38 @@
 // server.js
 import http from "http";
+import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
-const server = http.createServer((req, res) => {
-  if (req.url === "/healthz") { res.writeHead(200); res.end("ok"); return; }
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("CHAINeS Chat WS");
+
+// Locate repo root to serve the client HTML
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
+
+const server = http.createServer(async (req, res) => {
+  if (req.url === "/healthz") {
+    res.writeHead(200);
+    res.end("ok");
+    return;
+  }
+
+  // Serve chat client for root requests
+  if ((req.method === "GET" || req.method === "HEAD") && (req.url === "/" || req.url === "/index.html")) {
+    try {
+      const html = await readFile(path.join(ROOT, "index.html"));
+      res.writeHead(200, { "Content-Type": "text/html" });
+      if (req.method === "GET") res.end(html); else res.end();
+    } catch {
+      res.writeHead(404);
+      res.end("Not found");
+    }
+    return;
+  }
+
+  res.writeHead(404, { "Content-Type": "text/plain" });
+  res.end("Not found");
 });
 
 const wss = new WebSocketServer({ server, path: "/ws" });
