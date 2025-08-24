@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CHAINeS Chat</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%2300e5a8'/%3E%3Ctext x='50' y='58' font-size='42' text-anchor='middle' fill='white' font-family='system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif'%3EC%3C/text%3E%3C/svg%3E" />
+  <meta name="color-scheme" content="dark light" />
+  <style>
+    :root {
+      --bg: #0c0f14;
+      --panel: #121722;
+      --muted: #8b97a8;
+      --fg: #e9eef7;
+      --accent: #00e5a8;
+      --accent-2: #39a0ff;
+      --danger: #ff5d6e;
+      --shadow: 0 6px 24px rgba(0,0,0,.25);
+      --radius: 16px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg:#f6f8fc; --panel:#ffffff; --fg:#0d1726; --muted:#5a6a85; --shadow: 0 6px 24px rgba(0,0,0,.08); }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; background: radial-gradient(1200px 1200px at 20% -10%, rgba(57,160,255,.15), transparent 60%),
+                         radial-gradient(1000px 1000px at 120% 20%, rgba(0,229,168,.12), transparent 60%), var(--bg);
+           color:var(--fg); font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+
+    .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100%; max-width: 980px; margin: 0 auto; }
+
+    header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand .logo { width:28px; height:28px; border-radius:8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 18px; margin:0; }
+
+    .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
+    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid rgba(255,255,255,.08);
+            border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); }
+    .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
+    .dot.ok { background: var(--accent); }
+    .dot.local { background: #ffb020; }
+    .dot.off { background: var(--danger); }
+    .usr { font-weight:600; color: var(--fg); }
+
+    main { display:grid; grid-template-rows: 1fr auto; gap:0; padding:0 18px 18px; }
+
+    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); min-height: 50vh; max-height: calc(100vh - 240px); overflow-y: auto; box-shadow: var(--shadow); }
+    .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; }
+    .msg.mine { grid-template-columns: 1fr 36px; }
+    .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid rgba(255,255,255,.06); }
+    .msg.mine .avatar { order:2; background: #1c2d28; color:#bff7e6; }
+
+    .bubble { position:relative; padding:10px 12px 8px; border-radius: 12px; background: #101521; border: 1px solid rgba(255,255,255,.06); box-shadow: var(--shadow); }
+    .msg.mine .bubble { background: #0f1b16; border-color: rgba(0,229,168,.35); }
+
+    .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
+    .who { font-weight:700; color: var(--fg); }
+
+    .msg-text { white-space: pre-wrap; word-wrap: break-word; }
+
+    .msg.collapsed .msg-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-height: 3.3em; }
+    .min-btn { position:absolute; top:8px; right:8px; border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:8px; }
+    .min-btn:hover { color:var(--fg); background: rgba(255,255,255,.06); }
+
+    .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
+
+    .composer { display:grid; grid-template-columns: 1fr auto; gap:10px; margin-top: 12px; }
+    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid rgba(255,255,255,.08); box-shadow: var(--shadow); }
+    .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
+    .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
+    .send { padding:10px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), #00d29a); box-shadow: var(--shadow); }
+    .send:disabled { opacity:.6; cursor:not-allowed; }
+
+    /* Auth screen */
+    .auth { position: fixed; inset:0; display:grid; place-items:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); }
+    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: var(--panel); border: 1px solid rgba(255,255,255,.1); box-shadow: var(--shadow); }
+    .card h2 { margin:0 0 8px; font-size: 22px; }
+    .card p { margin: 0 0 14px; color: var(--muted); }
+    .fields { display:grid; gap:10px; }
+    .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: #0d1320; color: var(--fg); font: inherit; }
+    .actions { display:flex; gap:10px; margin-top:12px; }
+    .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; }
+    .btn.primary { background: linear-gradient(180deg, var(--accent), #00d29a); color:#05130e; }
+    .btn.ghost { background: transparent; color: var(--fg); border:1px solid rgba(255,255,255,.16); }
+
+    .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+    footer { padding: 8px 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
+    a { color: var(--accent-2); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>CHAINeS Chat</h1>
+      </div>
+      <div class="status">
+        <span class="chip" id="conn-chip" title="Connection status">
+          <span class="dot off" id="conn-dot"></span>
+          <span id="conn-label">Offline</span>
+        </span>
+        <span class="chip" id="user-chip" title="Logged in user" style="display:none">
+          <span class="usr" id="user-name"></span>
+          <button id="logout" class="btn ghost" style="padding:6px 10px">Switch</button>
+        </span>
+      </div>
+    </header>
+
+    <main>
+      <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
+
+      <form id="composer" class="composer" autocomplete="off">
+        <label class="input" for="text">
+          <input id="text" name="text" placeholder="Type a message…  (try /me waves or /clear)" />
+        </label>
+        <button class="send" id="send" type="submit">Send</button>
+      </form>
+    </main>
+
+    <footer>
+      © <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a>
+    </footer>
+  </div>
+
+  <!-- Auth overlay -->
+  <section id="auth" class="auth" hidden>
+    <div class="card">
+      <h2>Welcome to CHAINeS Chat</h2>
+      <p>Pick a username to join the chatroom.</p>
+      <div class="fields">
+        <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="enter">Enter Chat</button>
+        <button class="btn ghost" id="skip">Continue as Guest</button>
+      </div>
+      <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
+      <div id="ws-config" class="fields" style="display:none; margin-top:8px">
+        <input id="ws-url" placeholder="wss://chat.chaines.io/ws (optional)" />
+        <button class="btn ghost" id="save-ws">Save Socket URL</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+  ;(() => {
+    const el = (q, parent=document) => parent.querySelector(q);
+    const feed = el('#feed');
+    const form = el('#composer');
+    const input = el('#text');
+    const auth = el('#auth');
+    const usernameInput = el('#username');
+    const enterBtn = el('#enter');
+    const skipBtn = el('#skip');
+    const userChip = el('#user-chip');
+    const userName = el('#user-name');
+    const logoutBtn = el('#logout');
+    const connDot = el('#conn-dot');
+    const connLabel = el('#conn-label');
+    const connChip = el('#conn-chip');
+    const wsEdit = el('#ws-edit');
+    const wsCfg = el('#ws-config');
+    const wsUrlInput = el('#ws-url');
+
+    el('#year').textContent = new Date().getFullYear();
+
+    // --- Basic state ---
+    const store = {
+      get user() { return localStorage.getItem('chaines_username') || ''; },
+      set user(v) { v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username'); },
+      get wsURL() { return localStorage.getItem('chaines_ws_url') || defaultWS(); },
+      set wsURL(v) { v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url'); },
+      pushMsg(m) {
+        try {
+          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+          items.push(m); while (items.length > 200) items.shift();
+          localStorage.setItem('chaines_messages', JSON.stringify(items));
+        } catch {}
+      },
+      loadMsgs() {
+        try { return JSON.parse(localStorage.getItem('chaines_messages') || '[]'); } catch { return []; }
+      },
+      clearMsgs() { localStorage.removeItem('chaines_messages'); }
+    };
+
+    // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
+    let socket = null;
+    let bc = null;
+    let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
+    const seen = new Set();
+
+    function defaultWS(){
+      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname)) ? 'chat.chaines.io' : location.host;
+      const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+      return proto + host.replace(/:\\d+$/, '') + '/ws';
+    }
+
+    function setStatus(mode){
+      onlineMode = mode;
+      connDot.classList.remove('ok','local','off');
+      if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
+      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; }
+      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; }
+    }
+
+    function connectWS(){
+      const url = store.wsURL;
+      if(!('WebSocket' in window)) return setStatus('off');
+      try {
+        socket = new WebSocket(url);
+      } catch { setStatus('off'); return; }
+
+      socket.addEventListener('open', () => setStatus('cloud'));
+      socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
+      socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
+      socket.addEventListener('message', ev => {
+        try {
+          const data = JSON.parse(ev.data);
+          if(data && data.type === 'chat') receive(data);
+          if(data && data.type === 'system') systemNote(data.text);
+        } catch {}
+      });
+    }
+
+    function setupLocal(){
+      if(!('BroadcastChannel' in window)) { setStatus('off'); return; }
+      bc = new BroadcastChannel('chaines_chat');
+      bc.onmessage = (ev) => {
+        const m = ev.data; if(m && m.type === 'chat') receive(m);
+      };
+      if(onlineMode !== 'cloud') setStatus('local');
+    }
+
+    // --- Auth flow ---
+    function requireAuth(){
+      if(store.user){
+        enterChat(store.user);
+      } else {
+        auth.hidden = false;
+        setTimeout(() => usernameInput.focus(), 50);
+      }
+    }
+
+    function enterChat(name){
+      store.user = (name || 'guest-' + Math.floor(Math.random()*9999)).trim();
+      userName.textContent = '@' + store.user;
+      userChip.style.display = 'inline-flex';
+      auth.hidden = true;
+      renderHistory();
+      connectWS();
+      setupLocal();
+      input.focus();
+      systemNote(`You are signed in as @${store.user}.`);
+    }
+
+    enterBtn.addEventListener('click', () => {
+      const v = usernameInput.value.replace(/[^a-zA-Z0-9_\-\.]/g,'').slice(0,24);
+      if(!v){ usernameInput.focus(); return; }
+      enterChat(v);
+    });
+    skipBtn.addEventListener('click', () => enterChat('guest-' + Math.floor(Math.random()*9999)));
+
+    logoutBtn.addEventListener('click', () => { store.user=''; location.reload(); });
+
+    wsEdit.addEventListener('click', () => { wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none'; wsUrlInput.value = store.wsURL; });
+    el('#save-ws').addEventListener('click', () => { store.wsURL = wsUrlInput.value.trim(); alert('Saved WebSocket URL.'); });
+
+    // --- Messaging ---
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      const raw = (input.value || '').trim();
+      if(!raw) return;
+
+      // Commands
+      if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; systemNote('Cleared local chat history.'); return; }
+      if(/^\s*\/me\s+/.test(raw)){
+        const act = raw.replace(/^\s*\/me\s+/, '');
+        postMessage({ text: `*${act}*`, isAction:true });
+        input.value=''; return;
+      }
+
+      postMessage({ text: raw });
+      input.value = '';
+    });
+
+    function postMessage({ text, isAction=false }){
+      const msg = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+        type: 'chat',
+        user: store.user,
+        text: text,
+        isAction,
+        ts: Date.now()
+      };
+
+      // Push to UI + storage immediately
+      receive(msg, true);
+      store.pushMsg(msg);
+
+      // Broadcast locally
+      try { bc && bc.postMessage(msg); } catch {}
+
+      // Send to server if available
+      try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
+    }
+
+    function receive(m, isLocal=false){
+      if(!m || seen.has(m.id)) return;
+      seen.add(m.id);
+      appendMessage(m);
+    }
+
+    function renderHistory(){
+      feed.innerHTML = '';
+      const items = store.loadMsgs();
+      items.forEach(m => appendMessage(m));
+      scrollToBottom();
+    }
+
+    function appendMessage(m){
+      const mine = m.user === store.user;
+      const li = document.createElement('li');
+      li.className = 'msg' + (mine ? ' mine' : '');
+
+      const av = document.createElement('div');
+      av.className = 'avatar';
+      av.textContent = initials(m.user);
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble' + (m.collapsed? ' collapsed' : '');
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
+
+      const text = document.createElement('div');
+      text.className = 'msg-text';
+      text.innerHTML = renderText(m.text || '', !!m.isAction);
+
+      if(mine){
+        const btn = document.createElement('button');
+        btn.className = 'min-btn';
+        btn.title = 'Minimize / expand';
+        btn.setAttribute('aria-label','Minimize message');
+        btn.textContent = m.collapsed? '⤢' : '⤡';
+        btn.addEventListener('click', () => {
+          li.classList.toggle('collapsed');
+          btn.textContent = li.classList.contains('collapsed') ? '⤢' : '⤡';
+        });
+        bubble.appendChild(btn);
+      }
+
+      bubble.appendChild(meta);
+      bubble.appendChild(text);
+
+      if(mine){
+        li.appendChild(document.createElement('div')); // placeholder for grid alignment
+        li.appendChild(bubble);
+        li.appendChild(av);
+      } else {
+        li.appendChild(av);
+        li.appendChild(bubble);
+      }
+
+      feed.appendChild(li);
+      scrollToBottom();
+    }
+
+    function systemNote(t){
+      const div = document.createElement('div');
+      div.className = 'system';
+      div.textContent = t;
+      feed.appendChild(div);
+      scrollToBottom();
+    }
+
+    function scrollToBottom(){
+      feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+    }
+
+    // --- Helpers ---
+    function fmtTime(ts){
+      const d = new Date(ts || Date.now());
+      const h = d.getHours().toString().padStart(2,'0');
+      const m = d.getMinutes().toString().padStart(2,'0');
+      return `${h}:${m}`;
+    }
+    function initials(name){
+      const parts = name.replace(/[^a-zA-Z0-9_\-\.]/g,' ').trim().split(/\s+|[_.-]/).filter(Boolean);
+      const a = (parts[0]||'?')[0]||'?';
+      const b = (parts[1]||'')[0]||'';
+      return (a + b).toUpperCase();
+    }
+    function escapeHTML(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+    function linkify(s){
+      const url = /((https?:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/[\w%./#?=&-]*)?)/gi;
+      return s.replace(url, (u) => {
+        const href = /^(https?:)?\/\//i.test(u) ? u : 'https://' + u;
+        return `<a href="${href}" target="_blank" rel="noopener">${escapeHTML(u)}</a>`;
+      });
+    }
+    function renderText(s, isAction=false){
+      const safe = escapeHTML(s);
+      const withLinks = linkify(safe);
+      return isAction ? `<em>${withLinks}</em>` : withLinks;
+    }
+
+    // Boot
+    requireAuth();
+  })();
+  </script>
+</body>
+</html>
