@@ -1,3 +1,5 @@
 ws-server/node_modules/
 chat-history.json
 node_modules/
+__pycache__/
+app.db
