@@ -7,31 +7,33 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%2300e5a8'/%3E%3Ctext x='50' y='58' font-size='42' text-anchor='middle' fill='white' font-family='system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif'%3EC%3C/text%3E%3C/svg%3E" />
   <meta name="color-scheme" content="dark light" />
   <style>
-    :root {
-      --bg: #0c0f14;
-      --panel: #121722;
-      --muted: #8b97a8;
-      --fg: #e9eef7;
-      --accent: #00e5a8;
-      --accent-2: #39a0ff;
-      --danger: #ff5d6e;
-      --shadow: 0 6px 24px rgba(0,0,0,.25);
-      --radius: 16px;
-    }
-    :root[data-theme='light']{
-      --bg:#f6f8fc;
-      --panel:#ffffff;
-      --fg:#0d1726;
-      --muted:#5a6a85;
-      --shadow: 0 6px 24px rgba(0,0,0,.08);
-    }
+      :root {
+        --bg: #0c0f14;
+        --panel: #121722;
+        --muted: #8b97a8;
+        --fg: #e9eef7;
+        --accent: #c62828;
+        --accent-2: #ffd700;
+        --danger: #ff5d6e;
+        --shadow: 0 6px 24px rgba(0,0,0,.25);
+        --radius: 16px;
+      }
+      :root[data-theme='light']{
+        --bg:#f6f8fc;
+        --panel:#ffffff;
+        --fg:#0d1726;
+        --muted:#5a6a85;
+        --accent:#1e88e5;
+        --accent-2:#fdd835;
+        --shadow: 0 6px 24px rgba(0,0,0,.08);
+      }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body {
       margin:0;
       background:
-        radial-gradient(1200px 1200px at 20% -10%, rgba(57,160,255,.15), transparent 60%),
-        radial-gradient(1000px 1000px at 120% 20%, rgba(0,229,168,.12), transparent 60%),
+        radial-gradient(1200px 1200px at 20% -10%, color-mix(in oklab, var(--accent-2), transparent 85%), transparent 60%),
+        radial-gradient(1000px 1000px at 120% 20%, color-mix(in oklab, var(--accent), transparent 88%), transparent 60%),
         var(--bg);
       color:var(--fg);
       font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -46,8 +48,8 @@
 
     .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid rgba(255,255,255,.08);
-            border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); }
-    #live-chip, #theme-toggle { cursor:pointer; }
+            border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
+    #live-chip, #theme-toggle, #mode-toggle { cursor:pointer; }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
     .dot.ok { background: var(--accent); }
     .dot.local { background: #ffb020; }
@@ -60,10 +62,10 @@
     .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; }
     .msg.mine { grid-template-columns: 1fr 36px; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid rgba(255,255,255,.06); }
-    .msg.mine .avatar { order:2; background: #1c2d28; color:#bff7e6; }
+    .msg.mine .avatar { order:2; background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
 
     .bubble { position:relative; padding:10px 12px 8px; border-radius: 12px; background: #101521; border: 1px solid rgba(255,255,255,.06); box-shadow: var(--shadow); }
-    .msg.mine .bubble { background: #0f1b16; border-color: rgba(0,229,168,.35); }
+    .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 80%); border-color: color-mix(in oklab, var(--accent), transparent 65%); }
 
     .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
     .who { font-weight:700; color: var(--fg); }
@@ -80,7 +82,7 @@
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid rgba(255,255,255,.08); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { padding:10px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), #00d29a); box-shadow: var(--shadow); }
+    .send { padding:10px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
@@ -92,8 +94,8 @@
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: #0d1320; color: var(--fg); font: inherit; }
     .actions { display:flex; gap:10px; margin-top:12px; }
     .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; }
-    .btn.primary { background: linear-gradient(180deg, var(--accent), #00d29a); color:#05130e; }
-    .btn.ghost { background: transparent; color: var(--fg); border:1px solid rgba(255,255,255,.16); }
+    .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
+    .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid rgba(255,255,255,.16); }
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
 
@@ -126,9 +128,10 @@
         <span class="chip" id="live-chip" title="Users online">
           <span id="live-count">0</span> online
         </span>
+        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
-          <button id="logout" class="btn ghost" style="padding:6px 10px" type="button">Switch</button>
+          <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
         </span>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
       </div>
@@ -187,7 +190,7 @@
     const skipBtn = el('#skip');
     const userChip = el('#user-chip');
     const userName = el('#user-name');
-    const logoutBtn = el('#logout');
+    const logoutBtn = el('#logout-btn');
     const connDot = el('#conn-dot');
     const connLabel = el('#conn-label');
     const connChip = el('#conn-chip');
@@ -197,6 +200,7 @@
     const wsUrlInput = el('#ws-url');
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
+    const modeToggle = el('#mode-toggle');
     const userList = el('#user-list');
     const usersEl = el('#users');
 
@@ -255,6 +259,16 @@
       applyTheme(next);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
+    modeToggle.textContent = 'Go Cloud';
+    modeToggle.addEventListener('click', () => {
+      if (onlineMode === 'cloud') {
+        try { socket && socket.close(); } catch {}
+        socket = null;
+        setStatus(bc ? 'local' : 'off');
+      } else {
+        connectWS();
+      }
+    });
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -288,6 +302,7 @@
       if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
       else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; updateUsers([]); }
       else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; updateUsers([]); }
+      modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
     }
 
     function connectWS(){
