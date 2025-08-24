@@ -318,8 +318,7 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', () => broadcasting ? endBroadcast() : startBroadcast());
-    window.addEventListener('beforeunload', () => endBroadcast(true));
+    broadcastBtn.addEventListener('click', startBroadcast);
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -333,8 +332,6 @@
     let clientId = null;
     let hostId = null;
     let broadcasting = false;
-    let mediaRecorder = null;
-    let recordedChunks = [];
     function updateUsers(list){
       liveCount.textContent = list.length;
       usersEl.innerHTML = '';
@@ -514,9 +511,6 @@
         if (file.type.startsWith('image/')) {
           msg.image = dataUrl;
           msg.name = file.name;
-        } else if (file.type.startsWith('video/')) {
-          msg.video = dataUrl;
-          msg.name = file.name;
         }
         postMessage(msg);
       };
@@ -524,15 +518,13 @@
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, video, file, fileName, fileType, name, broadcast, isAction=false }){
+    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
         text: text,
         image: image,
-        video: video,
-        broadcast: broadcast,
         file: file,
         fileName: fileName || name,
         fileType: fileType,
@@ -557,15 +549,7 @@
       if(broadcasting) return;
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
-        recordedChunks = [];
-        try {
-          mediaRecorder = new MediaRecorder(stream);
-          mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
-          mediaRecorder.start();
-        } catch {}
         broadcasting = true;
-        broadcastBtn.textContent = '\u23F9 End';
-        broadcastBtn.title = 'End live broadcast';
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -574,56 +558,7 @@
         vid.playsInline = true;
         videoContainer.appendChild(vid);
         sendSignal({ type: 'broadcaster' });
-        postMessage({ text: '\uD83D\uDD34 Live broadcast', broadcast: true });
       }).catch(() => alert('Unable to access camera/microphone'));
-    }
-
-    async function endBroadcast(forced=false){
-      if(!broadcasting) return;
-      broadcasting = false;
-      broadcastBtn.textContent = '\uD83C\uDFA5 Live';
-      broadcastBtn.title = 'Go live';
-      const note = forced ? new Date().toLocaleString() :
-        (prompt('Broadcast end comment?') || '').trim();
-
-      let dataUrl = null;
-      if(mediaRecorder){
-        try {
-          dataUrl = await new Promise((resolve) => {
-            mediaRecorder.onstop = () => {
-              const blob = new Blob(recordedChunks, { type: 'video/webm' });
-              blobToDataURL(blob).then(resolve);
-            };
-            mediaRecorder.stop();
-          });
-        } catch {}
-        mediaRecorder = null;
-      }
-
-      if(localStream){
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-      }
-      for(const id in peerConnections){
-        try{ peerConnections[id].close(); }catch{}
-        delete peerConnections[id];
-      }
-      sendSignal({ type: 'end-broadcast' });
-      videoContainer.innerHTML = '';
-      videoContainer.setAttribute('hidden','');
-
-      const msg = {
-        text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`,
-        broadcast: true
-      };
-      if(dataUrl){
-        Object.assign(msg, {
-          video: dataUrl,
-          fileType: 'video/webm',
-          fileName: `broadcast-${Date.now()}.webm`
-        });
-      }
-      postMessage(msg);
     }
 
     function startWatching(){
@@ -732,7 +667,7 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
-      const fileData = m.file || m.video || m.image;
+      const fileData = m.file || m.image;
       if(fileData){
         const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
         const filename = m.fileName || m.name || '';
@@ -775,14 +710,6 @@
           link.download = filename || 'file';
           bubble.appendChild(link);
         }
-      }
-
-      if(m.broadcast){
-        const btn = document.createElement('button');
-        btn.className = 'live-btn';
-        btn.innerHTML = '<span class="live-dot"></span> Join Live';
-        btn.addEventListener('click', startWatching);
-        bubble.appendChild(btn);
       }
 
       if(mine){
@@ -838,17 +765,10 @@
       return isAction ? `<em>${withLinks}</em>` : withLinks;
     }
 
-    function blobToDataURL(blob){
-      return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-    }
-
     // Boot
     requireAuth();
   })();
   </script>
 </body>
 </html>
+
