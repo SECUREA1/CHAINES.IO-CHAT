@@ -83,7 +83,7 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: 1fr auto; gap:10px; margin-top: 12px; }
+    .composer { display:grid; grid-template-columns: 1fr auto auto; gap:10px; margin-top: 12px; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -186,6 +186,8 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
         </label>
+        <input id="file" type="file" accept="image/*" hidden />
+        <button class="send" id="attach" type="button" title="Attach image" aria-label="Attach image">📎</button>
         <button class="send" id="send" type="submit">Send</button>
       </form>
     </main>
@@ -226,6 +228,8 @@
     const feed = el('#feed');
     const form = el('#composer');
     const input = el('#text');
+    const attachBtn = el('#attach');
+    const fileInput = el('#file');
     const auth = el('#auth');
     const usernameInput = el('#username');
     const enterBtn = el('#enter');
@@ -491,12 +495,26 @@
       input.value = '';
     });
 
-    function postMessage({ text, isAction=false }){
+    attachBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        postMessage({ image: reader.result, name: file.name });
+      };
+      reader.readAsDataURL(file);
+      fileInput.value = '';
+    });
+
+    function postMessage({ text='', image, name, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
         text: text,
+        image: image,
+        name: name,
         isAction,
         ts: Date.now()
       };
@@ -635,6 +653,15 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
+      if(m.image){
+        const img = document.createElement('img');
+        img.src = m.image;
+        img.alt = m.name || 'image';
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '8px';
+        img.loading = 'lazy';
+        bubble.appendChild(img);
+      }
 
       if(mine){
         li.appendChild(bubble);
