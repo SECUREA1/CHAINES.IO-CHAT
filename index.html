@@ -521,7 +521,7 @@
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, video, file, fileName, fileType, name, isAction=false }){
+    function postMessage({ text='', image, video, file, fileName, fileType, name, broadcast, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
@@ -529,6 +529,7 @@
         text: text,
         image: image,
         video: video,
+        broadcast: broadcast,
         file: file,
         fileName: fileName || name,
         fileType: fileType,
@@ -562,6 +563,7 @@
         vid.playsInline = true;
         videoContainer.appendChild(vid);
         sendSignal({ type: 'broadcaster' });
+        postMessage({ text: '\uD83D\uDD34 Live broadcast', broadcast: true });
       }).catch(() => alert('Unable to access camera/microphone'));
     }
 
@@ -714,6 +716,14 @@
           link.download = filename || 'file';
           bubble.appendChild(link);
         }
+      }
+
+      if(m.broadcast){
+        const btn = document.createElement('button');
+        btn.className = 'live-btn';
+        btn.innerHTML = '<span class="live-dot"></span> Join Live';
+        btn.addEventListener('click', startWatching);
+        bubble.appendChild(btn);
       }
 
       if(mine){

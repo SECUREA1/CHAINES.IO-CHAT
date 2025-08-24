@@ -22,6 +22,7 @@ db.exec(`
     message TEXT,
     image TEXT,
     video TEXT,
+    broadcast TEXT,
     file TEXT,
     file_name TEXT,
     file_type TEXT,
@@ -36,11 +37,14 @@ const columns = db
 if (!columns.includes("video")) {
   db.exec("ALTER TABLE chat_messages ADD COLUMN video TEXT");
 }
+if (!columns.includes("broadcast")) {
+  db.exec("ALTER TABLE chat_messages ADD COLUMN broadcast TEXT");
+}
 
 function loadHistory(limit = 200) {
   const rows = db
     .prepare(
-      `SELECT id, user, message, image, video, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
+      `SELECT id, user, message, image, video, broadcast, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
     )
     .all(limit)
     .reverse();
@@ -161,13 +165,14 @@ wss.on("connection", (ws) => {
     const text = msg.text ?? msg.message ?? "";
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, message, image, video, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, message, image, video, broadcast, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
         text,
         msg.image || null,
         msg.video || null,
+        msg.broadcast || null,
         msg.file || null,
         msg.fileName || null,
         msg.fileType || null
