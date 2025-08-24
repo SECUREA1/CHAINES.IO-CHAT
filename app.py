@@ -30,7 +30,7 @@ def chat_connect():
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, image, video, file, file_name, file_type, timestamp FROM chat_messages
+            SELECT user, message, image, video, broadcast, file, file_name, file_type, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
@@ -42,10 +42,11 @@ def chat_connect():
                 "message": r[1],
                 "image": r[2],
                 "video": r[3],
-                "file": r[4],
-                "file_name": r[5],
-                "file_type": r[6],
-                "timestamp": r[7],
+                "broadcast": r[4],
+                "file": r[5],
+                "file_name": r[6],
+                "file_type": r[7],
+                "timestamp": r[8],
             }
             for r in rows
         ]
@@ -63,7 +64,7 @@ def get_chat_history():
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, image, video, file, file_name, file_type, timestamp FROM chat_messages
+            SELECT user, message, image, video, broadcast, file, file_name, file_type, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
@@ -75,10 +76,11 @@ def get_chat_history():
                 "message": r[1],
                 "image": r[2],
                 "video": r[3],
-                "file": r[4],
-                "file_name": r[5],
-                "file_type": r[6],
-                "timestamp": r[7],
+                "broadcast": r[4],
+                "file": r[5],
+                "file_name": r[6],
+                "file_type": r[7],
+                "timestamp": r[8],
             }
             for r in rows
         ]
@@ -90,10 +92,11 @@ def handle_chat_message(data):
     msg = (data.get('message') or '').strip()
     img = data.get('image')
     vid = data.get('video')
+    broadcast = data.get('broadcast')
     file = data.get('file')
     file_name = data.get('file_name') or data.get('fileName')
     file_type = data.get('file_type') or data.get('fileType')
-    if not msg and not img and not vid and not file:
+    if not msg and not img and not vid and not file and not broadcast:
         return
     if not current_user.is_authenticated:
         emit('chat_error', 'Login required to send messages.')
@@ -101,8 +104,8 @@ def handle_chat_message(data):
     username = current_user.username
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
-            'INSERT INTO chat_messages (user, message, image, video, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            (username, msg, img, vid, file, file_name, file_type),
+            'INSERT INTO chat_messages (user, message, image, video, broadcast, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (username, msg, img, vid, broadcast, file, file_name, file_type),
         )
         conn.commit()
     safe_emit(
@@ -112,6 +115,7 @@ def handle_chat_message(data):
             'message': msg,
             'image': img,
             'video': vid,
+            'broadcast': broadcast,
             'file': file,
             'file_name': file_name,
             'file_type': file_type,
@@ -129,7 +133,7 @@ def search_chat(data):
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, image, video, file, file_name, file_type, timestamp FROM chat_messages
+            SELECT user, message, image, video, broadcast, file, file_name, file_type, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day') AND (message LIKE ? OR user LIKE ?)
             ORDER BY timestamp
             """,
@@ -142,10 +146,11 @@ def search_chat(data):
                 "message": r[1],
                 "image": r[2],
                 "video": r[3],
-                "file": r[4],
-                "file_name": r[5],
-                "file_type": r[6],
-                "timestamp": r[7],
+                "broadcast": r[4],
+                "file": r[5],
+                "file_name": r[6],
+                "file_type": r[7],
+                "timestamp": r[8],
             }
             for r in rows
         ]

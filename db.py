@@ -15,6 +15,7 @@ def init_db():
               message   TEXT,
               image     TEXT,
               video     TEXT,
+              broadcast TEXT,
               file      TEXT,
               file_name TEXT,
               file_type TEXT,
@@ -27,6 +28,8 @@ def init_db():
         cols = [row[1] for row in c.fetchall()]
         if "video" not in cols:
             c.execute("ALTER TABLE chat_messages ADD COLUMN video TEXT")
+        if "broadcast" not in cols:
+            c.execute("ALTER TABLE chat_messages ADD COLUMN broadcast TEXT")
         conn.commit()
 
 if __name__ == "__main__":
