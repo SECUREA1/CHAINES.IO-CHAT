@@ -169,10 +169,24 @@
 
     // --- Basic state ---
     const store = {
-      get user() { return localStorage.getItem('chaines_username') || ''; },
-      set user(v) { v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username'); },
-      get wsURL() { return localStorage.getItem('chaines_ws_url') || defaultWS(); },
-      set wsURL(v) { v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url'); },
+      get user() {
+        try { return localStorage.getItem('chaines_username') || ''; }
+        catch { return ''; }
+      },
+      set user(v) {
+        try {
+          v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username');
+        } catch {}
+      },
+      get wsURL() {
+        try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
+        catch { return defaultWS(); }
+      },
+      set wsURL(v) {
+        try {
+          v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url');
+        } catch {}
+      },
       pushMsg(m) {
         try {
           const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
@@ -183,7 +197,9 @@
       loadMsgs() {
         try { return JSON.parse(localStorage.getItem('chaines_messages') || '[]'); } catch { return []; }
       },
-      clearMsgs() { localStorage.removeItem('chaines_messages'); }
+      clearMsgs() {
+        try { localStorage.removeItem('chaines_messages'); } catch {}
+      }
     };
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
