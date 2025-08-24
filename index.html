@@ -578,34 +578,28 @@
       }).catch(() => alert('Unable to access camera/microphone'));
     }
 
-    function endBroadcast(forced=false){
+    async function endBroadcast(forced=false){
       if(!broadcasting) return;
       broadcasting = false;
       broadcastBtn.textContent = '\uD83C\uDFA5 Live';
       broadcastBtn.title = 'Go live';
       const note = forced ? new Date().toLocaleString() :
         (prompt('Broadcast end comment?') || '').trim();
-      const hadRecorder = !!mediaRecorder;
+
+      let dataUrl = null;
       if(mediaRecorder){
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result;
-            postMessage({
-              text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`,
-              video: dataUrl,
-              file: dataUrl,
-              fileName: `broadcast-${Date.now()}.webm`,
-              fileType: 'video/webm',
-              broadcast: true
-            });
-          };
-          reader.readAsDataURL(blob);
-        };
-        try { mediaRecorder.stop(); } catch {}
+        try {
+          dataUrl = await new Promise((resolve) => {
+            mediaRecorder.onstop = () => {
+              const blob = new Blob(recordedChunks, { type: 'video/webm' });
+              blobToDataURL(blob).then(resolve);
+            };
+            mediaRecorder.stop();
+          });
+        } catch {}
         mediaRecorder = null;
       }
+
       if(localStream){
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
@@ -617,9 +611,19 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
-      if(!hadRecorder){
-        postMessage({ text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
+
+      const msg = {
+        text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`,
+        broadcast: true
+      };
+      if(dataUrl){
+        Object.assign(msg, {
+          video: dataUrl,
+          fileType: 'video/webm',
+          fileName: `broadcast-${Date.now()}.webm`
+        });
       }
+      postMessage(msg);
     }
 
     function startWatching(){
@@ -832,6 +836,14 @@
       const safe = escapeHTML(s);
       const withLinks = linkify(safe);
       return isAction ? `<em>${withLinks}</em>` : withLinks;
+    }
+
+    function blobToDataURL(blob){
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
     }
 
     // Boot
