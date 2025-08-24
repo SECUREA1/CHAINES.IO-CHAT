@@ -1,6 +1,7 @@
 # CHAINeS Chat
 
-Single-page chat client for chaines.io with optional WebSocket backend.
+Single-page chat client for chaines.io with optional WebSocket backend and
+persistent chat history.
 
 ## Deploying on Render
 
@@ -17,3 +18,10 @@ Single-page chat client for chaines.io with optional WebSocket backend.
 
 The WebSocket endpoint will be available at `wss://<service-name>.onrender.com/ws`.
 Configure this URL in the client via the "configure" button on the welcome screen.
+
+### Persistent chat history
+
+The WebSocket server stores the last 200 messages in `chat-history.json` at the
+repository root and automatically sends this history to new connections. It
+also broadcasts the number of currently connected users so the client can
+display a live online count.
