@@ -44,6 +44,12 @@ const server = http.createServer(async (req, res) => {
 });
 
 const wss = new WebSocketServer({ server, path: "/ws" });
+const clients = new Map();
+let broadcaster = null;
+
+function uid(){
+  return Math.random().toString(36).slice(2,9);
+}
 
 function broadcastUsers() {
   const users = [];
@@ -57,16 +63,59 @@ function broadcastUsers() {
 }
 
 wss.on("connection", (ws) => {
+  ws.id = uid();
+  clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: history }));
+  ws.send(JSON.stringify({ type: "id", id: ws.id }));
+  if (broadcaster && broadcaster.readyState === 1 && ws !== broadcaster) {
+    ws.send(JSON.stringify({ type: "broadcaster", id: broadcaster.id }));
+  }
   broadcastUsers();
-  ws.on("close", () => broadcastUsers());
+  ws.on("close", () => {
+    clients.delete(ws.id);
+    if (ws === broadcaster) {
+      broadcaster = null;
+      for (const client of wss.clients) {
+        if (client.readyState === 1) client.send(JSON.stringify({ type: "bye", id: ws.id }));
+      }
+    }
+    broadcastUsers();
+  });
   ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     if (msg?.type === "join") {
       ws.username = msg.user || "";
       broadcastUsers();
       return;
+    }
+    switch (msg?.type) {
+      case "broadcaster":
+        broadcaster = ws;
+        for (const client of wss.clients) {
+          if (client !== ws && client.readyState === 1) {
+            client.send(JSON.stringify({ type: "broadcaster", id: ws.id }));
+          }
+        }
+        return;
+      case "watcher":
+        if (broadcaster && broadcaster.readyState === 1) {
+          broadcaster.send(JSON.stringify({ type: "watcher", id: ws.id }));
+        }
+        return;
+      case "offer":
+      case "answer":
+      case "candidate":
+      case "bye": {
+        const dest = clients.get(msg.id);
+        if (dest && dest.readyState === 1) {
+          const payload = { type: msg.type, id: ws.id };
+          if (msg.sdp) payload.sdp = msg.sdp;
+          if (msg.candidate) payload.candidate = msg.candidate;
+          dest.send(JSON.stringify(payload));
+        }
+        return;
+      }
     }
     if (msg?.type !== "chat") return;
     msg.ts ||= Date.now();
