@@ -511,6 +511,9 @@
         if (file.type.startsWith('image/')) {
           msg.image = dataUrl;
           msg.name = file.name;
+        } else if (file.type.startsWith('video/')) {
+          msg.video = dataUrl;
+          msg.name = file.name;
         }
         postMessage(msg);
       };
@@ -518,13 +521,14 @@
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false }){
+    function postMessage({ text='', image, video, file, fileName, fileType, name, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
         text: text,
         image: image,
+        video: video,
         file: file,
         fileName: fileName || name,
         fileType: fileType,
@@ -667,7 +671,7 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
-      const fileData = m.file || m.image;
+      const fileData = m.file || m.video || m.image;
       if(fileData){
         const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
         const filename = m.fileName || m.name || '';

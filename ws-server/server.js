@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
 import Database from "better-sqlite3";
+import mime from "mime-types";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -20,17 +21,26 @@ db.exec(`
     user TEXT,
     message TEXT,
     image TEXT,
+    video TEXT,
     file TEXT,
     file_name TEXT,
     file_type TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
+// ensure newer columns exist in older databases
+const columns = db
+  .prepare("PRAGMA table_info(chat_messages)")
+  .all()
+  .map((c) => c.name);
+if (!columns.includes("video")) {
+  db.exec("ALTER TABLE chat_messages ADD COLUMN video TEXT");
+}
 
 function loadHistory(limit = 200) {
   const rows = db
     .prepare(
-      `SELECT id, user, message, image, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
+      `SELECT id, user, message, image, video, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
     )
     .all(limit)
     .reverse();
@@ -143,17 +153,21 @@ wss.on("connection", (ws) => {
     }
     if (msg?.type !== "chat") return;
     if (msg.image && msg.image.length > 1_000_000) return; // limit ~1MB per image
+    if (msg.video && msg.video.length > 5_000_000) return; // limit ~5MB per video
     if (msg.file && msg.file.length > 5_000_000) return; // limit ~5MB per file
+    const ft = msg.fileType || mime.lookup(msg.fileName || "") || "";
+    msg.fileType = ft || null;
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, message, image, video, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
         text,
         msg.image || null,
+        msg.video || null,
         msg.file || null,
         msg.fileName || null,
         msg.fileType || null
