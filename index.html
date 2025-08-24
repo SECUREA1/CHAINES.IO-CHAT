@@ -6,6 +6,7 @@
   <title>CHAINeS Chat</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%2300e5a8'/%3E%3Ctext x='50' y='58' font-size='42' text-anchor='middle' fill='white' font-family='system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif'%3EC%3C/text%3E%3C/svg%3E" />
   <meta name="color-scheme" content="dark light" />
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <style>
       :root {
         --bg: #001a33;
@@ -186,7 +187,7 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
         </label>
-        <input id="file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/*,audio/*,.gltf,.glb" hidden />
+        <input id="file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif,video/*,audio/*,model/gltf+json,model/gltf-binary,.gltf,.glb" hidden />
         <button class="send" id="attach" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit">Send</button>
       </form>
@@ -654,13 +655,47 @@
       bubble.appendChild(meta);
       bubble.appendChild(text);
       if(m.image){
-        const img = document.createElement('img');
-        img.src = m.image;
-        img.alt = m.name || 'image';
-        img.style.maxWidth = '100%';
-        img.style.borderRadius = '8px';
-        img.loading = 'lazy';
-        bubble.appendChild(img);
+        const mime = (m.image.match(/^data:(.*?);/) || [])[1] || '';
+        const filename = m.name || '';
+        const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
+        if(mime.startsWith('video/')){
+          const vid = document.createElement('video');
+          vid.src = m.image;
+          vid.controls = true;
+          vid.style.maxWidth = '100%';
+          vid.style.borderRadius = '8px';
+          bubble.appendChild(vid);
+        } else if(mime.startsWith('audio/')){
+          const aud = document.createElement('audio');
+          aud.src = m.image;
+          aud.controls = true;
+          aud.style.width = '100%';
+          bubble.appendChild(aud);
+        } else if(isModel){
+          const model = document.createElement('model-viewer');
+          model.src = m.image;
+          model.alt = filename || '3D model';
+          model.style.width = '100%';
+          model.style.height = '300px';
+          model.style.borderRadius = '8px';
+          model.setAttribute('camera-controls','');
+          model.setAttribute('auto-rotate','');
+          bubble.appendChild(model);
+        } else if(mime.startsWith('image/')){
+          const img = document.createElement('img');
+          img.src = m.image;
+          img.alt = filename || 'image';
+          img.style.maxWidth = '100%';
+          img.style.borderRadius = '8px';
+          img.loading = 'lazy';
+          bubble.appendChild(img);
+        } else {
+          const link = document.createElement('a');
+          link.href = m.image;
+          link.textContent = filename || 'download';
+          link.download = filename || 'file';
+          bubble.appendChild(link);
+        }
       }
 
       if(mine){
