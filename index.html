@@ -152,7 +152,7 @@
       </div>
       <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
-        <input id="ws-url" placeholder="wss://chat.chaines.io/ws (optional)" />
+        <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
         <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
       </div>
     </div>
@@ -221,9 +221,11 @@
     const seen = new Set();
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname)) ? 'chat.chaines.io' : location.host;
+      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
+        ? 'chaines-io-chat.onrender.com'
+        : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host.replace(/:\d+$/, '') + '/ws';
+      return proto + host + '/ws';
     }
 
     function setStatus(mode){
