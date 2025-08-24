@@ -361,7 +361,7 @@
     }
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
+      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
         ? 'chaines-io-chat.onrender.com'
         : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
