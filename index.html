@@ -318,7 +318,9 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', startBroadcast);
+    broadcastBtn.addEventListener('click', () => {
+      broadcasting ? stopBroadcast() : startBroadcast();
+    });
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -332,6 +334,8 @@
     let clientId = null;
     let hostId = null;
     let broadcasting = false;
+    let recorder = null;
+    let recordedChunks = [];
     function updateUsers(list){
       liveCount.textContent = list.length;
       usersEl.innerHTML = '';
@@ -502,20 +506,33 @@
       if(!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        postMessage({ image: reader.result, name: file.name });
+        const data = reader.result;
+        const payload = {
+          fileName: file.name,
+          fileType: file.type
+        };
+        const isImage = file.type.startsWith('image/');
+        if(isImage && data.length <= 1_000_000){
+          payload.image = data;
+        } else {
+          payload.file = data;
+        }
+        postMessage(payload);
       };
       reader.readAsDataURL(file);
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, name, isAction=false }){
+    function postMessage({ text='', image, file, fileName, fileType, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
         text: text,
         image: image,
-        name: name,
+        file: file,
+        fileName: fileName,
+        fileType: fileType,
         isAction,
         ts: Date.now()
       };
@@ -533,10 +550,10 @@
 
     // --- WebRTC helpers ---
     function startBroadcast(){
-      if(broadcasting) return;
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
         broadcasting = true;
+        broadcastBtn.textContent = '⏹️ Stop';
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -544,8 +561,43 @@
         vid.autoplay = true;
         vid.playsInline = true;
         videoContainer.appendChild(vid);
+        recordedChunks = [];
+        try {
+          recorder = new MediaRecorder(stream);
+          recorder.ondataavailable = e => { if(e.data && e.data.size > 0) recordedChunks.push(e.data); };
+          recorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: recorder.mimeType });
+            const reader = new FileReader();
+            reader.onload = () => {
+              postMessage({ file: reader.result, fileName: `broadcast-${Date.now()}.webm`, fileType: recorder.mimeType });
+            };
+            reader.readAsDataURL(blob);
+          };
+          recorder.start();
+        } catch {}
         sendSignal({ type: 'broadcaster' });
       }).catch(() => alert('Unable to access camera/microphone'));
+    }
+
+    function stopBroadcast(){
+      if(!broadcasting) return;
+      broadcasting = false;
+      broadcastBtn.textContent = '🎥 Live';
+      sendSignal({ type:'stop' });
+      try { recorder && recorder.stop(); } catch {}
+      if(localStream){
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      Object.keys(peerConnections).forEach(id => {
+        sendSignal({ type:'bye', id });
+        const pc = peerConnections[id];
+        if(pc._video) pc._video.remove();
+        pc.close();
+        delete peerConnections[id];
+      });
+      videoContainer.innerHTML = '';
+      videoContainer.setAttribute('hidden','');
     }
 
     function startWatching(){
@@ -654,26 +706,27 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
-      if(m.image){
-        const mime = (m.image.match(/^data:(.*?);/) || [])[1] || '';
-        const filename = m.name || '';
+      const data = m.image || m.file;
+      if(data){
+        const mime = m.fileType || (data.match(/^data:(.*?);/) || [])[1] || '';
+        const filename = m.fileName || m.name || '';
         const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
         if(mime.startsWith('video/')){
           const vid = document.createElement('video');
-          vid.src = m.image;
+          vid.src = data;
           vid.controls = true;
           vid.style.maxWidth = '100%';
           vid.style.borderRadius = '8px';
           bubble.appendChild(vid);
         } else if(mime.startsWith('audio/')){
           const aud = document.createElement('audio');
-          aud.src = m.image;
+          aud.src = data;
           aud.controls = true;
           aud.style.width = '100%';
           bubble.appendChild(aud);
         } else if(isModel){
           const model = document.createElement('model-viewer');
-          model.src = m.image;
+          model.src = data;
           model.alt = filename || '3D model';
           model.style.width = '100%';
           model.style.height = '300px';
@@ -683,7 +736,7 @@
           bubble.appendChild(model);
         } else if(mime.startsWith('image/')){
           const img = document.createElement('img');
-          img.src = m.image;
+          img.src = data;
           img.alt = filename || 'image';
           img.style.maxWidth = '100%';
           img.style.borderRadius = '8px';
@@ -691,7 +744,7 @@
           bubble.appendChild(img);
         } else {
           const link = document.createElement('a');
-          link.href = m.image;
+          link.href = data;
           link.textContent = filename || 'download';
           link.download = filename || 'file';
           bubble.appendChild(link);

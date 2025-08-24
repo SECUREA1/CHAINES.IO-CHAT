@@ -14,6 +14,9 @@ def init_db():
               user      TEXT,
               message   TEXT,
               image     TEXT,
+              file      TEXT,
+              file_name TEXT,
+              file_type TEXT,
               timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """
