@@ -23,9 +23,15 @@
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
-    body { margin:0; background: radial-gradient(1200px 1200px at 20% -10%, rgba(57,160,255,.15), transparent 60%),
-                         radial-gradient(1000px 1000px at 120% 20%, rgba(0,229,168,.12), transparent 60%), var(--bg);
-           color:var(--fg); font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body {
+      margin:0;
+      background:
+        radial-gradient(1200px 1200px at 20% -10%, rgba(57,160,255,.15), transparent 60%),
+        radial-gradient(1000px 1000px at 120% 20%, rgba(0,229,168,.12), transparent 60%),
+        var(--bg);
+      color:var(--fg);
+      font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
 
     .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100%; max-width: 980px; margin: 0 auto; }
 
@@ -88,6 +94,10 @@
 
     footer { padding: 8px 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
     a { color: var(--accent-2); }
+
+    /* ✅ make hidden actually hide, even with .auth display rules */
+    [hidden] { display: none !important; }
+    .auth.is-hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -114,7 +124,7 @@
 
       <form id="composer" class="composer" autocomplete="off">
         <label class="input" for="text">
-          <input id="text" name="text" placeholder="Type a message…  (try /me waves or /clear)" />
+          <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
         </label>
         <button class="send" id="send" type="submit">Send</button>
       </form>
@@ -174,18 +184,16 @@
         catch { return ''; }
       },
       set user(v) {
-        try {
-          v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username');
-        } catch {}
+        try { v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username'); }
+        catch {}
       },
       get wsURL() {
         try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
         catch { return defaultWS(); }
       },
       set wsURL(v) {
-        try {
-          v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url');
-        } catch {}
+        try { v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url'); }
+        catch {}
       },
       pushMsg(m) {
         try {
@@ -211,7 +219,7 @@
     function defaultWS(){
       const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname)) ? 'chat.chaines.io' : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host.replace(/:\\d+$/, '') + '/ws';
+      return proto + host.replace(/:\d+$/, '') + '/ws';
     }
 
     function setStatus(mode){
@@ -252,38 +260,61 @@
 
     // --- Auth flow ---
     function requireAuth(){
-      if(store.user){
+      if (store.user) {
         enterChat(store.user);
       } else {
         auth.hidden = false;
-        setTimeout(() => usernameInput.focus(), 50);
+        auth.classList.remove('is-hidden');
+        auth.style.display = 'grid';
+        setTimeout(() => usernameInput && usernameInput.focus(), 50);
       }
     }
 
     function enterChat(name){
-      store.user = (name || 'guest-' + Math.floor(Math.random()*9999)).trim();
+      const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
+      store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       userName.textContent = '@' + store.user;
       userChip.style.display = 'inline-flex';
-      auth.hidden = true;
+
+      // decisively hide overlay
+      auth.classList.add('is-hidden');
+      auth.setAttribute('hidden','');
+      auth.style.display = 'none';
+
       renderHistory();
-      connectWS();
-      setupLocal();
-      input.focus();
+      if (!socket || socket.readyState > 1) connectWS();
+      if (!bc) setupLocal();
+      input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
     }
 
     enterBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      const v = usernameInput.value.replace(/[^a-zA-Z0-9_\-\.]/g,'').slice(0,24);
-      if(!v){ usernameInput.focus(); return; }
+      const v = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       enterChat(v);
     });
-    skipBtn.addEventListener('click', (e) => { e.preventDefault(); enterChat('guest-' + Math.floor(Math.random()*9999)); });
+
+    skipBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      enterChat('guest-' + Math.floor(Math.random()*9999));
+    });
+
+    // Enter key on username field
+    usernameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); enterBtn.click(); }
+    });
 
     logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; location.reload(); });
 
-    wsEdit.addEventListener('click', () => { wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none'; wsUrlInput.value = store.wsURL; });
-    el('#save-ws').addEventListener('click', (e) => { e.preventDefault(); store.wsURL = wsUrlInput.value.trim(); alert('Saved WebSocket URL.'); });
+    wsEdit.addEventListener('click', () => {
+      wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
+      wsUrlInput.value = store.wsURL;
+    });
+    el('#save-ws').addEventListener('click', (e) => {
+      e.preventDefault();
+      store.wsURL = wsUrlInput.value.trim();
+      alert('Saved WebSocket URL.');
+    });
 
     // --- Messaging ---
     form.addEventListener('submit', ev => {
@@ -406,7 +437,7 @@
       return `${h}:${m}`;
     }
     function initials(name){
-      const parts = name.replace(/[^a-zA-Z0-9_\-\.]/g,' ').trim().split(/\s+|[_.-]/).filter(Boolean);
+      const parts = name.replace(/[^a-zA-Z0-9_\-.]/g,' ').trim().split(/\s+|[_.-]/).filter(Boolean);
       const a = (parts[0]||'?')[0]||'?';
       const b = (parts[1]||'')[0]||'';
       return (a + b).toUpperCase();
