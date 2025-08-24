@@ -1,0 +1,22 @@
+services:
+  # Static site for the HTML
+  - type: web
+    name: chaines-chat-site
+    runtime: static
+    repo: https://github.com/<you>/<repo>.git
+    branch: main
+    buildCommand: ""
+    staticPublishPath: .
+    previews:
+      generation: automatic
+
+  # Node WebSocket fanout
+  - type: web
+    name: chaines-chat-ws
+    runtime: node
+    repo: https://github.com/<you>/<repo>.git
+    rootDir: ws-server
+    plan: starter
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
