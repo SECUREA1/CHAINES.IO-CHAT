@@ -13,6 +13,7 @@ def init_db():
               id        INTEGER PRIMARY KEY AUTOINCREMENT,
               user      TEXT,
               message   TEXT,
+              image     TEXT,
               timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """

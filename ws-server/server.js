@@ -124,6 +124,7 @@ wss.on("connection", (ws) => {
       }
     }
     if (msg?.type !== "chat") return;
+    if (msg.image && msg.image.length > 1_000_000) return; // limit ~1MB per image
     msg.ts ||= Date.now();
     msg.id ||= `${msg.ts}-${Math.random().toString(36).slice(2,8)}`;
     history.push(msg);

@@ -27,13 +27,13 @@ def chat_connect():
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, timestamp FROM chat_messages
+            SELECT user, message, image, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
         )
         rows = c.fetchall()
-        history = [{"user": r[0], "message": r[1], "timestamp": r[2]} for r in rows]
+        history = [{"user": r[0], "message": r[1], "image": r[2], "timestamp": r[3]} for r in rows]
     safe_emit('chat_history', history, to=request.sid)
     safe_emit(
         'active_user_update',
@@ -48,29 +48,33 @@ def get_chat_history():
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, timestamp FROM chat_messages
+            SELECT user, message, image, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
         )
         rows = c.fetchall()
-        history = [{"user": r[0], "message": r[1], "timestamp": r[2]} for r in rows]
+        history = [{"user": r[0], "message": r[1], "image": r[2], "timestamp": r[3]} for r in rows]
     emit('chat_history', history)
 
 
 @socketio.on('chat_message')
 def handle_chat_message(data):
     msg = (data.get('message') or '').strip()
-    if not msg:
+    img = data.get('image')
+    if not msg and not img:
         return
     if not current_user.is_authenticated:
         emit('chat_error', 'Login required to send messages.')
         return
     username = current_user.username
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('INSERT INTO chat_messages (user, message) VALUES (?, ?)', (username, msg))
+        conn.execute(
+            'INSERT INTO chat_messages (user, message, image) VALUES (?, ?, ?)',
+            (username, msg, img),
+        )
         conn.commit()
-    safe_emit('chat_message', {'user': username, 'message': msg})
+    safe_emit('chat_message', {'user': username, 'message': msg, 'image': img})
 
 
 @socketio.on('search_chat')
@@ -83,14 +87,14 @@ def search_chat(data):
         c = conn.cursor()
         c.execute(
             """
-            SELECT user, message, timestamp FROM chat_messages
+            SELECT user, message, image, timestamp FROM chat_messages
             WHERE timestamp >= datetime('now', '-1 day') AND (message LIKE ? OR user LIKE ?)
             ORDER BY timestamp
             """,
             (f'%{query}%', f'%{query}%'),
         )
         rows = c.fetchall()
-        results = [{"user": r[0], "message": r[1], "timestamp": r[2]} for r in rows]
+        results = [{"user": r[0], "message": r[1], "image": r[2], "timestamp": r[3]} for r in rows]
     emit('chat_search_results', results)
 
 
