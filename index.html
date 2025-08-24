@@ -318,7 +318,8 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', startBroadcast);
+    broadcastBtn.addEventListener('click', () => broadcasting ? endBroadcast() : startBroadcast());
+    window.addEventListener('beforeunload', () => endBroadcast(true));
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -555,6 +556,8 @@
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
         broadcasting = true;
+        broadcastBtn.textContent = '\u23F9 End';
+        broadcastBtn.title = 'End live broadcast';
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -565,6 +568,27 @@
         sendSignal({ type: 'broadcaster' });
         postMessage({ text: '\uD83D\uDD34 Live broadcast', broadcast: true });
       }).catch(() => alert('Unable to access camera/microphone'));
+    }
+
+    function endBroadcast(forced=false){
+      if(!broadcasting) return;
+      broadcasting = false;
+      broadcastBtn.textContent = '\uD83C\uDFA5 Live';
+      broadcastBtn.title = 'Go live';
+      if(localStream){
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      for(const id in peerConnections){
+        try{ peerConnections[id].close(); }catch{}
+        delete peerConnections[id];
+      }
+      sendSignal({ type: 'end-broadcast' });
+      videoContainer.innerHTML = '';
+      videoContainer.setAttribute('hidden','');
+      const note = forced ? new Date().toLocaleString() :
+        (prompt('Broadcast end comment?') || '').trim();
+      postMessage({ text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
     }
 
     function startWatching(){

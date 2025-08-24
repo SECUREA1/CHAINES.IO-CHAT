@@ -136,6 +136,17 @@ wss.on("connection", (ws) => {
           }
         }
         return;
+      case "end-broadcast":
+        if (ws === broadcaster) {
+          for (const client of wss.clients) {
+            if (client.readyState === 1 && client !== ws) {
+              client.send(JSON.stringify({ type: "bye", id: ws.id }));
+            }
+          }
+          broadcaster = null;
+          broadcastUsers();
+        }
+        return;
       case "watcher":
         if (broadcaster && broadcaster.readyState === 1) {
           broadcaster.send(JSON.stringify({ type: "watcher", id: ws.id }));
