@@ -45,8 +45,12 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-function broadcastUserCount() {
-  const payload = JSON.stringify({ type: "count", count: wss.clients.size });
+function broadcastUsers() {
+  const users = [];
+  for (const client of wss.clients) {
+    if (client.readyState === 1 && client.username) users.push(client.username);
+  }
+  const payload = JSON.stringify({ type: "users", users, count: users.length });
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(payload);
   }
@@ -55,10 +59,15 @@ function broadcastUserCount() {
 wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: history }));
-  broadcastUserCount();
-  ws.on("close", broadcastUserCount);
+  broadcastUsers();
+  ws.on("close", () => broadcastUsers());
   ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
+    if (msg?.type === "join") {
+      ws.username = msg.user || "";
+      broadcastUsers();
+      return;
+    }
     if (msg?.type !== "chat") return;
     msg.ts ||= Date.now();
     msg.id ||= `${msg.ts}-${Math.random().toString(36).slice(2,8)}`;
