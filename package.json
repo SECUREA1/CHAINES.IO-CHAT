@@ -6,5 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "echo 'no tests'"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0"
   }
 }
