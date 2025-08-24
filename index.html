@@ -104,7 +104,7 @@
         </span>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
-          <button id="logout" class="btn ghost" style="padding:6px 10px">Switch</button>
+          <button id="logout" class="btn ghost" style="padding:6px 10px" type="button">Switch</button>
         </span>
       </div>
     </header>
@@ -134,13 +134,13 @@
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
       </div>
       <div class="actions">
-        <button class="btn primary" id="enter">Enter Chat</button>
-        <button class="btn ghost" id="skip">Continue as Guest</button>
+        <button class="btn primary" id="enter" type="button">Enter Chat</button>
+        <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
       </div>
       <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
         <input id="ws-url" placeholder="wss://chat.chaines.io/ws (optional)" />
-        <button class="btn ghost" id="save-ws">Save Socket URL</button>
+        <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
       </div>
     </div>
   </section>
@@ -256,17 +256,18 @@
       systemNote(`You are signed in as @${store.user}.`);
     }
 
-    enterBtn.addEventListener('click', () => {
+    enterBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       const v = usernameInput.value.replace(/[^a-zA-Z0-9_\-\.]/g,'').slice(0,24);
       if(!v){ usernameInput.focus(); return; }
       enterChat(v);
     });
-    skipBtn.addEventListener('click', () => enterChat('guest-' + Math.floor(Math.random()*9999)));
+    skipBtn.addEventListener('click', (e) => { e.preventDefault(); enterChat('guest-' + Math.floor(Math.random()*9999)); });
 
-    logoutBtn.addEventListener('click', () => { store.user=''; location.reload(); });
+    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; location.reload(); });
 
     wsEdit.addEventListener('click', () => { wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none'; wsUrlInput.value = store.wsURL; });
-    el('#save-ws').addEventListener('click', () => { store.wsURL = wsUrlInput.value.trim(); alert('Saved WebSocket URL.'); });
+    el('#save-ws').addEventListener('click', (e) => { e.preventDefault(); store.wsURL = wsUrlInput.value.trim(); alert('Saved WebSocket URL.'); });
 
     // --- Messaging ---
     form.addEventListener('submit', ev => {
