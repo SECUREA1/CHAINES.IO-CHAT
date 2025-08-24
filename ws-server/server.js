@@ -54,7 +54,13 @@ function uid(){
 function broadcastUsers() {
   const users = [];
   for (const client of wss.clients) {
-    if (client.readyState === 1 && client.username) users.push(client.username);
+    if (client.readyState === 1 && client.username) {
+      users.push({
+        name: client.username,
+        id: client.id,
+        live: client === broadcaster,
+      });
+    }
   }
   const payload = JSON.stringify({ type: "users", users, count: users.length });
   for (const client of wss.clients) {
