@@ -110,6 +110,9 @@
     .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); }
     .users-panel li:last-child { border-bottom:0; }
 
+    #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
+    #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -137,6 +140,7 @@
         <span class="chip" id="live-chip" title="Users online">
           <span id="live-count">0</span> online
         </span>
+        <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
@@ -147,6 +151,7 @@
     </header>
 
     <main>
+      <div id="video-container" hidden></div>
       <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
 
       <form id="composer" class="composer" autocomplete="off">
@@ -212,6 +217,8 @@
     const modeToggle = el('#mode-toggle');
     const userList = el('#user-list');
     const usersEl = el('#users');
+    const broadcastBtn = el('#broadcast-btn');
+    const videoContainer = el('#video-container');
 
     el('#year').textContent = new Date().getFullYear();
 
@@ -278,12 +285,20 @@
         connectWS();
       }
     });
+    broadcastBtn.addEventListener('click', startBroadcast);
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
     let bc = null;
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
+
+    // --- WebRTC state ---
+    const peerConnections = {};
+    let localStream = null;
+    let clientId = null;
+    let hostId = null;
+    let broadcasting = false;
     function updateUsers(list){
       liveCount.textContent = list.length;
       usersEl.innerHTML = '';
@@ -336,6 +351,13 @@
             feed.innerHTML = '';
             (data.messages || []).forEach(m => receive(m));
           }
+          if(data && data.type === 'id') clientId = data.id;
+          if(data && data.type === 'broadcaster'){ hostId = data.id; if(!broadcasting) startWatching(); }
+          if(data && data.type === 'watcher') handleWatcher(data.id);
+          if(data && data.type === 'offer') handleOffer(data);
+          if(data && data.type === 'answer') handleAnswer(data);
+          if(data && data.type === 'candidate') handleCandidate(data);
+          if(data && data.type === 'bye') handleBye(data);
         } catch {}
       });
     }
@@ -445,6 +467,80 @@
 
       // Send to server if available
       try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
+    }
+
+    // --- WebRTC helpers ---
+    function startBroadcast(){
+      if(broadcasting) return;
+      navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
+        localStream = stream;
+        broadcasting = true;
+        videoContainer.removeAttribute('hidden');
+        const vid = document.createElement('video');
+        vid.srcObject = stream;
+        vid.muted = true;
+        vid.autoplay = true;
+        vid.playsInline = true;
+        videoContainer.appendChild(vid);
+        sendSignal({ type: 'broadcaster' });
+      }).catch(() => alert('Unable to access camera/microphone'));
+    }
+
+    function startWatching(){
+      videoContainer.removeAttribute('hidden');
+      sendSignal({ type: 'watcher' });
+    }
+
+    function handleWatcher(id){
+      const pc = new RTCPeerConnection();
+      peerConnections[id] = pc;
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
+      pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
+        sendSignal({ type:'offer', id, sdp: pc.localDescription });
+      });
+    }
+
+    function handleOffer(msg){
+      const pc = new RTCPeerConnection();
+      peerConnections[msg.id] = pc;
+      pc.ontrack = ev => {
+        const vid = document.createElement('video');
+        vid.srcObject = ev.streams[0];
+        vid.autoplay = true;
+        vid.playsInline = true;
+        videoContainer.appendChild(vid);
+        pc._video = vid;
+      };
+      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
+      pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+        .then(() => pc.createAnswer())
+        .then(ans => pc.setLocalDescription(ans))
+        .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
+    }
+
+    function handleAnswer(msg){
+      const pc = peerConnections[msg.id];
+      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+    }
+
+    function handleCandidate(msg){
+      const pc = peerConnections[msg.id];
+      if(pc && msg.candidate) pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+    }
+
+    function handleBye(msg){
+      const pc = peerConnections[msg.id];
+      if(pc){
+        if(pc._video) pc._video.remove();
+        pc.close();
+        delete peerConnections[msg.id];
+      }
+      if(!videoContainer.children.length) videoContainer.setAttribute('hidden','');
+    }
+
+    function sendSignal(data){
+      try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
     function receive(m, isLocal=false){
