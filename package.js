@@ -1,0 +1,7 @@
+{
+  "name": "chaines-chat-ws",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.js", "build": "echo no-build" },
+  "dependencies": { "ws": "^8.18.0" }
+}
