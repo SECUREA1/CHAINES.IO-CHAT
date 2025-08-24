@@ -110,6 +110,31 @@
     .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); }
     .users-panel li:last-child { border-bottom:0; }
 
+    .live-btn {
+      margin-left:6px;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 6px;
+      border:1px solid var(--lining);
+      border-radius:8px;
+      background:color-mix(in oklab, var(--panel), transparent 10%);
+      cursor:pointer;
+      color:var(--fg);
+      font-size:12px;
+    }
+    .live-dot {
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--danger);
+      animation: live-pulse 1s infinite;
+    }
+    @keyframes live-pulse {
+      0%, 100% { opacity:1; }
+      50% { opacity:0.2; }
+    }
+
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
@@ -304,9 +329,24 @@
       usersEl.innerHTML = '';
       list.forEach(u => {
         const li = document.createElement('li');
-        li.textContent = '@' + u;
+        const name = typeof u === 'string' ? u : u.name;
+        li.appendChild(document.createTextNode('@' + name));
+        if(u.live && u.id !== clientId){
+          const btn = document.createElement('button');
+          btn.className = 'live-btn';
+          btn.innerHTML = '<span class="live-dot" aria-hidden="true"></span>Live';
+          btn.title = 'Watch live stream';
+          btn.setAttribute('aria-label', 'Watch ' + name + ' live');
+          btn.addEventListener('click', () => watchLive(u.id));
+          li.appendChild(btn);
+        }
         usersEl.appendChild(li);
       });
+    }
+
+    function watchLive(id){
+      hostId = id;
+      startWatching();
     }
     function sendJoin(){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
