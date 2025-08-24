@@ -11,7 +11,6 @@ Single-page chat client for chaines.io with optional WebSocket backend.
 
 2. **WebSocket server** (optional)
    - Type: *Web Service*
-   - Root Directory: `ws-server`
    - Build Command: `npm ci`
    - Start Command: `node server.js`
    - Health Check Path: `/healthz`
