@@ -318,7 +318,9 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', startBroadcast);
+    broadcastBtn.addEventListener('click', () => {
+      broadcasting ? stopBroadcast() : startBroadcast();
+    });
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -555,6 +557,7 @@
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
         broadcasting = true;
+        broadcastBtn.textContent = 'End Stream';
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -563,7 +566,32 @@
         vid.playsInline = true;
         videoContainer.appendChild(vid);
         sendSignal({ type: 'broadcaster' });
+        postMessage({
+          text: '*started a live stream*',
+          broadcast: clientId,
+          fileType: 'broadcast',
+          isAction: true
+        });
       }).catch(() => alert('Unable to access camera/microphone'));
+    }
+
+    function stopBroadcast(){
+      if(!broadcasting) return;
+      broadcasting = false;
+      broadcastBtn.textContent = '🎥 Live';
+      sendSignal({ type: 'end-broadcast' });
+      if(localStream){
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      for(const id in peerConnections){
+        const pc = peerConnections[id];
+        try { pc.close(); } catch {}
+        if(pc._video) pc._video.remove();
+        delete peerConnections[id];
+      }
+      videoContainer.innerHTML = '';
+      videoContainer.setAttribute('hidden','');
     }
 
     function startWatching(){
@@ -615,6 +643,11 @@
         if(pc._video) pc._video.remove();
         pc.close();
         delete peerConnections[msg.id];
+      }
+      if(msg.id === hostId) hostId = null;
+      if(msg.id === clientId){
+        broadcasting = false;
+        broadcastBtn.textContent = '🎥 Live';
       }
       if(!videoContainer.children.length) videoContainer.setAttribute('hidden','');
     }
@@ -672,7 +705,7 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
-      const fileData = m.file || m.image || m.video || m.broadcast;
+      const fileData = m.file || m.image || m.video;
       if(fileData){
         const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
         const filename = m.fileName || m.name || '';
@@ -715,6 +748,15 @@
           link.download = filename || 'file';
           bubble.appendChild(link);
         }
+      }
+      if(m.broadcast && m.fileType === 'broadcast'){
+        const btn = document.createElement('button');
+        btn.className = 'live-btn';
+        btn.innerHTML = '<span class="live-dot" aria-hidden="true"></span>Watch Stream';
+        btn.title = 'Watch live stream';
+        btn.setAttribute('aria-label', 'Watch live stream');
+        btn.addEventListener('click', () => watchLive(m.broadcast));
+        bubble.appendChild(btn);
       }
 
       if(mine){
