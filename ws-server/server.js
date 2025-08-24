@@ -1,6 +1,6 @@
 // server.js
 import http from "http";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
@@ -10,6 +10,14 @@ const PORT = process.env.PORT || 10000; // Render provides PORT
 // Locate repo root to serve the client HTML
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+
+const HISTORY_FILE = path.join(ROOT, "chat-history.json");
+let history = [];
+try {
+  history = JSON.parse(await readFile(HISTORY_FILE, "utf8"));
+} catch {
+  history = [];
+}
 
 const server = http.createServer(async (req, res) => {
   if (req.url === "/healthz") {
@@ -37,13 +45,26 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 
+function broadcastUserCount() {
+  const payload = JSON.stringify({ type: "count", count: wss.clients.size });
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
 wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
-  ws.on("message", (raw) => {
+  ws.send(JSON.stringify({ type: "history", messages: history }));
+  broadcastUserCount();
+  ws.on("close", broadcastUserCount);
+  ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     if (msg?.type !== "chat") return;
     msg.ts ||= Date.now();
     msg.id ||= `${msg.ts}-${Math.random().toString(36).slice(2,8)}`;
+    history.push(msg);
+    if (history.length > 200) history.shift();
+    try { await writeFile(HISTORY_FILE, JSON.stringify(history)); } catch {}
     // broadcast
     for (const client of wss.clients) {
       if (client.readyState === 1) client.send(JSON.stringify(msg));

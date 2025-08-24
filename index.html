@@ -112,6 +112,9 @@
           <span class="dot off" id="conn-dot"></span>
           <span id="conn-label">Offline</span>
         </span>
+        <span class="chip" id="live-chip" title="Users online">
+          <span id="live-count">0</span> online
+        </span>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
           <button id="logout" class="btn ghost" style="padding:6px 10px" type="button">Switch</button>
@@ -171,6 +174,7 @@
     const connDot = el('#conn-dot');
     const connLabel = el('#conn-label');
     const connChip = el('#conn-chip');
+    const liveCount = el('#live-count');
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
     const wsUrlInput = el('#ws-url');
@@ -226,8 +230,8 @@
       onlineMode = mode;
       connDot.classList.remove('ok','local','off');
       if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
-      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; }
-      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; }
+      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; liveCount.textContent = '0'; }
+      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; liveCount.textContent = '0'; }
     }
 
     function connectWS(){
@@ -245,6 +249,12 @@
           const data = JSON.parse(ev.data);
           if(data && data.type === 'chat') receive(data);
           if(data && data.type === 'system') systemNote(data.text);
+          if(data && data.type === 'count') liveCount.textContent = data.count;
+          if(data && data.type === 'history') {
+            store.clearMsgs();
+            feed.innerHTML = '';
+            (data.messages || []).forEach(m => receive(m));
+          }
         } catch {}
       });
     }
@@ -359,6 +369,7 @@
       if(!m || seen.has(m.id)) return;
       seen.add(m.id);
       appendMessage(m);
+      if(!isLocal) store.pushMsg(m);
     }
 
     function renderHistory(){
