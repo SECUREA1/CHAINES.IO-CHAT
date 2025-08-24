@@ -187,7 +187,7 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
         </label>
-        <input id="file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif,video/*,audio/*,model/gltf+json,model/gltf-binary,.gltf,.glb" hidden />
+        <input id="file" type="file" accept="*/*" hidden />
         <button class="send" id="attach" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit">Send</button>
       </form>
@@ -361,7 +361,7 @@
     }
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
+      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
         ? 'chaines-io-chat.onrender.com'
         : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -499,27 +499,26 @@
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
-      if(!file) return;
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const data = reader.result;
-        const payload = {
+        const dataUrl = reader.result;
+        const msg = {
+          file: dataUrl,
           fileName: file.name,
           fileType: file.type
         };
-        const isImage = file.type.startsWith('image/');
-        if(isImage && data.length <= 1_000_000){
-          payload.image = data;
-        } else {
-          payload.file = data;
+        if (file.type.startsWith('image/')) {
+          msg.image = dataUrl;
+          msg.name = file.name;
         }
-        postMessage(payload);
+        postMessage(msg);
       };
       reader.readAsDataURL(file);
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, file, fileName, fileType, isAction=false }){
+    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
@@ -527,8 +526,9 @@
         text: text,
         image: image,
         file: file,
-        fileName: fileName,
+        fileName: fileName || name,
         fileType: fileType,
+        name: fileName || name,
         isAction,
         ts: Date.now()
       };
@@ -667,27 +667,27 @@
 
       bubble.appendChild(meta);
       bubble.appendChild(text);
-      const data = m.image || m.file;
-      if(data){
-        const mime = m.fileType || (data.match(/^data:(.*?);/) || [])[1] || '';
+      const fileData = m.file || m.image;
+      if(fileData){
+        const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
         const filename = m.fileName || m.name || '';
         const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
         if(mime.startsWith('video/')){
           const vid = document.createElement('video');
-          vid.src = data;
+          vid.src = fileData;
           vid.controls = true;
           vid.style.maxWidth = '100%';
           vid.style.borderRadius = '8px';
           bubble.appendChild(vid);
         } else if(mime.startsWith('audio/')){
           const aud = document.createElement('audio');
-          aud.src = data;
+          aud.src = fileData;
           aud.controls = true;
           aud.style.width = '100%';
           bubble.appendChild(aud);
         } else if(isModel){
           const model = document.createElement('model-viewer');
-          model.src = data;
+          model.src = fileData;
           model.alt = filename || '3D model';
           model.style.width = '100%';
           model.style.height = '300px';
@@ -697,7 +697,7 @@
           bubble.appendChild(model);
         } else if(mime.startsWith('image/')){
           const img = document.createElement('img');
-          img.src = data;
+          img.src = fileData;
           img.alt = filename || 'image';
           img.style.maxWidth = '100%';
           img.style.borderRadius = '8px';
@@ -705,7 +705,7 @@
           bubble.appendChild(img);
         } else {
           const link = document.createElement('a');
-          link.href = data;
+          link.href = fileData;
           link.textContent = filename || 'download';
           link.download = filename || 'file';
           bubble.appendChild(link);
