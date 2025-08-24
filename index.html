@@ -18,8 +18,12 @@
       --shadow: 0 6px 24px rgba(0,0,0,.25);
       --radius: 16px;
     }
-    @media (prefers-color-scheme: light) {
-      :root { --bg:#f6f8fc; --panel:#ffffff; --fg:#0d1726; --muted:#5a6a85; --shadow: 0 6px 24px rgba(0,0,0,.08); }
+    :root[data-theme='light']{
+      --bg:#f6f8fc;
+      --panel:#ffffff;
+      --fg:#0d1726;
+      --muted:#5a6a85;
+      --shadow: 0 6px 24px rgba(0,0,0,.08);
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -43,15 +47,16 @@
     .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid rgba(255,255,255,.08);
             border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); }
+    #live-chip, #theme-toggle { cursor:pointer; }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
     .dot.ok { background: var(--accent); }
     .dot.local { background: #ffb020; }
     .dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
 
-    main { display:grid; grid-template-rows: 1fr auto; gap:0; padding:0 18px 18px; }
+    main { display:flex; flex-direction:column; gap:0; padding:0 18px 18px; flex:1; }
 
-    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); min-height: 50vh; max-height: calc(100vh - 240px); overflow-y: auto; box-shadow: var(--shadow); }
+    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); }
     .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; }
     .msg.mine { grid-template-columns: 1fr 36px; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid rgba(255,255,255,.06); }
@@ -95,6 +100,12 @@
     footer { padding: 8px 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
     a { color: var(--accent-2); }
 
+    .users-panel { position:fixed; top:60px; right:20px; padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
+    .users-panel h3 { margin:0 0 8px; font-size:14px; }
+    .users-panel ul { list-style:none; margin:0; padding:0; }
+    .users-panel li { padding:4px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+    .users-panel li:last-child { border-bottom:0; }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -119,6 +130,7 @@
           <span class="usr" id="user-name"></span>
           <button id="logout" class="btn ghost" style="padding:6px 10px" type="button">Switch</button>
         </span>
+        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
       </div>
     </header>
 
@@ -136,6 +148,11 @@
     <footer>
       © <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a>
     </footer>
+  </div>
+
+  <div id="user-list" class="users-panel" hidden>
+    <h3>Online now</h3>
+    <ul id="users"></ul>
   </div>
 
   <!-- Auth overlay -->
@@ -178,6 +195,10 @@
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
     const wsUrlInput = el('#ws-url');
+    const liveChip = el('#live-chip');
+    const themeToggle = el('#theme-toggle');
+    const userList = el('#user-list');
+    const usersEl = el('#users');
 
     el('#year').textContent = new Date().getFullYear();
 
@@ -199,6 +220,14 @@
         try { v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url'); }
         catch {}
       },
+      get theme() {
+        try { return localStorage.getItem('chaines_theme') || ''; }
+        catch { return ''; }
+      },
+      set theme(v) {
+        try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
+        catch {}
+      },
       pushMsg(m) {
         try {
           const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
@@ -214,11 +243,36 @@
       }
     };
 
+    function applyTheme(t){
+      document.documentElement.dataset.theme = t;
+      themeToggle.textContent = t === 'light' ? '🌙' : '☀️';
+    }
+    const initialTheme = store.theme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    applyTheme(initialTheme);
+    themeToggle.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      store.theme = next;
+      applyTheme(next);
+    });
+    liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
+
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
     let bc = null;
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
+    function updateUsers(list){
+      liveCount.textContent = list.length;
+      usersEl.innerHTML = '';
+      list.forEach(u => {
+        const li = document.createElement('li');
+        li.textContent = '@' + u;
+        usersEl.appendChild(li);
+      });
+    }
+    function sendJoin(){
+      try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
+    }
 
     function defaultWS(){
       const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
@@ -232,8 +286,8 @@
       onlineMode = mode;
       connDot.classList.remove('ok','local','off');
       if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
-      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; liveCount.textContent = '0'; }
-      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; liveCount.textContent = '0'; }
+      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; updateUsers([]); }
+      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; updateUsers([]); }
     }
 
     function connectWS(){
@@ -243,7 +297,7 @@
         socket = new WebSocket(url);
       } catch { setStatus('off'); return; }
 
-      socket.addEventListener('open', () => setStatus('cloud'));
+      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
       socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('message', ev => {
@@ -251,6 +305,7 @@
           const data = JSON.parse(ev.data);
           if(data && data.type === 'chat') receive(data);
           if(data && data.type === 'system') systemNote(data.text);
+          if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
             store.clearMsgs();
@@ -295,6 +350,7 @@
 
       renderHistory();
       if (!socket || socket.readyState > 1) connectWS();
+      else sendJoin();
       if (!bc) setupLocal();
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
