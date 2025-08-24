@@ -25,3 +25,10 @@ The WebSocket server stores the last 200 messages in `chat-history.json` at the
 repository root and automatically sends this history to new connections. It
 also broadcasts the number of currently connected users so the client can
 display a live online count.
+
+### File-type backups
+
+Run `python backup.py` to copy repository files into the `backups/` directory.
+The script uses the same backup process for every file type, storing each
+extension in its own subdirectory and preserving metadata so all files retain
+their information.
