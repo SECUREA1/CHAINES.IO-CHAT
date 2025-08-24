@@ -17,15 +17,17 @@
         --danger: #ff5d6e;
         --shadow: 0 6px 24px rgba(0,0,0,.25);
         --radius: 16px;
+        --lining: rgba(255,255,255,.06);
       }
       :root[data-theme='light']{
-        --bg:#f6f8fc;
+        --bg:#e0f2ff;
         --panel:#ffffff;
         --fg:#0d1726;
         --muted:#5a6a85;
         --accent:#1e88e5;
-        --accent-2:#fdd835;
+        --accent-2:#c0c0c0;
         --shadow: 0 6px 24px rgba(0,0,0,.08);
+        --lining:#c0c0c0;
       }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -39,7 +41,7 @@
       font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
 
-    .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100%; max-width: 980px; margin: 0 auto; }
+    .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100%; width:100%; margin:0; }
 
     header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; }
     .brand { display:flex; align-items:center; gap:10px; }
@@ -47,7 +49,7 @@
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 18px; margin:0; }
 
     .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
-    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid rgba(255,255,255,.08);
+    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
     #live-chip, #theme-toggle, #mode-toggle { cursor:pointer; }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
@@ -56,16 +58,16 @@
     .dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
 
-    main { display:flex; flex-direction:column; gap:0; padding:0 18px 18px; flex:1; }
+    main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
 
     .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); }
-    .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; }
+    .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; width:100%; }
     .msg.mine { grid-template-columns: 1fr 36px; }
-    .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid rgba(255,255,255,.06); }
+    .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
     .msg.mine .avatar { order:2; background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
 
-    .bubble { position:relative; padding:10px 12px 8px; border-radius: 12px; background: #101521; border: 1px solid rgba(255,255,255,.06); box-shadow: var(--shadow); }
-    .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 80%); border-color: color-mix(in oklab, var(--accent), transparent 65%); }
+    .bubble { position:relative; padding:10px 12px 8px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); width:100%; }
+    .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 80%); border-color: var(--lining); }
 
     .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
     .who { font-weight:700; color: var(--fg); }
@@ -79,7 +81,7 @@
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
     .composer { display:grid; grid-template-columns: 1fr auto; gap:10px; margin-top: 12px; }
-    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid rgba(255,255,255,.08); box-shadow: var(--shadow); }
+    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { padding:10px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
@@ -87,25 +89,25 @@
 
     /* Auth screen */
     .auth { position: fixed; inset:0; display:grid; place-items:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); }
-    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: var(--panel); border: 1px solid rgba(255,255,255,.1); box-shadow: var(--shadow); }
+    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: var(--panel); border: 1px solid var(--lining); box-shadow: var(--shadow); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
-    .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: #0d1320; color: var(--fg); font: inherit; }
+    .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; }
     .actions { display:flex; gap:10px; margin-top:12px; }
     .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; }
     .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
-    .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid rgba(255,255,255,.16); }
+    .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
 
     footer { padding: 8px 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
     a { color: var(--accent-2); }
 
-    .users-panel { position:fixed; top:60px; right:20px; padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
+    .users-panel { position:fixed; top:60px; right:20px; padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid var(--lining); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
     .users-panel h3 { margin:0 0 8px; font-size:14px; }
     .users-panel ul { list-style:none; margin:0; padding:0; }
-    .users-panel li { padding:4px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+    .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); }
     .users-panel li:last-child { border-bottom:0; }
 
     /* ✅ make hidden actually hide, even with .auth display rules */
@@ -251,7 +253,7 @@
       document.documentElement.dataset.theme = t;
       themeToggle.textContent = t === 'light' ? '🌙' : '☀️';
     }
-    const initialTheme = store.theme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const initialTheme = store.theme || 'light';
     applyTheme(initialTheme);
     themeToggle.addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
