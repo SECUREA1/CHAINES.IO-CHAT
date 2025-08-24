@@ -221,9 +221,11 @@
     const seen = new Set();
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname)) ? 'chat.chaines.io' : location.host;
+      const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
+        ? 'chat.chaines.io'
+        : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host.replace(/:\d+$/, '') + '/ws';
+      return proto + host + '/ws';
     }
 
     function setStatus(mode){
