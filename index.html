@@ -318,7 +318,8 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', startBroadcast);
+    broadcastBtn.addEventListener('click', () => broadcasting ? endBroadcast() : startBroadcast());
+    window.addEventListener('beforeunload', () => endBroadcast(true));
 
     // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
     let socket = null;
@@ -332,6 +333,8 @@
     let clientId = null;
     let hostId = null;
     let broadcasting = false;
+    let mediaRecorder = null;
+    let recordedChunks = [];
     function updateUsers(list){
       liveCount.textContent = list.length;
       usersEl.innerHTML = '';
@@ -554,7 +557,15 @@
       if(broadcasting) return;
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
+        recordedChunks = [];
+        try {
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+          mediaRecorder.start();
+        } catch {}
         broadcasting = true;
+        broadcastBtn.textContent = '\u23F9 End';
+        broadcastBtn.title = 'End live broadcast';
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -565,6 +576,50 @@
         sendSignal({ type: 'broadcaster' });
         postMessage({ text: '\uD83D\uDD34 Live broadcast', broadcast: true });
       }).catch(() => alert('Unable to access camera/microphone'));
+    }
+
+    function endBroadcast(forced=false){
+      if(!broadcasting) return;
+      broadcasting = false;
+      broadcastBtn.textContent = '\uD83C\uDFA5 Live';
+      broadcastBtn.title = 'Go live';
+      const note = forced ? new Date().toLocaleString() :
+        (prompt('Broadcast end comment?') || '').trim();
+      const hadRecorder = !!mediaRecorder;
+      if(mediaRecorder){
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result;
+            postMessage({
+              text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`,
+              video: dataUrl,
+              file: dataUrl,
+              fileName: `broadcast-${Date.now()}.webm`,
+              fileType: 'video/webm',
+              broadcast: true
+            });
+          };
+          reader.readAsDataURL(blob);
+        };
+        try { mediaRecorder.stop(); } catch {}
+        mediaRecorder = null;
+      }
+      if(localStream){
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      for(const id in peerConnections){
+        try{ peerConnections[id].close(); }catch{}
+        delete peerConnections[id];
+      }
+      sendSignal({ type: 'end-broadcast' });
+      videoContainer.innerHTML = '';
+      videoContainer.setAttribute('hidden','');
+      if(!hadRecorder){
+        postMessage({ text: `\u23F9 Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
+      }
     }
 
     function startWatching(){
