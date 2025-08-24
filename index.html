@@ -61,16 +61,19 @@
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
 
     .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); }
-    .msg { display:grid; grid-template-columns: 36px 1fr; gap:10px; margin-bottom:14px; width:100%; }
-    .msg.mine { grid-template-columns: 1fr 36px; }
+    .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; }
+    .msg.mine { flex-direction: row-reverse; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
-    .msg.mine .avatar { order:2; background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
+    .msg.mine .avatar { background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
 
-    .bubble { position:relative; padding:10px 12px 8px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); width:100%; }
+    .bubble { flex:1; position:relative; padding:10px 12px 8px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); }
     .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 80%); border-color: var(--lining); }
 
     .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
     .who { font-weight:700; color: var(--fg); }
+
+    .msg.mine .meta { justify-content:flex-end; }
+    .msg.mine .msg-text { text-align:right; }
 
     .msg-text { white-space: pre-wrap; word-wrap: break-word; }
 
@@ -634,7 +637,6 @@
       bubble.appendChild(text);
 
       if(mine){
-        li.appendChild(document.createElement('div')); // placeholder for grid alignment
         li.appendChild(bubble);
         li.appendChild(av);
       } else {
