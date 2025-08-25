@@ -768,6 +768,7 @@
         vid.playsInline = true;
         videoContainer.appendChild(vid);
         sendSignal({ type: 'broadcaster' });
+        postMessage({ text: '🔴 Broadcast started', broadcast: true });
       }).catch(() => alert('Unable to access camera/microphone'));
     }
 
