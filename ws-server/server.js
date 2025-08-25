@@ -25,7 +25,21 @@ db.exec(`
     file_name TEXT,
     file_type TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+  );
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER,
+    user TEXT,
+    text TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS likes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER,
+    user TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(message_id, user)
+  );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 
@@ -35,6 +49,25 @@ function loadHistory() {
       `SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id`
     )
     .all();
+  const commentRows = db
+    .prepare(
+      `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
+    )
+    .all();
+  const likeRows = db
+    .prepare(`SELECT message_id, COUNT(*) as c FROM likes GROUP BY message_id`)
+    .all();
+  const comments = {};
+  for (const c of commentRows) {
+    (comments[c.message_id] ||= []).push({
+      id: c.id,
+      user: c.user,
+      text: c.text,
+      ts: c.ts,
+    });
+  }
+  const likes = {};
+  for (const l of likeRows) likes[l.message_id] = l.c;
   return rows.map((r) => ({
     type: "chat",
     id: r.id,
@@ -46,6 +79,8 @@ function loadHistory() {
     fileName: r.file_name,
     fileType: r.file_type,
     ts: r.ts,
+    likes: likes[r.id] || 0,
+    comments: comments[r.id] || [],
   }));
 }
 
@@ -195,6 +230,42 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "comment": {
+        if (!msg.messageId || !msg.text) return;
+        const info = db
+          .prepare(
+            "INSERT INTO comments (message_id, user, text) VALUES (?, ?, ?)"
+          )
+          .run(msg.messageId, msg.user || "", msg.text);
+        const out = {
+          type: "comment",
+          id: info.lastInsertRowid,
+          messageId: msg.messageId,
+          user: msg.user || "",
+          text: msg.text,
+          ts: Date.now(),
+        };
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(JSON.stringify(out));
+        }
+        return;
+      }
+      case "like": {
+        if (!msg.messageId) return;
+        db
+          .prepare(
+            "INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)"
+          )
+          .run(msg.messageId, msg.user || "");
+        const count = db
+          .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
+          .get(msg.messageId).c;
+        const payload = { type: "like", messageId: msg.messageId, count };
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(JSON.stringify(payload));
+        }
+        return;
+      }
       case "offer":
       case "answer":
       case "candidate":
@@ -232,6 +303,8 @@ wss.on("connection", (ws) => {
     );
     msg.id = info.lastInsertRowid;
     msg.message = text;
+    msg.likes = 0;
+    msg.comments = [];
     if (fileName) {
       msg.file_name = fileName;
       msg.fileName = fileName;
