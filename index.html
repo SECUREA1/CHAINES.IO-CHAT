@@ -283,6 +283,8 @@
     const videoContainer = el('#video-container');
     const streamsEl = el('#streams');
     const streams = {};
+    let pendingJoinHost = null;
+    let joinApproved = false;
 
     el('#year').textContent = new Date().getFullYear();
 
@@ -349,7 +351,19 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', () => broadcasting ? endBroadcast() : startBroadcast());
+    broadcastBtn.addEventListener('click', () => {
+      if (broadcasting) { endBroadcast(); return; }
+      const others = Object.keys(streams).filter(id => id !== clientId);
+      if (others.length > 0 && !joinApproved) {
+        const hostId = others[0];
+        pendingJoinHost = hostId;
+        sendSignal({ type: 'join-request', id: hostId, user: store.user });
+        broadcastBtn.disabled = true;
+        broadcastBtn.textContent = '⏳ Pending';
+      } else {
+        startBroadcast();
+      }
+    });
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
       for(const id in streams){
@@ -494,6 +508,9 @@
           if(data && data.type === 'answer') handleAnswer(data);
           if(data && data.type === 'candidate') handleCandidate(data);
           if(data && data.type === 'bye') handleBye(data);
+          if(data && data.type === 'join-request') handleJoinRequest(data.id, data.user);
+          if(data && data.type === 'join-approved') handleJoinApproved();
+          if(data && data.type === 'join-denied') handleJoinDenied();
         } catch {}
       });
     }
@@ -675,6 +692,8 @@
     function endBroadcast(forced=false){
       if(!broadcasting) return;
       broadcasting = false;
+      joinApproved = false;
+      broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
       broadcastBtn.classList.remove('live');
@@ -777,6 +796,25 @@
           streams[msg.id].container.classList.remove('open');
         }
       }
+
+    function handleJoinRequest(id, user){
+      const ok = confirm(`Allow @${user || 'user'} to join?`);
+      sendSignal({ type: ok ? 'approve-join' : 'deny-join', id });
+    }
+
+    function handleJoinApproved(){
+      joinApproved = true;
+      broadcastBtn.disabled = false;
+      startBroadcast();
+    }
+
+    function handleJoinDenied(){
+      joinApproved = false;
+      pendingJoinHost = null;
+      broadcastBtn.disabled = false;
+      broadcastBtn.textContent = '🎥 Live';
+      alert('Join request denied or busy.');
+    }
 
     function sendSignal(data){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
