@@ -91,7 +91,7 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: 1fr auto auto; gap:10px; margin-bottom: 12px; }
+    .composer { display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; margin-bottom: 12px; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -233,11 +233,12 @@
         <div id="streams" class="streams"></div>
         <form id="composer" class="composer" autocomplete="off">
           <label class="input" for="text">
-            <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
+            <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
           </label>
         <input id="file" type="file" accept="*/*" hidden />
         <button class="send" id="attach" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit">Send</button>
+        <button class="send" id="cmd-list" type="button" title="Show commands" aria-label="Show commands">📃</button>
       </form>
         <div id="video-container" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
@@ -281,7 +282,15 @@
     const input = el('#text');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
+    const cmdListBtn = el('#cmd-list');
     const defaultPlaceholder = input.placeholder;
+    const actionCommands = {
+      wave: 'waves \u{1F44B}',
+      shrug: 'shrugs \u{1F937}',
+      smile: 'smiles \u{1F642}',
+      laugh: 'laughs \u{1F602}',
+      dance: 'dances \u{1F483}'
+    };
     let pendingFile = null;
     const auth = el('#auth');
     const usernameInput = el('#username');
@@ -693,6 +702,17 @@
           pendingFile = null;
           return;
         }
+        const simpleCmd = raw.match(/^\/([a-z]+)$/i);
+        if(simpleCmd){
+          const act = actionCommands[simpleCmd[1].toLowerCase()];
+          if(act){
+            postMessage({ text: `*${act}*`, isAction:true });
+            input.value='';
+            input.placeholder = defaultPlaceholder;
+            pendingFile = null;
+            return;
+          }
+        }
       }
 
       const msg = { text: raw };
@@ -711,6 +731,9 @@
       pendingFile = null;
     });
 
+    cmdListBtn.addEventListener('click', () => {
+      alert('Available commands:\n' + Object.keys(actionCommands).map(c => '/' + c).join('\n'));
+    });
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
