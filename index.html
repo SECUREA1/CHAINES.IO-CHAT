@@ -838,6 +838,7 @@
         const pc = new RTCPeerConnection();
         peerConnections[msg.id] = pc;
         pc.ontrack = ev => {
+          if(pc._video) return; // avoid duplicate video elements per peer
           const vid = document.createElement('video');
           vid.srcObject = ev.streams[0];
           vid.autoplay = true;
