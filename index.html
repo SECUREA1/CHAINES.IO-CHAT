@@ -338,6 +338,22 @@
         try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
         catch {}
       },
+      get obsRPC() {
+        try { return localStorage.getItem('chaines_obs_rpc') || ''; }
+        catch { return ''; }
+      },
+      set obsRPC(v) {
+        try { v ? localStorage.setItem('chaines_obs_rpc', v) : localStorage.removeItem('chaines_obs_rpc'); }
+        catch {}
+      },
+      get obsKey() {
+        try { return localStorage.getItem('chaines_obs_key') || ''; }
+        catch { return ''; }
+      },
+      set obsKey(v) {
+        try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
+        catch {}
+      },
       pushMsg(m) {
         try {
           const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
@@ -390,8 +406,26 @@
     });
     streamCodeBtn.addEventListener('click', () => {
       const code = `stream-${clientId || store.user}`;
+      const rpc = prompt('Enter OBS RPC URL', store.obsRPC || '');
+      if (rpc !== null) store.obsRPC = rpc.trim();
+      const key = prompt('Enter OBS stream key', store.obsKey || '');
+      if (key !== null) store.obsKey = key.trim();
+
+      if (store.obsKey) {
+        const feedUrl = store.obsRPC
+          ? `${store.obsRPC.replace(/\/?$/, '')}/${encodeURIComponent(store.obsKey)}`
+          : store.obsKey;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(feedUrl)
+            .then(() => alert('OBS feed URL copied'));
+        } else {
+          prompt('OBS feed URL:', feedUrl);
+        }
+      }
+
       if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(code).then(() => alert('Stream code copied')); 
+        navigator.clipboard.writeText(code).then(() => alert('Stream code copied'));
       } else {
         prompt('Your stream code:', code);
       }
