@@ -177,6 +177,17 @@
       cursor:pointer;
     }
     .request-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .tune-btn {
+      margin-top:4px;
+      width:100%;
+      padding:4px;
+      border:1px solid var(--lining);
+      border-radius:8px;
+      background:color-mix(in oklab, var(--panel), transparent 10%);
+      color:var(--fg);
+      cursor:pointer;
+    }
+    .tune-btn:disabled { opacity:.5; cursor:not-allowed; }
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
@@ -429,13 +440,14 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="video"></div>${isSelf ? '' : '<button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="video"></div>${isSelf ? '' : '<button class="tune-btn" type="button">Tune In</button><button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const feed = div.querySelector('.stream-feed');
         const form = div.querySelector('.stream-composer');
         const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
         const reqBtn = div.querySelector('.request-btn');
+        const tuneBtn = div.querySelector('.tune-btn');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
           const text = input.value.trim();
@@ -452,19 +464,32 @@
             sendSignal({ type: 'join-request', id, user: store.user });
           });
         }
+        if(tuneBtn){
+          tuneBtn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            div.classList.add('open');
+            if(!streams[id].started){
+              startWatching(id);
+              streams[id].started = true;
+            }
+            tuneBtn.disabled = true;
+          });
+        }
         div.addEventListener('click', e => {
           if(e.target.closest('form')) return;
           div.classList.toggle('open');
           if(div.classList.contains('open') && !streams[id].started && !isSelf){
             startWatching(id);
             streams[id].started = true;
+            if(streams[id].tuneBtn) streams[id].tuneBtn.disabled = true;
           } else if(!div.classList.contains('open') && streams[id].started && !streams[id].self){
             endWatching(id);
             streams[id].started = false;
+            if(streams[id].tuneBtn) streams[id].tuneBtn.disabled = false;
           }
         });
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn };
       }
 
       // open stream bubble programmatically if needed
@@ -749,6 +774,9 @@
       broadcastBtn.classList.remove('live');
       const note = forced ? new Date().toLocaleString() :
         (prompt('Broadcast end comment?') || '').trim();
+      const vidCount = videoContainer.querySelectorAll('video').length;
+      const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
+      const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
       const hadRecorder = !!mediaRecorder;
       if(mediaRecorder){
         mediaRecorder.onstop = () => {
@@ -757,7 +785,7 @@
           reader.onloadend = () => {
             const dataUrl = reader.result;
             postMessage({
-              text: `⏹ Broadcast ended${note ? ': '+note : ''}`,
+              text: msgText,
               video: dataUrl,
               file: dataUrl,
               fileName: `broadcast-${Date.now()}.webm`,
@@ -784,7 +812,7 @@
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
       if(!hadRecorder){
-        postMessage({ text: `⏹ Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
+        postMessage({ text: msgText, broadcast: true });
       }
     }
 
@@ -850,6 +878,7 @@
           streams[msg.id].started = false;
           streams[msg.id].video.innerHTML = '';
           streams[msg.id].container.classList.remove('open');
+          if(streams[msg.id].tuneBtn) streams[msg.id].tuneBtn.disabled = false;
         }
         if(joinApproved && pendingJoinHost === msg.id){
           endBroadcast(true);
