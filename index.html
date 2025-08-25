@@ -166,6 +166,17 @@
     .stream-composer { display:none; margin-top:4px; gap:4px; }
     .stream.open .stream-composer { display:flex; }
     .stream-composer input { flex:1; }
+    .request-btn {
+      margin-top:4px;
+      width:100%;
+      padding:4px;
+      border:1px solid var(--lining);
+      border-radius:8px;
+      background:color-mix(in oklab, var(--panel), transparent 10%);
+      color:var(--fg);
+      cursor:pointer;
+    }
+    .request-btn:disabled { opacity:.5; cursor:not-allowed; }
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
@@ -385,6 +396,9 @@
     let broadcasting = false;
     let mediaRecorder = null;
     let recordedChunks = [];
+    let recordCanvas = null;
+    let recordCtx = null;
+    let drawHandle = null;
 
       function updateUsers(list){
         liveCount.textContent = list.length;
@@ -415,12 +429,13 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="video"></div><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="video"></div>${isSelf ? '' : '<button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const feed = div.querySelector('.stream-feed');
         const form = div.querySelector('.stream-composer');
         const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
+        const reqBtn = div.querySelector('.request-btn');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
           const text = input.value.trim();
@@ -428,6 +443,15 @@
           postMessage({ text, room: id });
           input.value='';
         });
+        if(reqBtn){
+          reqBtn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            pendingJoinHost = id;
+            joinApproved = false;
+            reqBtn.disabled = true;
+            sendSignal({ type: 'join-request', id, user: store.user });
+          });
+        }
         div.addEventListener('click', e => {
           if(e.target.closest('form')) return;
           div.classList.toggle('open');
@@ -440,7 +464,7 @@
           }
         });
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn };
       }
 
       // open stream bubble programmatically if needed
@@ -672,8 +696,27 @@
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
         recordedChunks = [];
+        recordCanvas = document.createElement('canvas');
+        recordCtx = recordCanvas.getContext('2d');
+        const draw = () => {
+          const vids = videoContainer.querySelectorAll('video');
+          let w = 0, h = 0;
+          vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
+          if(w && h){
+            recordCanvas.width = w;
+            recordCanvas.height = h;
+            let x = 0;
+            vids.forEach(v => {
+              try { recordCtx.drawImage(v, x, 0, v.videoWidth || 0, h); } catch{}
+              x += v.videoWidth || 0;
+            });
+          }
+          drawHandle = requestAnimationFrame(draw);
+        };
+        draw();
         try {
-          mediaRecorder = new MediaRecorder(stream);
+          const canvasStream = recordCanvas.captureStream(30);
+          mediaRecorder = new MediaRecorder(canvasStream);
           mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
           mediaRecorder.start();
         } catch {}
@@ -696,6 +739,10 @@
       if(!broadcasting) return;
       broadcasting = false;
       joinApproved = false;
+      if(pendingJoinHost && streams[pendingJoinHost] && streams[pendingJoinHost].requestBtn){
+        streams[pendingJoinHost].requestBtn.disabled = false;
+      }
+      pendingJoinHost = null;
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
@@ -723,6 +770,8 @@
         try { mediaRecorder.stop(); } catch {}
         mediaRecorder = null;
       }
+      if(drawHandle) cancelAnimationFrame(drawHandle);
+      drawHandle = null;
       if(localStream){
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
@@ -765,8 +814,12 @@
           vid.srcObject = ev.streams[0];
           vid.autoplay = true;
           vid.playsInline = true;
-          const box = streams[msg.id] && streams[msg.id].video;
-          if(box) box.appendChild(vid);
+          if(broadcasting){
+            videoContainer.appendChild(vid);
+          } else {
+            const box = streams[msg.id] && streams[msg.id].video;
+            if(box) box.appendChild(vid);
+          }
           pc._video = vid;
         };
         pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
@@ -811,12 +864,18 @@
 
     function handleJoinApproved(){
       joinApproved = true;
+      const stream = streams[pendingJoinHost];
+      if(stream && stream.requestBtn) stream.requestBtn.disabled = true;
       broadcastBtn.disabled = false;
+      const hostVid = stream && stream.video.querySelector('video');
+      if(hostVid) videoContainer.appendChild(hostVid);
       startBroadcast();
     }
 
     function handleJoinDenied(){
       joinApproved = false;
+      const stream = streams[pendingJoinHost];
+      if(stream && stream.requestBtn) stream.requestBtn.disabled = false;
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
