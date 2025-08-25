@@ -3,5 +3,5 @@
   "private": true,
   "type": "module",
   "scripts": { "start": "node server.js", "build": "echo no-build" },
-  "dependencies": { "ws": "^8.18.0", "better-sqlite3": "^9.0.0", "mime-types": "^2.1.35" }
+  "dependencies": { "ws": "^8.18.0", "better-sqlite3": "^9.0.0" }
 }
