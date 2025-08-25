@@ -633,6 +633,9 @@
     });
 
       function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room }){
+      if(broadcast && joinApproved && pendingJoinHost){
+        room = pendingJoinHost;
+      }
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
@@ -794,6 +797,10 @@
           streams[msg.id].started = false;
           streams[msg.id].video.innerHTML = '';
           streams[msg.id].container.classList.remove('open');
+        }
+        if(joinApproved && pendingJoinHost === msg.id){
+          endBroadcast(true);
+          pendingJoinHost = null;
         }
       }
 
