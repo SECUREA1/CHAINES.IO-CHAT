@@ -21,6 +21,30 @@ def init_db():
             )
             """
         )
+        # comments
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS comments (
+              id         INTEGER PRIMARY KEY AUTOINCREMENT,
+              message_id INTEGER,
+              user       TEXT,
+              comment    TEXT,
+              timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        # likes
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS likes (
+              id         INTEGER PRIMARY KEY AUTOINCREMENT,
+              message_id INTEGER,
+              user       TEXT,
+              timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(message_id, user)
+            )
+            """
+        )
         conn.commit()
 
 if __name__ == "__main__":

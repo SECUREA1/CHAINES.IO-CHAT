@@ -78,6 +78,13 @@
 
     .msg-text { white-space: pre-wrap; word-wrap: break-word; }
 
+    .actions { margin-top:6px; display:flex; gap:10px; }
+    .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
+    .comments { margin-top:6px; }
+    .comments-list { margin-bottom:6px; }
+    .comment { font-size:13px; margin-bottom:4px; }
+    .comment-form input { width:100%; padding:4px; border-radius:8px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); }
+
     .msg.collapsed .msg-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-height: 3.3em; }
     .min-btn { position:absolute; top:8px; right:8px; border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:8px; }
     .min-btn:hover { color:var(--fg); background: rgba(255,255,255,.06); }
@@ -355,6 +362,7 @@
     let bc = null;
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
+    const seenComments = new Set();
 
     // --- WebRTC state ---
       const peerConnections = {};
@@ -469,6 +477,8 @@
         try {
           const data = JSON.parse(ev.data);
           if(data && data.type === 'chat') receive(data);
+          if(data && data.type === 'comment') handleComment(data);
+          if(data && data.type === 'like') handleLike(data);
           if(data && data.type === 'system') systemNote(data.text);
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
@@ -620,7 +630,9 @@
         isAction,
         broadcast,
         video,
-        ts: Date.now()
+        ts: Date.now(),
+        likes: 0,
+        comments: []
       };
 
       // Push to UI + storage immediately
@@ -793,6 +805,7 @@
         const mine = m.user === store.user;
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
+      li.dataset.id = m.id;
 
       const av = document.createElement('div');
       av.className = 'avatar';
@@ -869,6 +882,39 @@
         }
       }
 
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const likeBtn = document.createElement('button');
+      likeBtn.className = 'like-btn';
+      likeBtn.textContent = `❤️ ${m.likes || 0}`;
+      likeBtn.addEventListener('click', () => {
+        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
+      });
+      actions.appendChild(likeBtn);
+
+      const commentsBox = document.createElement('div');
+      commentsBox.className = 'comments';
+      const commentsList = document.createElement('div');
+      commentsList.className = 'comments-list';
+      (m.comments || []).forEach(c => appendCommentElement(commentsList, c));
+      const commentForm = document.createElement('form');
+      commentForm.className = 'comment-form';
+      const commentInput = document.createElement('input');
+      commentInput.placeholder = 'Add comment...';
+      commentForm.appendChild(commentInput);
+      commentForm.addEventListener('submit', ev => {
+        ev.preventDefault();
+        const txt = commentInput.value.trim();
+        if(!txt) return;
+        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: txt, user: store.user })); } catch {}
+        commentInput.value = '';
+      });
+      commentsBox.appendChild(commentsList);
+      commentsBox.appendChild(commentForm);
+
+      bubble.appendChild(actions);
+      bubble.appendChild(commentsBox);
+
       if(mine){
         li.appendChild(bubble);
         li.appendChild(av);
@@ -886,6 +932,27 @@
         li.textContent = `@${m.user}: ${m.text}`;
         stream.feed.appendChild(li);
         stream.feed.scrollTop = stream.feed.scrollHeight;
+      }
+
+      function appendCommentElement(list, c){
+        const div = document.createElement('div');
+        div.className = 'comment';
+        div.innerHTML = `<span class="who">@${escapeHTML(c.user)}</span>: ${renderText(c.text)}`;
+        list.appendChild(div);
+      }
+
+      function handleComment(c){
+        if(!c || seenComments.has(c.id)) return;
+        seenComments.add(c.id);
+        const msgEl = feed.querySelector(`li[data-id="${c.messageId}"]`);
+        const list = msgEl && msgEl.querySelector('.comments-list');
+        if(list) appendCommentElement(list, c);
+      }
+
+      function handleLike(l){
+        const msgEl = feed.querySelector(`li[data-id="${l.messageId}"]`);
+        const btn = msgEl && msgEl.querySelector('.like-btn');
+        if(btn) btn.textContent = `❤️ ${l.count}`;
       }
 
       function systemNote(t){
