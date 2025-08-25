@@ -29,13 +29,12 @@ db.exec(`
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 
-function loadHistory(limit = 200) {
+function loadHistory() {
   const rows = db
     .prepare(
-      `SELECT id, user, room, message, image, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
+      `SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id`
     )
-    .all(limit)
-    .reverse();
+    .all();
   return rows.map((r) => ({ type: "chat", ...r }));
 }
 
@@ -154,6 +153,8 @@ wss.on("connection", (ws) => {
     if (msg.file && msg.file.length > 5_000_000) return; // limit ~5MB per file
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
+    const fileName = msg.file_name || msg.fileName || null;
+    const fileType = msg.file_type || msg.fileType || null;
     const info = db
       .prepare(
         "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -164,11 +165,13 @@ wss.on("connection", (ws) => {
         text,
         msg.image || null,
         msg.file || null,
-        msg.fileName || null,
-        msg.fileType || null
+        fileName,
+        fileType
       );
     msg.id = info.lastInsertRowid;
     msg.message = text;
+    if (fileName) msg.file_name = fileName;
+    if (fileType) msg.file_type = fileType;
     // broadcast
     for (const client of wss.clients) {
       if (client.readyState === 1) client.send(JSON.stringify(msg));

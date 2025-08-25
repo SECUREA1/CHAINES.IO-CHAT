@@ -28,7 +28,6 @@ def chat_connect():
         c.execute(
             """
             SELECT user, message, image, file, file_name, file_type, timestamp FROM chat_messages
-            WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
         )
@@ -60,7 +59,6 @@ def get_chat_history():
         c.execute(
             """
             SELECT user, message, image, file, file_name, file_type, timestamp FROM chat_messages
-            WHERE timestamp >= datetime('now', '-1 day')
             ORDER BY timestamp
             """
         )
@@ -123,7 +121,7 @@ def search_chat(data):
         c.execute(
             """
             SELECT user, message, image, file, file_name, file_type, timestamp FROM chat_messages
-            WHERE timestamp >= datetime('now', '-1 day') AND (message LIKE ? OR user LIKE ?)
+            WHERE message LIKE ? OR user LIKE ?
             ORDER BY timestamp
             """,
             (f'%{query}%', f'%{query}%'),
