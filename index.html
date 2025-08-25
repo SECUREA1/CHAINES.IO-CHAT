@@ -219,6 +219,7 @@
           <span id="live-count">0</span> online
         </span>
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
+        <button class="chip" id="stream-code-btn" title="Copy stream code" hidden>🔑 Stream Code</button>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
@@ -302,6 +303,7 @@
     const userList = el('#user-list');
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
+    const streamCodeBtn = el('#stream-code-btn');
     const videoContainer = el('#video-container');
     const streamsEl = el('#streams');
     const streams = {};
@@ -384,6 +386,14 @@
         broadcastBtn.textContent = '⏳ Pending';
       } else {
         startBroadcast();
+      }
+    });
+    streamCodeBtn.addEventListener('click', () => {
+      const code = `stream-${clientId || store.user}`;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(code).then(() => alert('Stream code copied')); 
+      } else {
+        prompt('Your stream code:', code);
       }
     });
     window.addEventListener('beforeunload', () => {
@@ -749,6 +759,7 @@
         broadcastBtn.textContent = '⏹ End';
         broadcastBtn.title = 'End live broadcast';
         broadcastBtn.classList.add('live');
+        streamCodeBtn.removeAttribute('hidden');
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -772,6 +783,7 @@
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
       broadcastBtn.classList.remove('live');
+      streamCodeBtn.setAttribute('hidden','');
       const note = forced ? new Date().toLocaleString() :
         (prompt('Broadcast end comment?') || '').trim();
       const vidCount = videoContainer.querySelectorAll('video').length;
