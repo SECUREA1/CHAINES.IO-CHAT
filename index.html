@@ -128,8 +128,10 @@
       font-size:12px;
     }
     .live-dot {
+      display:inline-block;
       width:8px;
       height:8px;
+      margin-right:4px;
       border-radius:50%;
       background:var(--danger);
       animation: live-pulse 1s infinite;
@@ -137,6 +139,12 @@
     @keyframes live-pulse {
       0%, 100% { opacity:1; }
       50% { opacity:0.2; }
+    }
+
+    #broadcast-btn.live {
+      animation: live-pulse 1s infinite;
+      border-color: var(--danger);
+      color: var(--danger);
     }
 
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
@@ -333,12 +341,20 @@
     let clientId = null;
     let hostId = null;
     let broadcasting = false;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
     function updateUsers(list){
       liveCount.textContent = list.length;
       usersEl.innerHTML = '';
       list.forEach(u => {
         const li = document.createElement('li');
         const name = typeof u === 'string' ? u : u.name;
+        if(u.live){
+          const dot = document.createElement('span');
+          dot.className = 'live-dot';
+          li.appendChild(dot);
+        }
         li.appendChild(document.createTextNode('@' + name));
         if(u.live && u.id !== clientId){
           const btn = document.createElement('button');
@@ -519,7 +535,7 @@
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false }){
+    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
@@ -531,6 +547,8 @@
         fileType: fileType,
         name: fileName || name,
         isAction,
+        broadcast,
+        video,
         ts: Date.now()
       };
 
@@ -550,9 +568,16 @@
       if(broadcasting) return;
       navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
         localStream = stream;
+        recordedChunks = [];
+        try {
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+          mediaRecorder.start();
+        } catch {}
         broadcasting = true;
         broadcastBtn.textContent = '⏹ End';
         broadcastBtn.title = 'End live broadcast';
+        broadcastBtn.classList.add('live');
         videoContainer.removeAttribute('hidden');
         const vid = document.createElement('video');
         vid.srcObject = stream;
@@ -569,6 +594,30 @@
       broadcasting = false;
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
+      broadcastBtn.classList.remove('live');
+      const note = forced ? new Date().toLocaleString() :
+        (prompt('Broadcast end comment?') || '').trim();
+      const hadRecorder = !!mediaRecorder;
+      if(mediaRecorder){
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result;
+            postMessage({
+              text: `⏹ Broadcast ended${note ? ': '+note : ''}`,
+              video: dataUrl,
+              file: dataUrl,
+              fileName: `broadcast-${Date.now()}.webm`,
+              fileType: 'video/webm',
+              broadcast: true
+            });
+          };
+          reader.readAsDataURL(blob);
+        };
+        try { mediaRecorder.stop(); } catch {}
+        mediaRecorder = null;
+      }
       if(localStream){
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
@@ -580,9 +629,9 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
-      const note = forced ? new Date().toLocaleString() :
-        (prompt('Broadcast end comment?') || '').trim();
-      postMessage({ text: `⏹ Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
+      if(!hadRecorder){
+        postMessage({ text: `⏹ Broadcast ended${note ? ': '+note : ''}`, broadcast: true });
+      }
     }
 
     function startWatching(){
