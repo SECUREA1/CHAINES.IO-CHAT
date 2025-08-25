@@ -35,7 +35,18 @@ function loadHistory() {
       `SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id`
     )
     .all();
-  return rows.map((r) => ({ type: "chat", ...r }));
+  return rows.map((r) => ({
+    type: "chat",
+    id: r.id,
+    user: r.user,
+    room: r.room,
+    text: r.message,
+    image: r.image,
+    file: r.file,
+    fileName: r.file_name,
+    fileType: r.file_type,
+    ts: r.ts,
+  }));
 }
 
 const server = http.createServer(async (req, res) => {
@@ -153,6 +164,7 @@ wss.on("connection", (ws) => {
     if (msg.file && msg.file.length > 5_000_000) return; // limit ~5MB per file
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
+    msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
     const info = db
@@ -167,11 +179,17 @@ wss.on("connection", (ws) => {
         msg.file || null,
         fileName,
         fileType
-      );
+    );
     msg.id = info.lastInsertRowid;
     msg.message = text;
-    if (fileName) msg.file_name = fileName;
-    if (fileType) msg.file_type = fileType;
+    if (fileName) {
+      msg.file_name = fileName;
+      msg.fileName = fileName;
+    }
+    if (fileType) {
+      msg.file_type = fileType;
+      msg.fileType = fileType;
+    }
     // broadcast
     for (const client of wss.clients) {
       if (client.readyState === 1) client.send(JSON.stringify(msg));
