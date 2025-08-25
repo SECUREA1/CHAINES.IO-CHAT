@@ -29,8 +29,9 @@
       '<input id="chat-search" placeholder="Search..." style="width:100%;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
       '</div>' +
       '<div id="chat-feed" style="overflow-y:auto;flex:1;margin-bottom:4px;background:#111;padding:4px;"></div>' +
-      '<form id="chat-form" style="display:flex;gap:4px;">' +
+      '<form id="chat-form" style="display:flex;gap:4px;align-items:center;">' +
       '<input id="chat-input" style="flex:1;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
+      '<input id="chat-file" type="file" style="width:110px;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
       '<button style="padding:4px 8px;background:#b30000;color:#ffd700;border:1px solid #ffd700;">Send</button>' +
       '</form>';
     document.body.appendChild(box);
@@ -39,6 +40,7 @@
     const feed = box.querySelector('#chat-feed');
     const form = box.querySelector('#chat-form');
     const input = box.querySelector('#chat-input');
+    const fileInput = box.querySelector('#chat-file');
     const search = box.querySelector('#chat-search');
     const sendAllowed = !!ctx.username;
     const socket = io();
@@ -48,9 +50,44 @@
     });
     function appendMsg(data){
       const msg = document.createElement('div');
-      msg.textContent = `${data.user}: ${data.message}`;
-      msg.style.color = '#00a0ff';
-      msg.style.textShadow = '0 0 4px gold';
+      msg.style.marginBottom = '6px';
+      const header = document.createElement('div');
+      const text = data.message ? ` ${data.message}` : '';
+      header.textContent = `${data.user}:${text}`;
+      header.style.color = '#00a0ff';
+      header.style.textShadow = '0 0 4px gold';
+      msg.appendChild(header);
+      const fileName = data.file_name || data.fileName;
+      const fileType = data.file_type || data.fileType || '';
+      if(data.image){
+        const img = document.createElement('img');
+        img.src = data.image;
+        img.alt = fileName || data.message || 'image';
+        img.style.maxWidth = '100%';
+        msg.appendChild(img);
+      } else if(data.file){
+        const type = fileType;
+        if(type.startsWith('video/')){
+          const vid = document.createElement('video');
+          vid.src = data.file;
+          vid.controls = true;
+          vid.style.maxWidth = '100%';
+          msg.appendChild(vid);
+        } else if(type.startsWith('audio/')){
+          const aud = document.createElement('audio');
+          aud.src = data.file;
+          aud.controls = true;
+          msg.appendChild(aud);
+        } else {
+          const link = document.createElement('a');
+          link.href = data.file;
+          const name = fileName || 'download';
+          link.textContent = name;
+          link.download = name;
+          link.style.color = '#ffd700';
+          msg.appendChild(link);
+        }
+      }
       feed.appendChild(msg);
       feed.scrollTop = feed.scrollHeight;
     }
@@ -90,8 +127,27 @@
         return;
       }
       const txt = input.value.trim();
-      if(txt){
-        socket.emit('chat_message', {message: txt});
+      const file = fileInput.files[0];
+      if(file){
+        const reader = new FileReader();
+        reader.onload = () => {
+          const payload = { message: txt };
+          if(file.type.startsWith('image/')){
+            payload.image = reader.result;
+          } else {
+            payload.file = reader.result;
+          }
+            payload.file_name = file.name;
+            payload.file_type = file.type;
+            payload.fileName = file.name;
+            payload.fileType = file.type;
+          socket.emit('chat_message', payload);
+        };
+        reader.readAsDataURL(file);
+        fileInput.value = '';
+        input.value = '';
+      } else if(txt){
+        socket.emit('chat_message', { message: txt });
         input.value = '';
       }
     });

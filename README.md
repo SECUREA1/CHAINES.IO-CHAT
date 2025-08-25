@@ -21,10 +21,16 @@ Configure this URL in the client via the "configure" button on the welcome scree
 
 ### Persistent chat history
 
-The WebSocket server stores the last 200 messages in `chat-history.json` at the
-repository root and automatically sends this history to new connections. It
-also broadcasts the number of currently connected users so the client can
-display a live online count.
+Chat messages, including attachments, are stored in the `app.db` SQLite
+database. The server sends the full history to new connections and broadcasts
+the number of currently connected users so the client can display a live online
+count.
+
+### Attachments
+
+Chat messages can include images, videos, or other files. Uploads are stored in
+the database along with the original filename and MIME type so the full post and
+its metadata are available to other users and when reloading the chat.
 
 ### File-type backups
 
