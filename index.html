@@ -239,6 +239,8 @@
     const input = el('#text');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
+    const defaultPlaceholder = input.placeholder;
+    let pendingFile = null;
     const auth = el('#auth');
     const usernameInput = el('#username');
     const enterBtn = el('#enter');
@@ -499,18 +501,35 @@
     form.addEventListener('submit', ev => {
       ev.preventDefault();
       const raw = (input.value || '').trim();
-      if(!raw) return;
+      if(!raw && !pendingFile) return;
 
-      // Commands
-      if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; systemNote('Cleared local chat history.'); return; }
-      if(/^\s*\/me\s+/.test(raw)){
-        const act = raw.replace(/^\s*\/me\s+/, '');
-        postMessage({ text: `*${act}*`, isAction:true });
-        input.value=''; return;
+      if(raw){
+        // Commands
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
+        if(/^\s*\/me\s+/.test(raw)){
+          const act = raw.replace(/^\s*\/me\s+/, '');
+          postMessage({ text: `*${act}*`, isAction:true });
+          input.value='';
+          input.placeholder = defaultPlaceholder;
+          pendingFile = null;
+          return;
+        }
       }
 
-      postMessage({ text: raw });
+      const msg = { text: raw };
+      if(pendingFile){
+        msg.file = pendingFile.dataUrl;
+        msg.fileName = pendingFile.name;
+        msg.fileType = pendingFile.type;
+        if(pendingFile.type.startsWith('image/')){
+          msg.image = pendingFile.dataUrl;
+          msg.name = pendingFile.name;
+        }
+      }
+      postMessage(msg);
       input.value = '';
+      input.placeholder = defaultPlaceholder;
+      pendingFile = null;
     });
 
     attachBtn.addEventListener('click', () => fileInput.click());
@@ -519,17 +538,9 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const dataUrl = reader.result;
-        const msg = {
-          file: dataUrl,
-          fileName: file.name,
-          fileType: file.type
-        };
-        if (file.type.startsWith('image/')) {
-          msg.image = dataUrl;
-          msg.name = file.name;
-        }
-        postMessage(msg);
+        pendingFile = { dataUrl: reader.result, name: file.name, type: file.type };
+        input.placeholder = `Comment on ${file.name}`;
+        input.focus();
       };
       reader.readAsDataURL(file);
       fileInput.value = '';
@@ -701,11 +712,11 @@
     function renderHistory(){
       feed.innerHTML = '';
       const items = store.loadMsgs();
-      items.forEach(m => appendMessage(m));
-      scrollToBottom();
+      items.slice().reverse().forEach(m => appendMessage(m, true));
+      scrollToTop();
     }
 
-    function appendMessage(m){
+    function appendMessage(m, skipScroll=false){
       const mine = m.user === store.user;
       const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
@@ -793,20 +804,20 @@
         li.appendChild(bubble);
       }
 
-      feed.appendChild(li);
-      scrollToBottom();
+      feed.insertBefore(li, feed.firstChild);
+      if(!skipScroll) scrollToTop();
     }
 
     function systemNote(t){
       const div = document.createElement('div');
       div.className = 'system';
       div.textContent = t;
-      feed.appendChild(div);
-      scrollToBottom();
+      feed.insertBefore(div, feed.firstChild);
+      scrollToTop();
     }
 
-    function scrollToBottom(){
-      feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+    function scrollToTop(){
+      feed.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     // --- Helpers ---
