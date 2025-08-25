@@ -772,10 +772,10 @@
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
       broadcastBtn.classList.remove('live');
-      const note = forced ? new Date().toLocaleString() :
-        (prompt('Broadcast end comment?') || '').trim();
-      const share = forced ? true : (note ?
-        confirm('Post to chat?\nPress OK to post or Cancel to delete.') : true);
+      const share = forced ? true :
+        confirm('Post to chat?\nPress OK to post or Cancel to delete.');
+      const note = forced ? new Date().toLocaleString() : (share ?
+        (prompt('Broadcast end comment?') || '').trim() : '');
       const vidCount = videoContainer.querySelectorAll('video').length;
       const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
       const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
