@@ -18,6 +18,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
+    room TEXT,
     message TEXT,
     image TEXT,
     file TEXT,
@@ -26,11 +27,12 @@ db.exec(`
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 
 function loadHistory(limit = 200) {
   const rows = db
     .prepare(
-      `SELECT id, user, message, image, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
+      `SELECT id, user, room, message, image, file, file_name as fileName, file_type as fileType, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id DESC LIMIT ?`
     )
     .all(limit)
     .reverse();
@@ -63,7 +65,7 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
-let broadcaster = null;
+const broadcasters = new Map();
 
 function uid(){
   return Math.random().toString(36).slice(2,9);
@@ -76,7 +78,7 @@ function broadcastUsers() {
       users.push({
         name: client.username,
         id: client.id,
-        live: client === broadcaster,
+        live: broadcasters.has(client.id),
       });
     }
   }
@@ -92,14 +94,11 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
-  if (broadcaster && broadcaster.readyState === 1 && ws !== broadcaster) {
-    ws.send(JSON.stringify({ type: "broadcaster", id: broadcaster.id }));
-  }
   broadcastUsers();
   ws.on("close", () => {
     clients.delete(ws.id);
-    if (ws === broadcaster) {
-      broadcaster = null;
+    if (broadcasters.has(ws.id)) {
+      broadcasters.delete(ws.id);
       for (const client of wss.clients) {
         if (client.readyState === 1) client.send(JSON.stringify({ type: "bye", id: ws.id }));
       }
@@ -115,29 +114,27 @@ wss.on("connection", (ws) => {
     }
     switch (msg?.type) {
       case "broadcaster":
-        broadcaster = ws;
-        for (const client of wss.clients) {
-          if (client !== ws && client.readyState === 1) {
-            client.send(JSON.stringify({ type: "broadcaster", id: ws.id }));
-          }
-        }
+        broadcasters.set(ws.id, ws);
+        broadcastUsers();
         return;
       case "end-broadcast":
-        if (ws === broadcaster) {
+        if (broadcasters.has(ws.id)) {
           for (const client of wss.clients) {
             if (client.readyState === 1 && client !== ws) {
               client.send(JSON.stringify({ type: "bye", id: ws.id }));
             }
           }
-          broadcaster = null;
+          broadcasters.delete(ws.id);
           broadcastUsers();
         }
         return;
-      case "watcher":
-        if (broadcaster && broadcaster.readyState === 1) {
-          broadcaster.send(JSON.stringify({ type: "watcher", id: ws.id }));
+      case "watcher": {
+        const host = broadcasters.get(msg.id);
+        if (host && host.readyState === 1) {
+          host.send(JSON.stringify({ type: "watcher", id: ws.id }));
         }
         return;
+      }
       case "offer":
       case "answer":
       case "candidate":
@@ -159,10 +156,11 @@ wss.on("connection", (ws) => {
     const text = msg.text ?? msg.message ?? "";
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
+        msg.room || null,
         text,
         msg.image || null,
         msg.file || null,

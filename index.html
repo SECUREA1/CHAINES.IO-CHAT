@@ -147,6 +147,18 @@
       color: var(--danger);
     }
 
+    #streams { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
+    .stream { position:relative; width:150px; border:1px solid var(--lining); border-radius:12px; padding:8px; background: var(--panel); cursor:pointer; }
+    .stream.open { width:300px; }
+    .stream .title { font-weight:700; margin-bottom:6px; }
+    .stream .video { display:none; }
+    .stream.open .video { display:block; }
+    .stream .video video { width:100%; border-radius:8px; }
+    .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
+    .stream.open .stream-feed { display:block; }
+    .stream-composer { display:none; margin-top:4px; gap:4px; }
+    .stream.open .stream-composer { display:flex; }
+    .stream-composer input { flex:1; }
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
@@ -187,18 +199,19 @@
       </div>
     </header>
 
-    <main>
-      <form id="composer" class="composer" autocomplete="off">
-        <label class="input" for="text">
-          <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
-        </label>
+      <main>
+        <div id="streams" class="streams"></div>
+        <form id="composer" class="composer" autocomplete="off">
+          <label class="input" for="text">
+            <input id="text" name="text" placeholder="Type a message… (try /me waves or /clear)" />
+          </label>
         <input id="file" type="file" accept="*/*" hidden />
         <button class="send" id="attach" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit">Send</button>
       </form>
-      <div id="video-container" hidden></div>
-      <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
-    </main>
+        <div id="video-container" hidden></div>
+        <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
+      </main>
 
     <footer>
       © <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a>
@@ -261,6 +274,8 @@
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
     const videoContainer = el('#video-container');
+    const streamsEl = el('#streams');
+    const streams = {};
 
     el('#year').textContent = new Date().getFullYear();
 
@@ -337,43 +352,75 @@
     const seen = new Set();
 
     // --- WebRTC state ---
-    const peerConnections = {};
-    let localStream = null;
-    let clientId = null;
-    let hostId = null;
+      const peerConnections = {};
+      let localStream = null;
+      let clientId = null;
     let broadcasting = false;
     let mediaRecorder = null;
     let recordedChunks = [];
 
-    function updateUsers(list){
-      liveCount.textContent = list.length;
-      usersEl.innerHTML = '';
-      list.forEach(u => {
-        const li = document.createElement('li');
-        const name = typeof u === 'string' ? u : u.name;
-        if(u.live){
-          const dot = document.createElement('span');
-          dot.className = 'live-dot';
-          li.appendChild(dot);
+      function updateUsers(list){
+        liveCount.textContent = list.length;
+        usersEl.innerHTML = '';
+        const liveIds = new Set();
+        list.forEach(u => {
+          const li = document.createElement('li');
+          const name = typeof u === 'string' ? u : u.name;
+          if(u.live){
+            const dot = document.createElement('span');
+            dot.className = 'live-dot';
+            li.appendChild(dot);
+            liveIds.add(u.id);
+            ensureStreamThumb(u.id, name, u.id === clientId);
+          }
+          li.appendChild(document.createTextNode('@' + name));
+          usersEl.appendChild(li);
+        });
+        for(const id in streams){
+          if(!liveIds.has(id)){
+            streams[id].container.remove();
+            delete streams[id];
+          }
         }
-        li.appendChild(document.createTextNode('@' + name));
-        if(u.live && u.id !== clientId){
-          const btn = document.createElement('button');
-          btn.className = 'live-btn';
-          btn.innerHTML = '<span class="live-dot" aria-hidden="true"></span>Live';
-          btn.title = 'Watch live stream';
-          btn.setAttribute('aria-label', 'Watch ' + name + ' live');
-          btn.addEventListener('click', () => watchLive(u.id));
-          li.appendChild(btn);
-        }
-        usersEl.appendChild(li);
-      });
-    }
+      }
 
-    function watchLive(id){
-      hostId = id;
-      startWatching();
-    }
+      function ensureStreamThumb(id, name, isSelf=false){
+        if(streams[id]) return;
+        const div = document.createElement('div');
+        div.className = 'stream';
+        div.innerHTML = `<div class="title">@${name}</div><div class="video"></div><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        const videoBox = div.querySelector('.video');
+        const feed = div.querySelector('.stream-feed');
+        const form = div.querySelector('.stream-composer');
+        const input = form.querySelector('input');
+        form.addEventListener('submit', ev => {
+          ev.preventDefault();
+          const text = input.value.trim();
+          if(!text) return;
+          postMessage({ text, room: id });
+          input.value='';
+        });
+        div.addEventListener('click', e => {
+          if(e.target.closest('form')) return;
+          div.classList.toggle('open');
+          if(div.classList.contains('open') && !streams[id].started && !isSelf){
+            startWatching(id);
+            streams[id].started = true;
+          }
+        });
+        streamsEl.appendChild(div);
+        streams[id] = { container: div, video: videoBox, feed, input, self: isSelf, started:false };
+      }
+
+      // open stream bubble programmatically if needed
+      function watchLive(id, name){
+        ensureStreamThumb(id, name, id === clientId);
+        streams[id].container.classList.add('open');
+        if(!streams[id].started && !streams[id].self){
+          startWatching(id);
+          streams[id].started = true;
+        }
+      }
     function sendJoin(){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
     }
@@ -418,7 +465,6 @@
             (data.messages || []).forEach(m => receive(m));
           }
           if(data && data.type === 'id') clientId = data.id;
-          if(data && data.type === 'broadcaster'){ hostId = data.id; if(!broadcasting) startWatching(); }
           if(data && data.type === 'watcher') handleWatcher(data.id);
           if(data && data.type === 'offer') handleOffer(data);
           if(data && data.type === 'answer') handleAnswer(data);
@@ -545,12 +591,13 @@
       fileInput.value = '';
     });
 
-    function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video }){
+      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room }){
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
-        text: text,
+          text: text,
+          room: room,
         image: image,
         file: file,
         fileName: fileName || name,
@@ -563,15 +610,15 @@
       };
 
       // Push to UI + storage immediately
-      receive(msg, true);
-      store.pushMsg(msg);
+        receive(msg, true);
+        if(!room) store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
 
       // Send to server if available
-      try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
-    }
+        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
+      }
 
     // --- WebRTC helpers ---
     function startBroadcast(){
@@ -644,10 +691,9 @@
       }
     }
 
-    function startWatching(){
-      videoContainer.removeAttribute('hidden');
-      sendSignal({ type: 'watcher' });
-    }
+      function startWatching(id){
+        sendSignal({ type: 'watcher', id });
+      }
 
     function handleWatcher(id){
       const pc = new RTCPeerConnection();
@@ -659,23 +705,24 @@
       });
     }
 
-    function handleOffer(msg){
-      const pc = new RTCPeerConnection();
-      peerConnections[msg.id] = pc;
-      pc.ontrack = ev => {
-        const vid = document.createElement('video');
-        vid.srcObject = ev.streams[0];
-        vid.autoplay = true;
-        vid.playsInline = true;
-        videoContainer.appendChild(vid);
-        pc._video = vid;
-      };
-      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
-      pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-        .then(() => pc.createAnswer())
-        .then(ans => pc.setLocalDescription(ans))
-        .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
-    }
+      function handleOffer(msg){
+        const pc = new RTCPeerConnection();
+        peerConnections[msg.id] = pc;
+        pc.ontrack = ev => {
+          const vid = document.createElement('video');
+          vid.srcObject = ev.streams[0];
+          vid.autoplay = true;
+          vid.playsInline = true;
+          const box = streams[msg.id] && streams[msg.id].video;
+          if(box) box.appendChild(vid);
+          pc._video = vid;
+        };
+        pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
+        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          .then(() => pc.createAnswer())
+          .then(ans => pc.setLocalDescription(ans))
+          .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
+      }
 
     function handleAnswer(msg){
       const pc = peerConnections[msg.id];
@@ -687,37 +734,46 @@
       if(pc && msg.candidate) pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
     }
 
-    function handleBye(msg){
-      const pc = peerConnections[msg.id];
-      if(pc){
-        if(pc._video) pc._video.remove();
-        pc.close();
-        delete peerConnections[msg.id];
+      function handleBye(msg){
+        const pc = peerConnections[msg.id];
+        if(pc){
+          if(pc._video) pc._video.remove();
+          pc.close();
+          delete peerConnections[msg.id];
+        }
+        if(streams[msg.id]){
+          streams[msg.id].started = false;
+          streams[msg.id].video.innerHTML = '';
+          streams[msg.id].container.classList.remove('open');
+        }
       }
-      if(!videoContainer.children.length) videoContainer.setAttribute('hidden','');
-    }
 
     function sendSignal(data){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
-    function receive(m, isLocal=false){
-      if(!m || seen.has(m.id)) return;
-      seen.add(m.id);
-      appendMessage(m);
-      if(!isLocal) store.pushMsg(m);
-    }
+      function receive(m, isLocal=false){
+        if(!m || seen.has(m.id)) return;
+        seen.add(m.id);
+        if(m.room){
+          if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
+          if(streams[m.room]) appendStreamMessage(streams[m.room], m);
+        } else {
+          appendMessage(m);
+          if(!isLocal) store.pushMsg(m);
+        }
+      }
 
-    function renderHistory(){
+      function renderHistory(){
       feed.innerHTML = '';
       const items = store.loadMsgs();
       items.slice().reverse().forEach(m => appendMessage(m, true));
       scrollToTop();
     }
 
-    function appendMessage(m, skipScroll=false){
-      const mine = m.user === store.user;
-      const li = document.createElement('li');
+      function appendMessage(m, skipScroll=false){
+        const mine = m.user === store.user;
+        const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
 
       const av = document.createElement('div');
@@ -748,7 +804,7 @@
         bubble.appendChild(btn);
       }
 
-      bubble.appendChild(meta);
+        bubble.appendChild(meta);
       bubble.appendChild(text);
       const fileData = m.file || m.image;
       if(fileData){
@@ -803,13 +859,20 @@
         li.appendChild(bubble);
       }
 
-      feed.insertBefore(li, feed.firstChild);
-      if(!skipScroll) scrollToTop();
-    }
+        feed.insertBefore(li, feed.firstChild);
+        if(!skipScroll) scrollToTop();
+      }
 
-    function systemNote(t){
-      const div = document.createElement('div');
-      div.className = 'system';
+      function appendStreamMessage(stream, m){
+        const li = document.createElement('li');
+        li.textContent = `@${m.user}: ${m.text}`;
+        stream.feed.appendChild(li);
+        stream.feed.scrollTop = stream.feed.scrollHeight;
+      }
+
+      function systemNote(t){
+        const div = document.createElement('div');
+        div.className = 'system';
       div.textContent = t;
       feed.insertBefore(div, feed.firstChild);
       scrollToTop();
