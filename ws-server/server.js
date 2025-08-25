@@ -76,6 +76,9 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
 const broadcasters = new Map();
+// track viewers per broadcaster
+const listeners = new Map(); // hostId -> Set of watcherIds
+const watching = new Map();  // watcherId -> Set of hostIds
 
 function uid(){
   return Math.random().toString(36).slice(2,9);
@@ -98,6 +101,14 @@ function broadcastUsers() {
   }
 }
 
+function sendListenerCount(id){
+  const count = listeners.get(id)?.size || 0;
+  const payload = JSON.stringify({ type: "listeners", id, count });
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
 wss.on("connection", (ws) => {
   ws.id = uid();
   clients.set(ws.id, ws);
@@ -112,6 +123,22 @@ wss.on("connection", (ws) => {
       for (const client of wss.clients) {
         if (client.readyState === 1) client.send(JSON.stringify({ type: "bye", id: ws.id }));
       }
+      if(listeners.has(ws.id)){
+        listeners.delete(ws.id);
+        sendListenerCount(ws.id);
+      }
+    }
+    const watched = watching.get(ws.id);
+    if(watched){
+      for(const hostId of watched){
+        const set = listeners.get(hostId);
+        if(set){
+          set.delete(ws.id);
+          if(set.size === 0) listeners.delete(hostId);
+          sendListenerCount(hostId);
+        }
+      }
+      watching.delete(ws.id);
     }
     broadcastUsers();
   });
@@ -135,6 +162,10 @@ wss.on("connection", (ws) => {
             }
           }
           broadcasters.delete(ws.id);
+          if(listeners.has(ws.id)){
+            listeners.delete(ws.id);
+            sendListenerCount(ws.id);
+          }
           broadcastUsers();
         }
         return;
@@ -142,6 +173,25 @@ wss.on("connection", (ws) => {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
           host.send(JSON.stringify({ type: "watcher", id: ws.id }));
+          if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
+          listeners.get(msg.id).add(ws.id);
+          if(!watching.has(ws.id)) watching.set(ws.id, new Set());
+          watching.get(ws.id).add(msg.id);
+          sendListenerCount(msg.id);
+        }
+        return;
+      }
+      case "unwatcher": {
+        const set = listeners.get(msg.id);
+        if(set){
+          set.delete(ws.id);
+          if(set.size === 0) listeners.delete(msg.id);
+          sendListenerCount(msg.id);
+        }
+        const list = watching.get(ws.id);
+        if(list){
+          list.delete(msg.id);
+          if(list.size === 0) watching.delete(ws.id);
         }
         return;
       }
