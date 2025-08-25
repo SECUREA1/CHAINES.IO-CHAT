@@ -774,6 +774,8 @@
       broadcastBtn.classList.remove('live');
       const note = forced ? new Date().toLocaleString() :
         (prompt('Broadcast end comment?') || '').trim();
+      const share = forced ? true : (note ?
+        confirm('Post to chat?\nPress OK to post or Cancel to delete.') : true);
       const vidCount = videoContainer.querySelectorAll('video').length;
       const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
       const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
@@ -784,14 +786,16 @@
           const reader = new FileReader();
           reader.onloadend = () => {
             const dataUrl = reader.result;
-            postMessage({
-              text: msgText,
-              video: dataUrl,
-              file: dataUrl,
-              fileName: `broadcast-${Date.now()}.webm`,
-              fileType: 'video/webm',
-              broadcast: true
-            });
+            if(share){
+              postMessage({
+                text: msgText,
+                video: dataUrl,
+                file: dataUrl,
+                fileName: `broadcast-${Date.now()}.webm`,
+                fileType: 'video/webm',
+                broadcast: true
+              });
+            }
           };
           reader.readAsDataURL(blob);
         };
@@ -811,7 +815,7 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
-      if(!hadRecorder){
+      if(!hadRecorder && share){
         postMessage({ text: msgText, broadcast: true });
       }
     }
