@@ -98,6 +98,22 @@
     .dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
 
+    #cmd-panel {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      background: var(--panel);
+      border: 1px solid var(--lining);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 20;
+    }
+    #cmd-panel .chip { width: 100%; justify-content: center; }
+
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
 
     .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); }
@@ -445,8 +461,33 @@
       shrug: 'shrugs \u{1F937}',
       smile: 'smiles \u{1F642}',
       laugh: 'laughs \u{1F602}',
-      dance: 'dances \u{1F483}'
+      dance: 'dances \u{1F483}',
+      cry: 'cries a river \u{1F622}',
+      sob: 'sobs like a soap opera star \u{1F62D}',
+      joke: 'tells a dad joke so bad it hurts \u{1F923}',
+      facepalm: 'facepalms in disbelief \u{1F926}',
+      sing: 'sings off-key karaoke \u{1F3A4}'
     };
+    const cmdPanel = document.createElement('div');
+    cmdPanel.id = 'cmd-panel';
+    cmdPanel.hidden = true;
+    document.body.appendChild(cmdPanel);
+
+    function renderCmdPanel(){
+      cmdPanel.innerHTML = '';
+      Object.keys(actionCommands).forEach(cmd => {
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.type = 'button';
+        b.textContent = '/' + cmd;
+        b.addEventListener('click', () => {
+          postMessage({ text: `*${actionCommands[cmd]}*`, isAction: true });
+          cmdPanel.hidden = true;
+        });
+        cmdPanel.appendChild(b);
+      });
+    }
+    renderCmdPanel();
     let pendingFile = null;
     let fileLoading = false;
     const auth = el('#auth');
@@ -1040,7 +1081,7 @@
     });
 
     cmdListBtn.addEventListener('click', () => {
-      alert('Available commands:\n' + Object.keys(actionCommands).map(c => '/' + c).join('\n'));
+      cmdPanel.hidden = !cmdPanel.hidden;
     });
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
