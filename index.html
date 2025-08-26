@@ -48,12 +48,16 @@
 
     .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100vh; height:100dvh; width:100%; margin:0; }
 
-    header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; }
+    header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:28px; height:28px; border-radius:8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 18px; margin:0; }
-
-    .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
+    .status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    header .status.top { margin-left:auto; justify-content:flex-end; }
+    footer { display:flex; flex-direction:column; align-items:center; gap:14px; padding:18px; }
+    footer .status.bottom { justify-content:space-around; width:100%; }
+    footer .status.bottom .chip { flex:1 1 25%; justify-content:center; }
+    footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
     #live-chip, #theme-toggle, #mode-toggle { cursor:pointer; }
@@ -293,8 +297,9 @@
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
       header { flex-wrap: wrap; padding:12px; gap:8px; }
-      .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; }
-      .status .chip { flex:1 1 auto; justify-content:center; }
+      footer { padding:12px; gap:8px; }
+      .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
+      .status .chip { flex:1 1 45%; justify-content:center; }
       .feed { padding:12px; }
       .composer { margin:10px 10px 12px; }
     }
@@ -307,25 +312,16 @@
         <div class="logo" aria-hidden="true"></div>
         <h1>CHAINeS Chat</h1>
       </div>
-      <div class="status">
+      <div class="status top">
         <span class="chip" id="conn-chip" title="Connection status">
           <span class="dot off" id="conn-dot"></span>
           <span id="conn-label">Offline</span>
         </span>
-        <span class="chip" id="live-chip" title="Users online">
-          <span id="live-count">0</span> online
-        </span>
-        <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
-        <button class="chip" id="stream-code-btn" title="Copy stream code" hidden>🔑 Stream Code</button>
-        <button class="chip" id="camera-flip-btn" title="Switch camera" hidden>🔁 Flip</button>
-        <button class="chip" id="fullscreen-btn" title="Toggle fullscreen" hidden>⛶ Fullscreen</button>
-        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
-        <span class="chip" id="user-chip" title="Logged in user" style="display:none">
-          <span class="usr" id="user-name"></span>
-          <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
-        </span>
-        <button id="cc-settings" class="chip" title="Caption settings">CC</button>
-        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
+        <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
+        <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
+        <button class="chip" id="fullscreen-btn" title="Toggle fullscreen">⛶ Fullscreen</button>
+        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes" hidden></button>
+        <button id="cc-settings" class="chip" title="Caption settings" hidden>CC</button>
       </div>
     </header>
     <div id="cc-panel" class="cc-panel" hidden>
@@ -359,7 +355,18 @@
       </main>
 
     <footer>
-      © <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a>
+      <div class="status bottom">
+        <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
+        <span class="chip" id="live-chip" title="Users online">
+          <span id="live-count">0</span> online
+        </span>
+        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
+        <span class="chip" id="user-chip" title="Logged in user" style="display:none">
+          <span class="usr" id="user-name"></span>
+          <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
+        </span>
+      </div>
+      <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
     </footer>
   </div>
 
@@ -1055,9 +1062,6 @@
           broadcastBtn.textContent = '⏹ End';
           broadcastBtn.title = 'End live broadcast';
           broadcastBtn.classList.add('live');
-          streamCodeBtn.removeAttribute('hidden');
-          cameraFlipBtn.removeAttribute('hidden');
-          fullscreenBtn.removeAttribute('hidden');
           fullscreenBtn.textContent = '⛶ Fullscreen';
           videoContainer.removeAttribute('hidden');
           const vid = document.createElement('video');
@@ -1130,8 +1134,6 @@
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
-        streamCodeBtn.setAttribute('hidden','');
-        cameraFlipBtn.setAttribute('hidden','');
         broadcastVideo = null;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
@@ -1178,8 +1180,6 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
-      fullscreenBtn.setAttribute('hidden','');
-      fullscreenBtn.textContent = '⛶ Fullscreen';
       if(document.fullscreenElement === videoContainer){
         try{ document.exitFullscreen(); }catch{}
       }
