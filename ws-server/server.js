@@ -41,7 +41,35 @@ db.exec(`
     UNIQUE(message_id, user)
   );
 `);
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+
+function ensureColumns(table, columns) {
+  const existing = new Set(
+    db.prepare(`PRAGMA table_info(${table})`).all().map((r) => r.name)
+  );
+  for (const [name, def] of Object.entries(columns)) {
+    if (!existing.has(name)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
+    }
+  }
+}
+
+ensureColumns("chat_messages", {
+  image: "TEXT",
+  file: "TEXT",
+  file_name: "TEXT",
+  file_type: "TEXT",
+  room: "TEXT",
+  timestamp: "DATETIME DEFAULT CURRENT_TIMESTAMP",
+});
+
+const cols = new Set(
+  db.prepare("PRAGMA table_info(chat_messages)").all().map((r) => r.name)
+);
+if (cols.has("video")) {
+  db.exec(
+    "UPDATE chat_messages SET file=video WHERE file IS NULL AND video IS NOT NULL"
+  );
+}
 
 function loadHistory() {
   const rows = db
