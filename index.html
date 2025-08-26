@@ -9,16 +9,16 @@
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <style>
       :root {
-        --bg: #001a33;
-        --panel: #00264d;
+        --bg: #000814;
+        --panel: #001d3d;
         --muted: #a0a0a0;
-        --fg: #c0c0c0;
-        --accent: #c0c0c0;
-        --accent-2: #e0e0e0;
+        --fg: #d0d0d0;
+        --accent: #0047ff;
+        --accent-2: #66a3ff;
         --danger: #ff5d6e;
-        --shadow: 0 0 10px rgba(192,192,192,.5);
+        --shadow: 0 0 12px rgba(192,192,192,.6);
         --radius: 16px;
-        --lining: #c0c0c0;
+        --lining: #d0d0d0;
         --caption-font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
         --caption-color: #ffffff;
         --caption-bg: rgba(0,0,0,0.6);
@@ -55,8 +55,15 @@
 
     .status { margin-left:auto; display:flex; align-items:center; gap:10px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
-            border-radius:999px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
+            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
     #live-chip, #theme-toggle, #mode-toggle { cursor:pointer; }
+    #mode-toggle, #cc-settings, #theme-toggle {
+      width:36px;
+      height:36px;
+      padding:0;
+      justify-content:center;
+      border-radius:12px;
+    }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
     .dot.ok { background: var(--accent); }
     .dot.local { background: #ffb020; }
