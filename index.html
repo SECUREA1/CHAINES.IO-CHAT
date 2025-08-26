@@ -947,8 +947,11 @@
           const vid = document.createElement('video');
           vid.srcObject = stream;
           vid.muted = true;
+          vid.setAttribute('muted','');
           vid.autoplay = true;
+          vid.setAttribute('autoplay','');
           vid.playsInline = true;
+          vid.setAttribute('playsinline','');
           vid.controls = true;
           attachCaptions(vid);
           captionTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
@@ -972,6 +975,9 @@
             try{ speechRec.start(); }catch{}
           }
           videoContainer.appendChild(vid);
+          // ensure playback starts promptly on mobile
+          const start = vid.play();
+          if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = vid;
           sendSignal({ type: 'broadcaster' });
           postMessage({ text: '🔴 Broadcast started', broadcast: true });
@@ -1094,7 +1100,9 @@
           const vid = document.createElement('video');
           vid.srcObject = ev.streams[0];
           vid.autoplay = true;
+          vid.setAttribute('autoplay','');
           vid.playsInline = true;
+          vid.setAttribute('playsinline','');
           vid.controls = true;
           attachCaptions(vid);
           const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
@@ -1104,6 +1112,16 @@
           } else {
             const box = streams[msg.id] && streams[msg.id].video;
             if(box) box.appendChild(vid);
+          }
+          // try to begin playback immediately (mobile requires user gesture)
+          vid.muted = true;
+          vid.setAttribute('muted','');
+          const playPromise = vid.play();
+          if(playPromise && playPromise.then){
+            playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+          } else {
+            vid.muted = false;
+            vid.removeAttribute('muted');
           }
           if(streams[msg.id]){
             streams[msg.id].vid = vid;
@@ -1242,6 +1260,8 @@
           const vid = document.createElement('video');
           vid.src = fileData;
           vid.controls = true;
+          vid.playsInline = true;
+          vid.setAttribute('playsinline','');
           vid.style.maxWidth = '100%';
           vid.style.borderRadius = '8px';
           attachCaptions(vid);
