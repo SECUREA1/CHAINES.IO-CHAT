@@ -56,12 +56,13 @@
         margin:0 auto;
       }
 
-    header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
+    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
-    .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
-    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 18px; margin:0; }
-    .status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .brand .logo { width:28px; height:28px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
+    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
+    .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .status .chip { flex:1 1 auto; justify-content:center; }
+    header .chip { padding:4px 8px; }
     header .status.top { margin-left:auto; justify-content:flex-end; }
     footer {
       display:flex;
@@ -697,6 +698,14 @@
     let drawHandle = null;
     let recordMime = 'video/webm';
 
+    function updateHeaderButtons(){
+      const show = broadcasting;
+      [streamCodeBtn, cameraFlipBtn, fullscreenBtn, ccSettings].forEach(btn => {
+        if(btn) btn.hidden = !show;
+      });
+    }
+    updateHeaderButtons();
+
       function updateUsers(list){
         liveCount.textContent = list.length;
         usersEl.innerHTML = '';
@@ -1128,6 +1137,7 @@
           broadcastBtn.textContent = '⏹ End';
           broadcastBtn.title = 'End live broadcast';
           broadcastBtn.classList.add('live');
+          updateHeaderButtons();
           fullscreenBtn.textContent = '⛶ Fullscreen';
           videoContainer.removeAttribute('hidden');
           const el = document.createElement(audioOnly ? 'audio' : 'video');
@@ -1192,6 +1202,7 @@
     function endBroadcast(forced=false){
       if(!broadcasting) return;
       broadcasting = false;
+      updateHeaderButtons();
       joinApproved = false;
       micApproved = false;
       if(pendingJoinHost && streams[pendingJoinHost] && streams[pendingJoinHost].requestBtn){
