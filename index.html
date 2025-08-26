@@ -1536,7 +1536,7 @@
       function renderHistory(mode = onlineMode === 'cloud' ? 'cloud' : 'local'){
       feed.innerHTML = '';
       const items = store.loadMsgs(mode);
-      items.slice().reverse().forEach(m => { seen.add(m.id); appendMessage(m, true); });
+      items.forEach(m => { seen.add(m.id); appendMessage(m, true); });
       scrollToTop();
     }
 
