@@ -666,7 +666,7 @@
       applyTheme(next);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
-    modeToggle.textContent = 'Go Cloud';
+    modeToggle.textContent = 'Local';
     modeToggle.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
         try { socket && socket.close(); } catch {}
@@ -963,13 +963,13 @@
         updateUsers([]);
         renderHistory('local');
       }
-      else {
+    else {
         connDot.classList.add('off');
         connLabel.textContent = 'Offline';
         updateUsers([]);
         renderHistory('local');
       }
-      modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
+      modeToggle.textContent = mode === 'cloud' ? 'Cloud' : 'Local';
     }
 
     function connectWS(){
