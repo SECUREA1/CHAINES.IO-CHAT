@@ -971,7 +971,6 @@
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
-            store.clearMsgs();
             feed.innerHTML = '';
             (data.messages || []).forEach(m => receive(m));
           }
