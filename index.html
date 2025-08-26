@@ -595,13 +595,22 @@
         broadcastBtn.disabled = true;
         broadcastBtn.textContent = '⏳ Pending';
       } else {
+        const streamPromise = navigator.mediaDevices.getUserMedia({
+          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+          audio: true
+        });
         broadcastThumb = await chooseThumbnail();
         if(broadcastThumb){
           ensureStreamThumb(clientId, store.user, true);
           handleThumbnail(clientId, broadcastThumb);
           sendSignal({ type: 'thumb', thumb: broadcastThumb });
         }
-        startBroadcast();
+        try {
+          const stream = await streamPromise;
+          startBroadcast(stream);
+        } catch {
+          alert('Unable to access camera/microphone');
+        }
       }
     });
     streamCodeBtn.addEventListener('click', () => {
@@ -1052,9 +1061,13 @@
       }
 
     // --- WebRTC helpers ---
-      function startBroadcast(){
+      function startBroadcast(stream){
         if(broadcasting) return;
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(stream => {
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia({
+          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+          audio: true
+        });
+        getStream.then(stream => {
           localStream = stream;
           recordedChunks = [];
           recordCanvas = document.createElement('canvas');
