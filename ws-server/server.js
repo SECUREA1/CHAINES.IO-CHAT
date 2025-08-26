@@ -345,8 +345,11 @@ wss.on("connection", (ws) => {
       }
     }
     if (msg?.type !== "chat") return;
-    if (msg.image && msg.image.length > 1_000_000) return; // limit ~1MB per image
-    if (msg.file && msg.file.length > 5_000_000) return; // limit ~5MB per file
+    // Allow larger uploads so mobile devices can share photos and videos
+    // Data URLs grow ~33% over the original binary size, so these limits are
+    // higher than the desired byte thresholds.
+    if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
+    if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
