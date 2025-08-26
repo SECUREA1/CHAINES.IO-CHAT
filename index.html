@@ -458,16 +458,19 @@
     const cmdListBtn = el('#cmd-list');
     const defaultPlaceholder = input.placeholder;
     const actionCommands = {
-      wave: 'waves \u{1F44B}',
-      shrug: 'shrugs \u{1F937}',
-      smile: 'smiles \u{1F642}',
-      laugh: 'laughs \u{1F602}',
-      dance: 'dances \u{1F483}',
-      cry: 'cries a river \u{1F622}',
-      sob: 'sobs like a soap opera star \u{1F62D}',
-      joke: 'tells a dad joke so bad it hurts \u{1F923}',
-      facepalm: 'facepalms in disbelief \u{1F926}',
-      sing: 'sings off-key karaoke \u{1F3A4}'
+      wave:      { text: 'waves \u{1F44B}', icon: '👋' },
+      shrug:     { text: 'shrugs \u{1F937}', icon: '🤷' },
+      smile:     { text: 'smiles \u{1F642}', icon: '😊' },
+      laugh:     { text: 'laughs \u{1F602}', icon: '😂' },
+      dance:     { text: 'dances \u{1F483}', icon: '💃' },
+      cry:       { text: 'cries a river \u{1F622}', icon: '😢' },
+      sob:       { text: 'sobs like a soap opera star \u{1F62D}', icon: '😭' },
+      joke:      { text: 'tells a dad joke so bad it hurts \u{1F923}', icon: '🤪' },
+      facepalm:  { text: 'facepalms in disbelief \u{1F926}', icon: '🤦' },
+      sing:      { text: 'sings off-key karaoke \u{1F3A4}', icon: '🎤' },
+      clap:      { text: 'claps wildly \u{1F44F}', icon: '👏' },
+      thumbsup:  { text: 'gives a thumbs up \u{1F44D}', icon: '👍' },
+      party:     { text: 'throws a party \u{1F389}', icon: '🎉' }
     };
     const cmdPanel = document.createElement('div');
     cmdPanel.id = 'cmd-panel';
@@ -476,13 +479,14 @@
 
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
-      Object.keys(actionCommands).forEach(cmd => {
+      Object.entries(actionCommands).forEach(([cmd, info]) => {
         const b = document.createElement('button');
         b.className = 'chip';
         b.type = 'button';
-        b.textContent = '/' + cmd;
+        b.textContent = info.icon;
+        b.title = '/' + cmd;
         b.addEventListener('click', () => {
-          postMessage({ text: `*${actionCommands[cmd]}*`, isAction: true });
+          postMessage({ text: `*${info.text}*`, isAction: true });
           cmdPanel.hidden = true;
         });
         cmdPanel.appendChild(b);
@@ -1054,9 +1058,9 @@
         }
         const simpleCmd = raw.match(/^\/([a-z]+)$/i);
         if(simpleCmd){
-          const act = actionCommands[simpleCmd[1].toLowerCase()];
-          if(act){
-            postMessage({ text: `*${act}*`, isAction:true });
+          const entry = actionCommands[simpleCmd[1].toLowerCase()];
+          if(entry){
+            postMessage({ text: `*${entry.text}*`, isAction:true });
             input.value='';
             input.placeholder = defaultPlaceholder;
             pendingFile = null;
