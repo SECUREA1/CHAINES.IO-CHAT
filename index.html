@@ -177,6 +177,7 @@
     .users-panel ul { list-style:none; margin:0; padding:0; }
     .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); }
     .users-panel li:last-child { border-bottom:0; }
+    .users-panel li.mic-user { color:#22c55e; }
 
     .live-btn {
       margin-left:6px;
@@ -483,6 +484,8 @@
     let broadcastThumb = null;
     let pendingJoinHost = null;
     let joinApproved = false;
+    let pendingMicHost = null;
+    let micApproved = false;
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -703,6 +706,7 @@
             liveIds.add(u.id);
             ensureStreamThumb(u.id, name, u.id === clientId);
           }
+          if(u.mic){ li.classList.add('mic-user'); }
           li.appendChild(document.createTextNode('@' + name));
           usersEl.appendChild(li);
         });
@@ -718,7 +722,7 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div>${isSelf ? '' : '<button class="tune-btn" type="button">Tune In</button><button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div>${isSelf ? '' : '<button class="tune-btn" type="button">Tune In</button><button class="request-btn" type="button">Request Camera</button><button class="request-mic-btn" type="button">Request Mic</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -727,6 +731,7 @@
         const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
         const reqBtn = div.querySelector('.request-btn');
+        const micBtn = div.querySelector('.request-mic-btn');
         const tuneBtn = div.querySelector('.tune-btn');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
@@ -742,6 +747,15 @@
             joinApproved = false;
             reqBtn.disabled = true;
             sendSignal({ type: 'join-request', id, user: store.user });
+          });
+        }
+        if(micBtn){
+          micBtn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            pendingMicHost = id;
+            micApproved = false;
+            micBtn.disabled = true;
+            sendSignal({ type: 'mic-request', id, user: store.user });
           });
         }
         if(tuneBtn){
@@ -770,7 +784,7 @@
         });
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, micBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
       }
       function chooseThumbnail(){
         return new Promise(resolve => {
@@ -888,6 +902,9 @@
           if(data && data.type === 'join-request') handleJoinRequest(data.id, data.user);
           if(data && data.type === 'join-approved') handleJoinApproved();
           if(data && data.type === 'join-denied') handleJoinDenied();
+          if(data && data.type === 'mic-request') handleMicRequest(data.id, data.user);
+          if(data && data.type === 'mic-approved') handleMicApproved();
+          if(data && data.type === 'mic-denied') handleMicDenied();
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
         } catch {}
       });
@@ -1068,83 +1085,83 @@
       }
 
     // --- WebRTC helpers ---
-      function startBroadcast(stream){
+      function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
-        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-          audio: true
-        });
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
           recordedChunks = [];
-          recordCanvas = document.createElement('canvas');
-          recordCtx = recordCanvas.getContext('2d');
-        const draw = () => {
-          const vids = videoContainer.querySelectorAll('video');
-          let w = 0, h = 0;
-          vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
-          if(w && h){
-            recordCanvas.width = w;
-            recordCanvas.height = h;
-            let x = 0;
-            vids.forEach(v => {
-              try { recordCtx.drawImage(v, x, 0, v.videoWidth || 0, h); } catch{}
-              x += v.videoWidth || 0;
-            });
+          if(!audioOnly){
+            recordCanvas = document.createElement('canvas');
+            recordCtx = recordCanvas.getContext('2d');
+            const draw = () => {
+              const vids = videoContainer.querySelectorAll('video');
+              let w = 0, h = 0;
+              vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
+              if(w && h){
+                recordCanvas.width = w;
+                recordCanvas.height = h;
+                let x = 0;
+                vids.forEach(v => {
+                  try { recordCtx.drawImage(v, x, 0, v.videoWidth || 0, h); } catch{}
+                  x += v.videoWidth || 0;
+                });
+              }
+              drawHandle = requestAnimationFrame(draw);
+            };
+            draw();
+            try {
+              const canvasStream = recordCanvas.captureStream(30);
+              const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
+              mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
+              recordMime = mime;
+              mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+              mediaRecorder.start();
+            } catch {}
           }
-          drawHandle = requestAnimationFrame(draw);
-        };
-        draw();
-        try {
-          const canvasStream = recordCanvas.captureStream(30);
-          const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
-          mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
-          recordMime = mime;
-          mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
-          mediaRecorder.start();
-        } catch {}
           broadcasting = true;
           broadcastBtn.textContent = '⏹ End';
           broadcastBtn.title = 'End live broadcast';
           broadcastBtn.classList.add('live');
           fullscreenBtn.textContent = '⛶ Fullscreen';
           videoContainer.removeAttribute('hidden');
-          const vid = document.createElement('video');
-          vid.srcObject = stream;
-          vid.muted = true;
-          vid.setAttribute('muted','');
-          vid.autoplay = true;
-          vid.setAttribute('autoplay','');
-          vid.playsInline = true;
-          vid.setAttribute('playsinline','');
-          vid.controls = true;
-          attachCaptions(vid);
-          captionTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-          captionTrack.mode = 'showing';
-          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-          if(SpeechRecognition){
-            speechRec = new SpeechRecognition();
-            speechRec.lang = document.documentElement.lang || 'en-US';
-            speechRec.continuous = true;
-            speechRec.interimResults = false;
-            speechRec.addEventListener('result', e => {
-              const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
-              if(transcript && captionTrack){
-                const Cue = window.VTTCue || window.TextTrackCue;
-                try{ captionTrack.addCue(new Cue(vid.currentTime, vid.currentTime+5, transcript)); }
-                catch(err){ console.error('cue error', err); }
-                try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
-              }
-            });
-            speechRec.addEventListener('error', err => console.error('speech error', err));
-            try{ speechRec.start(); }catch{}
+          const el = document.createElement(audioOnly ? 'audio' : 'video');
+          el.srcObject = stream;
+          el.muted = true;
+          el.setAttribute('muted','');
+          el.autoplay = true;
+          el.setAttribute('autoplay','');
+          el.playsInline = true;
+          el.setAttribute('playsinline','');
+          el.controls = true;
+          if(!audioOnly){
+            attachCaptions(el);
+            captionTrack = el.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+            captionTrack.mode = 'showing';
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(SpeechRecognition){
+              speechRec = new SpeechRecognition();
+              speechRec.lang = document.documentElement.lang || 'en-US';
+              speechRec.continuous = true;
+              speechRec.interimResults = false;
+              speechRec.addEventListener('result', e => {
+                const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
+                if(transcript && captionTrack){
+                  const Cue = window.VTTCue || window.TextTrackCue;
+                  try{ captionTrack.addCue(new Cue(el.currentTime, el.currentTime+5, transcript)); }
+                  catch(err){ console.error('cue error', err); }
+                  try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
+                }
+              });
+              speechRec.addEventListener('error', err => console.error('speech error', err));
+              try{ speechRec.start(); }catch{}
+            }
           }
-          videoContainer.appendChild(vid);
-          // ensure playback starts promptly on mobile
-          const start = vid.play();
+          videoContainer.appendChild(el);
+          const start = el.play();
           if(start && start.catch){ start.catch(() => {}); }
-          broadcastVideo = vid;
-          sendSignal({ type: 'broadcaster' });
+          broadcastVideo = el;
+          sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
           postMessage({ text: '🔴 Broadcast started', broadcast: true });
         }).catch(() => alert('Unable to access camera/microphone'));
       }
@@ -1171,10 +1188,15 @@
       if(!broadcasting) return;
       broadcasting = false;
       joinApproved = false;
+      micApproved = false;
       if(pendingJoinHost && streams[pendingJoinHost] && streams[pendingJoinHost].requestBtn){
         streams[pendingJoinHost].requestBtn.disabled = false;
       }
+      if(pendingMicHost && streams[pendingMicHost] && streams[pendingMicHost].micBtn){
+        streams[pendingMicHost].micBtn.disabled = false;
+      }
       pendingJoinHost = null;
+      pendingMicHost = null;
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
@@ -1324,9 +1346,12 @@
           streams[msg.id].vid = null;
           streams[msg.id].captionTrack = null;
         }
-        if(joinApproved && pendingJoinHost === msg.id){
+        if((joinApproved && pendingJoinHost === msg.id) || (micApproved && pendingMicHost === msg.id)){
           endBroadcast(true);
           pendingJoinHost = null;
+          pendingMicHost = null;
+          joinApproved = false;
+          micApproved = false;
         }
       }
 
@@ -1353,6 +1378,28 @@
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
       alert('Join request denied or busy.');
+    }
+
+    function handleMicRequest(id, user){
+      const ok = confirm(`Allow @${user || 'user'} to speak?`);
+      sendSignal({ type: ok ? 'approve-mic' : 'deny-mic', id });
+    }
+
+    function handleMicApproved(){
+      micApproved = true;
+      const stream = streams[pendingMicHost];
+      if(stream && stream.micBtn) stream.micBtn.disabled = true;
+      const hostVid = stream && stream.video.querySelector('video');
+      if(hostVid) videoContainer.appendChild(hostVid);
+      startBroadcast(null, true);
+    }
+
+    function handleMicDenied(){
+      micApproved = false;
+      const stream = streams[pendingMicHost];
+      if(stream && stream.micBtn) stream.micBtn.disabled = false;
+      pendingMicHost = null;
+      alert('Mic request denied.');
     }
 
     function sendSignal(data){

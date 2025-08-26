@@ -116,6 +116,7 @@ const thumbnails = new Map();
 const listeners = new Map(); // hostId -> Set of watcherIds
 const watching = new Map();  // watcherId -> Set of hostIds
 let guestApproved = null; // currently approved guest broadcaster
+const micGuests = new Set(); // audio-only broadcasters
 
 function uid(){
   return Math.random().toString(36).slice(2,9);
@@ -129,6 +130,7 @@ function broadcastUsers() {
         name: client.username,
         id: client.id,
         live: broadcasters.has(client.id),
+        mic: micGuests.has(client.id),
       });
     }
   }
@@ -160,6 +162,7 @@ wss.on("connection", (ws) => {
     clients.delete(ws.id);
     if (broadcasters.has(ws.id)) {
       broadcasters.delete(ws.id);
+      micGuests.delete(ws.id);
       for (const client of wss.clients) {
         if (client.readyState === 1) client.send(JSON.stringify({ type: "bye", id: ws.id }));
       }
@@ -200,6 +203,11 @@ wss.on("connection", (ws) => {
         broadcasters.set(ws.id, ws);
         broadcastUsers();
         return;
+      case "mic-broadcaster":
+        broadcasters.set(ws.id, ws);
+        micGuests.add(ws.id);
+        broadcastUsers();
+        return;
       case "end-broadcast":
         if (broadcasters.has(ws.id)) {
           for (const client of wss.clients) {
@@ -208,6 +216,7 @@ wss.on("connection", (ws) => {
             }
           }
           broadcasters.delete(ws.id);
+          micGuests.delete(ws.id);
           thumbnails.delete(ws.id);
           if (guestApproved === ws.id || broadcasters.size <= 1) guestApproved = null;
           if(listeners.has(ws.id)){
@@ -232,6 +241,15 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "mic-request": {
+        const host = broadcasters.get(msg.id);
+        if (host && host.readyState === 1) {
+          host.send(
+            JSON.stringify({ type: "mic-request", id: ws.id, user: ws.username })
+          );
+        }
+        return;
+      }
       case "approve-join": {
         if (guestApproved) return;
         const guest = clients.get(msg.id);
@@ -241,9 +259,21 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "approve-mic": {
+        const guest = clients.get(msg.id);
+        if (guest && broadcasters.has(ws.id)) {
+          guest.send(JSON.stringify({ type: "mic-approved" }));
+        }
+        return;
+      }
       case "deny-join": {
         const guest = clients.get(msg.id);
         if (guest) guest.send(JSON.stringify({ type: "join-denied" }));
+        return;
+      }
+      case "deny-mic": {
+        const guest = clients.get(msg.id);
+        if (guest) guest.send(JSON.stringify({ type: "mic-denied" }));
         return;
       }
       case "watcher": {
