@@ -612,7 +612,7 @@
           }
         });
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn, vid: null, captionTrack: null };
       }
 
       // open stream bubble programmatically if needed
@@ -665,6 +665,7 @@
           if(data && data.type === 'chat') receive(data);
           if(data && data.type === 'comment') handleComment(data);
           if(data && data.type === 'like') handleLike(data);
+          if(data && data.type === 'caption') handleCaption(data);
           if(data && data.type === 'system') systemNote(data.text);
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
@@ -910,6 +911,7 @@
                 const Cue = window.VTTCue || window.TextTrackCue;
                 try{ captionTrack.addCue(new Cue(vid.currentTime, vid.currentTime+5, transcript)); }
                 catch(err){ console.error('cue error', err); }
+                try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
               }
             });
             speechRec.addEventListener('error', err => console.error('speech error', err));
@@ -1035,11 +1037,17 @@
           vid.playsInline = true;
           vid.controls = true;
           attachCaptions(vid);
+          const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+          liveTrack.mode = 'showing';
           if(broadcasting){
             videoContainer.appendChild(vid);
           } else {
             const box = streams[msg.id] && streams[msg.id].video;
             if(box) box.appendChild(vid);
+          }
+          if(streams[msg.id]){
+            streams[msg.id].vid = vid;
+            streams[msg.id].captionTrack = liveTrack;
           }
           pc._video = vid;
         };
@@ -1072,6 +1080,8 @@
           streams[msg.id].video.innerHTML = '';
           streams[msg.id].container.classList.remove('open');
           if(streams[msg.id].tuneBtn) streams[msg.id].tuneBtn.disabled = false;
+          streams[msg.id].vid = null;
+          streams[msg.id].captionTrack = null;
         }
         if(joinApproved && pendingJoinHost === msg.id){
           endBroadcast(true);
@@ -1280,6 +1290,13 @@
         const msgEl = feed.querySelector(`li[data-id="${l.messageId}"]`);
         const btn = msgEl && msgEl.querySelector('.like-btn');
         if(btn) btn.textContent = `❤️ ${l.count}`;
+      }
+
+      function handleCaption(c){
+        const s = streams[c.id];
+        if(!s || !s.captionTrack || !s.vid) return;
+        const Cue = window.VTTCue || window.TextTrackCue;
+        try{ s.captionTrack.addCue(new Cue(s.vid.currentTime, s.vid.currentTime+5, c.text)); }catch{}
       }
 
       function systemNote(t){

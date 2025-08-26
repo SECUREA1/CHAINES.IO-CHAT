@@ -266,6 +266,18 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "caption": {
+        if(!msg.text) return;
+        const watchersSet = listeners.get(ws.id);
+        if(watchersSet){
+          const payload = JSON.stringify({ type: "caption", id: ws.id, text: msg.text });
+          for(const watcherId of watchersSet){
+            const watcher = clients.get(watcherId);
+            if(watcher && watcher.readyState === 1) watcher.send(payload);
+          }
+        }
+        return;
+      }
       case "comment": {
         if (!msg.messageId || !msg.text) return;
         const info = db
