@@ -630,6 +630,7 @@
     let recordCanvas = null;
     let recordCtx = null;
     let drawHandle = null;
+    let recordMime = 'video/webm';
 
       function updateUsers(list){
         liveCount.textContent = list.length;
@@ -1026,7 +1027,9 @@
         draw();
         try {
           const canvasStream = recordCanvas.captureStream(30);
-          mediaRecorder = new MediaRecorder(canvasStream);
+          const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
+          mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
+          recordMime = mime;
           mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
           mediaRecorder.start();
         } catch {}
@@ -1122,8 +1125,8 @@
       const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
       const hadRecorder = !!mediaRecorder;
       if(mediaRecorder){
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: recordMime });
           const reader = new FileReader();
           reader.onloadend = () => {
             const dataUrl = reader.result;
@@ -1132,8 +1135,8 @@
                 text: msgText,
                 video: dataUrl,
                 file: dataUrl,
-                fileName: `broadcast-${Date.now()}.webm`,
-                fileType: 'video/webm',
+                fileName: `broadcast-${Date.now()}.${recordMime === 'video/mp4' ? 'mp4' : 'webm'}`,
+                fileType: recordMime,
                 image: broadcastThumb,
                 broadcast: true
               });
