@@ -32,6 +32,14 @@ Chat messages can include images, videos, or other files. Uploads are stored in
 the database along with the original filename and MIME type so the full post and
 its metadata are available to other users and when reloading the chat.
 
+### Captions
+
+Video broadcasts and uploads now include a **CC** button by default. Users can
+customize caption appearance with adjustable fonts and colors to suit personal
+readability preferences. Caption tracks ship in multiple languages including
+English, Portuguese/English bilingual, Korean, and Arabic/English bilingual for
+improved accuracy.
+
 ### File-type backups
 
 Run `python backup.py` to copy repository files into the `backups/` directory.
