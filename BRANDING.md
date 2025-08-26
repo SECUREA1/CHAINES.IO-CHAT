@@ -3,7 +3,7 @@
 ## Identity
 - **Name**: CHAINeS Chat
 - **Tagline**: Linking conversations across the chain.
-- **Logo**: Chain link chat icon with a cyan to blue gradient.
+- **Logo**: Fire chain ring icon with a yellow-orange to red gradient.
 
 ## Color Palette
 | Role | Hex |
@@ -21,6 +21,6 @@
 - Weights 400 and 600 for body and headings, respectively.
 
 ## Usage Notes
-- The logo should appear at 32\*32px in the header.
+ - The logo should appear at 32×32px in the header and as a favicon. Provide an SVG with a 32×32 PNG fallback and a 512×512 PNG for touch icons.
 - Accent colors should be used for call-to-action buttons and links.
 - Maintain generous whitespace and rounded corners (16px radius) for a friendly, modern feel.
