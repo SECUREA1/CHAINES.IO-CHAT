@@ -59,7 +59,7 @@
 
     header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
-    .brand .logo { width:28px; height:28px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
+    .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .status .chip { flex:1 1 auto; justify-content:center; }
@@ -171,7 +171,7 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto; gap:10px; margin:0; }
+    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto auto; gap:10px; margin:0; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -392,6 +392,7 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
+        <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
       </form>
       <input id="file" type="file" hidden />
@@ -401,7 +402,6 @@
           <span id="live-count">0</span> online
         </span>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
-        <button id="attach" class="chip" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">📃</button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
