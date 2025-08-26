@@ -219,6 +219,44 @@
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
+    /* Fullscreen broadcast layout */
+    body.broadcast-mode header,
+    body.broadcast-mode .composer,
+    body.broadcast-mode footer {
+      display: none;
+    }
+    body.broadcast-mode #video-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 0;
+      background: #000;
+      flex-wrap: nowrap;
+    }
+    body.broadcast-mode #video-container video {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      border: 0;
+      border-radius: 0;
+      object-fit: cover;
+    }
+    body.broadcast-mode #feed {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 33vh;
+      margin: 0;
+      border-radius: 0;
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      z-index: 1001;
+    }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -249,6 +287,7 @@
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <button class="chip" id="stream-code-btn" title="Copy stream code" hidden>🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera" hidden>🔁 Flip</button>
+        <button class="chip" id="fullscreen-btn" title="Toggle fullscreen" hidden>⛶ Fullscreen</button>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
@@ -358,6 +397,7 @@
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
+    const fullscreenBtn = el('#fullscreen-btn');
     const ccSettings = el('#cc-settings');
     const ccPanel = el('#cc-panel');
     const ccFont = el('#cc-font');
@@ -505,6 +545,18 @@
       }
     });
     cameraFlipBtn.addEventListener('click', switchCamera);
+    fullscreenBtn.addEventListener('click', () => {
+      if(document.fullscreenElement){
+        document.exitFullscreen().catch(() => {});
+      } else {
+        videoContainer.requestFullscreen().catch(() => {});
+      }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      const active = document.fullscreenElement === videoContainer;
+      document.body.classList.toggle('broadcast-mode', active);
+      fullscreenBtn.textContent = active ? '❎ Exit' : '⛶ Fullscreen';
+    });
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
       for(const id in streams){
@@ -889,6 +941,8 @@
           broadcastBtn.classList.add('live');
           streamCodeBtn.removeAttribute('hidden');
           cameraFlipBtn.removeAttribute('hidden');
+          fullscreenBtn.removeAttribute('hidden');
+          fullscreenBtn.textContent = '⛶ Fullscreen';
           videoContainer.removeAttribute('hidden');
           const vid = document.createElement('video');
           vid.srcObject = stream;
@@ -1001,6 +1055,12 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
+      fullscreenBtn.setAttribute('hidden','');
+      fullscreenBtn.textContent = '⛶ Fullscreen';
+      if(document.fullscreenElement === videoContainer){
+        try{ document.exitFullscreen(); }catch{}
+      }
+      document.body.classList.remove('broadcast-mode');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
       if(!hadRecorder && share){
