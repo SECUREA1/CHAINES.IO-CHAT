@@ -525,6 +525,8 @@
       let clientId = null;
     let broadcasting = false;
     let broadcastVideo = null;
+    let captionTrack = null;
+    let speechRec = null;
     let usingFrontCamera = true;
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -894,6 +896,25 @@
           vid.playsInline = true;
           vid.controls = true;
           attachCaptions(vid);
+          captionTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+          captionTrack.mode = 'showing';
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if(SpeechRecognition){
+            speechRec = new SpeechRecognition();
+            speechRec.lang = document.documentElement.lang || 'en-US';
+            speechRec.continuous = true;
+            speechRec.interimResults = false;
+            speechRec.addEventListener('result', e => {
+              const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
+              if(transcript && captionTrack){
+                const Cue = window.VTTCue || window.TextTrackCue;
+                try{ captionTrack.addCue(new Cue(vid.currentTime, vid.currentTime+5, transcript)); }
+                catch(err){ console.error('cue error', err); }
+              }
+            });
+            speechRec.addEventListener('error', err => console.error('speech error', err));
+            try{ speechRec.start(); }catch{}
+          }
           videoContainer.appendChild(vid);
           broadcastVideo = vid;
           sendSignal({ type: 'broadcaster' });
@@ -978,6 +999,8 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
+      if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
+      captionTrack = null;
       if(!hadRecorder && share){
         postMessage({ text: msgText, broadcast: true });
       }
