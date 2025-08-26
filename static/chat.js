@@ -88,8 +88,8 @@
           msg.appendChild(link);
         }
       }
-      feed.insertBefore(msg, feed.firstChild);
-      feed.scrollTop = 0;
+      feed.appendChild(msg);
+      feed.scrollTop = feed.scrollHeight;
     }
     function renderMessages(list){
       feed.innerHTML = '';
