@@ -220,6 +220,7 @@
         </span>
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <button class="chip" id="stream-code-btn" title="Copy stream code" hidden>🔑 Stream Code</button>
+        <button class="chip" id="camera-flip-btn" title="Switch camera" hidden>🔁 Flip</button>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
@@ -313,6 +314,7 @@
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
+    const cameraFlipBtn = el('#camera-flip-btn');
     const videoContainer = el('#video-container');
     const streamsEl = el('#streams');
     const streams = {};
@@ -439,6 +441,7 @@
         prompt('Your stream code:', code);
       }
     });
+    cameraFlipBtn.addEventListener('click', switchCamera);
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
       for(const id in streams){
@@ -458,6 +461,8 @@
       let localStream = null;
       let clientId = null;
     let broadcasting = false;
+    let broadcastVideo = null;
+    let usingFrontCamera = true;
     let mediaRecorder = null;
     let recordedChunks = [];
     let recordCanvas = null;
@@ -783,13 +788,13 @@
       }
 
     // --- WebRTC helpers ---
-    function startBroadcast(){
-      if(broadcasting) return;
-      navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
-        localStream = stream;
-        recordedChunks = [];
-        recordCanvas = document.createElement('canvas');
-        recordCtx = recordCanvas.getContext('2d');
+      function startBroadcast(){
+        if(broadcasting) return;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(stream => {
+          localStream = stream;
+          recordedChunks = [];
+          recordCanvas = document.createElement('canvas');
+          recordCtx = recordCanvas.getContext('2d');
         const draw = () => {
           const vids = videoContainer.querySelectorAll('video');
           let w = 0, h = 0;
@@ -812,22 +817,42 @@
           mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
           mediaRecorder.start();
         } catch {}
-        broadcasting = true;
-        broadcastBtn.textContent = '⏹ End';
-        broadcastBtn.title = 'End live broadcast';
-        broadcastBtn.classList.add('live');
-        streamCodeBtn.removeAttribute('hidden');
-        videoContainer.removeAttribute('hidden');
-        const vid = document.createElement('video');
-        vid.srcObject = stream;
-        vid.muted = true;
-        vid.autoplay = true;
-        vid.playsInline = true;
-        videoContainer.appendChild(vid);
-        sendSignal({ type: 'broadcaster' });
-        postMessage({ text: '🔴 Broadcast started', broadcast: true });
-      }).catch(() => alert('Unable to access camera/microphone'));
-    }
+          broadcasting = true;
+          broadcastBtn.textContent = '⏹ End';
+          broadcastBtn.title = 'End live broadcast';
+          broadcastBtn.classList.add('live');
+          streamCodeBtn.removeAttribute('hidden');
+          cameraFlipBtn.removeAttribute('hidden');
+          videoContainer.removeAttribute('hidden');
+          const vid = document.createElement('video');
+          vid.srcObject = stream;
+          vid.muted = true;
+          vid.autoplay = true;
+          vid.playsInline = true;
+          videoContainer.appendChild(vid);
+          broadcastVideo = vid;
+          sendSignal({ type: 'broadcaster' });
+          postMessage({ text: '🔴 Broadcast started', broadcast: true });
+        }).catch(() => alert('Unable to access camera/microphone'));
+      }
+
+      function switchCamera(){
+        if(!localStream) return;
+        usingFrontCamera = !usingFrontCamera;
+        const videoTrack = localStream.getVideoTracks()[0];
+        const audioTracks = localStream.getAudioTracks();
+        if(videoTrack) videoTrack.stop();
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
+          .then(stream => {
+            const newVideoTrack = stream.getVideoTracks()[0];
+            localStream = new MediaStream([...audioTracks, newVideoTrack]);
+            if(broadcastVideo) broadcastVideo.srcObject = localStream;
+            for(const id in peerConnections){
+              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+              if(sender) sender.replaceTrack(newVideoTrack);
+            }
+          }).catch(() => alert('Unable to switch camera'));
+      }
 
     function endBroadcast(forced=false){
       if(!broadcasting) return;
@@ -840,12 +865,14 @@
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Live';
       broadcastBtn.title = 'Go live';
-      broadcastBtn.classList.remove('live');
-streamCodeBtn.setAttribute('hidden','');
-const share = forced ? true :
-  confirm('Post to chat?\nPress OK to post or Cancel to delete.');
-const note = forced ? new Date().toLocaleString() : (share ?
-  (prompt('Broadcast end comment?') || '').trim() : '');
+        broadcastBtn.classList.remove('live');
+        streamCodeBtn.setAttribute('hidden','');
+        cameraFlipBtn.setAttribute('hidden','');
+        broadcastVideo = null;
+        const share = forced ? true :
+          confirm('Post to chat?\nPress OK to post or Cancel to delete.');
+        const note = forced ? new Date().toLocaleString() : (share ?
+          (prompt('Broadcast end comment?') || '').trim() : '');
 
       const vidCount = videoContainer.querySelectorAll('video').length;
       const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
