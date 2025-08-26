@@ -186,6 +186,8 @@
     .stream { position:relative; width:150px; border:1px solid var(--lining); border-radius:12px; padding:8px; background: var(--panel); cursor:pointer; }
     .stream.open { width:300px; }
     .stream .title { font-weight:700; margin-bottom:6px; }
+    .stream .thumb { width:100%; border-radius:8px; }
+    .stream.open .thumb { display:none; }
     .stream .video { display:none; }
     .stream.open .video { display:block; }
     .stream .video video { width:100%; border-radius:8px; }
@@ -406,6 +408,8 @@
     const videoContainer = el('#video-container');
     const streamsEl = el('#streams');
     const streams = {};
+    const pendingThumbs = {};
+    let broadcastThumb = null;
     let pendingJoinHost = null;
     let joinApproved = false;
 
@@ -505,7 +509,7 @@
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', () => {
+    broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
@@ -515,6 +519,12 @@
         broadcastBtn.disabled = true;
         broadcastBtn.textContent = '⏳ Pending';
       } else {
+        broadcastThumb = await chooseThumbnail();
+        if(broadcastThumb){
+          ensureStreamThumb(clientId, store.user, true);
+          handleThumbnail(clientId, broadcastThumb);
+          sendSignal({ type: 'thumb', thumb: broadcastThumb });
+        }
         startBroadcast();
       }
     });
@@ -615,8 +625,10 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="video"></div>${isSelf ? '' : '<button class="tune-btn" type="button">Tune In</button><button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div>${isSelf ? '' : '<button class="tune-btn" type="button">Tune In</button><button class="request-btn" type="button">Request Camera</button>'}<ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
+        const thumbEl = div.querySelector('.thumb');
+        thumbEl.setAttribute('hidden','');
         const feed = div.querySelector('.stream-feed');
         const form = div.querySelector('.stream-composer');
         const input = form.querySelector('input');
@@ -663,8 +675,34 @@
             if(streams[id].tuneBtn) streams[id].tuneBtn.disabled = false;
           }
         });
+        if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn, vid: null, captionTrack: null };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
+      }
+      function chooseThumbnail(){
+        return new Promise(resolve => {
+          const inp = document.createElement('input');
+          inp.type = 'file';
+          inp.accept = 'image/*';
+          inp.capture = 'environment';
+          inp.onchange = () => {
+            const file = inp.files[0];
+            if(!file){ resolve(null); return; }
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          };
+          inp.click();
+        });
+      }
+
+      function handleThumbnail(id, thumb){
+        if(streams[id]){
+          streams[id].thumbEl.src = thumb;
+          streams[id].thumbEl.removeAttribute('hidden');
+        } else {
+          pendingThumbs[id] = thumb;
+        }
       }
 
       // open stream bubble programmatically if needed
@@ -736,6 +774,7 @@
           if(data && data.type === 'join-request') handleJoinRequest(data.id, data.user);
           if(data && data.type === 'join-approved') handleJoinApproved();
           if(data && data.type === 'join-denied') handleJoinDenied();
+          if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
         } catch {}
       });
     }
@@ -1039,6 +1078,7 @@
                 file: dataUrl,
                 fileName: `broadcast-${Date.now()}.webm`,
                 fileType: 'video/webm',
+                image: broadcastThumb,
                 broadcast: true
               });
             }
@@ -1070,8 +1110,9 @@
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
       if(!hadRecorder && share){
-        postMessage({ text: msgText, broadcast: true });
+        postMessage({ text: msgText, image: broadcastThumb, broadcast: true });
       }
+      broadcastThumb = null;
     }
 
       function startWatching(id){
@@ -1265,6 +1306,7 @@
           vid.style.maxWidth = '100%';
           vid.style.borderRadius = '8px';
           attachCaptions(vid);
+          if(m.image) vid.poster = m.image;
           bubble.appendChild(vid);
         } else if(mime.startsWith('audio/')){
           const aud = document.createElement('audio');

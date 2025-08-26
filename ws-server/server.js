@@ -111,6 +111,7 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
 const broadcasters = new Map();
+const thumbnails = new Map();
 // track viewers per broadcaster
 const listeners = new Map(); // hostId -> Set of watcherIds
 const watching = new Map();  // watcherId -> Set of hostIds
@@ -152,6 +153,9 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
   broadcastUsers();
+  for(const [id, thumb] of thumbnails.entries()){
+    ws.send(JSON.stringify({ type: "thumb", id, thumb }));
+  }
   ws.on("close", () => {
     clients.delete(ws.id);
     if (broadcasters.has(ws.id)) {
@@ -164,6 +168,7 @@ wss.on("connection", (ws) => {
         listeners.delete(ws.id);
         sendListenerCount(ws.id);
       }
+      thumbnails.delete(ws.id);
     }
     const watched = watching.get(ws.id);
     if(watched){
@@ -203,6 +208,7 @@ wss.on("connection", (ws) => {
             }
           }
           broadcasters.delete(ws.id);
+          thumbnails.delete(ws.id);
           if (guestApproved === ws.id || broadcasters.size <= 1) guestApproved = null;
           if(listeners.has(ws.id)){
             listeners.delete(ws.id);
@@ -263,6 +269,16 @@ wss.on("connection", (ws) => {
         if(list){
           list.delete(msg.id);
           if(list.size === 0) watching.delete(ws.id);
+        }
+        return;
+      }
+      case "thumb": {
+        if (typeof msg.thumb === "string") {
+          thumbnails.set(ws.id, msg.thumb);
+          const payload = JSON.stringify({ type: "thumb", id: ws.id, thumb: msg.thumb });
+          for (const client of wss.clients) {
+            if (client.readyState === 1) client.send(payload);
+          }
         }
         return;
       }
