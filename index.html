@@ -447,6 +447,8 @@
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const fullscreenBtn = el('#fullscreen-btn');
+    const headerBar = el('header');
+    const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
     const thumbUpload = el('#thumb-upload');
     const thumbCamera = el('#thumb-camera');
@@ -463,6 +465,18 @@
     let broadcastThumb = null;
     let pendingJoinHost = null;
     let joinApproved = false;
+
+    // ensure header and footer remain visible
+    const keepVisible = el => {
+      if(!el) return;
+      el.style.opacity = '1';
+      el.style.visibility = 'visible';
+      el.removeAttribute('hidden');
+    };
+    [headerBar, footerBar].forEach(el => {
+      keepVisible(el);
+      new MutationObserver(() => keepVisible(el)).observe(el, { attributes: true });
+    });
 
     el('#year').textContent = new Date().getFullYear();
 
