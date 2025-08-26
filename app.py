@@ -40,6 +40,8 @@ def chat_connect():
                 "file": r[3],
                 "file_name": r[4],
                 "file_type": r[5],
+                "fileName": r[4],
+                "fileType": r[5],
                 "timestamp": r[6],
             }
             for r in rows
@@ -71,6 +73,8 @@ def get_chat_history():
                 "file": r[3],
                 "file_name": r[4],
                 "file_type": r[5],
+                "fileName": r[4],
+                "fileType": r[5],
                 "timestamp": r[6],
             }
             for r in rows
@@ -106,6 +110,8 @@ def handle_chat_message(data):
             'file': file,
             'file_name': file_name,
             'file_type': file_type,
+            'fileName': file_name,
+            'fileType': file_type,
         },
     )
 
@@ -135,6 +141,8 @@ def search_chat(data):
                 "file": r[3],
                 "file_name": r[4],
                 "file_type": r[5],
+                "fileName": r[4],
+                "fileType": r[5],
                 "timestamp": r[6],
             }
             for r in rows
