@@ -632,25 +632,18 @@
         try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
         catch {}
       },
-      pushMsg(m, mode='local') {
+      pushMsg(m) {
         try {
-          const key = mode === 'cloud' ? 'chaines_cloud_messages' : 'chaines_messages';
-          const items = JSON.parse(localStorage.getItem(key) || '[]');
+          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
           items.push(m); while (items.length > 200) items.shift();
-          localStorage.setItem(key, JSON.stringify(items));
+          localStorage.setItem('chaines_messages', JSON.stringify(items));
         } catch {}
       },
-      loadMsgs(mode='local') {
-        try {
-          const key = mode === 'cloud' ? 'chaines_cloud_messages' : 'chaines_messages';
-          return JSON.parse(localStorage.getItem(key) || '[]');
-        } catch { return []; }
+      loadMsgs() {
+        try { return JSON.parse(localStorage.getItem('chaines_messages') || '[]'); } catch { return []; }
       },
-      clearMsgs(mode='local') {
-        try {
-          const key = mode === 'cloud' ? 'chaines_cloud_messages' : 'chaines_messages';
-          localStorage.removeItem(key);
-        } catch {}
+      clearMsgs() {
+        try { localStorage.removeItem('chaines_messages'); } catch {}
       }
     };
 
@@ -666,14 +659,13 @@
       applyTheme(next);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
-    modeToggle.textContent = 'Local';
+    modeToggle.textContent = 'Go Cloud';
     modeToggle.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
         try { socket && socket.close(); } catch {}
         socket = null;
         setStatus(bc ? 'local' : 'off');
       } else {
-        setStatus('cloud');
         connectWS();
       }
     });
@@ -951,25 +943,11 @@
     function setStatus(mode){
       onlineMode = mode;
       connDot.classList.remove('ok','local','off');
-      if(mode === 'cloud'){
-        connDot.classList.add('ok');
-        connLabel.textContent = 'Online (Cloud)';
-        updateUsers([]);
-        renderHistory('cloud');
-      }
-      else if(mode === 'local'){
-        connDot.classList.add('local');
-        connLabel.textContent = 'Online (Local)';
-        updateUsers([]);
-        renderHistory('local');
-      }
-    else {
-        connDot.classList.add('off');
-        connLabel.textContent = 'Offline';
-        updateUsers([]);
-        renderHistory('local');
-      }
-      modeToggle.textContent = mode === 'cloud' ? 'Cloud' : 'Local';
+      if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
+      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; updateUsers([]); }
+      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; updateUsers([]); }
+      modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
+      if(mode !== 'cloud') renderHistory();
     }
 
     function connectWS(){
@@ -993,6 +971,7 @@
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
+            store.clearMsgs();
             feed.innerHTML = '';
             (data.messages || []).forEach(m => receive(m));
           }
@@ -1018,7 +997,7 @@
       if(!('BroadcastChannel' in window)) { setStatus('off'); return; }
       bc = new BroadcastChannel('chaines_chat');
       bc.onmessage = (ev) => {
-        const m = ev.data; if(m && m.type === 'chat') receive(m, 'local');
+        const m = ev.data; if(m && m.type === 'chat') receive(m);
       };
       if(onlineMode !== 'cloud') setStatus('local');
     }
@@ -1091,16 +1070,7 @@
 
       if(raw){
         // Commands
-        if(raw === '/clear'){
-          const key = onlineMode === 'cloud' ? 'cloud' : 'local';
-          store.clearMsgs(key);
-          feed.innerHTML='';
-          input.value='';
-          input.placeholder = defaultPlaceholder;
-          pendingFile=null;
-          systemNote(`Cleared ${key} chat history.`);
-          return;
-        }
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
@@ -1187,8 +1157,8 @@
       };
 
       // Push to UI + storage immediately
-        const modeKey = onlineMode === 'cloud' ? 'cloud' : 'local';
-        receive(msg, modeKey);
+        receive(msg, true);
+        if(!room) store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -1521,7 +1491,7 @@
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
-      function receive(m, mode='cloud'){
+      function receive(m, isLocal=false){
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
         if(m.room){
@@ -1529,14 +1499,14 @@
           if(streams[m.room]) appendStreamMessage(streams[m.room], m);
         } else {
           appendMessage(m);
-          store.pushMsg(m, mode);
+          if(!isLocal) store.pushMsg(m);
         }
       }
 
-      function renderHistory(mode = onlineMode === 'cloud' ? 'cloud' : 'local'){
+      function renderHistory(){
       feed.innerHTML = '';
-      const items = store.loadMsgs(mode);
-      items.forEach(m => { seen.add(m.id); appendMessage(m, true); });
+      const items = store.loadMsgs();
+      items.slice().reverse().forEach(m => appendMessage(m, true));
       scrollToTop();
     }
 
