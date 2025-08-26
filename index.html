@@ -321,17 +321,29 @@
       background: color-mix(in oklab, var(--panel), transparent 20%);
       z-index: 1002;
     }
+    #thumb-chooser .thumb-explain {
+      margin-bottom: 16px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
     #thumb-chooser .thumb-options {
       display: flex;
       gap: 20px;
     }
-    #thumb-chooser button {
+    #thumb-chooser .thumb-options button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
       font-size: 2rem;
       background: var(--panel);
       border: none;
       padding: 10px 14px;
       border-radius: 8px;
       cursor: pointer;
+    }
+    #thumb-chooser .thumb-options .label {
+      font-size: 1rem;
     }
 
     /* ✅ make hidden actually hide, even with .auth display rules */
@@ -439,10 +451,20 @@
 
   <!-- Thumbnail chooser overlay -->
   <div id="thumb-chooser" hidden>
+    <p class="thumb-explain">Choose a thumbnail for your broadcast</p>
     <div class="thumb-options">
-      <button id="thumb-upload" title="Upload image">🖼️</button>
-      <button id="thumb-camera" title="Take photo">📷</button>
-      <button id="thumb-skip" title="No photo">🚫</button>
+      <button id="thumb-upload" title="Upload image">
+        <span class="icon">🖼️</span>
+        <span class="label">Upload</span>
+      </button>
+      <button id="thumb-camera" title="Take photo">
+        <span class="icon">📷</span>
+        <span class="label">Snap</span>
+      </button>
+      <button id="thumb-skip" title="No photo">
+        <span class="icon">🚫</span>
+        <span class="label">Skip</span>
+      </button>
     </div>
   </div>
 
