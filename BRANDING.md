@@ -3,7 +3,7 @@
 ## Identity
 - **Name**: CHAINeS Chat
 - **Tagline**: Linking conversations across the chain.
-- **Logo**: Fire chain ring icon with a yellow-orange to red gradient.
+- **Logo**: Blue gradient chain link icon.
 
 ## Color Palette
 | Role | Hex |
