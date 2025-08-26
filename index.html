@@ -398,6 +398,7 @@
     const input = el('#text');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
+    const sendBtn = el('#send');
     const cmdListBtn = el('#cmd-list');
     const defaultPlaceholder = input.placeholder;
     const actionCommands = {
@@ -408,6 +409,7 @@
       dance: 'dances \u{1F483}'
     };
     let pendingFile = null;
+    let fileLoading = false;
     const auth = el('#auth');
     const usernameInput = el('#username');
     const enterBtn = el('#enter');
@@ -907,6 +909,7 @@
     // --- Messaging ---
     form.addEventListener('submit', ev => {
       ev.preventDefault();
+      if(fileLoading) return;
       const raw = (input.value || '').trim();
       if(!raw && !pendingFile) return;
 
@@ -957,11 +960,19 @@
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
       if (!file) return;
+      fileLoading = true;
+      sendBtn.disabled = true;
       const reader = new FileReader();
       reader.onload = () => {
         pendingFile = { dataUrl: reader.result, name: file.name, type: file.type };
         input.placeholder = `Comment on ${file.name}`;
         input.focus();
+        fileLoading = false;
+        sendBtn.disabled = false;
+      };
+      reader.onerror = () => {
+        fileLoading = false;
+        sendBtn.disabled = false;
       };
       reader.readAsDataURL(file);
       fileInput.value = '';
