@@ -5,9 +5,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00c6ff"/>
-      <stop offset="100%" stop-color="#0072ff"/>
-    </linearGradient>
+  <rect width="100" height="100" rx="20" fill="url(#bg)"/>
+  <g stroke="#f0f0f0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(50 50)">
+      <g id="link">
+        <rect x="-32" y="-8" width="20" height="16" rx="8"/>
+        <rect x="12"  y="-8" width="20" height="16" rx="8"/>
+      </g>
+      <use href="#link"/>
+      <use href="#link" transform="rotate(45)"/>
+      <use href="#link" transform="rotate(90)"/>
+      <use href="#link" transform="rotate(135)"/>
+      <use href="#link" transform="rotate(180)"/>
+      <use href="#link" transform="rotate(225)"/>
+      <use href="#link" transform="rotate(270)"/>
+      <use href="#link" transform="rotate(315)"/>
+    </g>
+  </g>
+  <path d="M50 28c6 6 11 13 11 21a11 11 0 0 1-22 0c0-8 5-15 11-21z" fill="url(#fire)" stroke="#ffd400" stroke-width="2"/>
   </defs>
   <rect width="100" height="100" rx="20" fill="url(#grad)"/>
   <path d="M35 50a15 15 0 0 1 15-15h10a15 15 0 0 1 15 15a15 15 0 0 1-15 15H50" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
