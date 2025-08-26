@@ -4,35 +4,36 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>CHAINeS Chat</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%2300e5a8'/%3E%3Ctext x='50' y='58' font-size='42' text-anchor='middle' fill='white' font-family='system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif'%3EC%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="static/logo.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <style>
       :root {
-        --bg: #000814;
-        --panel: #001d3d;
-        --muted: #a0a0a0;
-        --fg: #d0d0d0;
-        --accent: #0047ff;
-        --accent-2: #66a3ff;
-        --danger: #ff5d6e;
-        --shadow: 0 0 12px rgba(192,192,192,.6);
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --muted: #94a3b8;
+        --fg: #f1f5f9;
+        --accent: #00c6ff;
+        --accent-2: #0072ff;
+        --danger: #ef4444;
+        --shadow: 0 0 12px rgba(0,114,255,.35);
         --radius: 16px;
-        --lining: #d0d0d0;
-        --caption-font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        --lining: #334155;
+        --caption-font: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
         --caption-color: #ffffff;
         --caption-bg: rgba(0,0,0,0.6);
       }
       :root[data-theme='light']{
-        --bg:#1a1a1a;
-        --panel:#2a2a2a;
-        --fg:#ffd700;
-        --muted:#c0a000;
-        --accent:#ffd700;
-        --accent-2:#ffd700;
-        --shadow: 0 0 10px rgba(255,215,0,.5);
-        --lining:#ffd700;
-        --caption-color:#ffffff;
+        --bg:#ffffff;
+        --panel:#f1f5f9;
+        --fg:#0f172a;
+        --muted:#64748b;
+        --accent:#00c6ff;
+        --accent-2:#0072ff;
+        --shadow: 0 0 10px rgba(0,114,255,.25);
+        --lining:#cbd5e1;
+        --caption-color:#0f172a;
       }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -43,14 +44,14 @@
         radial-gradient(1000px 1000px at 120% 20%, color-mix(in oklab, var(--accent), transparent 88%), transparent 60%),
         var(--bg);
       color:var(--fg);
-      font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font: 15px/1.45 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
 
     .wrap { display:grid; grid-template-rows: auto 1fr auto; height:100vh; height:100dvh; width:100%; margin:0; }
 
     header { display:flex; align-items:center; gap:14px; padding:18px 18px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
-    .brand .logo { width:28px; height:28px; border-radius:8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 18px; margin:0; }
     .status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     header .status.top { margin-left:auto; justify-content:flex-end; }
