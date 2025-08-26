@@ -40,6 +40,13 @@ readability preferences. Caption tracks ship in multiple languages including
 English, Portuguese/English bilingual, Korean, and Arabic/English bilingual for
 improved accuracy.
 
+### Voice-to-text captions
+
+Live video broadcasts automatically generate captions using the browser's
+SpeechRecognition API. When you start broadcasting, your spoken audio is
+transcribed into caption cues shown on the stream, adapting to the language
+configured for the page.
+
 ### File-type backups
 
 Run `python backup.py` to copy repository files into the `backups/` directory.
