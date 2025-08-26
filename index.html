@@ -925,6 +925,7 @@
       else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; updateUsers([]); }
       else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; updateUsers([]); }
       modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
+      if(mode !== 'cloud') renderHistory();
     }
 
     function connectWS(){
