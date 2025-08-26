@@ -259,6 +259,28 @@
       z-index: 1001;
     }
 
+    #thumb-chooser {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      z-index: 1002;
+    }
+    #thumb-chooser .thumb-options {
+      display: flex;
+      gap: 20px;
+    }
+    #thumb-chooser button {
+      font-size: 2rem;
+      background: var(--panel);
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -359,6 +381,15 @@
     </div>
   </section>
 
+  <!-- Thumbnail chooser overlay -->
+  <div id="thumb-chooser" hidden>
+    <div class="thumb-options">
+      <button id="thumb-upload" title="Upload image">🖼️</button>
+      <button id="thumb-camera" title="Take photo">📷</button>
+      <button id="thumb-skip" title="No photo">🚫</button>
+    </div>
+  </div>
+
   <script>
   ;(() => {
     const el = (q, parent=document) => parent.querySelector(q);
@@ -400,6 +431,10 @@
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const fullscreenBtn = el('#fullscreen-btn');
+    const thumbChooser = el('#thumb-chooser');
+    const thumbUpload = el('#thumb-upload');
+    const thumbCamera = el('#thumb-camera');
+    const thumbSkip = el('#thumb-skip');
     const ccSettings = el('#cc-settings');
     const ccPanel = el('#cc-panel');
     const ccFont = el('#cc-font');
@@ -681,18 +716,39 @@
       }
       function chooseThumbnail(){
         return new Promise(resolve => {
-          const inp = document.createElement('input');
-          inp.type = 'file';
-          inp.accept = 'image/*';
-          inp.capture = 'environment';
-          inp.onchange = () => {
-            const file = inp.files[0];
-            if(!file){ resolve(null); return; }
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-          };
-          inp.click();
+          thumbChooser.hidden = false;
+
+          function cleanup(){
+            thumbChooser.hidden = true;
+            thumbUpload.removeEventListener('click', onUpload);
+            thumbCamera.removeEventListener('click', onCamera);
+            thumbSkip.removeEventListener('click', onSkip);
+          }
+
+          function pick(capture){
+            thumbChooser.hidden = true;
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = 'image/*';
+            if(capture) inp.capture = 'environment';
+            inp.onchange = () => {
+              const file = inp.files[0];
+              cleanup();
+              if(!file){ resolve(null); return; }
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            };
+            inp.click();
+          }
+
+          function onUpload(){ pick(false); }
+          function onCamera(){ pick(true); }
+          function onSkip(){ cleanup(); resolve(null); }
+
+          thumbUpload.addEventListener('click', onUpload, { once: true });
+          thumbCamera.addEventListener('click', onCamera, { once: true });
+          thumbSkip.addEventListener('click', onSkip, { once: true });
         });
       }
 
