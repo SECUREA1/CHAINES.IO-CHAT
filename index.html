@@ -79,6 +79,11 @@
       justify-content:center;
       border-radius:12px;
     }
+    #cc-settings {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      border:0;
+      color:#05130e;
+    }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
     .dot.ok { background: var(--accent); }
     .dot.local { background: #ffb020; }
@@ -277,7 +282,7 @@
       height: 33vh;
       margin: 0;
       border-radius: 0;
-      background: color-mix(in oklab, var(--panel), transparent 20%);
+      background: transparent;
       z-index: 1001;
     }
 
@@ -331,8 +336,8 @@
         <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
         <button class="chip" id="fullscreen-btn" title="Toggle fullscreen">⛶ Fullscreen</button>
-        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes" hidden></button>
-        <button id="cc-settings" class="chip" title="Caption settings" hidden>CC</button>
+        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
+        <button id="cc-settings" class="chip" title="Caption settings">CC</button>
       </div>
     </header>
     <div id="cc-panel" class="cc-panel" hidden>
