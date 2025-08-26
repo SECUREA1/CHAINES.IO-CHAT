@@ -170,11 +170,11 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto auto; gap:10px; margin:10px 18px 12px; }
-    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:1px solid var(--lining); box-shadow: var(--shadow); }
+    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto; gap:10px; margin:0; }
+    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { padding:10px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .send { padding:10px 14px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
@@ -191,7 +191,7 @@
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
 
-    footer { padding: 8px 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
+    footer { padding: 0 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
     a { color: var(--accent-2); }
 
     .users-panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid var(--lining); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
@@ -338,11 +338,11 @@
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
       header { flex-wrap: wrap; padding:12px; gap:8px; }
-      footer { padding:12px; gap:8px; }
+      footer { padding:0 12px 12px; gap:8px; }
       .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
       .status .chip { flex:1 1 45%; justify-content:center; }
       .feed { padding:12px; }
-      .composer { margin:10px 10px 12px; }
+      .composer { margin:0; }
     }
   </style>
 </head>
@@ -384,23 +384,23 @@
         <div id="streams" class="streams"></div>
         <div id="video-container" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
-        <form id="composer" class="composer" autocomplete="off">
-          <label class="input" for="text">
-            <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
-          </label>
-          <input id="file" type="file" hidden />
-          <button class="send" id="attach" type="button" title="Attach file" aria-label="Attach file">📎</button>
-          <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
-        </form>
       </main>
 
     <footer>
+      <form id="composer" class="composer" autocomplete="off">
+        <label class="input" for="text">
+          <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
+        </label>
+        <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+      </form>
+      <input id="file" type="file" hidden />
       <div class="status bottom">
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <span class="chip" id="live-chip" title="Users online">
           <span id="live-count">0</span> online
         </span>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
+        <button id="attach" class="chip" type="button" title="Attach file" aria-label="Attach file">📎</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">📃</button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <span class="usr" id="user-name"></span>
