@@ -36,6 +36,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
 </style>
 </head>
 <body>
+<button id="back-btn" class="follow-btn" type="button" style="margin-bottom:12px">Back</button>
 <div class="profile">
   <div class="profile-header">
     <img id="p-avatar" alt="avatar" />
@@ -70,6 +71,15 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const saveDesc = document.getElementById('save-desc');
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
+  const backBtn = document.getElementById('back-btn');
+
+  backBtn.onclick = () => { window.location.href = '/'; };
+
+  picInput.addEventListener('change', () => {
+    if (picInput.files[0]) {
+      avatar.src = URL.createObjectURL(picInput.files[0]);
+    }
+  });
 
   async function load(){
     if(!user) return;
@@ -109,8 +119,21 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
           method:'POST',
           body: form
         });
-        load();
-        loadNotifs();
+        if (picInput.files[0]) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            localStorage.setItem('chaines_profile_pic', e.target.result);
+            avatar.src = e.target.result;
+            alert('Profile updated');
+            load();
+            loadNotifs();
+          };
+          reader.readAsDataURL(picInput.files[0]);
+        } else {
+          alert('Profile updated');
+          load();
+          loadNotifs();
+        }
       };
       loadNotifs();
     }
