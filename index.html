@@ -79,7 +79,7 @@
     }
     footer .status.bottom {
       display:grid;
-      grid-template-columns:repeat(3,1fr);
+      grid-template-columns:repeat(4,1fr);
       width:100%;
       gap:8px;
     }
@@ -371,7 +371,7 @@
       footer { padding:0 12px 12px; gap:8px; }
       .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
       .status .chip { flex:1 1 45%; justify-content:center; }
-      .status.bottom { display:grid; grid-template-columns:repeat(3,1fr); }
+      .status.bottom { display:grid; grid-template-columns:repeat(4,1fr); }
       .status.bottom .chip { width:100%; }
       .feed { padding:12px; }
       .composer { margin:0; }
@@ -433,6 +433,8 @@
           <span id="live-count">0</span> online
         </span>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
+        <button id="mutual-btn" class="chip" style="display:none" title="Mutual messages">💬</button>
+        <button id="analytics-btn" class="chip" style="display:none" title="Analytics">🔋</button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
           <span class="usr" id="user-name"></span>
@@ -551,6 +553,8 @@
     const userName = el('#user-name');
     const userAvatar = el('#user-avatar');
     const logoutBtn = el('#logout-btn');
+    const mutualBtn = el('#mutual-btn');
+    const analyticsBtn = el('#analytics-btn');
     [userAvatar, userName].forEach(u => u.addEventListener('click', () => {
       if(store.user){
         location.href = '/profile.html?user=' + encodeURIComponent(store.user);
@@ -1065,6 +1069,8 @@
       userName.textContent = '@' + store.user;
       userChip.style.display = 'inline-flex';
       logoutBtn.style.display = 'inline-flex';
+      mutualBtn.style.display = 'inline-flex';
+      analyticsBtn.style.display = 'inline-flex';
       if(store.profilePic){
         userAvatar.src = store.profilePic;
         userAvatar.style.display = 'block';
@@ -1137,6 +1143,8 @@
     }));
 
     logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
+    mutualBtn.addEventListener('click', () => { location.href = '/mutual.html'; });
+    analyticsBtn.addEventListener('click', () => { location.href = '/analytics.html'; });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
