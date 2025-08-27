@@ -173,11 +173,11 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto auto; gap:10px; margin:0; }
+    .composer { display:grid; grid-template-columns: minmax(0,1fr) repeat(2,56px); gap:10px; margin:0; width:100%; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { padding:10px 14px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .send { display:flex; align-items:center; justify-content:center; width:56px; height:56px; font-size:24px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
