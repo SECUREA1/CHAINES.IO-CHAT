@@ -187,11 +187,14 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) auto auto; gap:10px; margin:0; }
+    .composer { display:flex; flex-direction:column; gap:10px; margin:0; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { padding:10px 14px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .composer-actions { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+    .composer-actions button { height:44px; font-size:20px; }
+    .util-btn { background: linear-gradient(180deg, var(--accent), var(--accent-2)); border:2px solid var(--accent-2); border-radius:12px; color:#05130e; cursor:pointer; box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
@@ -429,8 +432,14 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
-        <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
-        <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <div class="composer-actions">
+          <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
+          <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+          <button id="analytics-btn" class="util-btn" title="Analytics">🔋</button>
+          <button id="cmd-list" class="util-btn" title="Show commands" aria-label="Show commands">⚡</button>
+          <button id="theme-toggle" class="util-btn" title="Toggle dark or light mode"></button>
+          <button id="mutual-btn" class="util-btn" title="Mutual messages">💬</button>
+        </div>
       </form>
       <input id="file" type="file" hidden />
       <div class="status bottom">
@@ -444,12 +453,6 @@
             <span class="usr" id="user-name"></span>
           </span>
           <button id="logout-btn" class="chip" style="display:none" type="button">Logout</button>
-        </div>
-        <div class="group right">
-          <button id="analytics-btn" class="chip" title="Analytics">🔋</button>
-          <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
-          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
-          <button id="mutual-btn" class="chip" title="Mutual messages">💬</button>
         </div>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
