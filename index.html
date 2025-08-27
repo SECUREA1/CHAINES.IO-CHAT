@@ -305,6 +305,14 @@
     body.broadcast-mode footer .legal {
       display: none;
     }
+    .broadcast-controls {
+      display: none;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+    }
+    .broadcast-controls .chip { flex:1; }
+    body.broadcast-mode .broadcast-controls { display:flex; }
     body.broadcast-mode #video-container {
       position: fixed;
       inset: 0;
@@ -325,14 +333,18 @@
     }
     body.broadcast-mode #feed {
       position: fixed;
-      inset: 0;
+      left: 0;
+      bottom: 0;
       width: 100%;
-      height: 100%;
+      height: 33%;
       margin: 0;
       border-radius: 0;
-      background: rgba(0,0,0,0.05);
+      background: rgba(0,0,0,0.4);
       z-index: 1001;
+      overflow-y: auto;
+      display: none;
     }
+    body.broadcast-mode.chat-open #feed { display:block; }
     body.broadcast-mode #composer {
       display: none;
     }
@@ -357,6 +369,29 @@
       color: #fff;
     }
     body.broadcast-mode #feed .meta { color: #ddd; }
+    body.broadcast-mode #video-container.has-guest {
+      position: relative;
+    }
+    body.broadcast-mode #video-container.has-guest video {
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+    }
+    body.broadcast-mode #video-container.has-guest video.main {
+      width: 100%;
+      height: 100%;
+    }
+    body.broadcast-mode #video-container.has-guest video.pip {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 30%;
+      height: auto;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 1002;
+    }
 
     #thumb-chooser {
       position: fixed;
@@ -460,6 +495,10 @@
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
       </form>
       <input id="file" type="file" hidden />
+      <div class="broadcast-controls" id="broadcast-controls" hidden>
+        <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
+        <button class="chip" id="exit-broadcast" type="button">Exit</button>
+      </div>
       <div class="status bottom">
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <span class="chip" id="live-chip" title="Users online">
@@ -609,6 +648,9 @@
     const cameraFlipBtn = el('#camera-flip-btn');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
+    const chatToggle = el('#chat-toggle');
+    const exitBroadcast = el('#exit-broadcast');
+    const broadcastControls = el('#broadcast-controls');
     const headerBar = el('header');
     const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
@@ -831,6 +873,10 @@
       sendSignal({ type: 'invite', mode });
     });
     endBtn.addEventListener('click', () => { endBroadcast(); });
+    chatToggle.addEventListener('click', () => {
+      document.body.classList.toggle('chat-open');
+    });
+    exitBroadcast.addEventListener('click', () => { endBroadcast(); });
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
       for(const id in streams){
@@ -1347,17 +1393,18 @@
               mediaRecorder.start();
             } catch {}
           }
-          broadcasting = true;
-          if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
-          broadcastBtn.textContent = '⏹ End';
-          broadcastBtn.title = 'End live broadcast';
-          broadcastBtn.classList.add('live');
-          updateHeaderButtons();
-          if(!audioOnly) document.body.classList.add('broadcast-mode');
-          videoContainer.removeAttribute('hidden');
-          const el = document.createElement(audioOnly ? 'audio' : 'video');
-          el.srcObject = stream;
-          el.muted = true;
+      broadcasting = true;
+      if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
+      broadcastBtn.textContent = '⏹ End';
+      broadcastBtn.title = 'End live broadcast';
+      broadcastBtn.classList.add('live');
+      updateHeaderButtons();
+      if(!audioOnly) document.body.classList.add('broadcast-mode');
+      videoContainer.removeAttribute('hidden');
+      broadcastControls.removeAttribute('hidden');
+      const el = document.createElement(audioOnly ? 'audio' : 'video');
+      el.srcObject = stream;
+      el.muted = true;
           el.setAttribute('muted','');
           el.autoplay = true;
           el.setAttribute('autoplay','');
@@ -1388,6 +1435,7 @@
             }
           }
           videoContainer.appendChild(el);
+          updateVideoLayout();
           const start = el.play();
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = el;
@@ -1478,14 +1526,36 @@
       }
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
+      updateVideoLayout();
       videoContainer.setAttribute('hidden','');
       document.body.classList.remove('broadcast-mode');
+      document.body.classList.remove('chat-open');
+      broadcastControls.setAttribute('hidden','');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
       if(!hadRecorder && share){
         postMessage({ text: msgText, image: broadcastThumb, broadcast: true });
       }
       broadcastThumb = null;
+    }
+
+    function updateVideoLayout(){
+      const vids = videoContainer.querySelectorAll('video');
+      videoContainer.classList.toggle('has-guest', vids.length > 1);
+      vids.forEach(v => v.classList.remove('main', 'pip'));
+      if(vids.length > 1){
+        vids[0].classList.add('main');
+        vids[1].classList.add('pip');
+        vids[1].onclick = swapVideos;
+      }
+    }
+
+    function swapVideos(){
+      const vids = videoContainer.querySelectorAll('video');
+      if(vids.length > 1){
+        videoContainer.insertBefore(vids[1], vids[0]);
+        updateVideoLayout();
+      }
     }
 
       function startWatching(id){
@@ -1523,6 +1593,7 @@
           liveTrack.mode = 'showing';
           if(broadcasting){
             videoContainer.appendChild(vid);
+            updateVideoLayout();
           } else {
             const box = streams[msg.id] && streams[msg.id].video;
             if(box) box.appendChild(vid);
@@ -1566,6 +1637,7 @@
           if(pc._video) pc._video.remove();
           pc.close();
           delete peerConnections[msg.id];
+          updateVideoLayout();
         }
         if(streams[msg.id]){
           streams[msg.id].started = false;
@@ -1595,7 +1667,10 @@
       if(stream && stream.requestBtn) stream.requestBtn.disabled = true;
       broadcastBtn.disabled = false;
       const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid) videoContainer.appendChild(hostVid);
+      if(hostVid){
+        videoContainer.appendChild(hostVid);
+        updateVideoLayout();
+      }
       startBroadcast();
     }
 
@@ -1619,7 +1694,10 @@
       const stream = streams[pendingMicHost];
       if(stream && stream.micBtn) stream.micBtn.disabled = true;
       const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid) videoContainer.appendChild(hostVid);
+      if(hostVid){
+        videoContainer.appendChild(hostVid);
+        updateVideoLayout();
+      }
       startBroadcast(null, true);
     }
 
