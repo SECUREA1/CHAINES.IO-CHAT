@@ -250,12 +250,12 @@ app.post("/notifications/:username/read", (req, res) => {
 
 const server = http.createServer(app);
 
-function loadHistory() {
-  const rows = db
-    .prepare(
-      `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
-    )
-    .all();
+function loadHistory(room = null) {
+  const where = room ? "c.room = ?" : "c.room IS NULL";
+  const stmt = db.prepare(
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+  );
+  const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
       `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
@@ -504,6 +504,8 @@ wss.on("connection", (ws) => {
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
           watching.get(ws.id).add(msg.id);
           sendListenerCount(msg.id);
+          const history = loadHistory(msg.id);
+          if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
       }
@@ -649,8 +651,25 @@ wss.on("connection", (ws) => {
       msg.fileType = fileType;
     }
     // broadcast
-    for (const client of wss.clients) {
-      if (client.readyState === 1) client.send(JSON.stringify(msg));
+    if (msg.room) {
+      const targets = new Set();
+      const host = broadcasters.get(msg.room);
+      if (host && host.readyState === 1) targets.add(host);
+      const set = listeners.get(msg.room);
+      if (set) {
+        for (const id of set) {
+          const c = clients.get(id);
+          if (c && c.readyState === 1) targets.add(c);
+        }
+      }
+      if (ws.readyState === 1) targets.add(ws);
+      for (const c of targets) c.send(JSON.stringify(msg));
+    } else {
+      for (const client of wss.clients) {
+        if (client.readyState === 1 && !watching.has(client.id)) {
+          client.send(JSON.stringify(msg));
+        }
+      }
     }
   });
 });

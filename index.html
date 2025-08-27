@@ -908,6 +908,7 @@
       const peerConnections = {};
       let localStream = null;
       let clientId = null;
+      const activeRooms = new Set();
     let broadcasting = false;
     let broadcastTimer = null;
     let broadcastVideo = null;
@@ -1126,8 +1127,13 @@
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
-            feed.innerHTML = '';
-            (data.messages || []).forEach(m => receive(m));
+            const msgs = data.messages || [];
+            if(msgs.some(m => m.room)){
+              msgs.forEach(m => receive(m));
+            } else {
+              feed.innerHTML = '';
+              msgs.forEach(m => receive(m));
+            }
           }
           if(data && data.type === 'id') clientId = data.id;
           if(data && data.type === 'listeners') updateListenerCount(data.id, data.count);
@@ -1344,8 +1350,8 @@
     });
 
       function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room }){
-      if(broadcast && joinApproved && pendingJoinHost){
-        room = pendingJoinHost;
+      if(broadcast){
+        room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
@@ -1415,6 +1421,8 @@
             } catch {}
           }
       broadcasting = true;
+      activeRooms.add(clientId);
+      feed.setAttribute('hidden','');
       if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
       broadcastBtn.textContent = '⏹ End';
       broadcastBtn.title = 'End live broadcast';
@@ -1489,6 +1497,8 @@
       if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
       if(!broadcasting) return;
       broadcasting = false;
+      activeRooms.delete(clientId);
+      if(activeRooms.size === 0) feed.removeAttribute('hidden');
       updateHeaderButtons();
       joinApproved = false;
       micApproved = false;
@@ -1581,10 +1591,14 @@
     }
 
       function startWatching(id){
+        activeRooms.add(id);
+        feed.setAttribute('hidden','');
         sendSignal({ type: 'watcher', id });
       }
 
       function endWatching(id){
+        activeRooms.delete(id);
+        if(activeRooms.size === 0) feed.removeAttribute('hidden');
         sendSignal({ type: 'unwatcher', id });
       }
 
@@ -1746,6 +1760,7 @@
       function receive(m, isLocal=false){
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
+        if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendStreamMessage(streams[m.room], m);
