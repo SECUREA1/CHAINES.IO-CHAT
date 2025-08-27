@@ -77,8 +77,8 @@
       bottom:0;
       z-index:5;
     }
-    footer .status.bottom { justify-content:flex-start; width:100%; gap:8px; flex-wrap:wrap; }
-    footer .status.bottom .chip { flex:0 0 auto; justify-content:center; }
+    footer .status.bottom { display:grid; grid-template-columns:repeat(3,1fr); width:100%; gap:8px; }
+    footer .status.bottom .chip { display:flex; justify-content:center; width:100%; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
@@ -423,11 +423,11 @@
           <span id="live-count">0</span> online
         </span>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
-        <span class="chip" id="user-chip" title="Logged in user" style="display:none">
+        <span class="chip" id="user-chip" title="Logged in user">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
-          <span class="usr" id="user-name"></span>
-          <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
+          <span class="usr" id="user-name">@guest</span>
         </span>
+        <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
@@ -1053,7 +1053,7 @@
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       userName.textContent = '@' + store.user;
-      userChip.style.display = 'inline-flex';
+      userChip.style.display = 'flex';
       if(store.profilePic){
         userAvatar.src = store.profilePic;
         userAvatar.style.display = 'block';
