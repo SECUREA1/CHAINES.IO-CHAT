@@ -77,7 +77,13 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
 
   picInput.addEventListener('change', () => {
     if (picInput.files[0]) {
-      avatar.src = URL.createObjectURL(picInput.files[0]);
+      const file = picInput.files[0];
+      avatar.src = URL.createObjectURL(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        localStorage.setItem('chaines_profile_pic', e.target.result);
+      };
+      reader.readAsDataURL(file);
     }
   });
 
