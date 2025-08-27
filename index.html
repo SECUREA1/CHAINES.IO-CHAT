@@ -1429,6 +1429,8 @@
       broadcasting = true;
       activeRooms.add(clientId);
       feed.setAttribute('hidden','');
+      document.body.classList.remove('chat-open');
+      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
       broadcastBtn.textContent = '⏹ End';
       broadcastBtn.title = 'End live broadcast';
@@ -1573,6 +1575,12 @@
       captionTrack = null;
       if(!hadRecorder && share){
         postMessage({ text: msgText, image: broadcastThumb, broadcast: true });
+      }
+      const selfStream = streams[clientId];
+      if(selfStream){
+        selfStream.feed.innerHTML = '';
+        selfStream.container.remove();
+        delete streams[clientId];
       }
       broadcastThumb = null;
     }
