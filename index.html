@@ -96,6 +96,12 @@
       background: linear-gradient(180deg, var(--accent), var(--accent-2));
       border:0;
       color:#05130e;
+      margin-left:auto;
+    }
+    #end-btn {
+      border-color: var(--danger);
+      color: var(--danger);
+      animation: live-pulse 1s infinite;
     }
     #ghost-btn {
       background: linear-gradient(180deg, var(--accent), var(--accent-2));
@@ -413,13 +419,14 @@
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
       </div>
       <div class="status top">
+        <button class="chip" id="end-btn" title="End broadcast" hidden>⏹ End</button>
         <span class="chip" id="conn-chip" title="Connection status">
           <span class="dot off" id="conn-dot"></span>
           <span id="conn-label">Offline</span>
         </span>
         <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
-        <button class="chip" id="fullscreen-btn" title="Toggle fullscreen">⛶ Fullscreen</button>
+        <button class="chip" id="invite-btn" title="Invite listeners">📢 Invite</button>
         <button id="cc-settings" class="chip" title="Caption settings">CC</button>
       </div>
     </header>
@@ -600,7 +607,8 @@
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
-    const fullscreenBtn = el('#fullscreen-btn');
+    const inviteBtn = el('#invite-btn');
+    const endBtn = el('#end-btn');
     const headerBar = el('header');
     const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
@@ -818,17 +826,11 @@
       }
     });
     cameraFlipBtn.addEventListener('click', switchCamera);
-    fullscreenBtn.addEventListener('click', () => {
-      if(document.fullscreenElement){
-        document.exitFullscreen().catch(() => {});
-      } else {
-        videoContainer.requestFullscreen().catch(() => {});
-      }
+    inviteBtn.addEventListener('click', () => {
+      const mode = confirm('Invite watchers to broadcast with camera?\nPress Cancel to invite for mic only.') ? 'join' : 'mic';
+      sendSignal({ type: 'invite', mode });
     });
-    document.addEventListener('fullscreenchange', () => {
-      const active = document.fullscreenElement === videoContainer;
-      fullscreenBtn.textContent = active ? '❎ Exit' : '⛶ Fullscreen';
-    });
+    endBtn.addEventListener('click', () => { endBroadcast(); });
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
       for(const id in streams){
@@ -862,7 +864,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, fullscreenBtn, ccSettings].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, inviteBtn, ccSettings, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1081,6 +1083,7 @@
           if(data && data.type === 'mic-request') handleMicRequest(data.id, data.user);
           if(data && data.type === 'mic-approved') handleMicApproved();
           if(data && data.type === 'mic-denied') handleMicDenied();
+          if(data && data.type === 'invite') handleInvite(data);
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
         } catch {}
       });
@@ -1350,7 +1353,6 @@
           broadcastBtn.title = 'End live broadcast';
           broadcastBtn.classList.add('live');
           updateHeaderButtons();
-          fullscreenBtn.textContent = '⛶ Fullscreen';
           if(!audioOnly) document.body.classList.add('broadcast-mode');
           videoContainer.removeAttribute('hidden');
           const el = document.createElement(audioOnly ? 'audio' : 'video');
@@ -1477,9 +1479,6 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       videoContainer.setAttribute('hidden','');
-      if(document.fullscreenElement === videoContainer){
-        try{ document.exitFullscreen(); }catch{}
-      }
       document.body.classList.remove('broadcast-mode');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
@@ -1630,6 +1629,14 @@
       if(stream && stream.micBtn) stream.micBtn.disabled = false;
       pendingMicHost = null;
       alert('Mic request denied.');
+    }
+
+    function handleInvite({ id, mode, user }){
+      const verb = mode === 'mic' ? 'join via mic' : 'join the broadcast';
+      const ok = confirm(`@${user || 'host'} invites you to ${verb}. Accept?`);
+      if(ok){
+        sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
+      }
     }
 
     function sendSignal(data){
