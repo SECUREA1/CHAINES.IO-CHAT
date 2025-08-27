@@ -47,10 +47,12 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT,
-    profile_pic TEXT
+    profile_pic TEXT,
+    badges TEXT
   );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN badges TEXT"); } catch {}
 
 // express setup
 const app = express();
@@ -83,10 +85,12 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
+    const badges = [];
+    if (pic) badges.push("verified");
     db.prepare(
-      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
-    ).run(username, hash, pic);
-    res.json({ success: true });
+      "INSERT INTO users (username, password, profile_pic, badges) VALUES (?,?,?,?)"
+    ).run(username, hash, pic, JSON.stringify(badges));
+    res.json({ success: true, badges });
   } catch (e) {
     res.status(400).json({ error: "User exists" });
   }
@@ -99,7 +103,7 @@ app.post("/login", async (req, res) => {
     return;
   }
   const user = db
-    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
+    .prepare("SELECT username, password, profile_pic, badges FROM users WHERE username=?")
     .get(username);
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -110,18 +114,29 @@ app.post("/login", async (req, res) => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  res.json({ success: true, username: user.username, profilePic: user.profile_pic });
+  res.json({
+    success: true,
+    username: user.username,
+    profilePic: user.profile_pic,
+    badges: user.badges ? JSON.parse(user.badges) : [],
+  });
 });
 
 app.get("/profile/:username", (req, res) => {
   const user = db
-    .prepare("SELECT username, profile_pic FROM users WHERE username=?")
+    .prepare(
+      "SELECT username, profile_pic, badges FROM users WHERE username=?"
+    )
     .get(req.params.username);
   if (!user) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  res.json({ username: user.username, profilePic: user.profile_pic });
+  res.json({
+    username: user.username,
+    profilePic: user.profile_pic,
+    badges: user.badges ? JSON.parse(user.badges) : [],
+  });
 });
 
 const server = http.createServer(app);
@@ -129,7 +144,7 @@ const server = http.createServer(app);
 function loadHistory() {
   const rows = db
     .prepare(
-      `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
+      `SELECT c.id, c.user, u.profile_pic, u.badges, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
     )
     .all();
   const commentRows = db
@@ -156,6 +171,7 @@ function loadHistory() {
     id: r.id,
     user: r.user,
     profilePic: r.profile_pic,
+    badges: r.badges ? JSON.parse(r.badges) : [],
     room: r.room,
     text: r.message,
     image: r.image,
@@ -192,6 +208,7 @@ function broadcastUsers() {
         live: broadcasters.has(client.id),
         mic: micGuests.has(client.id),
         profilePic: client.profilePic || null,
+        badges: client.badges || [],
       });
     }
   }
@@ -253,9 +270,10 @@ wss.on("connection", (ws) => {
     if (msg?.type === "join") {
       ws.username = msg.user || "";
       const u = db
-        .prepare("SELECT profile_pic FROM users WHERE username=?")
+        .prepare("SELECT profile_pic, badges FROM users WHERE username=?")
         .get(ws.username);
       ws.profilePic = u?.profile_pic || null;
+      ws.badges = u?.badges ? JSON.parse(u.badges) : [];
       broadcastUsers();
       return;
     }
@@ -451,9 +469,10 @@ wss.on("connection", (ws) => {
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
     const u = db
-      .prepare("SELECT profile_pic FROM users WHERE username=?")
+      .prepare("SELECT profile_pic, badges FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
+    msg.badges = u?.badges ? JSON.parse(u.badges) : [];
     const info = db
       .prepare(
         "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"

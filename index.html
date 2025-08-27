@@ -98,6 +98,8 @@
     .dot.local { background: #ffb020; }
     .dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
+    .badge { margin-left:4px; font-size:12px; }
+    .badge.verified { color:#22c55e; }
 
     #cmd-panel {
       position: fixed;
@@ -417,7 +419,7 @@
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">📃</button>
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
-          <span class="usr" id="user-name"></span>
+          <span class="usr" id="user-name"></span><span class="badge verified" id="user-badge" hidden>✔</span>
           <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
         </span>
       </div>
@@ -531,6 +533,7 @@
     const userChip = el('#user-chip');
     const userName = el('#user-name');
     const userAvatar = el('#user-avatar');
+    const userBadge = el('#user-badge');
     const logoutBtn = el('#logout-btn');
     const connDot = el('#conn-dot');
     const connLabel = el('#conn-label');
@@ -615,6 +618,17 @@
       set profilePic(v) {
         try { v ? localStorage.setItem('chaines_profile_pic', v) : localStorage.removeItem('chaines_profile_pic'); }
         catch {}
+      },
+      get badges() {
+        try { return JSON.parse(localStorage.getItem('chaines_badges') || '[]'); }
+        catch { return []; }
+      },
+      set badges(v) {
+        try {
+          v && v.length
+            ? localStorage.setItem('chaines_badges', JSON.stringify(v))
+            : localStorage.removeItem('chaines_badges');
+        } catch {}
       },
       get wsURL() {
         try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
@@ -805,7 +819,15 @@
             ensureStreamThumb(u.id, name, u.id === clientId);
           }
           if(u.mic){ li.classList.add('mic-user'); }
-          li.appendChild(document.createTextNode('@' + name));
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = '@' + name;
+          li.appendChild(nameSpan);
+          if(u.badges && u.badges.includes('verified')){
+            const badge = document.createElement('span');
+            badge.className = 'badge verified';
+            badge.textContent = '✔';
+            li.appendChild(badge);
+          }
           usersEl.appendChild(li);
         });
         for(const id in streams){
@@ -1020,7 +1042,7 @@
     // --- Auth flow ---
     function requireAuth(){
       if (store.user) {
-        enterChat(store.user, store.profilePic);
+        enterChat(store.user, store.profilePic, store.badges);
       } else {
         auth.hidden = false;
         auth.classList.remove('is-hidden');
@@ -1029,10 +1051,11 @@
       }
     }
 
-    function enterChat(name, profilePic){
+    function enterChat(name, profilePic, badges){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
+      if(Array.isArray(badges)) store.badges = badges;
       userName.textContent = '@' + store.user;
       userChip.style.display = 'inline-flex';
       if(store.profilePic){
@@ -1040,6 +1063,11 @@
         userAvatar.style.display = 'block';
       } else {
         userAvatar.style.display = 'none';
+      }
+      if(store.badges.includes('verified')){
+        userBadge.hidden = false;
+      } else {
+        userBadge.hidden = true;
       }
 
       // decisively hide overlay
@@ -1066,7 +1094,7 @@
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
-        enterChat(data.username, data.profilePic);
+        enterChat(data.username, data.profilePic, data.badges);
       } else {
         alert(data?.error || 'Login failed');
       }
@@ -1094,7 +1122,8 @@
     skipBtn.addEventListener('click', (e) => {
       e.preventDefault();
       store.profilePic='';
-      enterChat('guest-' + Math.floor(Math.random()*9999));
+      store.badges=[];
+      enterChat('guest-' + Math.floor(Math.random()*9999), '', []);
     });
 
     // Enter key on fields
@@ -1102,7 +1131,7 @@
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
+    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; store.badges=[]; location.reload(); });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
@@ -1195,6 +1224,7 @@
         type: 'chat',
         user: store.user,
         profilePic: store.profilePic,
+        badges: store.badges,
           text: text,
           room: room,
         image: image,
@@ -1585,7 +1615,8 @@
 
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
+      const badgeHTML = m.badges && m.badges.includes('verified') ? '<span class="badge verified">✔</span>' : '';
+      meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}${badgeHTML}</span> · <span>${fmtTime(m.ts)}</span>`;
 
       const text = document.createElement('div');
       text.className = 'msg-text';
