@@ -330,8 +330,19 @@
       z-index: 1001;
     }
     body.broadcast-mode header {
-      position: relative;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(4px);
       z-index: 1003;
+    }
+    body.broadcast-mode header .brand { display:none; }
+    body.broadcast-mode header .status.top { width:100%; justify-content:center; }
+    body.broadcast-mode header .chip {
+      background: rgba(0,0,0,0.6);
+      border-color: rgba(255,255,255,0.2);
     }
     body.broadcast-mode #feed .bubble {
       background: rgba(0,0,0,0.6);
@@ -815,7 +826,6 @@
     });
     document.addEventListener('fullscreenchange', () => {
       const active = document.fullscreenElement === videoContainer;
-      document.body.classList.toggle('broadcast-mode', active);
       fullscreenBtn.textContent = active ? '❎ Exit' : '⛶ Fullscreen';
     });
     window.addEventListener('beforeunload', () => {
@@ -1340,6 +1350,7 @@
           broadcastBtn.classList.add('live');
           updateHeaderButtons();
           fullscreenBtn.textContent = '⛶ Fullscreen';
+          if(!audioOnly) document.body.classList.add('broadcast-mode');
           videoContainer.removeAttribute('hidden');
           const el = document.createElement(audioOnly ? 'audio' : 'video');
           el.srcObject = stream;
