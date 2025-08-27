@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>User Profile</title>
+<link rel="icon" href="static/logo.svg" type="image/svg+xml" />
+<style>
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --muted: #94a3b8;
+  --fg: #f1f5f9;
+  --accent: #00c6ff;
+  --accent-2: #0072ff;
+  --lining: #334155;
+  --shadow: 0 0 12px rgba(0,114,255,.35);
+}
+:root[data-theme='light']{
+  --bg:#ffffff;
+  --panel:#f1f5f9;
+  --fg:#0f172a;
+  --muted:#64748b;
+  --accent:#ff5d6e;
+  --accent-2:#ff1f8b;
+  --lining:#cbd5e1;
+  --shadow:0 0 10px rgba(255,93,110,.25);
+}
+body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
+.profile-header{display:flex;align-items:center;gap:12px;}
+.profile-header img{width:64px;height:64px;border-radius:50%;object-fit:cover;}
+.follow-btn{padding:8px 12px;border-radius:12px;border:0;font-weight:700;cursor:pointer;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;box-shadow:var(--shadow);}
+.posts{list-style:none;padding:0;}
+.post{margin-bottom:12px;padding:8px;border:1px solid var(--lining);border-radius:12px;background:var(--panel);}
+textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:var(--panel);color:var(--fg);padding:8px;}
+</style>
+</head>
+<body>
+<div class="profile">
+  <div class="profile-header">
+    <img id="p-avatar" alt="avatar" />
+    <h2 id="p-name"></h2>
+    <button id="follow-btn" class="follow-btn"></button>
+  </div>
+  <div id="edit-section" hidden>
+    <textarea id="p-desc-input" placeholder="Add a description..."></textarea>
+    <button id="save-desc" class="follow-btn" type="button">Save</button>
+  </div>
+  <p id="p-desc"></p>
+  <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <h3>Posts</h3>
+  <ul id="p-posts" class="posts"></ul>
+</div>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const user = params.get('user');
+  const storeUser = localStorage.getItem('chaines_username') || '';
+  const avatar = document.getElementById('p-avatar');
+  const nameEl = document.getElementById('p-name');
+  const descEl = document.getElementById('p-desc');
+  const postsEl = document.getElementById('p-posts');
+  const followBtn = document.getElementById('follow-btn');
+  const editSection = document.getElementById('edit-section');
+  const descInput = document.getElementById('p-desc-input');
+  const saveDesc = document.getElementById('save-desc');
+  const followInfo = document.getElementById('follow-info');
+
+  async function load(){
+    if(!user) return;
+    const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
+    if(!res.ok) return;
+    const data = await res.json();
+    nameEl.textContent = '@' + data.username;
+    if(data.profilePic){ avatar.src = data.profilePic; } else { avatar.style.display='none'; }
+    descEl.textContent = data.description || '';
+    followInfo.textContent = 'Followers: ' + data.followers.length + ' • Following: ' + data.following.length;
+    postsEl.innerHTML = '';
+    data.posts.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'post';
+      li.textContent = p.message || p.text || '';
+      postsEl.appendChild(li);
+    });
+    if(storeUser && storeUser !== user){
+      followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
+      followBtn.onclick = async () => {
+        await fetch('/profile/' + encodeURIComponent(user) + '/follow', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ follower: storeUser })
+        });
+        load();
+      };
+    } else {
+      followBtn.style.display = 'none';
+      editSection.hidden = false;
+      descInput.value = data.description || '';
+      saveDesc.onclick = async () => {
+        await fetch('/profile/' + encodeURIComponent(storeUser), {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ description: descInput.value })
+        });
+        load();
+      };
+    }
+  }
+  load();
+})();
+</script>
+</body>
+</html>

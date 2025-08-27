@@ -376,6 +376,9 @@
         <button class="chip" id="fullscreen-btn" title="Toggle fullscreen">⛶ Fullscreen</button>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <button id="cc-settings" class="chip" title="Caption settings">CC</button>
+        <button id="profile-btn" class="chip" title="Profile" style="display:none">
+          <img id="profile-top" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" />
+        </button>
       </div>
     </header>
     <div id="cc-panel" class="cc-panel" hidden>
@@ -531,6 +534,8 @@
     const userChip = el('#user-chip');
     const userName = el('#user-name');
     const userAvatar = el('#user-avatar');
+    const profileBtn = el('#profile-btn');
+    const profileTop = el('#profile-top');
     const logoutBtn = el('#logout-btn');
     const connDot = el('#conn-dot');
     const connLabel = el('#conn-label');
@@ -1038,9 +1043,13 @@
       if(store.profilePic){
         userAvatar.src = store.profilePic;
         userAvatar.style.display = 'block';
+        profileTop.src = store.profilePic;
+        profileTop.style.display = 'block';
       } else {
         userAvatar.style.display = 'none';
+        profileTop.style.display = 'none';
       }
+      profileBtn.style.display = 'inline-flex';
 
       // decisively hide overlay
       auth.classList.add('is-hidden');
@@ -1103,6 +1112,9 @@
     }));
 
     logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
+    profileBtn.addEventListener('click', () => {
+      location.href = '/profile.html?user=' + encodeURIComponent(store.user);
+    });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
@@ -1579,6 +1591,10 @@
       } else {
         av.textContent = initials(m.user);
       }
+      av.style.cursor = 'pointer';
+      av.addEventListener('click', () => {
+        location.href = '/profile.html?user=' + encodeURIComponent(m.user);
+      });
 
       const bubble = document.createElement('div');
       bubble.className = 'bubble' + (m.collapsed? ' collapsed' : '');
