@@ -84,8 +84,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #mode-toggle, #cmd-list { cursor:pointer; }
-    #mode-toggle, #cc-settings, #theme-toggle, #cmd-list {
+    #live-chip, #theme-toggle, #mode-toggle, #cmd-list, #ghost-btn { cursor:pointer; }
+    #mode-toggle, #cc-settings, #theme-toggle, #cmd-list, #ghost-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -97,6 +97,11 @@
       border:0;
       color:#05130e;
     }
+    #ghost-btn {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      border:0;
+    }
+    #ghost-btn img { width:24px; height:24px; }
     .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
     .dot.ok { background: var(--accent); }
     .dot.local { background: #ffb020; }
@@ -435,6 +440,9 @@
         </span>
         <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+        <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
+          <img src="static/hologhost.svg" alt="Hologhost" />
+        </button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
     </footer>
