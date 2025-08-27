@@ -47,10 +47,17 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT,
-    profile_pic TEXT
+    profile_pic TEXT,
+    description TEXT
+  );
+  CREATE TABLE IF NOT EXISTS follows (
+    follower TEXT,
+    following TEXT,
+    PRIMARY KEY (follower, following)
   );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 
 // express setup
 const app = express();
@@ -113,15 +120,81 @@ app.post("/login", async (req, res) => {
   res.json({ success: true, username: user.username, profilePic: user.profile_pic });
 });
 
+app.get(["/profile.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "profile.html"))
+);
+
 app.get("/profile/:username", (req, res) => {
+  const viewer = req.query.viewer || "";
   const user = db
-    .prepare("SELECT username, profile_pic FROM users WHERE username=?")
+    .prepare(
+      "SELECT username, profile_pic, description FROM users WHERE username=?"
+    )
     .get(req.params.username);
   if (!user) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  res.json({ username: user.username, profilePic: user.profile_pic });
+  const posts = db
+    .prepare(
+      "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
+    )
+    .all(req.params.username);
+  const followers = db
+    .prepare("SELECT follower FROM follows WHERE following=?")
+    .all(req.params.username)
+    .map((r) => r.follower);
+  const following = db
+    .prepare("SELECT following FROM follows WHERE follower=?")
+    .all(req.params.username)
+    .map((r) => r.following);
+  const isFollowing = viewer
+    ? !!db
+        .prepare(
+          "SELECT 1 FROM follows WHERE follower=? AND following=?"
+        )
+        .get(viewer, req.params.username)
+    : false;
+  res.json({
+    username: user.username,
+    profilePic: user.profile_pic,
+    description: user.description || null,
+    posts,
+    followers,
+    following,
+    isFollowing,
+  });
+});
+
+app.post("/profile/:username", (req, res) => {
+  const { description } = req.body || {};
+  db.prepare("UPDATE users SET description=? WHERE username=?").run(
+    description || null,
+    req.params.username
+  );
+  res.json({ success: true });
+});
+
+app.post("/profile/:username/follow", (req, res) => {
+  const { follower } = req.body || {};
+  if (!follower) {
+    res.status(400).json({ error: "Missing follower" });
+    return;
+  }
+  const exists = db
+    .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
+    .get(follower, req.params.username);
+  if (exists) {
+    db
+      .prepare("DELETE FROM follows WHERE follower=? AND following=?")
+      .run(follower, req.params.username);
+    res.json({ following: false });
+  } else {
+    db
+      .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
+      .run(follower, req.params.username);
+    res.json({ following: true });
+  }
 });
 
 const server = http.createServer(app);
