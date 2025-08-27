@@ -63,6 +63,8 @@
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
+    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px; }
+    .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .status .chip { flex:1 1 auto; justify-content:center; }
     header .chip { padding:4px 8px; }
@@ -374,6 +376,10 @@
       <div class="brand">
         <div class="logo" aria-hidden="true"></div>
         <h1>CHAINeS Chat</h1>
+        <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
+          <input type="checkbox" id="auto-delete" />
+          Self-destruct in 5m
+        </label>
       </div>
       <div class="status top">
         <span class="chip" id="conn-chip" title="Connection status">
@@ -491,6 +497,7 @@
     const fileInput = el('#file');
     const sendBtn = el('#send');
     const cmdListBtn = el('#cmd-list');
+    const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
@@ -646,6 +653,14 @@
         try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
         catch {}
       },
+      get autoDelete(){
+        try { return localStorage.getItem('chaines_autodelete') === '1'; }
+        catch { return false; }
+      },
+      set autoDelete(v){
+        try { v ? localStorage.setItem('chaines_autodelete','1') : localStorage.removeItem('chaines_autodelete'); }
+        catch {}
+      },
       get obsRPC() {
         try { return localStorage.getItem('chaines_obs_rpc') || ''; }
         catch { return ''; }
@@ -669,13 +684,30 @@
           localStorage.setItem('chaines_messages', JSON.stringify(items));
         } catch {}
       },
+      removeMsg(id){
+        try{
+          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => x.id !== id);
+          localStorage.setItem('chaines_messages', JSON.stringify(items));
+        } catch{}
+      },
       loadMsgs() {
-        try { return JSON.parse(localStorage.getItem('chaines_messages') || '[]'); } catch { return []; }
+        try {
+          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+          const now = Date.now();
+          const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
+          localStorage.setItem('chaines_messages', JSON.stringify(valid));
+          return valid;
+        } catch { return []; }
       },
       clearMsgs() {
         try { localStorage.removeItem('chaines_messages'); } catch {}
       }
     };
+
+    autoDeleteToggle.checked = store.autoDelete;
+    autoDeleteToggle.addEventListener('change', () => {
+      store.autoDelete = autoDeleteToggle.checked;
+    });
 
     function applyTheme(t){
       document.documentElement.dataset.theme = t;
@@ -785,6 +817,7 @@
       let localStream = null;
       let clientId = null;
     let broadcasting = false;
+    let broadcastTimer = null;
     let broadcastVideo = null;
     let captionTrack = null;
     let speechRec = null;
@@ -1232,6 +1265,7 @@
         likes: 0,
         comments: []
       };
+      if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
 
       // Push to UI + storage immediately
         receive(msg, true);
@@ -1280,6 +1314,7 @@
             } catch {}
           }
           broadcasting = true;
+          if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
           broadcastBtn.textContent = '⏹ End';
           broadcastBtn.title = 'End live broadcast';
           broadcastBtn.classList.add('live');
@@ -1346,6 +1381,7 @@
       }
 
     function endBroadcast(forced=false){
+      if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
       if(!broadcasting) return;
       broadcasting = false;
       updateHeaderButtons();
@@ -1724,6 +1760,14 @@
       }
 
         feed.insertBefore(li, feed.firstChild);
+        if(m.selfDestruct){
+          const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
+          setTimeout(() => {
+            const el = feed.querySelector(`li[data-id="${m.id}"]`);
+            if(el) el.remove();
+            store.removeMsg(m.id);
+          }, delay);
+        }
         if(!skipScroll) scrollToTop();
       }
 
