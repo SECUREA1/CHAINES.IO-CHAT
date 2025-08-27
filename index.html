@@ -81,7 +81,6 @@
     }
     footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; gap:8px; align-items:center; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom #theme-toggle { margin-left:auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
@@ -285,9 +284,19 @@
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
     /* Fullscreen broadcast layout */
-    body.broadcast-mode header,
-    body.broadcast-mode .composer,
     body.broadcast-mode footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(4px);
+      z-index: 1002;
+      padding: 8px;
+      gap: 0;
+    }
+    body.broadcast-mode footer .status.bottom,
+    body.broadcast-mode footer .legal {
       display: none;
     }
     body.broadcast-mode #video-container {
@@ -295,24 +304,22 @@
       inset: 0;
       z-index: 1000;
       display: flex;
-      flex-direction: column;
-      gap: 0;
-      padding: 0;
+      align-items: center;
+      justify-content: center;
       background: #000;
-      flex-wrap: nowrap;
     }
     body.broadcast-mode #video-container video {
-      flex: 1;
       width: 100%;
       height: 100%;
-      max-width: none;
+      max-width: 100%;
+      max-height: 100%;
       border: 0;
       border-radius: 0;
       object-fit: contain;
     }
     body.broadcast-mode #feed {
       position: fixed;
-      bottom: 0;
+      bottom: 80px;
       left: 0;
       width: 100%;
       height: 33vh;
@@ -321,6 +328,10 @@
       background: rgba(0,0,0,0.3);
       backdrop-filter: blur(4px);
       z-index: 1001;
+    }
+    body.broadcast-mode header {
+      position: relative;
+      z-index: 1003;
     }
     body.broadcast-mode #feed .bubble {
       background: rgba(0,0,0,0.6);
@@ -386,6 +397,8 @@
           <input type="checkbox" id="auto-delete" />
           Self-destruct in 5m
         </label>
+        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
+        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
       </div>
       <div class="status top">
         <span class="chip" id="conn-chip" title="Connection status">
@@ -395,7 +408,6 @@
         <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
         <button class="chip" id="fullscreen-btn" title="Toggle fullscreen">⛶ Fullscreen</button>
-        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <button id="cc-settings" class="chip" title="Caption settings">CC</button>
       </div>
     </header>
@@ -439,7 +451,6 @@
           <span class="usr" id="user-name">@guest</span>
         </span>
         <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
-        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
         <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
           <img src="static/hologhost.svg" alt="Hologhost" />
@@ -1210,7 +1221,7 @@
         }
       }
 
-      const msg = { text: raw };
+      const msg = { text: raw, broadcast: broadcasting };
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
         msg.fileName = pendingFile.name;
