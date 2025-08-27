@@ -1,8 +1,11 @@
 // server.js
 import http from "http";
-import { readFile } from "fs/promises";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import express from "express";
+import multer from "multer";
+import bcrypt from "bcryptjs";
 import { WebSocketServer } from "ws";
 import Database from "better-sqlite3";
 
@@ -40,13 +43,93 @@ db.exec(`
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(message_id, user)
   );
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT,
+    profile_pic TEXT
+  );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+
+// express setup
+const app = express();
+app.use(express.json());
+const profileDir = path.join(ROOT, "static", "profiles");
+fs.mkdirSync(profileDir, { recursive: true });
+const storage = multer.diskStorage({
+  destination: profileDir,
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, Date.now() + "-" + Math.random().toString(36).slice(2) + ext);
+  },
+});
+const upload = multer({ storage });
+
+app.use("/static", express.static(path.join(ROOT, "static")));
+
+app.get("/healthz", (req, res) => res.send("ok"));
+app.get(["/", "/index.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "index.html"))
+);
+
+app.post("/register", upload.single("profile"), async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    let pic = null;
+    if (req.file) pic = "/static/profiles/" + req.file.filename;
+    db.prepare(
+      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
+    ).run(username, hash, pic);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: "User exists" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  const user = db
+    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
+    .get(username);
+  if (!user) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  res.json({ success: true, username: user.username, profilePic: user.profile_pic });
+});
+
+app.get("/profile/:username", (req, res) => {
+  const user = db
+    .prepare("SELECT username, profile_pic FROM users WHERE username=?")
+    .get(req.params.username);
+  if (!user) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json({ username: user.username, profilePic: user.profile_pic });
+});
+
+const server = http.createServer(app);
 
 function loadHistory() {
   const rows = db
     .prepare(
-      `SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id`
+      `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
     )
     .all();
   const commentRows = db
@@ -72,6 +155,7 @@ function loadHistory() {
     type: "chat",
     id: r.id,
     user: r.user,
+    profilePic: r.profile_pic,
     room: r.room,
     text: r.message,
     image: r.image,
@@ -83,30 +167,6 @@ function loadHistory() {
     comments: comments[r.id] || [],
   }));
 }
-
-const server = http.createServer(async (req, res) => {
-  if (req.url === "/healthz") {
-    res.writeHead(200);
-    res.end("ok");
-    return;
-  }
-
-  // Serve chat client for root requests
-  if ((req.method === "GET" || req.method === "HEAD") && (req.url === "/" || req.url === "/index.html")) {
-    try {
-      const html = await readFile(path.join(ROOT, "index.html"));
-      res.writeHead(200, { "Content-Type": "text/html" });
-      if (req.method === "GET") res.end(html); else res.end();
-    } catch {
-      res.writeHead(404);
-      res.end("Not found");
-    }
-    return;
-  }
-
-  res.writeHead(404, { "Content-Type": "text/plain" });
-  res.end("Not found");
-});
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
@@ -131,6 +191,7 @@ function broadcastUsers() {
         id: client.id,
         live: broadcasters.has(client.id),
         mic: micGuests.has(client.id),
+        profilePic: client.profilePic || null,
       });
     }
   }
@@ -191,6 +252,10 @@ wss.on("connection", (ws) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     if (msg?.type === "join") {
       ws.username = msg.user || "";
+      const u = db
+        .prepare("SELECT profile_pic FROM users WHERE username=?")
+        .get(ws.username);
+      ws.profilePic = u?.profile_pic || null;
       broadcastUsers();
       return;
     }
@@ -385,6 +450,10 @@ wss.on("connection", (ws) => {
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
+    const u = db
+      .prepare("SELECT profile_pic FROM users WHERE username=?")
+      .get(msg.user || "");
+    msg.profilePic = u?.profile_pic || null;
     const info = db
       .prepare(
         "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"

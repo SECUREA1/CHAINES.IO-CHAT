@@ -3,5 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": { "start": "node server.js", "build": "echo no-build" },
-  "dependencies": { "ws": "^8.18.0", "better-sqlite3": "^9.0.0" }
+  "dependencies": {
+    "ws": "^8.18.0",
+    "better-sqlite3": "^9.0.0",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "bcryptjs": "^2.4.3"
+  }
 }
