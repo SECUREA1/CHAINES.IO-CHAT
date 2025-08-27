@@ -79,8 +79,9 @@
       bottom:0;
       z-index:5;
     }
-    footer .status.bottom { display:grid; grid-template-columns:repeat(3,1fr); width:100%; gap:8px; }
-    footer .status.bottom .chip { display:flex; justify-content:center; width:100%; }
+    footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; gap:8px; align-items:center; }
+    footer .status.bottom .chip { display:flex; justify-content:center; }
+    footer .status.bottom #theme-toggle { margin-left:auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
@@ -433,12 +434,12 @@
         <span class="chip" id="live-chip" title="Users online">
           <span id="live-count">0</span> online
         </span>
-        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
         <span class="chip" id="user-chip" title="Logged in user">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
           <span class="usr" id="user-name">@guest</span>
         </span>
         <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
+        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
         <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
           <img src="static/hologhost.svg" alt="Hologhost" />
