@@ -77,8 +77,16 @@
       bottom:0;
       z-index:5;
     }
-    footer .status.bottom { justify-content:flex-start; width:100%; gap:8px; flex-wrap:wrap; }
-    footer .status.bottom .chip { flex:0 0 auto; justify-content:center; }
+    footer .status.bottom {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      width:100%;
+      gap:8px;
+    }
+    footer .status.bottom .chip {
+      width:100%;
+      justify-content:center;
+    }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
@@ -363,6 +371,8 @@
       footer { padding:0 12px 12px; gap:8px; }
       .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
       .status .chip { flex:1 1 45%; justify-content:center; }
+      .status.bottom { display:grid; grid-template-columns:repeat(3,1fr); }
+      .status.bottom .chip { width:100%; }
       .feed { padding:12px; }
       .composer { margin:0; }
     }
@@ -426,8 +436,8 @@
         <span class="chip" id="user-chip" title="Logged in user" style="display:none">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
           <span class="usr" id="user-name"></span>
-          <button id="logout-btn" class="btn ghost" style="padding:6px 10px" type="button">Logout</button>
         </span>
+        <button id="logout-btn" class="chip" style="display:none" type="button">Logout</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
@@ -1054,6 +1064,7 @@
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       userName.textContent = '@' + store.user;
       userChip.style.display = 'inline-flex';
+      logoutBtn.style.display = 'inline-flex';
       if(store.profilePic){
         userAvatar.src = store.profilePic;
         userAvatar.style.display = 'block';
