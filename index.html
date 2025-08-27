@@ -334,19 +334,28 @@
     body.broadcast-mode #feed {
       position: fixed;
       left: 0;
-      bottom: 0;
+      bottom: 56px;
       width: 100%;
-      height: 33%;
+      height: calc(33% - 56px);
       margin: 0;
       border-radius: 0;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.03);
       z-index: 1001;
       overflow-y: auto;
       display: none;
+      font-weight: bold;
     }
     body.broadcast-mode.chat-open #feed { display:block; }
     body.broadcast-mode #composer {
       display: none;
+    }
+    body.broadcast-mode #broadcast-composer {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      z-index: 1002;
+      background: rgba(0,0,0,0.03);
     }
     body.broadcast-mode header {
       position: fixed;
@@ -461,7 +470,6 @@
         </span>
         <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
-        <button class="chip" id="invite-btn" title="Invite listeners">📢 Invite</button>
         <button id="cc-settings" class="chip" title="Caption settings">CC</button>
       </div>
     </header>
@@ -496,9 +504,15 @@
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
-        <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
+        <button class="chip" id="invite-btn" type="button">📢 Invite</button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
+      <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
+        <label class="input" for="broadcast-text">
+          <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
+        </label>
+        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message">🐒</button>
+      </form>
       <div class="status bottom">
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
         <span class="chip" id="live-chip" title="Users online">
@@ -648,9 +662,10 @@
     const cameraFlipBtn = el('#camera-flip-btn');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
-    const chatToggle = el('#chat-toggle');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
+    const broadcastComposer = el('#broadcast-composer');
+    const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
     const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
@@ -873,9 +888,6 @@
       sendSignal({ type: 'invite', mode });
     });
     endBtn.addEventListener('click', () => { endBroadcast(); });
-    chatToggle.addEventListener('click', () => {
-      document.body.classList.toggle('chat-open');
-    });
     exitBroadcast.addEventListener('click', () => { endBroadcast(); });
     window.addEventListener('beforeunload', () => {
       endBroadcast(true);
@@ -1297,6 +1309,14 @@
       pendingFile = null;
     });
 
+    broadcastComposer.addEventListener('submit', ev => {
+      ev.preventDefault();
+      const raw = (broadcastInput.value || '').trim();
+      if(!raw) return;
+      postMessage({ text: raw, broadcast: true });
+      broadcastInput.value = '';
+    });
+
     cmdListBtn.addEventListener('click', () => {
       cmdPanel.hidden = !cmdPanel.hidden;
     });
@@ -1402,6 +1422,8 @@
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
+      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
+      document.body.classList.add('chat-open');
       const el = document.createElement(audioOnly ? 'audio' : 'video');
       el.srcObject = stream;
       el.muted = true;
@@ -1531,6 +1553,7 @@
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
+      if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
       if(!hadRecorder && share){
