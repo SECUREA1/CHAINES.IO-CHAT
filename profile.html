@@ -43,11 +43,14 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     <button id="follow-btn" class="follow-btn"></button>
   </div>
   <div id="edit-section" hidden>
+    <input type="file" id="p-pic" accept="image/*" />
     <textarea id="p-desc-input" placeholder="Add a description..."></textarea>
     <button id="save-desc" class="follow-btn" type="button">Save</button>
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <h3>Notifications</h3>
+  <ul id="p-notifs" class="posts"></ul>
   <h3>Posts</h3>
   <ul id="p-posts" class="posts"></ul>
 </div>
@@ -63,8 +66,10 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const followBtn = document.getElementById('follow-btn');
   const editSection = document.getElementById('edit-section');
   const descInput = document.getElementById('p-desc-input');
+  const picInput = document.getElementById('p-pic');
   const saveDesc = document.getElementById('save-desc');
   const followInfo = document.getElementById('follow-info');
+  const notifsEl = document.getElementById('p-notifs');
 
   async function load(){
     if(!user) return;
@@ -97,14 +102,36 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       editSection.hidden = false;
       descInput.value = data.description || '';
       saveDesc.onclick = async () => {
+        const form = new FormData();
+        form.append('description', descInput.value);
+        if (picInput.files[0]) form.append('profile', picInput.files[0]);
         await fetch('/profile/' + encodeURIComponent(storeUser), {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ description: descInput.value })
+          body: form
         });
         load();
+        loadNotifs();
       };
+      loadNotifs();
     }
+  }
+  async function loadNotifs(){
+    const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
+    if(!res.ok) return;
+    const data = await res.json();
+    notifsEl.innerHTML = '';
+    data.forEach(n => {
+      const li = document.createElement('li');
+      li.className = 'post';
+      if(n.type === 'like'){
+        li.textContent = (n.data.from || 'Someone') + ' liked your post #' + n.data.messageId;
+      } else if(n.type === 'follow'){
+        li.textContent = (n.data.from || 'Someone') + ' started following you';
+      } else if(n.type === 'broadcast'){
+        li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
+      }
+      notifsEl.appendChild(li);
+    });
   }
   load();
 })();

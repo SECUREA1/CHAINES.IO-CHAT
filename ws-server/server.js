@@ -55,6 +55,14 @@ db.exec(`
     following TEXT,
     PRIMARY KEY (follower, following)
   );
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    type TEXT,
+    data TEXT,
+    read INTEGER DEFAULT 0,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -166,13 +174,25 @@ app.get("/profile/:username", (req, res) => {
   });
 });
 
-app.post("/profile/:username", (req, res) => {
+app.post("/profile/:username", upload.single("profile"), (req, res) => {
   const { description } = req.body || {};
-  db.prepare("UPDATE users SET description=? WHERE username=?").run(
-    description || null,
-    req.params.username
-  );
-  res.json({ success: true });
+  let pic = null;
+  if (req.file) pic = "/static/profiles/" + req.file.filename;
+  if (pic) {
+    db.prepare(
+      "UPDATE users SET description=?, profile_pic=? WHERE username=?"
+    ).run(description || null, pic, req.params.username);
+  } else {
+    db.prepare("UPDATE users SET description=? WHERE username=?").run(
+      description || null,
+      req.params.username
+    );
+    const row = db
+      .prepare("SELECT profile_pic FROM users WHERE username=?")
+      .get(req.params.username);
+    pic = row?.profile_pic || null;
+  }
+  res.json({ success: true, profilePic: pic });
 });
 
 app.post("/profile/:username/follow", (req, res) => {
@@ -193,8 +213,39 @@ app.post("/profile/:username/follow", (req, res) => {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
       .run(follower, req.params.username);
+    db
+      .prepare(
+        "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
+      )
+      .run(
+        req.params.username,
+        JSON.stringify({ from: follower })
+      );
     res.json({ following: true });
   }
+});
+
+app.get("/notifications/:username", (req, res) => {
+  const rows = db
+    .prepare(
+      "SELECT id, type, data, read, strftime('%s', timestamp) * 1000 as ts FROM notifications WHERE username=? ORDER BY id DESC"
+    )
+    .all(req.params.username)
+    .map((r) => ({
+      id: r.id,
+      type: r.type,
+      data: JSON.parse(r.data || "{}"),
+      read: !!r.read,
+      ts: r.ts,
+    }));
+  res.json(rows);
+});
+
+app.post("/notifications/:username/read", (req, res) => {
+  db.prepare("UPDATE notifications SET read=1 WHERE username=?").run(
+    req.params.username
+  );
+  res.json({ success: true });
 });
 
 const server = http.createServer(app);
@@ -374,6 +425,14 @@ wss.on("connection", (ws) => {
           host.send(
             JSON.stringify({ type: "join-request", id: ws.id, user: ws.username })
           );
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'broadcast', ?)"
+            )
+            .run(
+              host.username || "",
+              JSON.stringify({ from: ws.username || "", mode: "join" })
+            );
         } else {
           ws.send(JSON.stringify({ type: "join-denied" }));
         }
@@ -385,6 +444,14 @@ wss.on("connection", (ws) => {
           host.send(
             JSON.stringify({ type: "mic-request", id: ws.id, user: ws.username })
           );
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'broadcast', ?)"
+            )
+            .run(
+              host.username || "",
+              JSON.stringify({ from: ws.username || "", mode: "mic" })
+            );
         }
         return;
       }
@@ -484,11 +551,26 @@ wss.on("connection", (ws) => {
       }
       case "like": {
         if (!msg.messageId) return;
-        db
+        const info = db
           .prepare(
             "INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)"
           )
           .run(msg.messageId, msg.user || "");
+        if (info.changes) {
+          const owner = db
+            .prepare("SELECT user FROM chat_messages WHERE id=?")
+            .get(msg.messageId)?.user;
+          if (owner && owner !== (msg.user || "")) {
+            db
+              .prepare(
+                "INSERT INTO notifications (username, type, data) VALUES (?, 'like', ?)"
+              )
+              .run(
+                owner,
+                JSON.stringify({ from: msg.user || "", messageId: msg.messageId })
+              );
+          }
+        }
         const count = db
           .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
           .get(msg.messageId).c;
