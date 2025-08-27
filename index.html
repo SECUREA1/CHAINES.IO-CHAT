@@ -379,27 +379,28 @@
     }
     body.broadcast-mode #feed .meta { color: #ddd; }
     body.broadcast-mode #video-container.has-guest {
-      position: relative;
+      display: flex;
     }
     body.broadcast-mode #video-container.has-guest video {
-      max-width: none;
-      max-height: none;
-      border-radius: 0;
-    }
-    body.broadcast-mode #video-container.has-guest video.main {
-      width: 100%;
+      width: 50%;
       height: 100%;
-    }
-    body.broadcast-mode #video-container.has-guest video.pip {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 30%;
-      height: auto;
-      border: 2px solid #fff;
-      border-radius: 8px;
+      max-width: 50%;
+      max-height: 100%;
+      border: 0;
+      border-radius: 0;
+      object-fit: contain;
       cursor: pointer;
-      z-index: 1002;
+    }
+    @media (orientation: portrait) {
+      body.broadcast-mode #video-container.has-guest {
+        flex-direction: column;
+      }
+      body.broadcast-mode #video-container.has-guest video {
+        width: 100%;
+        height: 50%;
+        max-width: 100%;
+        max-height: 50%;
+      }
     }
 
     #thumb-chooser {
@@ -1565,11 +1566,9 @@
     function updateVideoLayout(){
       const vids = videoContainer.querySelectorAll('video');
       videoContainer.classList.toggle('has-guest', vids.length > 1);
-      vids.forEach(v => v.classList.remove('main', 'pip'));
+      vids.forEach(v => v.onclick = null);
       if(vids.length > 1){
-        vids[0].classList.add('main');
-        vids[1].classList.add('pip');
-        vids[1].onclick = swapVideos;
+        vids.forEach(v => v.onclick = swapVideos);
       }
     }
 
