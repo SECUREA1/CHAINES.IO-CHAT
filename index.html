@@ -506,6 +506,7 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="invite-btn" type="button">📢 Invite</button>
+        <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -665,6 +666,7 @@
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
+    const chatToggle = el('#chat-toggle');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
@@ -715,6 +717,10 @@
         localStorage.setItem('chaines_cc_color', ccColor.value);
       } catch {}
       ccPanel.hidden = true;
+    });
+
+    chatToggle.addEventListener('click', () => {
+      document.body.classList.toggle('chat-open');
     });
 
     // --- Basic state ---
@@ -1423,8 +1429,6 @@
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
-      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
-      document.body.classList.add('chat-open');
       const el = document.createElement(audioOnly ? 'audio' : 'video');
       el.srcObject = stream;
       el.muted = true;
