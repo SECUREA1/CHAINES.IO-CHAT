@@ -947,10 +947,20 @@
             const dot = document.createElement('span');
             dot.className = 'live-dot';
             li.appendChild(dot);
+            const camIcon = document.createElement('span');
+            camIcon.textContent = '🎥';
+            camIcon.title = 'Camera';
+            li.appendChild(camIcon);
             liveIds.add(u.id);
             ensureStreamThumb(u.id, name, u.id === clientId);
           }
-          if(u.mic){ li.classList.add('mic-user'); }
+          if(u.mic){
+            li.classList.add('mic-user');
+            const micIcon = document.createElement('span');
+            micIcon.textContent = '🎤';
+            micIcon.title = 'Mic';
+            li.appendChild(micIcon);
+          }
           li.appendChild(document.createTextNode('@' + name));
           usersEl.appendChild(li);
         });
@@ -1543,8 +1553,7 @@
                 file: dataUrl,
                 fileName: `broadcast-${Date.now()}.${recordMime === 'video/mp4' ? 'mp4' : 'webm'}`,
                 fileType: recordMime,
-                image: broadcastThumb,
-                broadcast: true
+                image: broadcastThumb
               });
             }
           };
@@ -1574,7 +1583,7 @@
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
       if(!hadRecorder && share){
-        postMessage({ text: msgText, image: broadcastThumb, broadcast: true });
+        postMessage({ text: msgText, image: broadcastThumb });
       }
       const selfStream = streams[clientId];
       if(selfStream){
@@ -1775,7 +1784,7 @@
         if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-          if(streams[m.room]) appendStreamMessage(streams[m.room], m);
+          if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
           if(!isLocal) store.pushMsg(m);
@@ -1789,7 +1798,7 @@
       scrollToTop();
     }
 
-      function appendMessage(m, skipScroll=false){
+      function appendMessage(m, skipScroll=false, container=feed){
         const mine = m.user === store.user;
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
@@ -1884,38 +1893,40 @@
         }
       }
 
-      const actions = document.createElement('div');
-      actions.className = 'actions';
-      const likeBtn = document.createElement('button');
-      likeBtn.className = 'like-btn';
-      likeBtn.textContent = `❤️ ${m.likes || 0}`;
-      likeBtn.addEventListener('click', () => {
-        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
-      });
-      actions.appendChild(likeBtn);
+      if(container === feed){
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const likeBtn = document.createElement('button');
+        likeBtn.className = 'like-btn';
+        likeBtn.textContent = `❤️ ${m.likes || 0}`;
+        likeBtn.addEventListener('click', () => {
+          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
+        });
+        actions.appendChild(likeBtn);
 
-      const commentsBox = document.createElement('div');
-      commentsBox.className = 'comments';
-      const commentsList = document.createElement('div');
-      commentsList.className = 'comments-list';
-      (m.comments || []).forEach(c => appendCommentElement(commentsList, c));
-      const commentForm = document.createElement('form');
-      commentForm.className = 'comment-form';
-      const commentInput = document.createElement('input');
-      commentInput.placeholder = 'Add comment...';
-      commentForm.appendChild(commentInput);
-      commentForm.addEventListener('submit', ev => {
-        ev.preventDefault();
-        const txt = commentInput.value.trim();
-        if(!txt) return;
-        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: txt, user: store.user })); } catch {}
-        commentInput.value = '';
-      });
-      commentsBox.appendChild(commentsList);
-      commentsBox.appendChild(commentForm);
+        const commentsBox = document.createElement('div');
+        commentsBox.className = 'comments';
+        const commentsList = document.createElement('div');
+        commentsList.className = 'comments-list';
+        (m.comments || []).forEach(c => appendCommentElement(commentsList, c));
+        const commentForm = document.createElement('form');
+        commentForm.className = 'comment-form';
+        const commentInput = document.createElement('input');
+        commentInput.placeholder = 'Add comment...';
+        commentForm.appendChild(commentInput);
+        commentForm.addEventListener('submit', ev => {
+          ev.preventDefault();
+          const txt = commentInput.value.trim();
+          if(!txt) return;
+          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: txt, user: store.user })); } catch {}
+          commentInput.value = '';
+        });
+        commentsBox.appendChild(commentsList);
+        commentsBox.appendChild(commentForm);
 
-      bubble.appendChild(actions);
-      bubble.appendChild(commentsBox);
+        bubble.appendChild(actions);
+        bubble.appendChild(commentsBox);
+      }
 
       if(mine){
         li.appendChild(bubble);
@@ -1925,7 +1936,8 @@
         li.appendChild(bubble);
       }
 
-        feed.insertBefore(li, feed.firstChild);
+      if(container === feed){
+        container.insertBefore(li, container.firstChild);
         if(m.selfDestruct){
           const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
           setTimeout(() => {
@@ -1935,13 +1947,10 @@
           }, delay);
         }
         if(!skipScroll) scrollToTop();
+      } else {
+        container.appendChild(li);
+        if(!skipScroll) container.scrollTop = container.scrollHeight;
       }
-
-      function appendStreamMessage(stream, m){
-        const li = document.createElement('li');
-        li.textContent = `@${m.user}: ${m.text}`;
-        stream.feed.appendChild(li);
-        stream.feed.scrollTop = stream.feed.scrollHeight;
       }
 
       function appendCommentElement(list, c){
