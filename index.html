@@ -102,7 +102,9 @@
         width:24px;
         height:24px;
       }
-      #swap-btn { display:none; }
+      #camera-btn, #split-btn, #swap-btn { display:none; }
+      body.broadcast-mode #camera-btn,
+      body.broadcast-mode #split-btn,
       body.broadcast-mode #swap-btn { display:flex; }
       #camera-btn.off img { opacity:0.5; }
       #invite-cc {
@@ -578,16 +580,7 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
-            <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-              <img src="static/camera.svg" alt="Toggle camera" />
-            </button>
-            <button class="chip" id="split-btn" type="button" title="Split view">
-              <img src="static/split.svg" alt="Split layout" />
-            </button>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
-            <button class="chip" id="swap-btn" type="button" title="Swap videos">
-              <img src="static/flip.svg" alt="Swap videos" />
-            </button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
@@ -629,6 +622,15 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
+        <button class="chip" id="camera-btn" type="button" title="Turn camera off">
+          <img src="static/camera.svg" alt="Toggle camera" />
+        </button>
+        <button class="chip" id="split-btn" type="button" title="Split view">
+          <img src="static/split.svg" alt="Split layout" />
+        </button>
+        <button class="chip" id="swap-btn" type="button" title="Swap videos">
+          <img src="static/flip.svg" alt="Swap videos" />
+        </button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
