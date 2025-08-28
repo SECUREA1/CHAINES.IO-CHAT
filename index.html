@@ -59,16 +59,15 @@
         margin:0 auto;
       }
 
-    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
-    .brand { display:flex; align-items:center; gap:10px; }
+    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:nowrap; }
+    .brand { display:flex; align-items:center; gap:10px; margin-right:auto; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
-    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px; }
+    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
-    .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .status .chip { flex:1 1 auto; justify-content:center; }
+    .status { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+    .status .chip { flex:0 0 auto; justify-content:center; }
     header .chip { padding:4px 8px; }
-    header .status.icon-bar { flex:1 0 100%; width:100%; }
     footer {
       display:flex;
       flex-direction:column;
@@ -94,10 +93,10 @@
       display:flex;
       padding:0;
       border-radius:12px;
-      margin-left:auto;
       overflow:hidden;
       height:36px;
       flex:0 0 auto;
+      margin-left:8px;
     }
     #invite-cc button {
       flex:1;
@@ -406,7 +405,6 @@
       z-index: 1003;
     }
     body.broadcast-mode header .brand { display:none; }
-    body.broadcast-mode header .status.top { width:100%; justify-content:center; }
     body.broadcast-mode header .chip {
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
@@ -480,10 +478,10 @@
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
-      header { flex-wrap: wrap; padding:12px; gap:8px; }
+      header { flex-wrap:nowrap; padding:12px; gap:8px; }
       footer { padding:0 12px 12px; gap:8px; }
-      .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
-      .status .chip { flex:1 1 45%; justify-content:center; }
+      .status { flex-wrap:nowrap; gap:8px; }
+      .status .chip { flex:0 0 auto; justify-content:center; }
       .feed { padding:12px; }
       .composer { margin:0; }
     }
@@ -495,21 +493,14 @@
       <div class="brand">
         <div class="logo" aria-hidden="true"></div>
         <h1>CHAINeS Chat</h1>
+      </div>
+      <div class="status icon-bar">
         <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
           <input type="checkbox" id="auto-delete" />
           Self-destruct in 5m
         </label>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
-        <div class="chip" id="invite-cc">
-          <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
-          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
-          <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
-          <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
-          <button id="listener-count" type="button" title="Active listeners">0 listening</button>
-        </div>
-      </div>
-      <div class="status icon-bar">
         <button class="chip" id="broadcast-btn" title="Go live" aria-label="Go live">🎥</button>
         <span class="chip" id="live-chip" title="Users online">👥 <span id="live-count">0</span></span>
         <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost">
@@ -522,6 +513,13 @@
         </button>
         <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout">🚪</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+        <div class="chip" id="invite-cc">
+          <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
+          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
+          <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
+          <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
+          <button id="listener-count" type="button" title="Active listeners">0 listening</button>
+        </div>
       </div>
     </header>
 
@@ -695,6 +693,7 @@
     const thumbCamera = el('#thumb-camera');
     const thumbSkip = el('#thumb-skip');
     const listenerCountBtn = el('#listener-count');
+    const inviteCC = el('#invite-cc');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#streams');
@@ -951,7 +950,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [inviteCC, streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
