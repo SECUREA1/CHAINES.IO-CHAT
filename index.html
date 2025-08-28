@@ -1333,6 +1333,14 @@
           if(data && data.type === 'invite') handleInvite(data);
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
           if(data && data.type === 'guest-start') handleGuestStart(data);
+          if(data && data.type === 'delete') {
+            const el = feed.querySelector(`li[data-id="${data.id}"]`);
+            if(el) el.remove();
+            store.removeMsg(data.id);
+          }
+          if(data && data.type === 'self-destruct') {
+            systemNote(`Your post #${data.messageId} self-destructed`);
+          }
         } catch {}
       });
     }
