@@ -98,10 +98,12 @@
       border-radius:12px;
     }
     #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-    #camera-btn img, #split-btn img {
+    #camera-flip-btn img, #camera-btn img, #split-btn img {
       width:24px;
       height:24px;
     }
+    #camera-flip-btn { display:none; }
+    body.broadcast-mode #camera-flip-btn { display:flex; }
     #invite-cc {
       display:flex;
       padding:0;
@@ -590,7 +592,9 @@
       <div class="status top">
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
-          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
+          <button id="camera-flip-btn" type="button" title="Switch camera">
+            <img src="static/flip.svg" alt="Switch camera" />
+          </button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
           <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
           <button id="listener-count" type="button" title="Active listeners">0 listening</button>
@@ -616,10 +620,10 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="camera-btn" type="button" hidden title="Toggle camera">
+        <button class="chip" id="camera-btn" type="button" title="Toggle camera">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
-        <button class="chip" id="split-btn" type="button" hidden title="Split view">
+        <button class="chip" id="split-btn" type="button" title="Split view">
           <img src="static/split.svg" alt="Split layout" />
         </button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
@@ -1759,8 +1763,6 @@
           if(multi){
             vids.forEach(v => v.onclick = swapVideos);
           }
-          if(cameraBtn) cameraBtn.hidden = !multi;
-          if(splitBtn) splitBtn.hidden = !multi;
         }
       }
 
