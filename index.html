@@ -85,18 +85,37 @@
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
     #live-chip, #theme-toggle, #mode-toggle, #cmd-list, #ghost-btn { cursor:pointer; }
-    #mode-toggle, #cc-settings, #theme-toggle, #cmd-list, #ghost-btn {
+    #mode-toggle, #theme-toggle, #cmd-list, #ghost-btn {
       width:36px;
       height:36px;
       padding:0;
       justify-content:center;
       border-radius:12px;
     }
-    #cc-settings {
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      border:0;
-      color:#05130e;
+    #invite-cc {
+      display:flex;
+      padding:0;
+      border-radius:12px;
       margin-left:auto;
+      overflow:hidden;
+      height:36px;
+      flex:0 0 auto;
+    }
+    #invite-cc button {
+      flex:1;
+      border:0;
+      padding:0 10px;
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+      color: var(--fg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100%;
+    }
+    #invite-cc button + button { border-left:1px solid var(--lining); }
+    #invite-cc #cc-settings {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color:#05130e;
     }
     #end-btn {
       border-color: var(--danger);
@@ -514,7 +533,10 @@
         </span>
         <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
         <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
-        <button id="cc-settings" class="chip" title="Caption settings">CC</button>
+        <div class="chip" id="invite-cc">
+          <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
+          <button id="cc-settings" type="button" title="Caption settings">CC</button>
+        </div>
       </div>
     </header>
     <div id="cc-panel" class="cc-panel" hidden>
@@ -552,7 +574,6 @@
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
-        <button class="chip" id="invite-btn" type="button">📢 Invite</button>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
