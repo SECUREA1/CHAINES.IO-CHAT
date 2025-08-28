@@ -83,6 +83,13 @@ const upload = multer({ storage });
 
 app.use("/static", express.static(path.join(ROOT, "static")));
 
+app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
+app.get("/favicon.svg", (req, res) =>
+  res
+    .type("image/svg+xml")
+    .sendFile(path.join(ROOT, "static", "logo.svg"))
+);
+
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
