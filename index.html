@@ -1860,8 +1860,10 @@
       });
     }
 
-        function handleOffer(msg){
-          const pc = new RTCPeerConnection();
+      function handleOffer(msg){
+        let pc = peerConnections[msg.id];
+        if(!pc){
+          pc = new RTCPeerConnection();
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
             const vid = document.createElement('video');
@@ -1880,7 +1882,13 @@
               try{ localStream && localStream.addTrack(ev.track); }catch{}
               for(const id in peerConnections){
                 if(id === msg.id) continue;
-                try{ peerConnections[id].addTrack(ev.track, ev.streams[0]); }catch{}
+                try{
+                  const pc2 = peerConnections[id];
+                  pc2.addTrack(ev.track, ev.streams[0]);
+                  pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
+                    sendSignal({ type:'offer', id, sdp: pc2.localDescription });
+                  });
+                }catch{}
               }
             } else {
               const box = streams[msg.id] && streams[msg.id].video;
@@ -1907,11 +1915,12 @@
             pc._videos.push(vid);
           };
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
-          pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-            .then(() => pc.createAnswer())
-            .then(ans => pc.setLocalDescription(ans))
-            .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
         }
+        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          .then(() => pc.createAnswer())
+          .then(ans => pc.setLocalDescription(ans))
+          .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
+      }
 
     function handleAnswer(msg){
       const pc = peerConnections[msg.id];
