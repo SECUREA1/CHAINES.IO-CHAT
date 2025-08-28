@@ -799,10 +799,18 @@
     let joinApproved = false;
     let pendingMicHost = null;
     let micApproved = false;
-    let splitMode = true;
+    let splitMode = false;
     let cameraOff = false;
     let savedVideoTrack = null;
     let blankTrack = null;
+
+    if(cameraBtn) cameraBtn.disabled = true;
+    if(splitBtn){
+      const icon = splitBtn.querySelector('img');
+      icon.src = splitMode ? 'static/split.svg' : 'static/insert.svg';
+      icon.alt = splitMode ? 'Split layout' : 'Insert layout';
+      splitBtn.title = splitMode ? 'Split view' : 'Insert view';
+    }
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -847,6 +855,7 @@
       });
     }
 
+    updateVideoLayout();
     window.addEventListener('resize', () => {
       updateVideoLayout();
       for(const id in streams){
@@ -1088,7 +1097,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1581,6 +1590,13 @@
     // --- WebRTC helpers ---
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
+        splitMode = false;
+        if(splitBtn){
+          const icon = splitBtn.querySelector('img');
+          icon.src = 'static/insert.svg';
+          icon.alt = 'Insert layout';
+          splitBtn.title = 'Insert view';
+        }
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
@@ -1653,7 +1669,7 @@
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
-        cameraBtn.hidden = audioOnly;
+        cameraBtn.disabled = audioOnly;
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
@@ -1698,6 +1714,7 @@
             videoContainer.appendChild(mediaEl);
           }
           updateVideoLayout();
+          alert('Camera started in picture-in-picture mode. Use the swap button to toggle camera views.');
           const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = mediaEl;
@@ -1725,7 +1742,7 @@
       }
 
       function toggleCamera(){
-        if(!localStream) return;
+        if(!localStream){ alert('Start streaming to toggle camera'); return; }
         const videoTrack = localStream.getVideoTracks()[0];
         if(!cameraOff){
           if(!videoTrack) return;
@@ -1768,7 +1785,7 @@
         if(!broadcasting) return;
         broadcasting = false;
         if(cameraBtn){
-          cameraBtn.hidden = true;
+          cameraBtn.disabled = true;
           cameraBtn.classList.remove('off');
           cameraBtn.title = 'Turn camera off';
         }
@@ -1873,7 +1890,7 @@
           if(multi){
             vids.forEach(v => v.onclick = swapVideos);
           }
-          if(swapBtn) swapBtn.hidden = !(broadcasting && multi);
+          if(swapBtn) swapBtn.hidden = !multi;
           if(splitBtn) splitBtn.hidden = !broadcasting;
         }
       }
@@ -1888,6 +1905,15 @@
 
       function startWatching(id){
         activeRooms.add(id);
+        splitMode = false;
+        updateVideoLayout();
+        if(splitBtn){
+          const icon = splitBtn.querySelector('img');
+          icon.src = 'static/insert.svg';
+          icon.alt = 'Insert layout';
+          splitBtn.title = 'Insert view';
+        }
+        alert('Viewing in picture-in-picture mode. Use the swap button to toggle camera views.');
         if(!broadcasting) feed.setAttribute('hidden','');
         sendSignal({ type: 'watcher', id });
       }
