@@ -1653,18 +1653,18 @@
         cameraBtn.title = 'Turn camera off';
       }
       if(overlayChat) overlayChat.removeAttribute('hidden');
-      const el = document.createElement(audioOnly ? 'audio' : 'video');
-      el.srcObject = stream;
-      el.muted = true;
-          el.setAttribute('muted','');
-          el.autoplay = true;
-          el.setAttribute('autoplay','');
-          el.playsInline = true;
-          el.setAttribute('playsinline','');
-          el.controls = true;
+      const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
+      mediaEl.srcObject = stream;
+      mediaEl.muted = true;
+          mediaEl.setAttribute('muted','');
+          mediaEl.autoplay = true;
+          mediaEl.setAttribute('autoplay','');
+          mediaEl.playsInline = true;
+          mediaEl.setAttribute('playsinline','');
+          mediaEl.controls = true;
           if(!audioOnly){
-            attachCaptions(el);
-            captionTrack = el.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+            attachCaptions(mediaEl);
+            captionTrack = mediaEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
             captionTrack.mode = 'showing';
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechRecognition){
@@ -1676,7 +1676,7 @@
                 const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
                 if(transcript && captionTrack){
                   const Cue = window.VTTCue || window.TextTrackCue;
-                  try{ captionTrack.addCue(new Cue(el.currentTime, el.currentTime+5, transcript)); }
+                  try{ captionTrack.addCue(new Cue(mediaEl.currentTime, mediaEl.currentTime+5, transcript)); }
                   catch(err){ console.error('cue error', err); }
                   try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
                 }
@@ -1688,14 +1688,14 @@
           const hostCanvas = el('#host-canvas');
           if(hostCanvas){
             hostCanvas.innerHTML = '';
-            hostCanvas.appendChild(el);
+            hostCanvas.appendChild(mediaEl);
           } else {
-            videoContainer.appendChild(el);
+            videoContainer.appendChild(mediaEl);
           }
           updateVideoLayout();
-          const start = el.play();
+          const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
-          broadcastVideo = el;
+          broadcastVideo = mediaEl;
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started', broadcast: true });
         }).catch(() => { broadcasting = false; alert('Unable to access camera/microphone'); });
