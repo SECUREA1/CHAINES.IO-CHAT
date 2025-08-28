@@ -1933,6 +1933,10 @@
           model.style.borderRadius = '8px';
           model.setAttribute('camera-controls','');
           model.setAttribute('auto-rotate','');
+          // Enable AR viewing for supported devices
+          model.setAttribute('ar','');
+          model.setAttribute('ar-modes','webxr scene-viewer quick-look');
+          model.setAttribute('ar-scale','auto');
           bubble.appendChild(model);
         } else if(mime.startsWith('image/')){
           const img = document.createElement('img');
