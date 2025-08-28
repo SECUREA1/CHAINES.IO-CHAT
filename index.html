@@ -616,9 +616,10 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="camera-btn" type="button" hidden title="Toggle camera">
-          <img src="static/camera.svg" alt="Toggle camera" />
+        <button class="chip" id="camera-btn" type="button" hidden title="Swap cameras">
+          <img src="static/camera.svg" alt="Swap cameras" />
         </button>
+        <button class="chip" id="cam-toggle-btn" type="button" hidden title="Turn camera off">🚫</button>
         <button class="chip" id="split-btn" type="button" hidden title="Split view">
           <img src="static/split.svg" alt="Split layout" />
         </button>
@@ -770,6 +771,7 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const camToggleBtn = el('#cam-toggle-btn');
     const splitBtn = el('#split-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -791,6 +793,9 @@
     let pendingMicHost = null;
     let micApproved = false;
     let splitMode = true;
+    let cameraOff = false;
+    let savedVideoTrack = null;
+    let blankTrack = null;
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -812,6 +817,9 @@
 
     if(cameraBtn){
       cameraBtn.addEventListener('click', swapVideos);
+    }
+    if(camToggleBtn){
+      camToggleBtn.addEventListener('click', toggleCamera);
     }
     if(splitBtn){
       splitBtn.addEventListener('click', () => {
@@ -1535,6 +1543,10 @@
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
         overlayMessages = [];
+        cameraOff = false;
+        blankTrack = null;
+        savedVideoTrack = null;
+        broadcasting = true;
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
@@ -1587,7 +1599,6 @@
               mediaRecorder.start();
             } catch {}
           }
-      broadcasting = true;
       updateListenerCount(clientId, 0);
       activeRooms.add(clientId);
       feed.setAttribute('hidden','');
@@ -1601,6 +1612,11 @@
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
+      if(camToggleBtn){
+        camToggleBtn.hidden = audioOnly;
+        camToggleBtn.textContent = '🚫';
+        camToggleBtn.title = 'Turn camera off';
+      }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const el = document.createElement(audioOnly ? 'audio' : 'video');
       el.srcObject = stream;
@@ -1640,8 +1656,8 @@
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = el;
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
-          postMessage({ text: '🔴 Broadcast started', broadcast: true });
-        }).catch(() => alert('Unable to access camera/microphone'));
+          if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started', broadcast: true });
+        }).catch(() => { broadcasting = false; alert('Unable to access camera/microphone'); });
       }
 
       function switchCamera(){
@@ -1662,10 +1678,57 @@
           }).catch(() => alert('Unable to switch camera'));
       }
 
-    function endBroadcast(forced=false){
-      if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
-      if(!broadcasting) return;
-      broadcasting = false;
+      function toggleCamera(){
+        if(!localStream) return;
+        const videoTrack = localStream.getVideoTracks()[0];
+        if(!cameraOff){
+          if(!videoTrack) return;
+          const settings = videoTrack.getSettings();
+          const canvas = document.createElement('canvas');
+          canvas.width = settings.width || 640;
+          canvas.height = settings.height || 480;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = 'black';
+          ctx.fillRect(0,0,canvas.width,canvas.height);
+          blankTrack = canvas.captureStream().getVideoTracks()[0];
+          savedVideoTrack = videoTrack;
+          localStream.removeTrack(videoTrack);
+          localStream.addTrack(blankTrack);
+          for(const id in peerConnections){
+            const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+            if(sender) sender.replaceTrack(blankTrack);
+          }
+          if(broadcastVideo) broadcastVideo.srcObject = localStream;
+          cameraOff = true;
+          if(camToggleBtn){ camToggleBtn.textContent = '📷'; camToggleBtn.title = 'Turn camera on'; }
+        } else {
+          if(!savedVideoTrack) return;
+          localStream.removeTrack(blankTrack);
+          blankTrack && blankTrack.stop();
+          blankTrack = null;
+          localStream.addTrack(savedVideoTrack);
+          for(const id in peerConnections){
+            const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+            if(sender) sender.replaceTrack(savedVideoTrack);
+          }
+          if(broadcastVideo) broadcastVideo.srcObject = localStream;
+          cameraOff = false;
+          if(camToggleBtn){ camToggleBtn.textContent = '🚫'; camToggleBtn.title = 'Turn camera off'; }
+        }
+      }
+
+      function endBroadcast(forced=false){
+        if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
+        if(!broadcasting) return;
+        broadcasting = false;
+        if(camToggleBtn){
+          camToggleBtn.hidden = true;
+          camToggleBtn.textContent = '🚫';
+          camToggleBtn.title = 'Turn camera off';
+        }
+        cameraOff = false;
+        if(blankTrack){ blankTrack.stop(); blankTrack = null; }
+        savedVideoTrack = null;
       overlayMessages = [];
       activeRooms.delete(clientId);
       if(activeRooms.size === 0) feed.removeAttribute('hidden');
@@ -1903,16 +1966,11 @@
       const stream = streams[pendingJoinHost];
       if(stream && stream.requestBtn) stream.requestBtn.disabled = true;
       broadcastBtn.disabled = false;
+      startBroadcast();
       if(stream && !stream.started){
         startWatching(pendingJoinHost);
         stream.started = true;
       }
-      const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid){
-        videoContainer.appendChild(hostVid);
-        updateVideoLayout();
-      }
-      startBroadcast();
       // Keep pendingJoinHost so chat stays in host room
     }
 
