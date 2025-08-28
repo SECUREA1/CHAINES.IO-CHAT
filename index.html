@@ -456,6 +456,30 @@
       }
     }
 
+    body.broadcast-mode #video-container.pip {
+      display: block;
+    }
+    body.broadcast-mode #video-container.pip video {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      border: 0;
+      border-radius: 0;
+      object-fit: contain;
+    }
+    body.broadcast-mode #video-container.pip video:nth-child(2) {
+      position: absolute;
+      width: 30%;
+      height: 30%;
+      bottom: 10px;
+      right: 10px;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      max-width: none;
+      max-height: none;
+    }
+
     #thumb-chooser {
       position: fixed;
       inset: 0;
@@ -553,6 +577,8 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
+        <button class="chip" id="swap-btn" type="button" hidden>🔀 Swap</button>
+        <button class="chip" id="split-btn" type="button" hidden>🪟 Split</button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -700,6 +726,8 @@
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
+    const swapBtn = el('#swap-btn');
+    const splitBtn = el('#split-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
@@ -719,6 +747,7 @@
     let joinApproved = false;
     let pendingMicHost = null;
     let micApproved = false;
+    let splitMode = true;
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -737,6 +766,16 @@
     chatToggle.addEventListener('click', () => {
       document.body.classList.toggle('chat-open');
     });
+
+    if(swapBtn){
+      swapBtn.addEventListener('click', swapVideos);
+    }
+    if(splitBtn){
+      splitBtn.addEventListener('click', () => {
+        splitMode = !splitMode;
+        updateVideoLayout();
+      });
+    }
 
     // --- Basic state ---
     const store = {
@@ -1665,11 +1704,15 @@
 
     function updateVideoLayout(){
       const vids = videoContainer.querySelectorAll('video');
-      videoContainer.classList.toggle('has-guest', vids.length > 1);
+      const multi = vids.length > 1;
+      videoContainer.classList.toggle('has-guest', multi && splitMode);
+      videoContainer.classList.toggle('pip', multi && !splitMode);
       vids.forEach(v => v.onclick = null);
-      if(vids.length > 1){
+      if(multi){
         vids.forEach(v => v.onclick = swapVideos);
       }
+      if(swapBtn) swapBtn.hidden = !multi;
+      if(splitBtn) splitBtn.hidden = !multi;
     }
 
     function swapVideos(){
@@ -1785,6 +1828,9 @@
     function handleJoinRequest(id, user){
       const ok = confirm(`Allow @${user || 'user'} to join?`);
       sendSignal({ type: ok ? 'approve-join' : 'deny-join', id });
+      if(ok){
+        setTimeout(() => startWatching(id), 1000);
+      }
     }
 
     function handleJoinApproved(){
@@ -1798,8 +1844,7 @@
         updateVideoLayout();
       }
       startBroadcast();
-      // Clear pending host to avoid unintended broadcast termination
-      pendingJoinHost = null;
+      // Keep pendingJoinHost so chat stays in host room
     }
 
     function handleJoinDenied(){
