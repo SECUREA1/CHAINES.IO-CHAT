@@ -289,6 +289,49 @@
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
 
+    #overlay-chat {
+      position: fixed;
+      bottom: 80px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      z-index: 1002;
+      pointer-events: none;
+    }
+    .overlay-msg {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--caption-bg);
+      color: var(--caption-color);
+      border-radius: 12px;
+      padding: 4px 8px;
+      font-weight: bold;
+      box-shadow: var(--shadow);
+      animation: fade-out 5s forwards;
+    }
+    .overlay-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--muted);
+      color: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      background-size: cover;
+      background-position: center;
+    }
+    @keyframes fade-out {
+      0%,80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
     /* Fullscreen broadcast layout */
     body.broadcast-mode footer {
       position: fixed;
@@ -492,6 +535,7 @@
       <main>
         <div id="streams" class="streams"></div>
         <div id="video-container" hidden></div>
+        <div id="overlay-chat" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
       </main>
 
@@ -681,6 +725,7 @@
     const ccColor = el('#cc-color');
     const ccApply = el('#cc-apply');
     const videoContainer = el('#video-container');
+    const overlayChat = el('#overlay-chat');
     const streamsEl = el('#streams');
     const streams = {};
     const pendingThumbs = {};
@@ -928,6 +973,25 @@
     let drawHandle = null;
     let recordMime = 'video/webm';
     let overlayMessages = [];
+
+    function showOverlayMessage({ user, text, profilePic }){
+      if(!overlayChat) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'overlay-msg';
+      const av = document.createElement('div');
+      av.className = 'overlay-avatar';
+      if(profilePic){
+        av.style.backgroundImage = `url(${profilePic})`;
+      } else {
+        av.textContent = initials(user);
+      }
+      const span = document.createElement('div');
+      span.innerHTML = `<span class="who">@${escapeHTML(user)}</span>: ${renderText(text)}`;
+      wrap.appendChild(av);
+      wrap.appendChild(span);
+      overlayChat.appendChild(wrap);
+      setTimeout(() => wrap.remove(), 5000);
+    }
 
     function updateHeaderButtons(){
       const show = broadcasting;
@@ -1471,6 +1535,7 @@
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
+      if(overlayChat) overlayChat.removeAttribute('hidden');
       const el = document.createElement(audioOnly ? 'audio' : 'video');
       el.srcObject = stream;
       el.muted = true;
@@ -1602,6 +1667,7 @@
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
+      if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
       captionTrack = null;
@@ -1869,7 +1935,9 @@
       bubble.appendChild(text);
       const plain = text.textContent.trim();
       if(broadcasting && m.room === clientId && plain){
-        overlayMessages.push({ text: plain, ts: Date.now() });
+        const overlayText = `@${m.user}: ${plain}`;
+        overlayMessages.push({ text: overlayText, ts: Date.now() });
+        showOverlayMessage({ user: m.user, text: plain, profilePic: m.profilePic });
       }
       const fileData = m.file || m.image;
       if(fileData){
