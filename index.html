@@ -78,8 +78,10 @@
       bottom:0;
       z-index:5;
     }
-    footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; align-items:center; justify-content:space-between; gap:0; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; }
+    footer .status.bottom > button { flex:0 0 100px; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
+    footer .status.bottom .legal { flex:1 1 auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
@@ -114,17 +116,18 @@
     #invite-cc button + button { border-left:1px solid var(--lining); }
     #user-cc {
       display:flex;
+      flex-wrap:wrap;
       padding:0;
       border-radius:12px;
       overflow:hidden;
-      height:36px;
+      min-height:36px;
       flex:1 1 auto;
       width:100%;
     }
     #user-cc > * {
-      flex:1 1 auto;
+      flex:1 1 50%;
       border:0;
-      padding:0 10px;
+      padding:0 6px;
       background: color-mix(in oklab, var(--panel), transparent 25%);
       color: var(--fg);
       display:flex;
@@ -135,6 +138,8 @@
       white-space:nowrap;
     }
     #user-cc > * + * { border-left:1px solid var(--lining); }
+    #profile-link { justify-content:flex-start; gap:4px; }
+    #profile-link img { width:24px; height:24px; border-radius:50%; }
     #end-btn {
       background: var(--danger);
       border-color: var(--danger);
@@ -541,7 +546,7 @@
       <div class="status user">
         <div class="chip" id="user-cc">
           <span id="conn-chip" title="Connection status"><span class="conn-dot off" id="conn-dot"></span><span id="conn-label">Offline</span></span>
-          <span id="live-chip" title="Users online">🔴 <span id="live-count">0</span> online</span>
+          <span id="live-chip" title="Users active">👤 <span id="live-count">0</span> users active</span>
           <a id="profile-link" href="/profile.html">Profile</a>
           <button id="logout-btn" type="button" title="Logout">Logout</button>
         </div>
@@ -578,9 +583,9 @@
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <span class="live-dot"></span>Go Live
         </button>
+        <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
-      <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
     </footer>
   </div>
 
@@ -1163,10 +1168,10 @@
       connDot.classList.remove('cloud','local','off');
       if(mode === 'cloud'){
         connDot.classList.add('cloud');
-        connLabel.textContent = 'Online (Cloud)';
+        connLabel.textContent = 'Cloud';
       } else if(mode === 'local'){
         connDot.classList.add('local');
-        connLabel.textContent = 'Online (Local)';
+        connLabel.textContent = 'Local';
         updateUsers([]);
       } else {
         connDot.classList.add('off');
@@ -1257,6 +1262,8 @@
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
+        const img = store.profilePic ? `<img src="${store.profilePic}" alt="${store.user}">` : '';
+        profileLink.innerHTML = `${img}@${store.user}`;
       }
 
       document.body.classList.remove('auth-lock');
