@@ -102,10 +102,11 @@
       width:24px;
       height:24px;
     }
-    #camera-btn, #swap-btn, #split-btn { display:none; }
+    #camera-btn, #swap-btn { display:none; }
     body.broadcast-mode #camera-btn,
-    body.broadcast-mode #swap-btn,
-    body.broadcast-mode #split-btn { display:flex; }
+    body.broadcast-mode #swap-btn { display:flex; }
+    #split-btn { display:none; }
+    #split-btn:not([hidden]) { display:flex; }
     #camera-btn.off img { opacity:0.5; }
     #invite-cc {
       display:flex;
@@ -1842,7 +1843,7 @@
 
       function startWatching(id){
         activeRooms.add(id);
-        feed.setAttribute('hidden','');
+        if(!broadcasting) feed.setAttribute('hidden','');
         sendSignal({ type: 'watcher', id });
       }
 
@@ -1993,11 +1994,11 @@
       const stream = streams[pendingJoinHost];
       if(stream && stream.requestBtn) stream.requestBtn.disabled = true;
       broadcastBtn.disabled = false;
-      startBroadcast();
       if(stream && !stream.started){
         startWatching(pendingJoinHost);
         stream.started = true;
       }
+      startBroadcast();
       // Keep pendingJoinHost so chat stays in host room
     }
 
