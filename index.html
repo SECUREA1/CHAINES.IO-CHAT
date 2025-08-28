@@ -1874,7 +1874,7 @@
             vids.forEach(v => v.onclick = swapVideos);
           }
           if(swapBtn) swapBtn.hidden = !(broadcasting && multi);
-          if(splitBtn) splitBtn.hidden = !(broadcasting && multi);
+          if(splitBtn) splitBtn.hidden = !broadcasting;
         }
       }
 
@@ -1914,6 +1914,7 @@
           pc = new RTCPeerConnection();
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
+            if(ev.track.kind !== 'video') return;
             const vid = document.createElement('video');
             vid.srcObject = ev.streams[0];
             vid.autoplay = true;
