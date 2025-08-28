@@ -343,6 +343,8 @@
     .tune-btn:disabled { opacity:.5; cursor:not-allowed; }
     #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
+    .video-canvas { position:relative; flex:1 1 50%; display:flex; align-items:center; justify-content:center; }
+    .video-canvas video { width:100%; height:100%; object-fit:contain; }
 
     #overlay-chat {
       position: fixed;
@@ -479,21 +481,19 @@
     body.broadcast-mode #video-container.has-guest {
       display: flex;
     }
-    body.broadcast-mode #video-container.has-guest video {
+    body.broadcast-mode #video-container.has-guest #host-canvas,
+    body.broadcast-mode #video-container.has-guest #guest-canvas {
       width: 50%;
       height: 100%;
       max-width: 50%;
       max-height: 100%;
-      border: 0;
-      border-radius: 0;
-      object-fit: contain;
-      cursor: pointer;
     }
     @media (orientation: portrait) {
       body.broadcast-mode #video-container.has-guest {
         flex-direction: column;
       }
-      body.broadcast-mode #video-container.has-guest video {
+      body.broadcast-mode #video-container.has-guest #host-canvas,
+      body.broadcast-mode #video-container.has-guest #guest-canvas {
         width: 100%;
         height: 50%;
         max-width: 100%;
@@ -504,16 +504,13 @@
     body.broadcast-mode #video-container.pip {
       display: block;
     }
-    body.broadcast-mode #video-container.pip video {
+    body.broadcast-mode #video-container.pip #host-canvas {
       width: 100%;
       height: 100%;
       max-width: 100%;
       max-height: 100%;
-      border: 0;
-      border-radius: 0;
-      object-fit: contain;
     }
-    body.broadcast-mode #video-container.pip video:nth-child(2) {
+    body.broadcast-mode #video-container.pip #guest-canvas {
       position: absolute;
       width: 30%;
       height: 30%;
@@ -523,6 +520,7 @@
       border-radius: 8px;
       max-width: none;
       max-height: none;
+      overflow: hidden;
     }
 
     #thumb-chooser {
@@ -614,7 +612,10 @@
 
       <main>
         <div id="streams" class="streams"></div>
-        <div id="video-container" hidden></div>
+        <div id="video-container" hidden>
+          <div id="host-canvas" class="video-canvas"></div>
+          <div id="guest-canvas" class="video-canvas" hidden></div>
+        </div>
         <div id="overlay-chat" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
       </main>
@@ -1671,7 +1672,13 @@
               try{ speechRec.start(); }catch{}
             }
           }
-          videoContainer.appendChild(el);
+          const hostCanvas = el('#host-canvas');
+          if(hostCanvas){
+            hostCanvas.innerHTML = '';
+            hostCanvas.appendChild(el);
+          } else {
+            videoContainer.appendChild(el);
+          }
           updateVideoLayout();
           const start = el.play();
           if(start && start.catch){ start.catch(() => {}); }
@@ -1811,7 +1818,10 @@
         delete peerConnections[id];
       }
       sendSignal({ type: 'end-broadcast' });
-      videoContainer.innerHTML = '';
+      const hostCanvas = el('#host-canvas');
+      if(hostCanvas) hostCanvas.innerHTML = '';
+      const guestCanvas = el('#guest-canvas');
+      if(guestCanvas){ guestCanvas.innerHTML = ''; guestCanvas.setAttribute('hidden',''); }
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
       document.body.classList.remove('broadcast-mode');
@@ -1839,11 +1849,9 @@
         container.classList.toggle('has-guest', multi && splitMode);
         container.classList.toggle('pip', multi && !splitMode);
         if(container === videoContainer){
-          vids.forEach(v => v.onclick = null);
-          if(multi){
-            vids.forEach(v => v.onclick = swapVideos);
-          }
-          if(splitBtn) splitBtn.hidden = !multi;
+          const guestCanvas = el('#guest-canvas');
+          if(guestCanvas) guestCanvas.hidden = guestCanvas.querySelectorAll('video').length === 0;
+          if(splitBtn) splitBtn.hidden = !(broadcasting && multi);
         }
       }
 
@@ -1894,7 +1902,13 @@
             const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
             liveTrack.mode = 'showing';
             if(broadcasting){
-              videoContainer.appendChild(vid);
+              const guestCanvas = el('#guest-canvas');
+              if(guestCanvas){
+                guestCanvas.innerHTML = '';
+                guestCanvas.appendChild(vid);
+              } else {
+                videoContainer.appendChild(vid);
+              }
               updateVideoLayout();
               try{ localStream && localStream.addTrack(ev.track); }catch{}
               for(const id in peerConnections){
@@ -1969,6 +1983,11 @@
         }
         activeRooms.delete(msg.id);
         if(activeRooms.size === 0) feed.removeAttribute('hidden');
+        const guestCanvas = el('#guest-canvas');
+        if(guestCanvas && guestCanvas.querySelector('video')){
+          guestCanvas.innerHTML = '';
+          guestCanvas.setAttribute('hidden','');
+        }
         const host = guestMap[msg.id];
         if(host && streams[host]){
           streams[host].guestVid = null;
