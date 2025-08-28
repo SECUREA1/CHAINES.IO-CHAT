@@ -65,9 +65,8 @@
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
-    .status { display:flex; align-items:center; gap:8px; }
-    .status.top { justify-content:flex-end; }
-    .status.user { justify-content:flex-end; }
+    .status { display:flex; align-items:center; gap:8px; width:100%; }
+    .status.top, .status.user { justify-content:space-between; }
     header .chip { padding:4px 8px; }
     footer {
       display:flex;
@@ -79,7 +78,7 @@
       bottom:0;
       z-index:5;
     }
-    footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; gap:8px; align-items:center; }
+    footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; align-items:center; justify-content:space-between; gap:0; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
@@ -98,7 +97,8 @@
       border-radius:12px;
       overflow:hidden;
       height:36px;
-      flex:0 0 auto;
+      flex:1 1 auto;
+      width:100%;
     }
     #invite-cc button {
       flex:1;
@@ -118,10 +118,11 @@
       border-radius:12px;
       overflow:hidden;
       height:36px;
-      flex:0 0 auto;
+      flex:1 1 auto;
+      width:100%;
     }
     #user-cc > * {
-      flex:0 0 auto;
+      flex:1 1 auto;
       border:0;
       padding:0 10px;
       background: color-mix(in oklab, var(--panel), transparent 25%);
@@ -134,8 +135,6 @@
       white-space:nowrap;
     }
     #user-cc > * + * { border-left:1px solid var(--lining); }
-    #user-cc > #profile-link { flex:1 1 auto; }
-    #user-cc > #ghost-btn { flex:0 0 36px; padding:0; }
     #end-btn {
       background: var(--danger);
       border-color: var(--danger);
@@ -528,6 +527,7 @@
         </label>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes">☁️</button>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode">☀️</button>
+        <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
       </div>
       <div class="status top">
         <div class="chip" id="invite-cc">
@@ -544,7 +544,6 @@
           <span id="live-chip" title="Users online">🔴 <span id="live-count">0</span> online</span>
           <a id="profile-link" href="/profile.html">Profile</a>
           <button id="logout-btn" type="button" title="Logout">Logout</button>
-          <button id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
       </div>
     </header>
@@ -577,7 +576,7 @@
       </form>
       <div class="status bottom">
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <span class="live-dot"></span>Live
+          <span class="live-dot"></span>Go Live
         </button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
@@ -1602,7 +1601,7 @@
       pendingJoinHost = null;
       pendingMicHost = null;
       broadcastBtn.disabled = false;
-      broadcastBtn.textContent = '🎥 Live';
+      broadcastBtn.textContent = '🎥 Go Live';
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
@@ -1813,7 +1812,7 @@
       if(stream && stream.requestBtn) stream.requestBtn.disabled = false;
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
-      broadcastBtn.textContent = '🎥 Live';
+      broadcastBtn.textContent = '🎥 Go Live';
       alert('Join request denied or busy.');
     }
 
