@@ -1798,6 +1798,8 @@
         updateVideoLayout();
       }
       startBroadcast();
+      // Clear pending host to avoid unintended broadcast termination
+      pendingJoinHost = null;
     }
 
     function handleJoinDenied(){
@@ -1825,6 +1827,8 @@
         updateVideoLayout();
       }
       startBroadcast(null, true);
+      // Clear pending mic host to ensure the broadcast persists
+      pendingMicHost = null;
     }
 
     function handleMicDenied(){
