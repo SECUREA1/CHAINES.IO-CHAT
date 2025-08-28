@@ -1838,6 +1838,10 @@
       const stream = streams[pendingJoinHost];
       if(stream && stream.requestBtn) stream.requestBtn.disabled = true;
       broadcastBtn.disabled = false;
+      if(stream && !stream.started){
+        startWatching(pendingJoinHost);
+        stream.started = true;
+      }
       const hostVid = stream && stream.video.querySelector('video');
       if(hostVid){
         videoContainer.appendChild(hostVid);
