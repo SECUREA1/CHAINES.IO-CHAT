@@ -64,6 +64,7 @@
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
+    .top-actions { display:flex; align-items:center; gap:8px; }
     .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); }
     .toolbar .chip { flex:0 0 auto; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
@@ -88,15 +89,15 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #mode-toggle, #cmd-list, #ghost-btn, #logout-btn { cursor:pointer; }
-    #mode-toggle, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn {
       width:36px;
       height:36px;
       padding:0;
       justify-content:center;
       border-radius:12px;
     }
-    #mode-toggle img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img {
+    #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img {
       width:24px;
       height:24px;
     }
@@ -139,11 +140,7 @@
       border:0;
     }
     #ghost-btn img { width:24px; height:24px; }
-    #conn-chip { display:flex; align-items:center; gap:4px; }
-    .conn-dot { width:8px; height:8px; border-radius:50%; background: var(--muted); }
-    .conn-dot.cloud { background: var(--accent); }
-    .conn-dot.local { background: #ffb020; }
-    .conn-dot.off { background: var(--danger); }
+    #conn-chip { display:inline-flex; align-items:center; gap:4px; }
     .usr { font-weight:600; color: var(--fg); }
 
     #cmd-panel {
@@ -507,23 +504,24 @@
 <body>
   <div class="wrap">
     <header>
-        <div class="bar">
+                <div class="bar">
           <div class="brand">
             <div class="logo" aria-hidden="true"></div>
             <h1>CHAINeS Chat</h1>
           </div>
-          <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
-            <input type="checkbox" id="auto-delete" />
-            Self-destruct in 5m
-          </label>
+          <div class="top-actions">
+            <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
+              <input type="checkbox" id="auto-delete" />
+              Self-destruct in 5m
+            </label>
+            <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+            <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
+          </div>
         </div>
         <div class="toolbar">
-          <span id="conn-chip" class="chip" title="Connection status"><span class="conn-dot off" id="conn-dot"></span><span id="conn-label">Offline</span></span>
+          <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
           <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
           <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
-          <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
-          <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"><img src="static/cloud.svg" alt="Toggle mode" /></button>
-          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme" /></button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
       <div class="status top">
@@ -682,7 +680,8 @@
     const profilePicEl = el('#profile-pic');
     const profileNameEl = el('#profile-name');
     const logoutBtn = el('#logout-btn');
-    const connDot = el('#conn-dot');
+    const connChip = el('#conn-chip');
+    const connIcon = el('#conn-icon');
     const connLabel = el('#conn-label');
     const liveCount = el('#live-count');
     const wsEdit = el('#ws-edit');
@@ -690,9 +689,7 @@
     const wsUrlInput = el('#ws-url');
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
-    const modeToggle = el('#mode-toggle');
     const themeToggleIcon = themeToggle.querySelector('img');
-    const modeToggleIcon = modeToggle.querySelector('img');
     const userList = el('#user-list');
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
@@ -843,8 +840,7 @@
       applyTheme(next);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
-    modeToggleIcon.src = 'static/cloud.svg';
-    modeToggle.addEventListener('click', () => {
+    connChip.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
         try { socket && socket.close(); } catch {}
         socket = null;
@@ -1153,20 +1149,18 @@
 
     function setStatus(mode){
       onlineMode = mode;
-      connDot.classList.remove('cloud','local','off');
       if(mode === 'cloud'){
-        connDot.classList.add('cloud');
         connLabel.textContent = 'Cloud';
+        connIcon.src = 'static/cloud.svg';
       } else if(mode === 'local'){
-        connDot.classList.add('local');
         connLabel.textContent = 'Local';
+        connIcon.src = 'static/home.svg';
         updateUsers([]);
       } else {
-        connDot.classList.add('off');
         connLabel.textContent = 'Offline';
+        connIcon.src = 'static/home.svg';
         updateUsers([]);
       }
-      modeToggleIcon.src = mode === 'cloud' ? 'static/home.svg' : 'static/cloud.svg';
       if(mode !== 'cloud') renderHistory();
     }
 
