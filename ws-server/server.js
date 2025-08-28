@@ -307,6 +307,7 @@ const thumbnails = new Map();
 const listeners = new Map(); // hostId -> Set of watcherIds
 const watching = new Map();  // watcherId -> Set of hostIds
 let guestApproved = null; // currently approved guest broadcaster
+const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
 
 function uid(){
@@ -377,6 +378,9 @@ wss.on("connection", (ws) => {
       }
       watching.delete(ws.id);
     }
+    for(const [g,h] of guestHosts.entries()){
+      if(g === ws.id || h === ws.id) guestHosts.delete(g);
+    }
     broadcastUsers();
   });
   ws.on("message", async (raw) => {
@@ -398,6 +402,17 @@ wss.on("connection", (ws) => {
         }
         broadcasters.set(ws.id, ws);
         broadcastUsers();
+        const hostId = guestHosts.get(ws.id);
+        if(hostId){
+          const set = listeners.get(hostId);
+          if(set){
+            const payload = JSON.stringify({ type: "guest-start", host: hostId, id: ws.id });
+            for(const wid of set){
+              const watcher = clients.get(wid);
+              if(watcher && watcher.readyState === 1) watcher.send(payload);
+            }
+          }
+        }
         return;
       case "mic-broadcaster":
         broadcasters.set(ws.id, ws);
@@ -481,6 +496,7 @@ wss.on("connection", (ws) => {
         const guest = clients.get(msg.id);
         if (guest && broadcasters.has(ws.id)) {
           guestApproved = msg.id;
+          guestHosts.set(msg.id, ws.id);
           guest.send(JSON.stringify({ type: "join-approved" }));
         }
         return;

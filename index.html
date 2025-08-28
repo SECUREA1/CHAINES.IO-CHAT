@@ -791,6 +791,7 @@
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#streams');
     const streams = {};
+    const guestMap = {};
     const pendingThumbs = {};
     let broadcastThumb = null;
     let pendingJoinHost = null;
@@ -1075,7 +1076,7 @@
         list.forEach(u => {
           const li = document.createElement('li');
           const name = typeof u === 'string' ? u : u.name;
-          if(u.live){
+          if(u.live && !guestMap[u.id]){
             const dot = document.createElement('span');
             dot.className = 'live-dot';
             li.appendChild(dot);
@@ -1306,6 +1307,7 @@
           if(data && data.type === 'mic-denied') handleMicDenied();
           if(data && data.type === 'invite') handleInvite(data);
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
+          if(data && data.type === 'guest-start') handleGuestStart(data);
         } catch {}
       });
     }
@@ -1891,10 +1893,12 @@
                 }catch{}
               }
             } else {
-              const box = streams[msg.id] && streams[msg.id].video;
+              const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
+              const box = target && target.video;
               if(box){
                 box.appendChild(vid);
                 updateVideoLayout(box);
+                if(guestMap[msg.id]) target.guestVid = vid;
               }
             }
             // try to begin playback immediately (mobile requires user gesture)
@@ -1910,6 +1914,8 @@
             if(streams[msg.id]){
               if(!streams[msg.id].vid) streams[msg.id].vid = vid;
               streams[msg.id].captionTrack = liveTrack;
+            } else if(guestMap[msg.id] && streams[guestMap[msg.id]]){
+              streams[guestMap[msg.id]].captionTrack = liveTrack;
             }
             pc._videos = pc._videos || [];
             pc._videos.push(vid);
@@ -1946,15 +1952,24 @@
         if(localStream){
           localStream.getTracks().forEach(t => { if(t.readyState === 'ended') try{ localStream.removeTrack(t); }catch{} });
         }
-        updateVideoLayout();
-        if(streams[msg.id]){
-          streams[msg.id].started = false;
-          streams[msg.id].video.innerHTML = '';
-          streams[msg.id].container.classList.remove('open');
-          if(streams[msg.id].tuneBtn) streams[msg.id].tuneBtn.disabled = false;
-          streams[msg.id].vid = null;
-          streams[msg.id].captionTrack = null;
-          updateVideoLayout(streams[msg.id].video);
+        activeRooms.delete(msg.id);
+        if(activeRooms.size === 0) feed.removeAttribute('hidden');
+        const host = guestMap[msg.id];
+        if(host && streams[host]){
+          streams[host].guestVid = null;
+          updateVideoLayout(streams[host].video);
+          delete guestMap[msg.id];
+        } else {
+          updateVideoLayout();
+          if(streams[msg.id]){
+            streams[msg.id].started = false;
+            streams[msg.id].video.innerHTML = '';
+            streams[msg.id].container.classList.remove('open');
+            if(streams[msg.id].tuneBtn) streams[msg.id].tuneBtn.disabled = false;
+            streams[msg.id].vid = null;
+            streams[msg.id].captionTrack = null;
+            updateVideoLayout(streams[msg.id].video);
+          }
         }
         if((joinApproved && pendingJoinHost === msg.id) || (micApproved && pendingMicHost === msg.id)){
           endBroadcast(true);
@@ -2021,6 +2036,23 @@
       if(stream && stream.micBtn) stream.micBtn.disabled = false;
       pendingMicHost = null;
       alert('Mic request denied.');
+    }
+
+    function handleGuestStart({ id, host }){
+      guestMap[id] = host;
+      if(streams[id]){
+        streams[id].container.remove();
+        delete streams[id];
+      }
+      const hostStream = streams[host];
+      if(hostStream){
+        hostStream.container.classList.add('open');
+        if(!hostStream.started){
+          startWatching(host);
+          hostStream.started = true;
+        }
+        startWatching(id);
+      }
     }
 
     function handleInvite({ id, mode, user }){
