@@ -585,8 +585,8 @@
             <button class="chip" id="camera-btn" type="button" title="Turn camera off">
               <img src="static/camera.svg" alt="Toggle camera" />
             </button>
-            <button class="chip" id="swap-btn" type="button" title="Switch camera">
-              <img src="static/flip.svg" alt="Switch camera" />
+            <button class="chip" id="swap-btn" type="button" title="Swap videos">
+              <img src="static/flip.svg" alt="Swap videos" />
             </button>
             <button class="chip" id="split-btn" type="button" title="Split view">
               <img src="static/split.svg" alt="Split layout" />
@@ -603,6 +603,7 @@
       <div class="status top">
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
+          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
           <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
           <button id="listener-count" type="button" title="Active listeners">0 listening</button>
@@ -772,6 +773,7 @@
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
+    const cameraFlipBtn = el('#camera-flip-btn');
     const swapBtn = el('#swap-btn');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
@@ -826,8 +828,11 @@
     if(cameraBtn){
       cameraBtn.addEventListener('click', toggleCamera);
     }
+    if(cameraFlipBtn){
+      cameraFlipBtn.addEventListener('click', switchCamera);
+    }
     if(swapBtn){
-      swapBtn.addEventListener('click', switchCamera);
+      swapBtn.addEventListener('click', swapVideos);
     }
     if(splitBtn){
       splitBtn.addEventListener('click', () => {
@@ -1086,7 +1091,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1858,6 +1863,11 @@
         if(container === videoContainer){
           const guestCanvas = el('#guest-canvas');
           if(guestCanvas) guestCanvas.hidden = guestCanvas.querySelectorAll('video').length === 0;
+          vids.forEach(v => v.onclick = null);
+          if(multi){
+            vids.forEach(v => v.onclick = swapVideos);
+          }
+          if(swapBtn) swapBtn.hidden = !(broadcasting && multi);
           if(splitBtn) splitBtn.hidden = !(broadcasting && multi);
         }
       }
