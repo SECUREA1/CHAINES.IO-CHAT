@@ -269,6 +269,44 @@
     .stream .video { display:none; }
     .stream.open .video { display:block; }
     .stream .video video { width:100%; border-radius:8px; }
+    .stream.open .video.has-guest { display:flex; }
+    .stream.open .video.has-guest video {
+      width:50%;
+      height:100%;
+      max-width:50%;
+      max-height:100%;
+      border-radius:0;
+      object-fit:contain;
+    }
+    @media (orientation: portrait) {
+      .stream.open .video.has-guest { flex-direction:column; }
+      .stream.open .video.has-guest video {
+        width:100%;
+        height:50%;
+        max-width:100%;
+        max-height:50%;
+      }
+    }
+    .stream.open .video.pip { position:relative; display:block; }
+    .stream.open .video.pip video {
+      width:100%;
+      height:100%;
+      max-width:100%;
+      max-height:100%;
+      border-radius:0;
+      object-fit:contain;
+    }
+    .stream.open .video.pip video:nth-child(2) {
+      position:absolute;
+      width:30%;
+      height:30%;
+      bottom:10px;
+      right:10px;
+      border:2px solid #fff;
+      border-radius:8px;
+      max-width:none;
+      max-height:none;
+    }
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
     .stream-composer { display:none; margin-top:4px; gap:4px; }
@@ -1702,18 +1740,20 @@
       broadcastThumb = null;
     }
 
-    function updateVideoLayout(){
-      const vids = videoContainer.querySelectorAll('video');
-      const multi = vids.length > 1;
-      videoContainer.classList.toggle('has-guest', multi && splitMode);
-      videoContainer.classList.toggle('pip', multi && !splitMode);
-      vids.forEach(v => v.onclick = null);
-      if(multi){
-        vids.forEach(v => v.onclick = swapVideos);
+      function updateVideoLayout(container = videoContainer){
+        const vids = container.querySelectorAll('video');
+        const multi = vids.length > 1;
+        container.classList.toggle('has-guest', multi && splitMode);
+        container.classList.toggle('pip', multi && !splitMode);
+        if(container === videoContainer){
+          vids.forEach(v => v.onclick = null);
+          if(multi){
+            vids.forEach(v => v.onclick = swapVideos);
+          }
+          if(swapBtn) swapBtn.hidden = !multi;
+          if(splitBtn) splitBtn.hidden = !multi;
+        }
       }
-      if(swapBtn) swapBtn.hidden = !multi;
-      if(splitBtn) splitBtn.hidden = !multi;
-    }
 
     function swapVideos(){
       const vids = videoContainer.querySelectorAll('video');
@@ -1745,50 +1785,58 @@
       });
     }
 
-      function handleOffer(msg){
-        const pc = new RTCPeerConnection();
-        peerConnections[msg.id] = pc;
-        pc.ontrack = ev => {
-          if(pc._video) return; // avoid duplicate video elements per peer
-          const vid = document.createElement('video');
-          vid.srcObject = ev.streams[0];
-          vid.autoplay = true;
-          vid.setAttribute('autoplay','');
-          vid.playsInline = true;
-          vid.setAttribute('playsinline','');
-          vid.controls = true;
-          attachCaptions(vid);
-          const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-          liveTrack.mode = 'showing';
-          if(broadcasting){
-            videoContainer.appendChild(vid);
-            updateVideoLayout();
-          } else {
-            const box = streams[msg.id] && streams[msg.id].video;
-            if(box) box.appendChild(vid);
-          }
-          // try to begin playback immediately (mobile requires user gesture)
-          vid.muted = true;
-          vid.setAttribute('muted','');
-          const playPromise = vid.play();
-          if(playPromise && playPromise.then){
-            playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
-          } else {
-            vid.muted = false;
-            vid.removeAttribute('muted');
-          }
-          if(streams[msg.id]){
-            streams[msg.id].vid = vid;
-            streams[msg.id].captionTrack = liveTrack;
-          }
-          pc._video = vid;
-        };
-        pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
-        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-          .then(() => pc.createAnswer())
-          .then(ans => pc.setLocalDescription(ans))
-          .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
-      }
+        function handleOffer(msg){
+          const pc = new RTCPeerConnection();
+          peerConnections[msg.id] = pc;
+          pc.ontrack = ev => {
+            const vid = document.createElement('video');
+            vid.srcObject = ev.streams[0];
+            vid.autoplay = true;
+            vid.setAttribute('autoplay','');
+            vid.playsInline = true;
+            vid.setAttribute('playsinline','');
+            vid.controls = true;
+            attachCaptions(vid);
+            const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+            liveTrack.mode = 'showing';
+            if(broadcasting){
+              videoContainer.appendChild(vid);
+              updateVideoLayout();
+              try{ localStream && localStream.addTrack(ev.track); }catch{}
+              for(const id in peerConnections){
+                if(id === msg.id) continue;
+                try{ peerConnections[id].addTrack(ev.track, ev.streams[0]); }catch{}
+              }
+            } else {
+              const box = streams[msg.id] && streams[msg.id].video;
+              if(box){
+                box.appendChild(vid);
+                updateVideoLayout(box);
+              }
+            }
+            // try to begin playback immediately (mobile requires user gesture)
+            vid.muted = true;
+            vid.setAttribute('muted','');
+            const playPromise = vid.play();
+            if(playPromise && playPromise.then){
+              playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+            } else {
+              vid.muted = false;
+              vid.removeAttribute('muted');
+            }
+            if(streams[msg.id]){
+              if(!streams[msg.id].vid) streams[msg.id].vid = vid;
+              streams[msg.id].captionTrack = liveTrack;
+            }
+            pc._videos = pc._videos || [];
+            pc._videos.push(vid);
+          };
+          pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
+          pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+            .then(() => pc.createAnswer())
+            .then(ans => pc.setLocalDescription(ans))
+            .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
+        }
 
     function handleAnswer(msg){
       const pc = peerConnections[msg.id];
@@ -1803,11 +1851,18 @@
       function handleBye(msg){
         const pc = peerConnections[msg.id];
         if(pc){
-          if(pc._video) pc._video.remove();
+          if(pc._videos) pc._videos.forEach(v => v.remove());
           pc.close();
           delete peerConnections[msg.id];
-          updateVideoLayout();
         }
+        for(const id in peerConnections){
+          const senders = peerConnections[id].getSenders();
+          senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
+        }
+        if(localStream){
+          localStream.getTracks().forEach(t => { if(t.readyState === 'ended') try{ localStream.removeTrack(t); }catch{} });
+        }
+        updateVideoLayout();
         if(streams[msg.id]){
           streams[msg.id].started = false;
           streams[msg.id].video.innerHTML = '';
@@ -1815,6 +1870,7 @@
           if(streams[msg.id].tuneBtn) streams[msg.id].tuneBtn.disabled = false;
           streams[msg.id].vid = null;
           streams[msg.id].captionTrack = null;
+          updateVideoLayout(streams[msg.id].video);
         }
         if((joinApproved && pendingJoinHost === msg.id) || (micApproved && pendingMicHost === msg.id)){
           endBroadcast(true);
