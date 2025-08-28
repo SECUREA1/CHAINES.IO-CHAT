@@ -59,15 +59,16 @@
         margin:0 auto;
       }
 
-    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; }
+    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
-    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
+    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .status .chip { flex:0 0 auto; justify-content:center; }
+    .status .chip { flex:1 1 auto; justify-content:center; }
     header .chip { padding:4px 8px; }
+    header .status.top { margin-left:auto; justify-content:flex-end; }
     footer {
       display:flex;
       flex-direction:column;
@@ -78,11 +79,13 @@
       bottom:0;
       z-index:5;
     }
+    footer .status.bottom { display:flex; flex-wrap:wrap; width:100%; gap:8px; align-items:center; }
+    footer .status.bottom .chip { display:flex; justify-content:center; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #mode-toggle, #cmd-list, #ghost-btn, #broadcast-btn, #logout-btn, #user-chip { cursor:pointer; }
-    #mode-toggle, #theme-toggle, #cmd-list, #ghost-btn, #broadcast-btn, #logout-btn, #user-chip {
+    #live-chip, #theme-toggle, #mode-toggle, #cmd-list, #ghost-btn { cursor:pointer; }
+    #mode-toggle, #theme-toggle, #cmd-list, #ghost-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -93,6 +96,7 @@
       display:flex;
       padding:0;
       border-radius:12px;
+      margin-left:auto;
       overflow:hidden;
       height:36px;
       flex:0 0 auto;
@@ -180,8 +184,9 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:flex; gap:10px; margin:0; width:100%; }
-    .input { display:flex; align-items:center; gap:10px; flex:1; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
+    .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
+    #composer { grid-template-columns: minmax(0,1fr) repeat(4,56px); }
+    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; width:56px; height:56px; font-size:24px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
@@ -338,17 +343,18 @@
       padding: 8px;
       gap: 0;
     }
-    body.broadcast-mode header .icon-bar,
+    body.broadcast-mode footer .status.bottom,
     body.broadcast-mode footer .legal {
       display: none;
     }
     .broadcast-controls {
-      display: flex;
+      display: none;
       gap: 8px;
       width: 100%;
       justify-content: center;
     }
-    .broadcast-controls .chip { flex:0 0 auto; }
+    .broadcast-controls .chip { flex:1; }
+    body.broadcast-mode .broadcast-controls { display:flex; }
     body.broadcast-mode #video-container {
       position: fixed;
       inset: 0;
@@ -403,6 +409,7 @@
       z-index: 1003;
     }
     body.broadcast-mode header .brand { display:none; }
+    body.broadcast-mode header .status.top { width:100%; justify-content:center; }
     body.broadcast-mode header .chip {
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
@@ -476,10 +483,10 @@
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
-      header { padding:12px; gap:8px; }
+      header { flex-wrap: wrap; padding:12px; gap:8px; }
       footer { padding:0 12px 12px; gap:8px; }
-      .status { flex-wrap:wrap; gap:8px; justify-content:center; }
-      .status .chip { flex:0 0 auto; justify-content:center; }
+      .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
+      .status .chip { flex:1 1 45%; justify-content:center; }
       .feed { padding:12px; }
       .composer { margin:0; }
     }
@@ -491,26 +498,14 @@
       <div class="brand">
         <div class="logo" aria-hidden="true"></div>
         <h1>CHAINeS Chat</h1>
-      </div>
-      <div class="status icon-bar" id="control-bar">
         <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
           <input type="checkbox" id="auto-delete" />
           Self-destruct in 5m
         </label>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
-        <button class="chip" id="broadcast-btn" title="Go live" aria-label="Go live">🎥</button>
-        <span class="chip" id="live-chip" title="Users online">👥 <span id="live-count">0</span></span>
-        <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost">
-          <img src="static/hologhost.svg" alt="Hologhost" />
-        </button>
-        <button class="chip" id="user-chip" type="button" title="Profile" aria-label="Profile">
-          <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;" />
-          <span id="user-icon">👤</span>
-          <span id="user-name" style="display:none">@guest</span>
-        </button>
-        <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout">🚪</button>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+      </div>
+      <div class="status top">
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
           <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
@@ -535,6 +530,9 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
+          <img src="static/hologhost.svg" alt="Hologhost" />
+        </button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
@@ -547,6 +545,18 @@
         </label>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message">🐒</button>
       </form>
+      <div class="status bottom">
+        <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
+        <span class="chip" id="live-chip" title="Users online">
+          <span id="live-count">0</span> online
+        </span>
+        <span class="chip" id="user-chip" title="Logged in user">
+          <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
+          <span class="usr" id="user-name">@guest</span>
+        </span>
+        <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
+        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+      </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
     </footer>
   </div>
@@ -658,9 +668,8 @@
     const userChip = el('#user-chip');
     const userName = el('#user-name');
     const userAvatar = el('#user-avatar');
-    const userIcon = el('#user-icon');
     const logoutBtn = el('#logout-btn');
-    [userAvatar, userIcon, userName].forEach(u => u && u.addEventListener('click', () => {
+    [userAvatar, userName].forEach(u => u.addEventListener('click', () => {
       if(store.user){
         location.href = '/profile.html?user=' + encodeURIComponent(store.user);
       }
@@ -681,7 +690,6 @@
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
-    const controlBar = el('#control-bar');
     const chatToggle = el('#chat-toggle');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -692,7 +700,6 @@
     const thumbCamera = el('#thumb-camera');
     const thumbSkip = el('#thumb-skip');
     const listenerCountBtn = el('#listener-count');
-    const inviteCC = el('#invite-cc');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#streams');
@@ -952,13 +959,6 @@
       [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
-      if(show){
-        inviteCC.hidden = false;
-        broadcastControls.prepend(inviteCC);
-      } else {
-        inviteCC.hidden = true;
-        controlBar.appendChild(inviteCC);
-      }
     }
     updateHeaderButtons();
 
@@ -1229,10 +1229,8 @@
       if(store.profilePic){
         userAvatar.src = store.profilePic;
         userAvatar.style.display = 'block';
-        userIcon.style.display = 'none';
       } else {
         userAvatar.style.display = 'none';
-        userIcon.style.display = 'block';
       }
 
       document.body.classList.remove('auth-lock');
