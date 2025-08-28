@@ -97,27 +97,24 @@
       justify-content:center;
       border-radius:12px;
     }
-    #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-    #camera-btn img, #swap-btn img, #split-btn img {
-      width:24px;
-      height:24px;
-    }
-    #camera-btn, #swap-btn { display:none; }
-    body.broadcast-mode #camera-btn,
-    body.broadcast-mode #swap-btn { display:flex; }
-    #split-btn { display:none; }
-    #split-btn:not([hidden]) { display:flex; }
-    #camera-btn.off img { opacity:0.5; }
-    #invite-cc {
-      display:flex;
-      padding:0;
-      border-radius:12px;
-      overflow:hidden;
-      height:36px;
-      flex:1 1 auto;
-      width:100%;
-    }
-    #invite-cc button { 
+      #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
+      #camera-btn img, #swap-btn img, #split-btn img {
+        width:24px;
+        height:24px;
+      }
+      #swap-btn { display:none; }
+      body.broadcast-mode #swap-btn { display:flex; }
+      #camera-btn.off img { opacity:0.5; }
+      #invite-cc {
+        display:flex;
+        padding:0;
+        border-radius:12px;
+        overflow:hidden;
+        height:36px;
+        flex:1 1 auto;
+        width:100%;
+      }
+      #invite-cc button {
       flex:1;
       border:0;
       padding:0 10px;
@@ -581,15 +578,15 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
-            <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
             <button class="chip" id="camera-btn" type="button" title="Turn camera off">
               <img src="static/camera.svg" alt="Toggle camera" />
             </button>
-            <button class="chip" id="swap-btn" type="button" title="Swap videos">
-              <img src="static/flip.svg" alt="Swap videos" />
-            </button>
             <button class="chip" id="split-btn" type="button" title="Split view">
               <img src="static/split.svg" alt="Split layout" />
+            </button>
+            <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+            <button class="chip" id="swap-btn" type="button" title="Swap videos">
+              <img src="static/flip.svg" alt="Swap videos" />
             </button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
