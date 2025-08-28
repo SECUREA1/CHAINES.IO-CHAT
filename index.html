@@ -836,8 +836,22 @@
         icon.alt = splitMode ? 'Split layout' : 'Insert layout';
         splitBtn.title = splitMode ? 'Split view' : 'Insert view';
         updateVideoLayout();
+        for(const id in streams){
+          if(streams[id] && streams[id].video){
+            updateVideoLayout(streams[id].video);
+          }
+        }
       });
     }
+
+    window.addEventListener('resize', () => {
+      updateVideoLayout();
+      for(const id in streams){
+        if(streams[id] && streams[id].video){
+          updateVideoLayout(streams[id].video);
+        }
+      }
+    });
 
     // --- Basic state ---
     const store = {
