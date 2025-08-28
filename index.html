@@ -89,8 +89,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #split-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #split-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -98,10 +98,15 @@
       border-radius:12px;
     }
     #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-    #camera-btn img, #split-btn img {
+    #camera-btn img, #swap-btn img, #split-btn img {
       width:24px;
       height:24px;
     }
+    #camera-btn, #swap-btn, #split-btn { display:none; }
+    body.broadcast-mode #camera-btn,
+    body.broadcast-mode #swap-btn,
+    body.broadcast-mode #split-btn { display:flex; }
+    #camera-btn.off img { opacity:0.5; }
     #invite-cc {
       display:flex;
       padding:0;
@@ -578,6 +583,15 @@
               Self-destruct in 5m
             </label>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+            <button class="chip" id="camera-btn" type="button" title="Toggle camera">
+              <img src="static/camera.svg" alt="Toggle camera" />
+            </button>
+            <button class="chip" id="swap-btn" type="button" title="Swap cameras">
+              <img src="static/flip.svg" alt="Swap cameras" />
+            </button>
+            <button class="chip" id="split-btn" type="button" title="Split view">
+              <img src="static/split.svg" alt="Split layout" />
+            </button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
@@ -590,7 +604,6 @@
       <div class="status top">
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
-          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
           <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
           <button id="listener-count" type="button" title="Active listeners">0 listening</button>
@@ -616,12 +629,6 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="camera-btn" type="button" hidden title="Toggle camera">
-          <img src="static/camera.svg" alt="Toggle camera" />
-        </button>
-        <button class="chip" id="split-btn" type="button" hidden title="Split view">
-          <img src="static/split.svg" alt="Split layout" />
-        </button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -763,13 +770,13 @@
     const usersEl = el('#users');
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
-    const cameraFlipBtn = el('#camera-flip-btn');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const swapBtn = el('#swap-btn');
     const splitBtn = el('#split-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -791,6 +798,7 @@
     let pendingMicHost = null;
     let micApproved = false;
     let splitMode = true;
+    let cameraOn = true;
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -811,7 +819,18 @@
     });
 
     if(cameraBtn){
-      cameraBtn.addEventListener('click', swapVideos);
+      cameraBtn.addEventListener('click', () => {
+        if(!localStream) return;
+        const track = localStream.getVideoTracks()[0];
+        if(!track) return;
+        cameraOn = !cameraOn;
+        track.enabled = cameraOn;
+        cameraBtn.classList.toggle('off', !cameraOn);
+        cameraBtn.title = cameraOn ? 'Turn camera off' : 'Turn camera on';
+      });
+    }
+    if(swapBtn){
+      swapBtn.addEventListener('click', swapVideos);
     }
     if(splitBtn){
       splitBtn.addEventListener('click', () => {
@@ -946,7 +965,7 @@
         broadcastBtn.textContent = '⏳ Pending';
       } else {
         const streamPromise = navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+          video: { facingMode: 'user' },
           audio: true
         });
         broadcastThumb = await chooseThumbnail();
@@ -989,7 +1008,6 @@
         prompt('Your stream code:', code);
       }
     });
-    cameraFlipBtn.addEventListener('click', switchCamera);
     inviteBtn.addEventListener('click', () => {
       const mode = confirm('Invite watchers to broadcast with camera?\nPress Cancel to invite for mic only.') ? 'join' : 'mic';
       sendSignal({ type: 'invite', mode });
@@ -1020,7 +1038,6 @@
     let broadcastVideo = null;
     let captionTrack = null;
     let speechRec = null;
-    let usingFrontCamera = true;
     let mediaRecorder = null;
     let recordedChunks = [];
     let recordCanvas = null;
@@ -1050,7 +1067,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [streamCodeBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1535,7 +1552,7 @@
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
         overlayMessages = [];
-        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: 'user' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
           recordedChunks = [];
@@ -1644,24 +1661,6 @@
         }).catch(() => alert('Unable to access camera/microphone'));
       }
 
-      function switchCamera(){
-        if(!localStream) return;
-        usingFrontCamera = !usingFrontCamera;
-        const videoTrack = localStream.getVideoTracks()[0];
-        const audioTracks = localStream.getAudioTracks();
-        if(videoTrack) videoTrack.stop();
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
-          .then(stream => {
-            const newVideoTrack = stream.getVideoTracks()[0];
-            localStream = new MediaStream([...audioTracks, newVideoTrack]);
-            if(broadcastVideo) broadcastVideo.srcObject = localStream;
-            for(const id in peerConnections){
-              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-              if(sender) sender.replaceTrack(newVideoTrack);
-            }
-          }).catch(() => alert('Unable to switch camera'));
-      }
-
     function endBroadcast(forced=false){
       if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
       if(!broadcasting) return;
@@ -1759,8 +1758,6 @@
           if(multi){
             vids.forEach(v => v.onclick = swapVideos);
           }
-          if(cameraBtn) cameraBtn.hidden = !multi;
-          if(splitBtn) splitBtn.hidden = !multi;
         }
       }
 
