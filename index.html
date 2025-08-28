@@ -184,9 +184,8 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
-    #composer { grid-template-columns: minmax(0,1fr) repeat(4,56px); }
-    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
+    .composer { display:flex; gap:10px; margin:0; width:100%; }
+    .input { display:flex; align-items:center; gap:10px; flex:1; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; width:56px; height:56px; font-size:24px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
@@ -530,9 +529,6 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
-        <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
-          <img src="static/hologhost.svg" alt="Hologhost" />
-        </button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
@@ -550,6 +546,9 @@
         <span class="chip" id="live-chip" title="Users online">
           <span id="live-count">0</span> online
         </span>
+        <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost">
+          <img src="static/hologhost.svg" alt="Hologhost" />
+        </button>
         <span class="chip" id="user-chip" title="Logged in user">
           <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
           <span class="usr" id="user-name">@guest</span>
