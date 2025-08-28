@@ -118,8 +118,9 @@
       color:#05130e;
     }
     #end-btn {
+      background: var(--danger);
       border-color: var(--danger);
-      color: var(--danger);
+      color: #fff;
       animation: live-pulse 1s infinite;
     }
     #ghost-btn {
@@ -127,10 +128,6 @@
       border:0;
     }
     #ghost-btn img { width:24px; height:24px; }
-    .dot { width:10px; height:10px; border-radius:999px; background:var(--muted); }
-    .dot.ok { background: var(--accent); }
-    .dot.local { background: #ffb020; }
-    .dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
 
     #cmd-panel {
@@ -205,7 +202,8 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) repeat(2,56px); gap:10px; margin:0; width:100%; }
+    .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
+    #composer { grid-template-columns: minmax(0,1fr) repeat(4,56px); }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -526,14 +524,9 @@
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
       </div>
       <div class="status top">
-        <button class="chip" id="end-btn" title="End broadcast" hidden>⏹ End</button>
-        <span class="chip" id="conn-chip" title="Connection status">
-          <span class="dot off" id="conn-dot"></span>
-          <span id="conn-label">Offline</span>
-        </span>
-        <button class="chip" id="stream-code-btn" title="Copy stream code">🔑 Stream Code</button>
-        <button class="chip" id="camera-flip-btn" title="Switch camera">🔁 Flip</button>
         <div class="chip" id="invite-cc">
+          <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
+          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
           <button id="cc-settings" type="button" title="Caption settings">CC</button>
         </div>
@@ -568,6 +561,7 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <button class="send" id="end-btn" type="button" title="End broadcast" hidden>⏹</button>
         <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
           <img src="static/hologhost.svg" alt="Hologhost" />
         </button>
@@ -712,9 +706,6 @@
         location.href = '/profile.html?user=' + encodeURIComponent(store.user);
       }
     }));
-    const connDot = el('#conn-dot');
-    const connLabel = el('#conn-label');
-    const connChip = el('#conn-chip');
     const liveCount = el('#live-count');
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
@@ -1200,10 +1191,7 @@
 
     function setStatus(mode){
       onlineMode = mode;
-      connDot.classList.remove('ok','local','off');
-      if(mode === 'cloud'){ connDot.classList.add('ok'); connLabel.textContent = 'Online (Cloud)'; }
-      else if(mode === 'local'){ connDot.classList.add('local'); connLabel.textContent = 'Online (Local)'; updateUsers([]); }
-      else { connDot.classList.add('off'); connLabel.textContent = 'Offline'; updateUsers([]); }
+      if(mode !== 'cloud') updateUsers([]);
       modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
       if(mode !== 'cloud') renderHistory();
     }
