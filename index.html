@@ -2042,6 +2042,7 @@
       const ok = confirm(`Allow @${user || 'user'} to join?`);
       sendSignal({ type: ok ? 'approve-join' : 'deny-join', id });
       if(ok){
+        postMessage({ text: `@${user || 'user'} joined the broadcast`, broadcast: true, isAction:true });
         setTimeout(() => startWatching(id), 1000);
       }
     }
@@ -2096,7 +2097,7 @@
       alert('Mic request denied.');
     }
 
-    function handleGuestStart({ id, host }){
+    function handleGuestStart({ id, host, user }){
       guestMap[id] = host;
       if(streams[id]){
         streams[id].container.remove();
@@ -2105,11 +2106,8 @@
       const hostStream = streams[host];
       if(hostStream){
         hostStream.container.classList.add('open');
-        if(!hostStream.started){
-          startWatching(host);
-          hostStream.started = true;
-        }
         startWatching(id);
+        systemNote(`@${user || 'user'} joined the broadcast`);
       }
     }
 
