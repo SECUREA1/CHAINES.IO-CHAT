@@ -975,22 +975,29 @@
         broadcastBtn.disabled = true;
         broadcastBtn.textContent = '⏳ Pending';
       } else {
-        const streamPromise = navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-          audio: true
-        });
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+            audio: true
+          });
+        } catch (err) {
+          console.warn('Primary media access failed, trying default devices', err);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          } catch (err2) {
+            console.error('Unable to access camera/microphone', err2);
+            alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
+            return;
+          }
+        }
         broadcastThumb = await chooseThumbnail();
-        if(broadcastThumb){
+        if (broadcastThumb) {
           ensureStreamThumb(clientId, store.user, true);
           handleThumbnail(clientId, broadcastThumb);
           sendSignal({ type: 'thumb', thumb: broadcastThumb });
         }
-        try {
-          const stream = await streamPromise;
-          startBroadcast(stream);
-        } catch {
-          alert('Unable to access camera/microphone');
-        }
+        startBroadcast(stream);
       }
     });
     streamCodeBtn.addEventListener('click', () => {
