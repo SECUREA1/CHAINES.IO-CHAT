@@ -927,6 +927,7 @@
     let recordCtx = null;
     let drawHandle = null;
     let recordMime = 'video/webm';
+    let overlayMessages = [];
 
     function updateHeaderButtons(){
       const show = broadcasting;
@@ -1404,6 +1405,7 @@
     // --- WebRTC helpers ---
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
+        overlayMessages = [];
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
@@ -1423,6 +1425,26 @@
                   try { recordCtx.drawImage(v, x, 0, v.videoWidth || 0, h); } catch{}
                   x += v.videoWidth || 0;
                 });
+                const now = Date.now();
+                overlayMessages = overlayMessages.filter(m => now - m.ts < 5000);
+                if(overlayMessages.length){
+                  recordCtx.font = '20px Poppins, sans-serif';
+                  recordCtx.textBaseline = 'bottom';
+                  let y = recordCanvas.height - 10;
+                  overlayMessages.forEach(msg => {
+                    const padding = 8;
+                    const metrics = recordCtx.measureText(msg.text);
+                    const height = 24;
+                    const width = metrics.width + padding * 2;
+                    const xPos = 10;
+                    const yPos = y;
+                    recordCtx.fillStyle = 'rgba(0,0,0,0.6)';
+                    recordCtx.fillRect(xPos, yPos - height, width, height);
+                    recordCtx.fillStyle = '#fff';
+                    recordCtx.fillText(msg.text, xPos + padding, yPos - 6);
+                    y -= height + 4;
+                  });
+                }
               }
               drawHandle = requestAnimationFrame(draw);
             };
@@ -1513,6 +1535,7 @@
       if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
       if(!broadcasting) return;
       broadcasting = false;
+      overlayMessages = [];
       activeRooms.delete(clientId);
       if(activeRooms.size === 0) feed.removeAttribute('hidden');
       updateHeaderButtons();
@@ -1844,6 +1867,10 @@
 
         bubble.appendChild(meta);
       bubble.appendChild(text);
+      const plain = text.textContent.trim();
+      if(broadcasting && m.room === clientId && plain){
+        overlayMessages.push({ text: plain, ts: Date.now() });
+      }
       const fileData = m.file || m.image;
       if(fileData){
         const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
