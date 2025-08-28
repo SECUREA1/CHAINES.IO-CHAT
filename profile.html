@@ -159,6 +159,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         li.textContent = (n.data.from || 'Someone') + ' started following you';
       } else if(n.type === 'broadcast'){
         li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
+      } else if(n.type === 'self-destruct'){
+        li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
       }
       notifsEl.appendChild(li);
     });

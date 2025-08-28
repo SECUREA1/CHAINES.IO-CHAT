@@ -694,6 +694,32 @@ wss.on("connection", (ws) => {
         }
       }
     }
+    if (msg.selfDestruct) {
+      setTimeout(() => {
+        db.prepare("DELETE FROM chat_messages WHERE id = ?").run(msg.id);
+        db.prepare("DELETE FROM comments WHERE message_id = ?").run(msg.id);
+        db.prepare("DELETE FROM likes WHERE message_id = ?").run(msg.id);
+        const payload = JSON.stringify({ type: "delete", id: msg.id });
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(payload);
+        }
+        db
+          .prepare(
+            "INSERT INTO notifications (username, type, data) VALUES (?, 'self-destruct', ?)"
+          )
+          .run(msg.user || "", JSON.stringify({ messageId: msg.id }));
+        for (const client of wss.clients) {
+          if (client.readyState === 1 && client.username === (msg.user || "")) {
+            client.send(
+              JSON.stringify({
+                type: "self-destruct",
+                messageId: msg.id,
+              })
+            );
+          }
+        }
+      }, msg.selfDestruct);
+    }
   });
 });
 
