@@ -988,8 +988,9 @@
         try {
           const stream = await streamPromise;
           startBroadcast(stream);
-        } catch {
-          alert('Unable to access camera/microphone');
+        } catch (err) {
+          console.error('Unable to access camera/microphone', err);
+          alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
         }
       }
     });
