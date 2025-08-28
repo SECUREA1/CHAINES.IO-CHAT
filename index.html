@@ -546,6 +546,9 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
+          <img src="static/hologhost.svg" alt="Hologhost" />
+        </button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
@@ -570,9 +573,6 @@
         </span>
         <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
-        <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
-          <img src="static/hologhost.svg" alt="Hologhost" />
-        </button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
     </footer>
@@ -1857,6 +1857,7 @@
 
     function handleInvite({ id, mode, user }){
       const verb = mode === 'mic' ? 'join via mic' : 'join the broadcast';
+      appendMessage({ id: `invite-${Date.now()}`, user: user || 'host', text: `invites you to ${verb}.` });
       const ok = confirm(`@${user || 'host'} invites you to ${verb}. Accept?`);
       if(ok){
         sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
