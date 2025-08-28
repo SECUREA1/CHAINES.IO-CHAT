@@ -59,16 +59,16 @@
         margin:0 auto;
       }
 
-    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:wrap; }
+    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
-    .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .status .chip { flex:1 1 auto; justify-content:center; }
+    .status { display:flex; align-items:center; gap:8px; }
+    .status.top { justify-content:flex-end; }
+    .status.user { justify-content:flex-end; }
     header .chip { padding:4px 8px; }
-    header .status.top { margin-left:auto; justify-content:flex-end; }
     footer {
       display:flex;
       flex-direction:column;
@@ -96,7 +96,6 @@
       display:flex;
       padding:0;
       border-radius:12px;
-      margin-left:auto;
       overflow:hidden;
       height:36px;
       flex:0 0 auto;
@@ -122,7 +121,7 @@
       flex:0 0 auto;
     }
     #user-cc > * {
-      flex:1;
+      flex:0 0 auto;
       border:0;
       padding:0 10px;
       background: color-mix(in oklab, var(--panel), transparent 25%);
@@ -132,8 +131,11 @@
       justify-content:center;
       height:100%;
       text-decoration:none;
+      white-space:nowrap;
     }
     #user-cc > * + * { border-left:1px solid var(--lining); }
+    #user-cc > #profile-link { flex:1 1 auto; }
+    #user-cc > #ghost-btn { flex:0 0 36px; padding:0; }
     #end-btn {
       background: var(--danger);
       border-color: var(--danger);
@@ -149,23 +151,26 @@
       border:0;
     }
     #ghost-btn img { width:24px; height:24px; }
+    #conn-chip { display:flex; align-items:center; gap:4px; }
+    .conn-dot { width:8px; height:8px; border-radius:50%; background: var(--muted); }
+    .conn-dot.cloud { background: var(--accent); }
+    .conn-dot.local { background: #ffb020; }
+    .conn-dot.off { background: var(--danger); }
     .usr { font-weight:600; color: var(--fg); }
 
     #cmd-panel {
-      position: fixed;
-      bottom: 80px;
-      right: 20px;
+      margin-top:8px;
       background: var(--panel);
       border: 1px solid var(--lining);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 8px;
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 6px;
-      z-index: 20;
+      justify-content: center;
     }
-    #cmd-panel .chip { width: 100%; justify-content: center; }
+    #cmd-panel .chip { width:36px; height:36px; padding:0; justify-content:center; }
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
 
@@ -238,23 +243,22 @@
     .users-panel li.mic-user { color:#22c55e; }
 
     .live-btn {
-      margin-left:6px;
       display:inline-flex;
       align-items:center;
-      gap:4px;
-      padding:2px 6px;
-      border:1px solid var(--lining);
-      border-radius:8px;
-      background:color-mix(in oklab, var(--panel), transparent 10%);
+      gap:6px;
+      padding:6px 12px;
+      border:0;
+      border-radius:12px;
+      background:linear-gradient(180deg, var(--accent), var(--accent-2));
       cursor:pointer;
-      color:var(--fg);
-      font-size:12px;
+      color:#05130e;
+      font-weight:700;
+      box-shadow: var(--shadow);
     }
     .live-dot {
       display:inline-block;
       width:8px;
       height:8px;
-      margin-right:4px;
       border-radius:50%;
       background:var(--danger);
       animation: live-pulse 1s infinite;
@@ -265,9 +269,10 @@
     }
 
     #broadcast-btn.live {
+      background: var(--danger);
+      color:#fff;
+      border:0;
       animation: live-pulse 1s infinite;
-      border-color: var(--danger);
-      color: var(--danger);
     }
 
     #streams { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
@@ -504,10 +509,8 @@
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
-      header { flex-wrap: wrap; padding:12px; gap:8px; }
+      header { padding:12px; gap:8px; }
       footer { padding:0 12px 12px; gap:8px; }
-      .status { margin-left:0; flex-wrap:wrap; width:100%; gap:8px; justify-content:center; }
-      .status .chip { flex:1 1 45%; justify-content:center; }
       .feed { padding:12px; }
       .composer { margin:0; }
     }
@@ -525,9 +528,6 @@
         </label>
         <button id="mode-toggle" class="chip" title="Switch between cloud or local modes">☁️</button>
         <button id="theme-toggle" class="chip" title="Toggle dark or light mode">☀️</button>
-        <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
-          <img src="static/hologhost.svg" alt="Hologhost" />
-        </button>
       </div>
       <div class="status top">
         <div class="chip" id="invite-cc">
@@ -540,9 +540,11 @@
       </div>
       <div class="status user">
         <div class="chip" id="user-cc">
+          <span id="conn-chip" title="Connection status"><span class="conn-dot off" id="conn-dot"></span><span id="conn-label">Offline</span></span>
           <span id="live-chip" title="Users online">🔴 <span id="live-count">0</span> online</span>
           <a id="profile-link" href="/profile.html">Profile</a>
           <button id="logout-btn" type="button" title="Logout">Logout</button>
+          <button id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
       </div>
     </header>
@@ -642,6 +644,7 @@
     const cmdListBtn = el('#cmd-list');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
+    const footer = el('footer');
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
       shrug:     { text: 'shrugs \u{1F937}', icon: '🤷' },
@@ -660,7 +663,7 @@
     const cmdPanel = document.createElement('div');
     cmdPanel.id = 'cmd-panel';
     cmdPanel.hidden = true;
-    document.body.appendChild(cmdPanel);
+    footer.insertBefore(cmdPanel, footer.querySelector('#broadcast-controls'));
 
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
@@ -689,6 +692,8 @@
     const skipBtn = el('#skip');
     const profileLink = el('#profile-link');
     const logoutBtn = el('#logout-btn');
+    const connDot = el('#conn-dot');
+    const connLabel = el('#conn-label');
     const liveCount = el('#live-count');
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
@@ -1156,7 +1161,19 @@
 
     function setStatus(mode){
       onlineMode = mode;
-      if(mode !== 'cloud') updateUsers([]);
+      connDot.classList.remove('cloud','local','off');
+      if(mode === 'cloud'){
+        connDot.classList.add('cloud');
+        connLabel.textContent = 'Online (Cloud)';
+      } else if(mode === 'local'){
+        connDot.classList.add('local');
+        connLabel.textContent = 'Online (Local)';
+        updateUsers([]);
+      } else {
+        connDot.classList.add('off');
+        connLabel.textContent = 'Offline';
+        updateUsers([]);
+      }
       modeToggle.textContent = mode === 'cloud' ? '🏠' : '☁️';
       if(mode !== 'cloud') renderHistory();
     }
