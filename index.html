@@ -59,13 +59,13 @@
         margin:0 auto;
       }
 
-    header { display:flex; align-items:center; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; flex-wrap:nowrap; }
-    .brand { display:flex; align-items:center; gap:10px; margin-right:auto; }
+    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; }
+    .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
-    .status { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+    .status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .status .chip { flex:0 0 auto; justify-content:center; }
     header .chip { padding:4px 8px; }
     footer {
@@ -96,7 +96,6 @@
       overflow:hidden;
       height:36px;
       flex:0 0 auto;
-      margin-left:8px;
     }
     #invite-cc button {
       flex:1;
@@ -349,7 +348,7 @@
       width: 100%;
       justify-content: center;
     }
-    .broadcast-controls .chip { flex:1; }
+    .broadcast-controls .chip { flex:0 0 auto; }
     body.broadcast-mode .broadcast-controls { display:flex; }
     body.broadcast-mode #video-container {
       position: fixed;
@@ -478,9 +477,9 @@
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
-      header { flex-wrap:nowrap; padding:12px; gap:8px; }
+      header { padding:12px; gap:8px; }
       footer { padding:0 12px 12px; gap:8px; }
-      .status { flex-wrap:nowrap; gap:8px; }
+      .status { flex-wrap:wrap; gap:8px; justify-content:center; }
       .status .chip { flex:0 0 auto; justify-content:center; }
       .feed { padding:12px; }
       .composer { margin:0; }
@@ -494,7 +493,7 @@
         <div class="logo" aria-hidden="true"></div>
         <h1>CHAINeS Chat</h1>
       </div>
-      <div class="status icon-bar">
+      <div class="status icon-bar" id="control-bar">
         <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
           <input type="checkbox" id="auto-delete" />
           Self-destruct in 5m
@@ -683,6 +682,7 @@
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
+    const controlBar = el('#control-bar');
     const chatToggle = el('#chat-toggle');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -950,9 +950,16 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [inviteCC, streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
+      if(show){
+        inviteCC.hidden = false;
+        broadcastControls.prepend(inviteCC);
+      } else {
+        inviteCC.hidden = true;
+        controlBar.appendChild(inviteCC);
+      }
     }
     updateHeaderButtons();
 
