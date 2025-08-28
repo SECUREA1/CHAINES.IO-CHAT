@@ -113,6 +113,27 @@
       height:100%;
     }
     #invite-cc button + button { border-left:1px solid var(--lining); }
+    #user-cc {
+      display:flex;
+      padding:0;
+      border-radius:12px;
+      overflow:hidden;
+      height:36px;
+      flex:0 0 auto;
+    }
+    #user-cc > * {
+      flex:1;
+      border:0;
+      padding:0 10px;
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+      color: var(--fg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100%;
+      text-decoration:none;
+    }
+    #user-cc > * + * { border-left:1px solid var(--lining); }
     #end-btn {
       background: var(--danger);
       border-color: var(--danger);
@@ -514,6 +535,13 @@
           <button id="listener-count" type="button" title="Active listeners">0 listening</button>
         </div>
       </div>
+      <div class="status user">
+        <div class="chip" id="user-cc">
+          <span id="live-chip" title="Users online">🔴 <span id="live-count">0</span> online</span>
+          <a id="profile-link" href="/profile.html">Profile</a>
+          <button id="logout-btn" type="button" title="Logout">Logout</button>
+        </div>
+      </div>
     </header>
 
       <main>
@@ -547,14 +575,6 @@
       </form>
       <div class="status bottom">
         <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
-        <span class="chip" id="live-chip" title="Users online">
-          <span id="live-count">0</span> online
-        </span>
-        <span class="chip" id="user-chip" title="Logged in user">
-          <img id="user-avatar" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;display:none;margin-right:4px;" />
-          <span class="usr" id="user-name">@guest</span>
-        </span>
-        <button id="logout-btn" class="chip" type="button" title="Logout">Logout</button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
@@ -665,15 +685,8 @@
     const loginBtn = el('#login');
     const registerBtn = el('#register');
     const skipBtn = el('#skip');
-    const userChip = el('#user-chip');
-    const userName = el('#user-name');
-    const userAvatar = el('#user-avatar');
+    const profileLink = el('#profile-link');
     const logoutBtn = el('#logout-btn');
-    [userAvatar, userName].forEach(u => u.addEventListener('click', () => {
-      if(store.user){
-        location.href = '/profile.html?user=' + encodeURIComponent(store.user);
-      }
-    }));
     const liveCount = el('#live-count');
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
@@ -1224,13 +1237,8 @@
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
-      userName.textContent = '@' + store.user;
-      userChip.style.display = 'flex';
-      if(store.profilePic){
-        userAvatar.src = store.profilePic;
-        userAvatar.style.display = 'block';
-      } else {
-        userAvatar.style.display = 'none';
+      if(profileLink){
+        profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
       }
 
       document.body.classList.remove('auth-lock');
