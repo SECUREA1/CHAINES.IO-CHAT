@@ -97,7 +97,8 @@
       justify-content:center;
       border-radius:12px;
     }
-    #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img {
+    #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
+    #camera-btn img, #split-btn img {
       width:24px;
       height:24px;
     }
@@ -615,8 +616,12 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="swap-btn" type="button" hidden>🔀 Swap</button>
-        <button class="chip" id="split-btn" type="button" hidden>🪟 Split</button>
+        <button class="chip" id="camera-btn" type="button" hidden title="Toggle camera">
+          <img src="static/camera.svg" alt="Toggle camera" />
+        </button>
+        <button class="chip" id="split-btn" type="button" hidden title="Split view">
+          <img src="static/split.svg" alt="Split layout" />
+        </button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -764,7 +769,7 @@
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
-    const swapBtn = el('#swap-btn');
+    const cameraBtn = el('#camera-btn');
     const splitBtn = el('#split-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -805,12 +810,16 @@
       document.body.classList.toggle('chat-open');
     });
 
-    if(swapBtn){
-      swapBtn.addEventListener('click', swapVideos);
+    if(cameraBtn){
+      cameraBtn.addEventListener('click', swapVideos);
     }
     if(splitBtn){
       splitBtn.addEventListener('click', () => {
         splitMode = !splitMode;
+        const icon = splitBtn.querySelector('img');
+        icon.src = splitMode ? 'static/split.svg' : 'static/insert.svg';
+        icon.alt = splitMode ? 'Split layout' : 'Insert layout';
+        splitBtn.title = splitMode ? 'Split view' : 'Insert view';
         updateVideoLayout();
       });
     }
@@ -1750,7 +1759,7 @@
           if(multi){
             vids.forEach(v => v.onclick = swapVideos);
           }
-          if(swapBtn) swapBtn.hidden = !multi;
+          if(cameraBtn) cameraBtn.hidden = !multi;
           if(splitBtn) splitBtn.hidden = !multi;
         }
       }
