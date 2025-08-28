@@ -206,7 +206,7 @@
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
     .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
-    #composer { grid-template-columns: minmax(0,1fr) repeat(4,56px); }
+    #composer { grid-template-columns: minmax(0,1fr) repeat(2,56px); }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -523,8 +523,11 @@
           <input type="checkbox" id="auto-delete" />
           Self-destruct in 5m
         </label>
-        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes"></button>
-        <button id="theme-toggle" class="chip" title="Toggle dark or light mode"></button>
+        <button id="mode-toggle" class="chip" title="Switch between cloud or local modes">☁️</button>
+        <button id="theme-toggle" class="chip" title="Toggle dark or light mode">☀️</button>
+        <button id="ghost-btn" class="chip" title="Hologhost" aria-label="Hologhost">
+          <img src="static/hologhost.svg" alt="Hologhost" />
+        </button>
       </div>
       <div class="status top">
         <div class="chip" id="invite-cc">
@@ -558,9 +561,6 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
-        <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
-          <img src="static/hologhost.svg" alt="Hologhost" />
-        </button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
@@ -574,7 +574,9 @@
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message">🐒</button>
       </form>
       <div class="status bottom">
-        <button class="chip" id="broadcast-btn" title="Go live">🎥 Live</button>
+        <button class="chip live-btn" id="broadcast-btn" title="Go live">
+          <span class="live-dot"></span>Live
+        </button>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
       </div>
       <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
@@ -844,7 +846,7 @@
       applyTheme(next);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
-    modeToggle.textContent = 'Go Cloud';
+    modeToggle.textContent = '☁️';
     modeToggle.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
         try { socket && socket.close(); } catch {}
@@ -1155,7 +1157,7 @@
     function setStatus(mode){
       onlineMode = mode;
       if(mode !== 'cloud') updateUsers([]);
-      modeToggle.textContent = mode === 'cloud' ? 'Go Local' : 'Go Cloud';
+      modeToggle.textContent = mode === 'cloud' ? '🏠' : '☁️';
       if(mode !== 'cloud') renderHistory();
     }
 
