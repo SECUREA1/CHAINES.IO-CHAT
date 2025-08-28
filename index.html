@@ -113,15 +113,15 @@
       height:100%;
     }
     #invite-cc button + button { border-left:1px solid var(--lining); }
-    #invite-cc #cc-settings {
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      color:#05130e;
-    }
     #end-btn {
       background: var(--danger);
       border-color: var(--danger);
       color: #fff;
       animation: live-pulse 1s infinite;
+    }
+    #listener-count {
+      cursor: default;
+      pointer-events: none;
     }
     #ghost-btn {
       background: linear-gradient(180deg, var(--accent), var(--accent-2));
@@ -170,24 +170,6 @@
       color: var(--caption-color);
       background-color: var(--caption-bg);
     }
-
-    .cc-panel {
-      position:absolute;
-      top:60px;
-      right:20px;
-      background:var(--panel);
-      border:1px solid var(--lining);
-      border-radius:12px;
-      padding:10px;
-      box-shadow:var(--shadow);
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      z-index:10;
-    }
-
-    .cc-panel label { display:flex; flex-direction:column; gap:4px; font-size:14px; }
-    .cc-panel button { align-self:flex-end; }
 
     .actions { margin-top:6px; display:flex; gap:10px; }
     .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
@@ -528,24 +510,11 @@
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
           <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
-          <button id="cc-settings" type="button" title="Caption settings">CC</button>
+          <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
+          <button id="listener-count" type="button" title="Active listeners">0 listening</button>
         </div>
       </div>
     </header>
-    <div id="cc-panel" class="cc-panel" hidden>
-      <label>Font
-        <select id="cc-font">
-          <option value="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">System</option>
-          <option value="Arial">Arial</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Courier New">Courier New</option>
-        </select>
-      </label>
-      <label>Color
-        <input type="color" id="cc-color" value="#ffffff" />
-      </label>
-      <button id="cc-apply" type="button" class="btn ghost">Apply</button>
-    </div>
 
       <main>
         <div id="streams" class="streams"></div>
@@ -561,7 +530,6 @@
         </label>
         <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
         <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
-        <button class="send" id="end-btn" type="button" title="End broadcast" hidden>⏹</button>
         <button class="send" id="ghost-btn" type="button" title="Hologhost" aria-label="Hologhost">
           <img src="static/hologhost.svg" alt="Hologhost" />
         </button>
@@ -731,11 +699,7 @@
     const thumbUpload = el('#thumb-upload');
     const thumbCamera = el('#thumb-camera');
     const thumbSkip = el('#thumb-skip');
-    const ccSettings = el('#cc-settings');
-    const ccPanel = el('#cc-panel');
-    const ccFont = el('#cc-font');
-    const ccColor = el('#cc-color');
-    const ccApply = el('#cc-apply');
+    const listenerCountBtn = el('#listener-count');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#streams');
@@ -760,21 +724,6 @@
     });
 
     el('#year').textContent = new Date().getFullYear();
-
-    ccFont.value = localStorage.getItem('chaines_cc_font') || getComputedStyle(document.documentElement).getPropertyValue('--caption-font').trim();
-    ccColor.value = localStorage.getItem('chaines_cc_color') || '#ffffff';
-    document.documentElement.style.setProperty('--caption-font', ccFont.value);
-    document.documentElement.style.setProperty('--caption-color', ccColor.value);
-    ccSettings.addEventListener('click', () => { ccPanel.hidden = !ccPanel.hidden; });
-    ccApply.addEventListener('click', () => {
-      document.documentElement.style.setProperty('--caption-font', ccFont.value);
-      document.documentElement.style.setProperty('--caption-color', ccColor.value);
-      try {
-        localStorage.setItem('chaines_cc_font', ccFont.value);
-        localStorage.setItem('chaines_cc_color', ccColor.value);
-      } catch {}
-      ccPanel.hidden = true;
-    });
 
     chatToggle.addEventListener('click', () => {
       document.body.classList.toggle('chat-open');
@@ -1007,7 +956,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, inviteBtn, ccSettings, endBtn].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1176,6 +1125,7 @@
 
       function updateListenerCount(id, n){
         if(streams[id]) streams[id].count.textContent = n;
+        if(id === clientId && listenerCountBtn) listenerCountBtn.textContent = `${n} listening`;
       }
     function sendJoin(){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
@@ -1532,6 +1482,7 @@
             } catch {}
           }
       broadcasting = true;
+      updateListenerCount(clientId, 0);
       activeRooms.add(clientId);
       feed.setAttribute('hidden','');
       document.body.classList.remove('chat-open');
