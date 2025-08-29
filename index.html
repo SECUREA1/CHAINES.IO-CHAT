@@ -285,7 +285,9 @@
   gap: 10px;
   padding: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   width: 100%;
+  scroll-snap-type: x mandatory;
 }
 
 /* Self tile row */
@@ -305,6 +307,7 @@
   padding: 8px;
   background: var(--panel);
   cursor: pointer;
+  scroll-snap-align: start;
 }
 
 /* Expanded stream state */
@@ -1228,8 +1231,19 @@
           }
         });
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
-        (isSelf ? selfStreamEl : streamsEl).appendChild(div);
+        if (isSelf) {
+          selfStreamEl.innerHTML = '';
+          selfStreamEl.appendChild(div);
+        } else {
+          streamsEl.prepend(div);
+        }
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, micBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
+        if (broadcasting && !isSelf) {
+          div.classList.add('open');
+          startWatching(id);
+          streams[id].started = true;
+          if (streams[id].tuneBtn) streams[id].tuneBtn.disabled = true;
+        }
       }
       function chooseThumbnail(){
         return new Promise(resolve => {
