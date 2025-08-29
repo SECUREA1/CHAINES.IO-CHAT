@@ -269,7 +269,10 @@
       animation: live-pulse 1s infinite;
     }
 
-    #streams { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
+    #stream-tiles { display:flex; flex-direction:column; align-items:center; gap:12px; }
+    #remote-tiles { display:flex; overflow-x:auto; gap:10px; padding:10px; width:100%; }
+    #remote-tiles .stream { flex:0 0 auto; }
+    #self-tile { display:flex; justify-content:center; width:100%; }
     .stream { position:relative; width:150px; border:1px solid var(--lining); border-radius:12px; padding:8px; background: var(--panel); cursor:pointer; }
     .stream.open { width:300px; }
     .stream .title { font-weight:700; margin-bottom:6px; }
@@ -611,7 +614,10 @@
     </header>
 
       <main>
-        <div id="streams" class="streams"></div>
+        <div id="stream-tiles">
+          <div id="remote-tiles" class="streams"></div>
+          <div id="self-tile"></div>
+        </div>
         <div id="video-container" hidden>
           <div id="host-canvas" class="video-canvas"></div>
           <div id="guest-canvas" class="video-canvas" hidden></div>
@@ -791,7 +797,8 @@
     const listenerCountBtn = el('#listener-count');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
-    const streamsEl = el('#streams');
+    const streamsEl = el('#remote-tiles');
+    const selfStreamEl = el('#self-tile');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -1184,7 +1191,7 @@
           }
         });
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
-        streamsEl.appendChild(div);
+        (isSelf ? selfStreamEl : streamsEl).appendChild(div);
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, micBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
       }
       function chooseThumbnail(){
