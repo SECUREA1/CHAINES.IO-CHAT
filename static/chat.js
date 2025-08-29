@@ -10,15 +10,17 @@
         bottom: '0',
         left: '0',
         width: '50%',
-        background: '#1a1a1a',
+        background: 'rgba(26,26,26,0.15)',
         color: '#ffd700',
-        borderRight: '2px solid #ffd700',
+        borderRight: '1px solid rgba(255,215,0,0.6)',
         padding: '10px',
         fontSize: '14px',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 0 20px rgba(255,215,0,0.4)'
       });
       if(window.innerWidth < 600){
         box.style.width = '100%';
@@ -26,13 +28,13 @@
       box.innerHTML =
       '<div id="chat-users" style="margin-bottom:4px;font-weight:bold;"></div>' +
       '<div style="margin-bottom:4px;">' +
-      '<input id="chat-search" placeholder="Search..." style="width:100%;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
+      '<input id="chat-search" placeholder="Search..." style="width:100%;padding:4px;background:rgba(34,34,34,0.3);border:1px solid rgba(255,215,0,0.4);color:#ffd700;backdrop-filter:blur(4px);" />' +
       '</div>' +
-      '<div id="chat-feed" style="overflow-y:auto;flex:1;margin-bottom:4px;background:#111;padding:4px;"></div>' +
+      '<div id="chat-feed" style="overflow-y:auto;flex:1;margin-bottom:4px;background:rgba(17,17,17,0.2);padding:4px;backdrop-filter:blur(4px);"></div>' +
       '<form id="chat-form" style="display:flex;gap:4px;align-items:center;">' +
-      '<input id="chat-input" style="flex:1;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
-      '<input id="chat-file" type="file" style="width:110px;padding:4px;background:#222;border:1px solid #555;color:#ffd700;" />' +
-      '<button style="padding:4px 8px;background:#b30000;color:#ffd700;border:1px solid #ffd700;">Send</button>' +
+      '<input id="chat-input" style="flex:1;padding:4px;background:rgba(34,34,34,0.3);border:1px solid rgba(255,215,0,0.4);color:#ffd700;backdrop-filter:blur(4px);" />' +
+      '<input id="chat-file" type="file" style="width:110px;padding:4px;background:rgba(34,34,34,0.3);border:1px solid rgba(255,215,0,0.4);color:#ffd700;backdrop-filter:blur(4px);" />' +
+      '<button style="padding:4px 8px;background:#b30000;color:#ffd700;border:1px solid #ffd700;box-shadow:0 0 10px rgba(255,215,0,0.4);">Send</button>' +
       '</form>';
     document.body.appendChild(box);
 
@@ -55,7 +57,7 @@
       const text = data.message ? ` ${data.message}` : '';
       header.textContent = `${data.user}:${text}`;
       header.style.color = '#00a0ff';
-      header.style.textShadow = '0 0 4px gold';
+      header.style.textShadow = '0 0 6px gold';
       msg.appendChild(header);
       const fileName = data.file_name || data.fileName;
       const fileType = data.file_type || data.fileType || '';
