@@ -269,9 +269,9 @@
       animation: live-pulse 1s infinite;
     }
 
-    #streams { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
-    .stream { position:relative; width:150px; border:1px solid var(--lining); border-radius:12px; padding:8px; background: var(--panel); cursor:pointer; }
-    .stream.open { width:300px; }
+    #streams { display:flex; flex-wrap:nowrap; gap:10px; padding:10px; overflow-x:auto; }
+    .stream { position:relative; width:150px; flex:0 0 auto; border:1px solid var(--lining); border-radius:12px; padding:8px; background: var(--panel); cursor:pointer; }
+    .stream.open { width:300px; flex:0 0 auto; }
     .stream .title { font-weight:700; margin-bottom:6px; }
     .stream .thumb { width:100%; border-radius:8px; }
     .stream.open .thumb { display:none; }
@@ -343,7 +343,7 @@
       cursor:pointer;
     }
     .tune-btn:disabled { opacity:.5; cursor:not-allowed; }
-    #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; }
+    #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; justify-content:center; }
     #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
     .video-canvas { position:relative; flex:1 1 50%; display:flex; align-items:center; justify-content:center; }
     .video-canvas video { width:100%; height:100%; object-fit:contain; }
