@@ -106,8 +106,8 @@
         width:24px;
         height:24px;
       }
-      #swap-btn { display:none; }
-      body.broadcast-mode #swap-btn { display:flex; }
+      /* layout toggle button is hidden by default and revealed when multiple videos are present */
+
       #camera-btn.off img { opacity:0.5; }
       #invite-cc {
         display:flex;
@@ -318,7 +318,12 @@
     .stream.open .thumb { display:none; }
     .stream .video { display:none; }
     .stream.open .video { display:block; }
-    .stream .video video { width:100%; border-radius:8px; }
+    .stream .video video {
+      width:100%;
+      border-radius:8px;
+      aspect-ratio:16/9;
+      object-fit:cover;
+    }
     .stream.open .video.has-guest { display:flex; }
     .stream.open .video.has-guest video {
       width:50%;
@@ -387,7 +392,7 @@
     #video-container {
       position: relative;
       max-width: 640px;
-      margin: 0 auto;
+      margin: 12px auto 0;
       border: 1px solid var(--lining);
       border-radius: 12px;
       background: var(--panel);
@@ -404,18 +409,22 @@
       position: relative;
     }
     #video-container.has-guest {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: row;
     }
     #video-container.has-guest #host-canvas,
     #video-container.has-guest #guest-canvas {
-      width: 100%;
+      width: 50%;
       height: 100%;
     }
     @media (orientation: portrait) {
       #video-container.has-guest {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
+        flex-direction: column;
+      }
+      #video-container.has-guest #host-canvas,
+      #video-container.has-guest #guest-canvas {
+        width: 100%;
+        height: 50%;
       }
     }
     #video-container.pip {
@@ -618,7 +627,7 @@
               <img src="static/camera.svg" alt="Toggle camera" />
             </button>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
-            <button class="chip" id="swap-btn" type="button" title="Split view">
+            <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
               <img src="static/flip.svg" alt="Switch view" />
             </button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
