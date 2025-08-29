@@ -26,15 +26,15 @@
         --caption-bg: rgba(0,0,0,0.6);
       }
       :root[data-theme='light']{
-        --bg:#ffffff;
-        --panel:#f1f5f9;
-        --fg:#0f172a;
-        --muted:#64748b;
-        --accent:#ff5d6e;
-        --accent-2:#ff1f8b;
-        --shadow: 0 0 10px rgba(255,93,110,.25);
-        --lining:#cbd5e1;
-        --caption-color:#0f172a;
+        --bg:transparent;
+        --panel:rgba(42,42,42,0.4);
+        --fg:#ffd700;
+        --muted:#c0a000;
+        --accent:#ffd700;
+        --accent-2:#ffd700;
+        --shadow:0 0 20px rgba(255,215,0,.4);
+        --lining:#ffd700;
+        --caption-color:#ffd700;
       }
     * { box-sizing: border-box; }
       html, body { height: 100%; width:100%; overflow-x:hidden; }
@@ -59,13 +59,13 @@
         margin:0 auto;
       }
 
-    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; }
+    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
     .bar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .top-actions { display:flex; align-items:center; gap:8px; }
-    .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); }
+    .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
     .toolbar .chip { flex:0 0 auto; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
@@ -81,6 +81,10 @@
       position: sticky;
       bottom:0;
       z-index:5;
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+      border:1px solid var(--lining);
     }
     footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; }
     footer .status.bottom > button { flex:0 0 100px; }
@@ -88,7 +92,7 @@
     footer .status.bottom .legal { flex:1 1 auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
-            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
+            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
       width:36px;
@@ -114,7 +118,7 @@
         flex:1 1 auto;
         width:100%;
       }
-      #invite-cc button {
+    #invite-cc button {
       flex:1;
       border:0;
       padding:0 10px;
@@ -124,6 +128,7 @@
       align-items:center;
       justify-content:center;
       height:100%;
+      backdrop-filter: blur(8px);
     }
     #invite-cc button + button { border-left:1px solid var(--lining); }
     #profile-link { display:inline-flex; align-items:center; gap:4px; }
@@ -163,13 +168,13 @@
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
 
-    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); }
+    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; }
     .msg.mine { flex-direction: row-reverse; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
     .msg.mine .avatar { background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
 
-    .bubble { flex:1; position:relative; padding:10px 14px 10px; border-radius: 16px; background: color-mix(in oklab, var(--panel), transparent 10%); border:1px solid var(--lining); box-shadow: var(--shadow); }
+    .bubble { flex:1; position:relative; padding:10px 14px 10px; border-radius: 16px; background: color-mix(in oklab, var(--panel), transparent 10%); border:1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 75%); border-color: var(--lining); }
 
     .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
@@ -201,7 +206,7 @@
 
     .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
     #composer { grid-template-columns: minmax(0,1fr) repeat(2,56px); }
-    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: var(--panel); border:2px solid var(--accent); box-shadow: var(--shadow); }
+    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; width:56px; height:56px; font-size:24px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
@@ -209,7 +214,7 @@
 
     /* Auth screen */
     .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow:auto; }
-    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: var(--panel); border: 1px solid var(--lining); box-shadow: var(--shadow); }
+    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
