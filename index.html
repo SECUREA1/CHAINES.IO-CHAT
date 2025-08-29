@@ -89,8 +89,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #split-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #split-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -98,13 +98,11 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #swap-btn img, #split-btn img {
+      #camera-btn img, #swap-btn img {
         width:24px;
         height:24px;
       }
-      #camera-btn, #split-btn, #swap-btn { display:none; }
-      body.broadcast-mode #camera-btn,
-      body.broadcast-mode #split-btn,
+      #swap-btn { display:none; }
       body.broadcast-mode #swap-btn { display:flex; }
       #camera-btn.off img { opacity:0.5; }
       #invite-cc {
@@ -580,7 +578,13 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
+            <button class="chip" id="camera-btn" type="button" title="Turn camera off">
+              <img src="static/camera.svg" alt="Toggle camera" />
+            </button>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+            <button class="chip" id="swap-btn" type="button" title="Split view">
+              <img src="static/flip.svg" alt="Switch view" />
+            </button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
@@ -622,15 +626,6 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-          <img src="static/camera.svg" alt="Toggle camera" />
-        </button>
-        <button class="chip" id="split-btn" type="button" title="Split view">
-          <img src="static/split.svg" alt="Split layout" />
-        </button>
-        <button class="chip" id="swap-btn" type="button" title="Swap videos">
-          <img src="static/flip.svg" alt="Swap videos" />
-        </button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -780,7 +775,6 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
-    const splitBtn = el('#split-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
@@ -801,18 +795,12 @@
     let joinApproved = false;
     let pendingMicHost = null;
     let micApproved = false;
-    let splitMode = false;
+    const layoutTitles = { split: 'Split view', self: 'Your view', guest: 'Their view', pip: 'Picture-in-picture' };
+    const layouts = ['split', 'self', 'guest', 'pip'];
+    let layoutMode = 'split';
     let cameraOff = false;
     let savedVideoTrack = null;
     let blankTrack = null;
-
-    if(cameraBtn) cameraBtn.disabled = true;
-    if(splitBtn){
-      const icon = splitBtn.querySelector('img');
-      icon.src = splitMode ? 'static/split.svg' : 'static/insert.svg';
-      icon.alt = splitMode ? 'Split layout' : 'Insert layout';
-      splitBtn.title = splitMode ? 'Split view' : 'Insert view';
-    }
 
     // ensure header and footer remain visible
     const keepVisible = el => {
@@ -840,24 +828,9 @@
     }
     if(swapBtn){
       swapBtn.addEventListener('click', swapVideos);
-    }
-    if(splitBtn){
-      splitBtn.addEventListener('click', () => {
-        splitMode = !splitMode;
-        const icon = splitBtn.querySelector('img');
-        icon.src = splitMode ? 'static/split.svg' : 'static/insert.svg';
-        icon.alt = splitMode ? 'Split layout' : 'Insert layout';
-        splitBtn.title = splitMode ? 'Split view' : 'Insert view';
-        updateVideoLayout();
-        for(const id in streams){
-          if(streams[id] && streams[id].video){
-            updateVideoLayout(streams[id].video);
-          }
-        }
-      });
+      swapBtn.title = layoutTitles[layoutMode];
     }
 
-    updateVideoLayout();
     window.addEventListener('resize', () => {
       updateVideoLayout();
       for(const id in streams){
@@ -1099,7 +1072,7 @@
 
     function updateHeaderButtons(){
       const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+      [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
         if(btn) btn.hidden = !show;
       });
     }
@@ -1592,13 +1565,6 @@
     // --- WebRTC helpers ---
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
-        splitMode = false;
-        if(splitBtn){
-          const icon = splitBtn.querySelector('img');
-          icon.src = 'static/insert.svg';
-          icon.alt = 'Insert layout';
-          splitBtn.title = 'Insert view';
-        }
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
@@ -1671,7 +1637,7 @@
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
-        cameraBtn.disabled = audioOnly;
+        cameraBtn.hidden = audioOnly;
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
@@ -1716,7 +1682,6 @@
             videoContainer.appendChild(mediaEl);
           }
           updateVideoLayout();
-          alert('Camera started in picture-in-picture mode. Use the swap button to toggle camera views.');
           const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = mediaEl;
@@ -1744,7 +1709,7 @@
       }
 
       function toggleCamera(){
-        if(!localStream){ alert('Start streaming to toggle camera'); return; }
+        if(!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
         if(!cameraOff){
           if(!videoTrack) return;
@@ -1787,7 +1752,7 @@
         if(!broadcasting) return;
         broadcasting = false;
         if(cameraBtn){
-          cameraBtn.disabled = true;
+          cameraBtn.hidden = true;
           cameraBtn.classList.remove('off');
           cameraBtn.title = 'Turn camera off';
         }
@@ -1883,9 +1848,12 @@
       function updateVideoLayout(container = videoContainer){
         const vids = container.querySelectorAll('video');
         const multi = vids.length > 1;
-        container.classList.toggle('has-guest', multi && splitMode);
-        container.classList.toggle('pip', multi && !splitMode);
         if(container === videoContainer){
+          vids.forEach(v => v.style.display = '');
+          if(layoutMode === 'self' && vids[1]) vids[1].style.display = 'none';
+          if(layoutMode === 'guest' && vids[0]) vids[0].style.display = 'none';
+          container.classList.toggle('has-guest', multi && layoutMode === 'split');
+          container.classList.toggle('pip', multi && layoutMode === 'pip');
           const guestCanvas = el('#guest-canvas');
           if(guestCanvas) guestCanvas.hidden = guestCanvas.querySelectorAll('video').length === 0;
           vids.forEach(v => v.onclick = null);
@@ -1893,29 +1861,21 @@
             vids.forEach(v => v.onclick = swapVideos);
           }
           if(swapBtn) swapBtn.hidden = !multi;
-          if(splitBtn) splitBtn.hidden = !broadcasting;
+          if(swapBtn) swapBtn.title = layoutTitles[layoutMode];
+        } else {
+          container.classList.toggle('has-guest', multi && layoutMode === 'split');
+          container.classList.toggle('pip', multi && layoutMode === 'pip');
         }
       }
 
     function swapVideos(){
-      const vids = videoContainer.querySelectorAll('video');
-      if(vids.length > 1){
-        videoContainer.insertBefore(vids[1], vids[0]);
-        updateVideoLayout();
-      }
+      const idx = layouts.indexOf(layoutMode);
+      layoutMode = layouts[(idx + 1) % layouts.length];
+      updateVideoLayout();
     }
 
       function startWatching(id){
         activeRooms.add(id);
-        splitMode = false;
-        updateVideoLayout();
-        if(splitBtn){
-          const icon = splitBtn.querySelector('img');
-          icon.src = 'static/insert.svg';
-          icon.alt = 'Insert layout';
-          splitBtn.title = 'Insert view';
-        }
-        alert('Viewing in picture-in-picture mode. Use the swap button to toggle camera views.');
         if(!broadcasting) feed.setAttribute('hidden','');
         sendSignal({ type: 'watcher', id });
       }
@@ -2070,7 +2030,6 @@
       const ok = confirm(`Allow @${user || 'user'} to join?`);
       sendSignal({ type: ok ? 'approve-join' : 'deny-join', id });
       if(ok){
-        postMessage({ text: `@${user || 'user'} joined the broadcast`, broadcast: true, isAction:true });
         setTimeout(() => startWatching(id), 1000);
       }
     }
@@ -2125,7 +2084,7 @@
       alert('Mic request denied.');
     }
 
-    function handleGuestStart({ id, host, user }){
+    function handleGuestStart({ id, host }){
       guestMap[id] = host;
       if(streams[id]){
         streams[id].container.remove();
@@ -2134,8 +2093,11 @@
       const hostStream = streams[host];
       if(hostStream){
         hostStream.container.classList.add('open');
+        if(!hostStream.started){
+          startWatching(host);
+          hostStream.started = true;
+        }
         startWatching(id);
-        systemNote(`@${user || 'user'} joined the broadcast`);
       }
     }
 

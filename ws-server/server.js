@@ -403,22 +403,15 @@ wss.on("connection", (ws) => {
         broadcasters.set(ws.id, ws);
         broadcastUsers();
         const hostId = guestHosts.get(ws.id);
-        if (hostId) {
-          const payload = JSON.stringify({
-            type: "guest-start",
-            host: hostId,
-            id: ws.id,
-            user: ws.username || null,
-          });
+        if(hostId){
           const set = listeners.get(hostId);
-          if (set) {
-            for (const wid of set) {
+          if(set){
+            const payload = JSON.stringify({ type: "guest-start", host: hostId, id: ws.id });
+            for(const wid of set){
               const watcher = clients.get(wid);
-              if (watcher && watcher.readyState === 1) watcher.send(payload);
+              if(watcher && watcher.readyState === 1) watcher.send(payload);
             }
           }
-          const hostSock = clients.get(hostId);
-          if (hostSock && hostSock.readyState === 1) hostSock.send(payload);
         }
         return;
       case "mic-broadcaster":
