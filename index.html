@@ -89,8 +89,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #camera-flip-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #camera-flip-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -98,7 +98,7 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #swap-btn img {
+      #camera-btn img, #swap-btn img, #camera-flip-btn img {
         width:24px;
         height:24px;
       }
@@ -597,7 +597,9 @@
       <div class="status top">
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
-          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
+          <button id="camera-flip-btn" type="button" title="Switch camera">
+            <img src="static/flip.svg" alt="Switch camera" />
+          </button>
           <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
           <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
           <button id="listener-count" type="button" title="Active listeners">0 listening</button>
