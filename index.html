@@ -319,6 +319,7 @@
     .stream.open .thumb { display:none; }
     .stream .video { display:none; }
     .stream.open .video { display:block; }
+    .stream .tune-btn { margin-top:6px; width:100%; }
     .stream .video video {
       width:100%;
       border-radius:8px;
@@ -653,8 +654,8 @@
           <div id="host-canvas" class="video-canvas"></div>
           <div id="guest-canvas" class="video-canvas" hidden></div>
           <div id="join-controls" hidden>
-            <button id="join-cam" class="chip" type="button" title="Request to join with camera">📷</button>
-            <button id="join-mic" class="chip" type="button" title="Request to join with mic">🎤</button>
+            <button id="join-cam" class="chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button>
+            <button id="join-mic" class="chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button>
           </div>
         </div>
         <div id="overlay-chat" hidden></div>
@@ -1201,7 +1202,7 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -1209,6 +1210,7 @@
         const form = div.querySelector('.stream-composer');
         const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
+        const tuneBtn = div.querySelector('.tune-btn');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
           const text = input.value.trim();
@@ -1216,22 +1218,28 @@
           postMessage({ text, room: id });
           input.value='';
         });
-        div.addEventListener('click', e => {
-          if(e.target.closest('form')) return;
-          div.classList.toggle('open');
-          if(div.classList.contains('open') && !streams[id].started && !isSelf){
-            startWatching(id);
-            streams[id].started = true;
-          } else if(!div.classList.contains('open') && streams[id].started && !streams[id].self){
-            endWatching(id);
-            streams[id].started = false;
-          }
-        });
+        if(!isSelf){
+          tuneBtn.addEventListener('click', () => {
+            if(streams[id].started){
+              endWatching(id);
+              streams[id].started = false;
+              div.classList.remove('open');
+              tuneBtn.textContent = 'Tune In';
+            } else {
+              startWatching(id);
+              streams[id].started = true;
+              div.classList.add('open');
+              tuneBtn.textContent = 'Leave';
+            }
+          });
+        } else {
+          tuneBtn.style.display = 'none';
+        }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         (isSelf ? selfStreamEl : streamsEl).appendChild(div);
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, vid: null, captionTrack: null, thumbEl };
-        div.classList.add('open');
-        if(!isSelf){
+        if(isSelf){
+          div.classList.add('open');
           startWatching(id);
           streams[id].started = true;
         }
@@ -2075,7 +2083,8 @@
             streams[msg.id].started = false;
             streams[msg.id].video.innerHTML = '';
             streams[msg.id].container.classList.remove('open');
-            // no tune button to enable
+            const t = streams[msg.id].container.querySelector('.tune-btn');
+            if(t) t.textContent = 'Tune In';
             streams[msg.id].vid = null;
             streams[msg.id].captionTrack = null;
             updateVideoLayout(streams[msg.id].video);
