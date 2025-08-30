@@ -327,7 +327,18 @@
     .stream .video { display:none; }
     .stream.open .video { display:block; }
     .stream .tune-btn { margin-top:6px; width:100%; }
-    .stream .cam-btn, .stream .mic-btn { margin-top:6px; width:100%; }
+    .stream .join-btns {
+      position:absolute;
+      top:8px;
+      right:8px;
+      display:flex;
+      gap:4px;
+    }
+    .stream .join-btns .chip {
+      width:32px;
+      height:32px;
+      padding:0;
+    }
     .stream .video video {
       width:100%;
       border-radius:8px;
@@ -1261,7 +1272,7 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><button class="tune-btn chip" type="button">Tune In</button><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -1272,6 +1283,7 @@
         const tuneBtn = div.querySelector('.tune-btn');
         const camBtn = div.querySelector('.cam-btn');
         const micBtn = div.querySelector('.mic-btn');
+        const joinBtns = div.querySelector('.join-btns');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
           const text = input.value.trim();
@@ -1288,6 +1300,7 @@
           });
           camBtn.hidden = true;
           micBtn.hidden = true;
+          if(joinBtns) joinBtns.hidden = true;
           tuneBtn.addEventListener('click', () => {
             if(streams[id].started){
               endWatching(id);
@@ -1296,6 +1309,7 @@
               tuneBtn.textContent = 'Tune In';
               camBtn.hidden = true;
               micBtn.hidden = true;
+              if(joinBtns) joinBtns.hidden = true;
             } else {
               startWatching(id);
               streams[id].started = true;
@@ -1303,12 +1317,14 @@
               tuneBtn.textContent = 'Leave';
               camBtn.hidden = false;
               micBtn.hidden = false;
+              if(joinBtns) joinBtns.hidden = false;
             }
           });
         } else {
           tuneBtn.style.display = 'none';
           camBtn.style.display = 'none';
           micBtn.style.display = 'none';
+          if(joinBtns) joinBtns.style.display = 'none';
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         (isSelf ? selfStreamEl : streamsEl).appendChild(div);
@@ -2179,26 +2195,11 @@
       }
 
     function handleJoinRequest(id, user){
-      if(broadcasting){
-        showPopup(`@${user || 'user'} wants to join.`, [
-          { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
-          { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-join', id }); hidePopup(); } }
-        ]);
-        return;
-      }
-      const li = document.createElement('li');
-      li.className = 'system';
-      li.innerHTML = `@${user || 'user'} wants to join. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
-      feed.insertBefore(li, feed.firstChild);
-      li.querySelector('.accept').addEventListener('click', () => {
-        sendSignal({ type: 'approve-join', id });
-        startWatching(id);
-        li.remove();
-      });
-      li.querySelector('.deny').addEventListener('click', () => {
-        sendSignal({ type: 'deny-join', id });
-        li.remove();
-      });
+      if(!broadcasting) return;
+      showPopup(`@${user || 'user'} wants to join.`, [
+        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
+        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-join', id }); hidePopup(); } }
+      ]);
     }
 
     function handleJoinApproved(){
@@ -2223,25 +2224,11 @@
     }
 
     function handleMicRequest(id, user){
-      if(broadcasting){
-        showPopup(`@${user || 'user'} wants to speak.`, [
-          { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
-          { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
-        ]);
-        return;
-      }
-      const li = document.createElement('li');
-      li.className = 'system';
-      li.innerHTML = `@${user || 'user'} wants to speak. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
-      feed.insertBefore(li, feed.firstChild);
-      li.querySelector('.accept').addEventListener('click', () => {
-        sendSignal({ type: 'approve-mic', id });
-        li.remove();
-      });
-      li.querySelector('.deny').addEventListener('click', () => {
-        sendSignal({ type: 'deny-mic', id });
-        li.remove();
-      });
+      if(!broadcasting) return;
+      showPopup(`@${user || 'user'} wants to speak.`, [
+        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
+        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
+      ]);
     }
 
     function handleMicApproved(){
