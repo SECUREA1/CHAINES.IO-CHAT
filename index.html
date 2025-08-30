@@ -233,9 +233,11 @@
     .users-panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid var(--lining); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
     .users-panel h3 { margin:0 0 8px; font-size:14px; }
     .users-panel ul { list-style:none; margin:0; padding:0; }
-    .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); }
+    .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); display:flex; align-items:center; gap:4px; }
     .users-panel li:last-child { border-bottom:0; }
     .users-panel li.mic-user { color:#22c55e; }
+    .users-panel li button { background:transparent; border:0; cursor:pointer; padding:0 2px; }
+    .users-panel li button img { width:16px; height:16px; }
 
     .popup { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); }
     .popup-content { background:var(--panel); color:var(--fg); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow); min-width:200px; text-align:center; }
@@ -1199,7 +1201,8 @@
         list.forEach(u => {
           const li = document.createElement('li');
           const name = typeof u === 'string' ? u : u.name;
-          if(u.live && !guestMap[u.id]){
+          const id = typeof u === 'string' ? u : u.id;
+          if(u.live && !guestMap[id]){
             const dot = document.createElement('span');
             dot.className = 'live-dot';
             li.appendChild(dot);
@@ -1207,8 +1210,8 @@
             camIcon.textContent = '🎥';
             camIcon.title = 'Camera';
             li.appendChild(camIcon);
-            liveIds.add(u.id);
-            ensureStreamThumb(u.id, name, u.id === clientId);
+            liveIds.add(id);
+            ensureStreamThumb(id, name, id === clientId);
           }
           if(u.mic){
             li.classList.add('mic-user');
@@ -1217,7 +1220,33 @@
             micIcon.title = 'Mic';
             li.appendChild(micIcon);
           }
-          li.appendChild(document.createTextNode('@' + name));
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = '@' + name;
+          li.appendChild(nameSpan);
+          if(u.live && id !== clientId){
+            const camBtn = document.createElement('button');
+            camBtn.title = 'Request to join with camera';
+            camBtn.innerHTML = '<img src="static/camera.svg" alt="Join with camera" />';
+            camBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              currentHost = id;
+              pendingJoinHost = id;
+              sendSignal({ type: 'join-request', id, user: store.user });
+              systemNote('Join request sent');
+            });
+            li.appendChild(camBtn);
+            const micBtn = document.createElement('button');
+            micBtn.title = 'Request to join with mic';
+            micBtn.innerHTML = '<img src="static/mic.svg" alt="Request mic" />';
+            micBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              currentHost = id;
+              pendingMicHost = id;
+              sendSignal({ type: 'mic-request', id, user: store.user });
+              systemNote('Mic request sent');
+            });
+            li.appendChild(micBtn);
+          }
           usersEl.appendChild(li);
         });
         for(const id in streams){
@@ -2130,6 +2159,13 @@
       }
 
     function handleJoinRequest(id, user){
+      if(broadcasting){
+        showPopup(`@${user || 'user'} wants to join.`, [
+          { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
+          { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-join', id }); hidePopup(); } }
+        ]);
+        return;
+      }
       const li = document.createElement('li');
       li.className = 'system';
       li.innerHTML = `@${user || 'user'} wants to join. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
@@ -2167,6 +2203,13 @@
     }
 
     function handleMicRequest(id, user){
+      if(broadcasting){
+        showPopup(`@${user || 'user'} wants to speak.`, [
+          { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
+          { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
+        ]);
+        return;
+      }
       const li = document.createElement('li');
       li.className = 'system';
       li.innerHTML = `@${user || 'user'} wants to speak. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
