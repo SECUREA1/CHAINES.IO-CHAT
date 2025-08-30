@@ -1250,6 +1250,9 @@
           const nameSpan = document.createElement('span');
           nameSpan.textContent = '@' + name;
           li.appendChild(nameSpan);
+          if(u.live){
+            li.addEventListener('click', () => watchLive(guestMap[id] || id, name));
+          }
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
             camBtn.title = 'Request to join with camera';
@@ -2285,18 +2288,23 @@
                   pc._videos = pc._videos || [];
                   pc._videos.push(vid);
                 }
-              } else if(ev.track.kind === 'audio'){
-                const target = streams[msg.id];
-                const box = target && target.video;
-                if(box && !box.querySelector('audio')){
-                  const aud = document.createElement('audio');
-                  aud.srcObject = stream;
-                  aud.autoplay = true;
-                  aud.setAttribute('autoplay','');
-                  aud.controls = true;
-                  box.appendChild(aud);
+                } else if(ev.track.kind === 'audio'){
+                  let target = streams[msg.id];
+                  let box = target && target.video;
+                  if(!box && guestMap[msg.id]){
+                    target = streams[guestMap[msg.id]];
+                    box = target && target.video;
+                  }
+                  if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                    const aud = document.createElement('audio');
+                    aud.srcObject = stream;
+                    aud.autoplay = true;
+                    aud.setAttribute('autoplay','');
+                    aud.controls = true;
+                    aud.dataset.guest = msg.id;
+                    box.appendChild(aud);
+                  }
                 }
-              }
             }
           };
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
@@ -2451,10 +2459,20 @@
         // Other viewers watch the guest separately so their video can be merged
         if(id !== clientId) startWatching(id);
       }
-      // Ensure the guest sees their own tile when joining
-      if(id === clientId && streams[id]){
+      if(!streams[id]){
+        const u = userCache && userCache.find(u => (typeof u === 'string' ? u : u.id) === id);
+        const name = typeof u === 'string' ? u : (u && u.name) || id;
+        ensureStreamThumb(id, name, id === clientId);
+      }
+      if(streams[id]){
         streams[id].container.classList.add('open');
         streams[id].started = true;
+      }
+      const hostBox = hostStream && hostStream.video;
+      const guestBox = streams[id] && streams[id].video;
+      if(hostBox && guestBox){
+        const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
+        if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
       }
       layoutMode = 'split';
       updateVideoLayout();
