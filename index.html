@@ -1250,6 +1250,9 @@
           const nameSpan = document.createElement('span');
           nameSpan.textContent = '@' + name;
           li.appendChild(nameSpan);
+          if(u.live){
+            li.addEventListener('click', () => watchLive(id, name));
+          }
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
             camBtn.title = 'Request to join with camera';
@@ -2449,7 +2452,8 @@
           hostStream.started = true;
         }
         // Other viewers watch the guest separately so their video can be merged
-        if(id !== clientId) startWatching(id);
+        if(id !== clientId) startWatching(id); else startWatching(host);
+        updateVideoLayout(hostStream.video);
       }
       // Ensure the guest sees their own tile when joining
       if(id === clientId && streams[id]){
