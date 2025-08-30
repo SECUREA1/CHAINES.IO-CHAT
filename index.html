@@ -1229,7 +1229,7 @@
           const li = document.createElement('li');
           const name = typeof u === 'string' ? u : u.name;
           const id = typeof u === 'string' ? u : u.id;
-          if(u.live && !guestMap[id]){
+          if(u.live){
             const dot = document.createElement('span');
             dot.className = 'live-dot';
             li.appendChild(dot);
@@ -2198,42 +2198,95 @@
               }
             } else {
               if(ev.track.kind === 'video'){
-                const vid = document.createElement('video');
-                vid.srcObject = stream;
-                vid.autoplay = true;
-                vid.setAttribute('autoplay','');
-                vid.playsInline = true;
-                vid.setAttribute('playsinline','');
-                vid.controls = true;
-                attachCaptions(vid);
-                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-                liveTrack.mode = 'showing';
-                const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
-                const box = target && target.video;
-                if(box){
-                  box.appendChild(vid);
-                  updateVideoLayout(box);
-                  if(guestMap[msg.id]) target.guestVid = vid;
-                }
-                vid.muted = true;
-                vid.setAttribute('muted','');
-                const playPromise = vid.play();
-                if(playPromise && playPromise.then){
-                  playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+                if(guestMap[msg.id]){
+                  const hostTarget = streams[guestMap[msg.id]];
+                  const guestTarget = streams[msg.id];
+                  if(hostTarget && hostTarget.video){
+                    const hostVid = document.createElement('video');
+                    hostVid.srcObject = stream;
+                    hostVid.autoplay = true;
+                    hostVid.setAttribute('autoplay','');
+                    hostVid.playsInline = true;
+                    hostVid.setAttribute('playsinline','');
+                    hostVid.controls = true;
+                    attachCaptions(hostVid);
+                    hostTarget.video.appendChild(hostVid);
+                    updateVideoLayout(hostTarget.video);
+                    hostTarget.guestVid = hostVid;
+                    hostVid.muted = true;
+                    hostVid.setAttribute('muted','');
+                    const hp = hostVid.play();
+                    if(hp && hp.then){
+                      hp.then(() => { hostVid.muted = false; hostVid.removeAttribute('muted'); }).catch(() => { hostVid.muted = false; hostVid.removeAttribute('muted'); });
+                    } else {
+                      hostVid.muted = false;
+                      hostVid.removeAttribute('muted');
+                    }
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(hostVid);
+                  }
+                  if(guestTarget && guestTarget.video){
+                    const guestVid = document.createElement('video');
+                    guestVid.srcObject = stream;
+                    guestVid.autoplay = true;
+                    guestVid.setAttribute('autoplay','');
+                    guestVid.playsInline = true;
+                    guestVid.setAttribute('playsinline','');
+                    guestVid.controls = true;
+                    attachCaptions(guestVid);
+                    const liveTrack = guestVid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                    liveTrack.mode = 'showing';
+                    guestTarget.video.appendChild(guestVid);
+                    updateVideoLayout(guestTarget.video);
+                    if(!guestTarget.vid) guestTarget.vid = guestVid;
+                    guestTarget.captionTrack = liveTrack;
+                    guestVid.muted = true;
+                    guestVid.setAttribute('muted','');
+                    const gp = guestVid.play();
+                    if(gp && gp.then){
+                      gp.then(() => { guestVid.muted = false; guestVid.removeAttribute('muted'); }).catch(() => { guestVid.muted = false; guestVid.removeAttribute('muted'); });
+                    } else {
+                      guestVid.muted = false;
+                      guestVid.removeAttribute('muted');
+                    }
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(guestVid);
+                  }
                 } else {
-                  vid.muted = false;
-                  vid.removeAttribute('muted');
+                  const vid = document.createElement('video');
+                  vid.srcObject = stream;
+                  vid.autoplay = true;
+                  vid.setAttribute('autoplay','');
+                  vid.playsInline = true;
+                  vid.setAttribute('playsinline','');
+                  vid.controls = true;
+                  attachCaptions(vid);
+                  const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                  liveTrack.mode = 'showing';
+                  const target = streams[msg.id];
+                  const box = target && target.video;
+                  if(box){
+                    box.appendChild(vid);
+                    updateVideoLayout(box);
+                  }
+                  vid.muted = true;
+                  vid.setAttribute('muted','');
+                  const playPromise = vid.play();
+                  if(playPromise && playPromise.then){
+                    playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+                  } else {
+                    vid.muted = false;
+                    vid.removeAttribute('muted');
+                  }
+                  if(streams[msg.id]){
+                    if(!streams[msg.id].vid) streams[msg.id].vid = vid;
+                    streams[msg.id].captionTrack = liveTrack;
+                  }
+                  pc._videos = pc._videos || [];
+                  pc._videos.push(vid);
                 }
-                if(streams[msg.id]){
-                  if(!streams[msg.id].vid) streams[msg.id].vid = vid;
-                  streams[msg.id].captionTrack = liveTrack;
-                } else if(guestMap[msg.id] && streams[guestMap[msg.id]]){
-                  streams[guestMap[msg.id]].captionTrack = liveTrack;
-                }
-                pc._videos = pc._videos || [];
-                pc._videos.push(vid);
               } else if(ev.track.kind === 'audio'){
-                const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
+                const target = streams[msg.id];
                 const box = target && target.video;
                 if(box && !box.querySelector('audio')){
                   const aud = document.createElement('audio');
@@ -2289,6 +2342,16 @@
         if(host && streams[host]){
           streams[host].guestVid = null;
           updateVideoLayout(streams[host].video);
+          if(streams[msg.id]){
+            streams[msg.id].started = false;
+            streams[msg.id].video.innerHTML = '';
+            streams[msg.id].container.classList.remove('open');
+            const t = streams[msg.id].container.querySelector('.tune-btn');
+            if(t) t.textContent = 'Tune In';
+            streams[msg.id].vid = null;
+            streams[msg.id].captionTrack = null;
+            updateVideoLayout(streams[msg.id].video);
+          }
           delete guestMap[msg.id];
         } else {
           updateVideoLayout();
@@ -2378,11 +2441,6 @@
 
     function handleGuestStart({ id, host }){
       guestMap[id] = host;
-      // Remove the guest's separate tile for other viewers but keep our own
-      if(id !== clientId && streams[id]){
-        streams[id].container.remove();
-        delete streams[id];
-      }
       const hostStream = streams[host];
       if(hostStream){
         hostStream.container.classList.add('open');
