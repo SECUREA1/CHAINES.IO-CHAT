@@ -71,10 +71,10 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS notification_settings (
     username TEXT PRIMARY KEY,
-    push INTEGER DEFAULT 0,
+    push INTEGER DEFAULT 1,
     live INTEGER DEFAULT 1
   );
-`);
+  `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 
@@ -109,7 +109,7 @@ function getNotifSettings(username) {
   const row = db
     .prepare("SELECT push, live FROM notification_settings WHERE username = ?")
     .get(username);
-  return { push: row?.push ?? 0, live: row?.live ?? 1 };
+  return { push: row?.push ?? 1, live: row?.live ?? 1 };
 }
 
 function setNotifSettings(username, vals = {}) {
