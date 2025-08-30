@@ -5,8 +5,9 @@
       <stop offset="100%" stop-color="#0072FF" />
     </linearGradient>
   </defs>
-  <circle cx="8" cy="8" r="3" />
-  <path d="M2 20v-2a6 6 0 0 1 12 0v2" />
-  <line x1="19" y1="8" x2="19" y2="14" />
-  <line x1="16" y1="11" x2="22" y2="11" />
+  <line x1="12" y1="2" x2="6" y2="22" />
+  <line x1="12" y1="2" x2="18" y2="22" />
+  <line x1="4" y1="22" x2="20" y2="22" />
+  <path d="M5 4a7 7 0 0 1 14 0" />
+  <path d="M8 4a4 4 0 0 1 8 0" />
 </svg>
