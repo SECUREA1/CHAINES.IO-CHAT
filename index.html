@@ -428,7 +428,7 @@
       #video-container.has-guest #guest-canvas {
         width: 100%;
         height: auto;
-        aspect-ratio: 16/9;
+        aspect-ratio: 9/16;
       }
     }
     #video-container.pip {
@@ -883,8 +883,8 @@
     let joinApproved = false;
     let pendingMicHost = null;
     let micApproved = false;
-    const layoutTitles = { split: 'Split view', self: 'Your view', guest: 'Their view', pip: 'Picture-in-picture' };
-    const layouts = ['split', 'self', 'guest', 'pip'];
+    const layoutTitles = { split: 'Split view', pip: 'Picture-in-picture' };
+    const layouts = ['split', 'pip'];
     let layoutMode = 'split';
     let cameraOff = false;
     let blankTrack = null;
@@ -2059,8 +2059,6 @@
         const multi = vids.length > 1;
         if(container === videoContainer){
           vids.forEach(v => v.style.display = '');
-          if(layoutMode === 'self' && vids[1]) vids[1].style.display = 'none';
-          if(layoutMode === 'guest' && vids[0]) vids[0].style.display = 'none';
           container.classList.toggle('has-guest', multi && layoutMode === 'split');
           container.classList.toggle('pip', multi && layoutMode === 'pip');
           const guestCanvas = el('#guest-canvas');
