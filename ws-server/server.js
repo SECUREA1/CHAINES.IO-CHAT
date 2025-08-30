@@ -523,16 +523,14 @@ wss.on("connection", (ws) => {
         }
         const hostId = guestHosts.get(ws.id);
         if(hostId){
-          const payload = JSON.stringify({ type: "guest-start", host: hostId, id: ws.id });
           const set = listeners.get(hostId);
           if(set){
+            const payload = JSON.stringify({ type: "guest-start", host: hostId, id: ws.id });
             for(const wid of set){
               const watcher = clients.get(wid);
               if(watcher && watcher.readyState === 1) watcher.send(payload);
             }
           }
-          const host = clients.get(hostId);
-          if(host && host.readyState === 1) host.send(payload);
         }
         return;
       case "mic-broadcaster":
