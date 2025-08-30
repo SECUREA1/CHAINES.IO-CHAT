@@ -693,7 +693,7 @@
       </main>
 
     <footer>
-      <form id="composer" class="composer" autocomplete="off">
+      <form id="composer" class="composer" autocomplete="off" hidden>
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
@@ -716,9 +716,9 @@
           <span class="live-dot"></span><img src="static/camera.svg" alt="Go live" />Go Live
         </button>
         <button id="post-btn" class="chip" title="Post" aria-label="Post"><img src="static/post.svg" alt="Post" /></button>
-        <button id="cleanup-btn" class="chip" title="Clean up" aria-label="Clean up"><img src="static/cleanup.svg" alt="Clean up" /></button>
-        <button id="attention-btn" class="chip" title="Attention" aria-label="Attention"><img src="static/attention.svg" alt="Attention" /></button>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/command.svg" alt="Commands" /></button>
+        <button id="cleanup-btn" class="chip" title="Clean up" aria-label="Clean up" hidden><img src="static/cleanup.svg" alt="Clean up" /></button>
+        <button id="attention-btn" class="chip" title="Attention" aria-label="Attention" hidden><img src="static/attention.svg" alt="Attention" /></button>
+        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands" hidden><img src="static/command.svg" alt="Commands" /></button>
       </div>
     </footer>
   </div>
@@ -787,6 +787,9 @@
     const fileInput = el('#file');
     const sendBtn = el('#send');
     const cmdListBtn = el('#cmd-list');
+    const postBtn = el('#post-btn');
+    const cleanupBtn = el('#cleanup-btn');
+    const attentionBtn = el('#attention-btn');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -1708,6 +1711,9 @@
       input.value = '';
       input.placeholder = defaultPlaceholder;
       pendingFile = null;
+      form.hidden = true;
+      [cleanupBtn, attentionBtn, cmdListBtn].forEach(btn => btn.hidden = true);
+      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
     });
 
     broadcastComposer.addEventListener('submit', ev => {
@@ -1716,6 +1722,13 @@
       if(!raw) return;
       postMessage({ text: raw, broadcast: true });
       broadcastInput.value = '';
+    });
+    postBtn.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      const show = !form.hidden;
+      [cleanupBtn, attentionBtn, cmdListBtn].forEach(btn => btn.hidden = !show);
+      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
+      if(show) input.focus();
     });
 
     cmdListBtn.addEventListener('click', () => {
