@@ -923,6 +923,7 @@
     if(joinCamBtn){
       joinCamBtn.addEventListener('click', () => {
         if(currentHost){
+          pendingJoinHost = currentHost;
           sendSignal({ type: 'join-request', id: currentHost, user: store.user });
           systemNote('Join request sent');
         }
@@ -931,6 +932,7 @@
     if(joinMicBtn){
       joinMicBtn.addEventListener('click', () => {
         if(currentHost){
+          pendingMicHost = currentHost;
           sendSignal({ type: 'mic-request', id: currentHost, user: store.user });
           systemNote('Mic request sent');
         }
@@ -1294,10 +1296,16 @@
         });
         if(!isSelf){
           camBtn.addEventListener('click', () => {
+            currentHost = id;
+            pendingJoinHost = id;
             sendSignal({ type: 'join-request', id, user: store.user });
+            systemNote('Join request sent');
           });
           micBtn.addEventListener('click', () => {
+            currentHost = id;
+            pendingMicHost = id;
             sendSignal({ type: 'mic-request', id, user: store.user });
+            systemNote('Mic request sent');
           });
           camBtn.hidden = true;
           micBtn.hidden = true;
@@ -2324,6 +2332,12 @@
         {
           label: 'Accept',
           onClick: () => {
+            currentHost = id;
+            if (mode === 'mic') {
+              pendingMicHost = id;
+            } else {
+              pendingJoinHost = id;
+            }
             sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
             hidePopup();
           }
