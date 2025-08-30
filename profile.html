@@ -51,6 +51,11 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <div id="settings-section" hidden>
+    <h3>Notification Settings</h3>
+    <label><input type="checkbox" id="push-toggle" /> Enable push notifications</label><br />
+    <label><input type="checkbox" id="live-toggle" /> Notify when followed users go live</label>
+  </div>
   <h3>Notifications</h3>
   <ul id="p-notifs" class="posts"></ul>
   <h3>Posts</h3>
@@ -73,6 +78,9 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
   const backBtn = document.getElementById('back-btn');
+  const settingsSection = document.getElementById('settings-section');
+  const pushToggle = document.getElementById('push-toggle');
+  const liveToggle = document.getElementById('live-toggle');
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -86,6 +94,58 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       };
       reader.readAsDataURL(file);
     }
+  });
+
+  pushToggle.addEventListener('change', async () => {
+    if (pushToggle.checked) {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') { pushToggle.checked = false; return; }
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const res = await fetch('/push/key');
+        const data = await res.json().catch(()=>({}));
+        if (!data.key) { pushToggle.checked = false; return; }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.key)
+        });
+        await fetch('/push/subscribe', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ username: storeUser, subscription: sub })
+        });
+        await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ push: true })
+        });
+      } catch {
+        pushToggle.checked = false;
+      }
+    } else {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+      }
+      await fetch('/push/unsubscribe', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username: storeUser })
+      });
+      await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ push: false })
+      });
+    }
+  });
+  liveToggle.addEventListener('change', async () => {
+    await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ live: liveToggle.checked })
+    });
   });
 
   async function load(){
@@ -142,6 +202,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
           loadNotifs();
         }
       };
+      settingsSection.hidden = false;
+      loadSettings();
       loadNotifs();
     }
   }
@@ -164,6 +226,23 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       }
       notifsEl.appendChild(li);
     });
+  }
+  async function loadSettings(){
+    const res = await fetch('/notification-settings/' + encodeURIComponent(storeUser));
+    if(!res.ok) return;
+    const data = await res.json().catch(()=>({}));
+    pushToggle.checked = !!data.push;
+    liveToggle.checked = !!data.live;
+  }
+  function urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
   }
   load();
 })();

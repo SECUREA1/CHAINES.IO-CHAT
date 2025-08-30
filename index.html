@@ -1545,6 +1545,9 @@
     async function setupPush(){
       if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
+        const prefRes = await fetch('/notification-settings/' + encodeURIComponent(store.user));
+        const pref = await prefRes.json().catch(()=>({}));
+        if(!pref.push) return;
         const perm = await Notification.requestPermission();
         if(perm !== 'granted') return;
         const reg = await navigator.serviceWorker.register('/sw.js');

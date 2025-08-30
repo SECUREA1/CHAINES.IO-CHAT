@@ -69,6 +69,11 @@ db.exec(`
     username TEXT,
     subscription TEXT
   );
+  CREATE TABLE IF NOT EXISTS notification_settings (
+    username TEXT PRIMARY KEY,
+    push INTEGER DEFAULT 0,
+    live INTEGER DEFAULT 1
+  );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -100,6 +105,42 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   );
 }
 
+function getNotifSettings(username) {
+  const row = db
+    .prepare("SELECT push, live FROM notification_settings WHERE username = ?")
+    .get(username);
+  return { push: row?.push ?? 0, live: row?.live ?? 1 };
+}
+
+function setNotifSettings(username, vals = {}) {
+  const cur = getNotifSettings(username);
+  const next = {
+    push: "push" in vals ? (vals.push ? 1 : 0) : cur.push,
+    live: "live" in vals ? (vals.live ? 1 : 0) : cur.live,
+  };
+  db.prepare(
+    "INSERT INTO notification_settings (username, push, live) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET push=excluded.push, live=excluded.live"
+  ).run(username, next.push, next.live);
+  return next;
+}
+
+function sendPush(username, title, body, opts = {}) {
+  const settings = getNotifSettings(username);
+  if (!settings.push) return;
+  if (opts.requireLive && !settings.live) return;
+  const subs = db
+    .prepare("SELECT subscription FROM push_subscriptions WHERE username = ?")
+    .all(username);
+  for (const { subscription } of subs) {
+    try {
+      webpush.sendNotification(
+        JSON.parse(subscription),
+        JSON.stringify({ title, body })
+      );
+    } catch {}
+  }
+}
+
 app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
   res
@@ -122,6 +163,24 @@ app.post("/push/subscribe", (req, res) => {
     "INSERT INTO push_subscriptions (username, subscription) VALUES (?, ?)"
   ).run(username, JSON.stringify(subscription));
   res.json({ success: true });
+});
+app.post("/push/unsubscribe", (req, res) => {
+  const { username } = req.body || {};
+  if (!username) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  db.prepare("DELETE FROM push_subscriptions WHERE username = ?").run(username);
+  res.json({ success: true });
+});
+
+app.get("/notification-settings/:username", (req, res) => {
+  res.json(getNotifSettings(req.params.username));
+});
+
+app.post("/notification-settings/:username", (req, res) => {
+  const settings = setNotifSettings(req.params.username, req.body || {});
+  res.json(settings);
 });
 
 app.post("/register", upload.single("profile"), async (req, res) => {
@@ -257,6 +316,11 @@ app.post("/profile/:username/follow", (req, res) => {
         req.params.username,
         JSON.stringify({ from: follower })
       );
+    sendPush(
+      req.params.username,
+      "New Follower",
+      `${follower} started following you`
+    );
     res.json({ following: true });
   }
 });
@@ -435,25 +499,17 @@ wss.on("connection", (ws) => {
           .prepare("SELECT follower FROM follows WHERE following = ?")
           .all(ws.username || "");
         for (const { follower } of followers) {
-          const subs = db
-            .prepare("SELECT subscription FROM push_subscriptions WHERE username = ?")
-            .all(follower);
-          for (const { subscription } of subs) {
-            try {
-              webpush.sendNotification(
-                JSON.parse(subscription),
-                JSON.stringify({
-                  title: "New Broadcast",
-                  body: `${ws.username} is live`,
-                })
-              );
-            } catch {}
-          }
           db
             .prepare(
               "INSERT INTO notifications (username, type, data) VALUES (?, 'broadcast', ?)"
             )
             .run(follower, JSON.stringify({ from: ws.username || "", mode: "start" }));
+          sendPush(
+            follower,
+            "New Broadcast",
+            `${ws.username} is live`,
+            { requireLive: true }
+          );
         }
         const hostId = guestHosts.get(ws.id);
         if(hostId){
@@ -508,6 +564,11 @@ wss.on("connection", (ws) => {
               host.username || "",
               JSON.stringify({ from: ws.username || "", mode: "join" })
             );
+          sendPush(
+            host.username || "",
+            "Broadcast Request",
+            `${ws.username || "Someone"} requested to join your broadcast`
+          );
         } else {
           ws.send(JSON.stringify({ type: "join-denied" }));
         }
@@ -527,6 +588,11 @@ wss.on("connection", (ws) => {
               host.username || "",
               JSON.stringify({ from: ws.username || "", mode: "mic" })
             );
+          sendPush(
+            host.username || "",
+            "Broadcast Request",
+            `${ws.username || "Someone"} requested to join via mic`
+          );
         }
         return;
       }
@@ -670,6 +736,11 @@ wss.on("connection", (ws) => {
                 owner,
                 JSON.stringify({ from: msg.user || "", messageId: msg.messageId })
               );
+            sendPush(
+              owner,
+              "New Like",
+              `${msg.user || "Someone"} liked your post #${msg.messageId}`
+            );
           }
         }
         const count = db
@@ -770,6 +841,11 @@ wss.on("connection", (ws) => {
             "INSERT INTO notifications (username, type, data) VALUES (?, 'self-destruct', ?)"
           )
           .run(msg.user || "", JSON.stringify({ messageId: msg.id }));
+        sendPush(
+          msg.user || "",
+          "Message Removed",
+          `Your post #${msg.id} self-destructed`
+        );
         for (const client of wss.clients) {
           if (client.readyState === 1 && client.username === (msg.user || "")) {
             client.send(
