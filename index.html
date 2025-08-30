@@ -288,6 +288,7 @@
   overflow-y: hidden;
   width: 100%;
   scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
 }
 
 /* Self tile row */
@@ -669,7 +670,7 @@
           <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
-      <div class="status top">
+      <div class="status top" id="broadcast-menu" hidden>
         <div class="chip" id="invite-cc">
           <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
           <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
@@ -864,6 +865,7 @@
     const thumbCamera = el('#thumb-camera');
     const thumbSkip = el('#thumb-skip');
     const listenerCountBtn = el('#listener-count');
+    const broadcastMenu = el('#broadcast-menu');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#remote-tiles');
@@ -1749,6 +1751,7 @@
       }
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
+      if(broadcastMenu) broadcastMenu.removeAttribute('hidden');
       if(cameraBtn){
         cameraBtn.hidden = audioOnly;
         cameraBtn.classList.remove('off');
@@ -1944,6 +1947,7 @@
       document.documentElement.style.removeProperty('--footer-height');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
+      if(broadcastMenu) broadcastMenu.setAttribute('hidden','');
       if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
