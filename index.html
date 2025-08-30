@@ -2086,11 +2086,19 @@
       }
 
     function handleJoinRequest(id, user){
-      const ok = confirm(`Allow @${user || 'user'} to join?`);
-      sendSignal({ type: ok ? 'approve-join' : 'deny-join', id });
-      if(ok){
-        setTimeout(() => startWatching(id), 1000);
-      }
+      const li = document.createElement('li');
+      li.className = 'system';
+      li.innerHTML = `@${user || 'user'} wants to join. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
+      feed.insertBefore(li, feed.firstChild);
+      li.querySelector('.accept').addEventListener('click', () => {
+        sendSignal({ type: 'approve-join', id });
+        startWatching(id);
+        li.remove();
+      });
+      li.querySelector('.deny').addEventListener('click', () => {
+        sendSignal({ type: 'deny-join', id });
+        li.remove();
+      });
     }
 
     function handleJoinApproved(){
@@ -2117,8 +2125,18 @@
     }
 
     function handleMicRequest(id, user){
-      const ok = confirm(`Allow @${user || 'user'} to speak?`);
-      sendSignal({ type: ok ? 'approve-mic' : 'deny-mic', id });
+      const li = document.createElement('li');
+      li.className = 'system';
+      li.innerHTML = `@${user || 'user'} wants to speak. <button class="accept">Accept</button> <button class="deny">Deny</button>`;
+      feed.insertBefore(li, feed.firstChild);
+      li.querySelector('.accept').addEventListener('click', () => {
+        sendSignal({ type: 'approve-mic', id });
+        li.remove();
+      });
+      li.querySelector('.deny').addEventListener('click', () => {
+        sendSignal({ type: 'deny-mic', id });
+        li.remove();
+      });
     }
 
     function handleMicApproved(){
