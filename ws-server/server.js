@@ -124,7 +124,7 @@ function setNotifSettings(username, vals = {}) {
   return next;
 }
 
-function sendPush(username, title, body, opts = {}) {
+async function sendPush(username, title, body, opts = {}) {
   const settings = getNotifSettings(username);
   if (!settings.push) return;
   if (opts.requireLive && !settings.live) return;
@@ -133,11 +133,17 @@ function sendPush(username, title, body, opts = {}) {
     .all(username);
   for (const { subscription } of subs) {
     try {
-      webpush.sendNotification(
+      await webpush.sendNotification(
         JSON.parse(subscription),
         JSON.stringify({ title, body })
       );
-    } catch {}
+    } catch (err) {
+      try {
+        db.prepare("DELETE FROM push_subscriptions WHERE subscription = ?").run(
+          subscription
+        );
+      } catch {}
+    }
   }
 }
 
@@ -290,7 +296,7 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
   res.json({ success: true, profilePic: pic });
 });
 
-app.post("/profile/:username/follow", (req, res) => {
+app.post("/profile/:username/follow", async (req, res) => {
   const { follower } = req.body || {};
   if (!follower) {
     res.status(400).json({ error: "Missing follower" });
@@ -316,7 +322,7 @@ app.post("/profile/:username/follow", (req, res) => {
         req.params.username,
         JSON.stringify({ from: follower })
       );
-    sendPush(
+    await sendPush(
       req.params.username,
       "New Follower",
       `${follower} started following you`
@@ -504,7 +510,7 @@ wss.on("connection", (ws) => {
               "INSERT INTO notifications (username, type, data) VALUES (?, 'broadcast', ?)"
             )
             .run(follower, JSON.stringify({ from: ws.username || "", mode: "start" }));
-          sendPush(
+          await sendPush(
             follower,
             "New Broadcast",
             `${ws.username} is live`,
@@ -564,7 +570,7 @@ wss.on("connection", (ws) => {
               host.username || "",
               JSON.stringify({ from: ws.username || "", mode: "join" })
             );
-          sendPush(
+          await sendPush(
             host.username || "",
             "Broadcast Request",
             `${ws.username || "Someone"} requested to join your broadcast`
@@ -588,7 +594,7 @@ wss.on("connection", (ws) => {
               host.username || "",
               JSON.stringify({ from: ws.username || "", mode: "mic" })
             );
-          sendPush(
+          await sendPush(
             host.username || "",
             "Broadcast Request",
             `${ws.username || "Someone"} requested to join via mic`
@@ -736,7 +742,7 @@ wss.on("connection", (ws) => {
                 owner,
                 JSON.stringify({ from: msg.user || "", messageId: msg.messageId })
               );
-            sendPush(
+            await sendPush(
               owner,
               "New Like",
               `${msg.user || "Someone"} liked your post #${msg.messageId}`
@@ -841,7 +847,7 @@ wss.on("connection", (ws) => {
             "INSERT INTO notifications (username, type, data) VALUES (?, 'self-destruct', ?)"
           )
           .run(msg.user || "", JSON.stringify({ messageId: msg.id }));
-        sendPush(
+        await sendPush(
           msg.user || "",
           "Message Removed",
           `Your post #${msg.id} self-destructed`
