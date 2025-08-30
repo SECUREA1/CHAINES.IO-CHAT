@@ -868,7 +868,6 @@
     const layouts = ['split', 'self', 'guest', 'pip'];
     let layoutMode = 'split';
     let cameraOff = false;
-    let savedVideoTrack = null;
     let blankTrack = null;
 
     // ensure header and footer remain visible
@@ -1660,7 +1659,6 @@
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
-        savedVideoTrack = null;
         broadcasting = true;
         if(joinControls) joinControls.setAttribute('hidden','');
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
@@ -1815,7 +1813,7 @@
           ctx.fillStyle = 'black';
           ctx.fillRect(0,0,canvas.width,canvas.height);
           blankTrack = canvas.captureStream().getVideoTracks()[0];
-          savedVideoTrack = videoTrack;
+          videoTrack.stop();
           localStream.removeTrack(videoTrack);
           localStream.addTrack(blankTrack);
           for(const id in peerConnections){
@@ -1826,18 +1824,24 @@
           cameraOff = true;
           if(cameraBtn){ cameraBtn.classList.add('off'); cameraBtn.title = 'Turn camera on'; }
         } else {
-          if(!savedVideoTrack) return;
-          localStream.removeTrack(blankTrack);
-          blankTrack && blankTrack.stop();
-          blankTrack = null;
-          localStream.addTrack(savedVideoTrack);
-          for(const id in peerConnections){
-            const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-            if(sender) sender.replaceTrack(savedVideoTrack);
-          }
-          if(broadcastVideo) broadcastVideo.srcObject = localStream;
-          cameraOff = false;
-          if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
+            .then(stream => {
+              const newVideoTrack = stream.getVideoTracks()[0];
+              if(blankTrack){
+                localStream.removeTrack(blankTrack);
+                blankTrack.stop();
+                blankTrack = null;
+              }
+              localStream.addTrack(newVideoTrack);
+              for(const id in peerConnections){
+                const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+                if(sender) sender.replaceTrack(newVideoTrack);
+              }
+              if(broadcastVideo) broadcastVideo.srcObject = localStream;
+              cameraOff = false;
+              if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
+            })
+            .catch(() => alert('Unable to access camera'));
         }
       }
 
@@ -1852,7 +1856,6 @@
         }
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
-        savedVideoTrack = null;
       overlayMessages = [];
       activeRooms.delete(clientId);
       if(activeRooms.size === 0) feed.removeAttribute('hidden');
