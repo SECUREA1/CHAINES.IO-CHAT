@@ -1881,6 +1881,29 @@
           } else {
             videoContainer.appendChild(mediaEl);
           }
+          // also show our local stream in the self tile so it appears in the tiles list
+          const selfStream = streams[clientId];
+          if(selfStream){
+            const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
+            tileEl.srcObject = stream;
+            tileEl.muted = true;
+            tileEl.setAttribute('muted','');
+            tileEl.autoplay = true;
+            tileEl.setAttribute('autoplay','');
+            tileEl.playsInline = true;
+            tileEl.setAttribute('playsinline','');
+            tileEl.controls = true;
+            selfStream.video.innerHTML = '';
+            selfStream.video.appendChild(tileEl);
+            if(!audioOnly){
+              attachCaptions(tileEl);
+              selfStream.captionTrack = tileEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+              selfStream.captionTrack.mode = 'showing';
+            }
+            selfStream.vid = tileEl;
+            selfStream.started = true;
+            updateVideoLayout(selfStream.video);
+          }
           updateVideoLayout();
           const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
@@ -2121,64 +2144,102 @@
           pc = new RTCPeerConnection();
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
-            if(ev.track.kind !== 'video') return;
-            const vid = document.createElement('video');
-            vid.srcObject = ev.streams[0];
-            vid.autoplay = true;
-            vid.setAttribute('autoplay','');
-            vid.playsInline = true;
-            vid.setAttribute('playsinline','');
-            vid.controls = true;
-            attachCaptions(vid);
-            const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-            liveTrack.mode = 'showing';
+            const stream = ev.streams[0];
             if(broadcasting){
-              const guestCanvas = el('#guest-canvas');
-              if(guestCanvas){
-                guestCanvas.innerHTML = '';
-                guestCanvas.appendChild(vid);
-              } else {
-                videoContainer.appendChild(vid);
-              }
-              updateVideoLayout();
-              try{ localStream && localStream.addTrack(ev.track); }catch{}
-              for(const id in peerConnections){
-                if(id === msg.id) continue;
-                try{
-                  const pc2 = peerConnections[id];
-                  pc2.addTrack(ev.track, ev.streams[0]);
-                  pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
-                    sendSignal({ type:'offer', id, sdp: pc2.localDescription });
-                  });
-                }catch{}
+              if(ev.track.kind === 'video'){
+                const vid = document.createElement('video');
+                vid.srcObject = stream;
+                vid.autoplay = true;
+                vid.setAttribute('autoplay','');
+                vid.playsInline = true;
+                vid.setAttribute('playsinline','');
+                vid.controls = true;
+                attachCaptions(vid);
+                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                liveTrack.mode = 'showing';
+                const guestCanvas = el('#guest-canvas');
+                if(guestCanvas){
+                  guestCanvas.innerHTML = '';
+                  guestCanvas.appendChild(vid);
+                } else {
+                  videoContainer.appendChild(vid);
+                }
+                updateVideoLayout();
+                try{ localStream && localStream.addTrack(ev.track); }catch{}
+                for(const id in peerConnections){
+                  if(id === msg.id) continue;
+                  try{
+                    const pc2 = peerConnections[id];
+                    pc2.addTrack(ev.track, stream);
+                    pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
+                      sendSignal({ type:'offer', id, sdp: pc2.localDescription });
+                    });
+                  }catch{}
+                }
+                // try to begin playback immediately (mobile requires user gesture)
+                vid.muted = true;
+                vid.setAttribute('muted','');
+                const playPromise = vid.play();
+                if(playPromise && playPromise.then){
+                  playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+                } else {
+                  vid.muted = false;
+                  vid.removeAttribute('muted');
+                }
+                pc._videos = pc._videos || [];
+                pc._videos.push(vid);
+              } else if(ev.track.kind === 'audio'){
+                try{ localStream && localStream.addTrack(ev.track); }catch{}
               }
             } else {
-              const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
-              const box = target && target.video;
-              if(box){
-                box.appendChild(vid);
-                updateVideoLayout(box);
-                if(guestMap[msg.id]) target.guestVid = vid;
+              if(ev.track.kind === 'video'){
+                const vid = document.createElement('video');
+                vid.srcObject = stream;
+                vid.autoplay = true;
+                vid.setAttribute('autoplay','');
+                vid.playsInline = true;
+                vid.setAttribute('playsinline','');
+                vid.controls = true;
+                attachCaptions(vid);
+                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                liveTrack.mode = 'showing';
+                const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
+                const box = target && target.video;
+                if(box){
+                  box.appendChild(vid);
+                  updateVideoLayout(box);
+                  if(guestMap[msg.id]) target.guestVid = vid;
+                }
+                vid.muted = true;
+                vid.setAttribute('muted','');
+                const playPromise = vid.play();
+                if(playPromise && playPromise.then){
+                  playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
+                } else {
+                  vid.muted = false;
+                  vid.removeAttribute('muted');
+                }
+                if(streams[msg.id]){
+                  if(!streams[msg.id].vid) streams[msg.id].vid = vid;
+                  streams[msg.id].captionTrack = liveTrack;
+                } else if(guestMap[msg.id] && streams[guestMap[msg.id]]){
+                  streams[guestMap[msg.id]].captionTrack = liveTrack;
+                }
+                pc._videos = pc._videos || [];
+                pc._videos.push(vid);
+              } else if(ev.track.kind === 'audio'){
+                const target = guestMap[msg.id] ? streams[guestMap[msg.id]] : streams[msg.id];
+                const box = target && target.video;
+                if(box && !box.querySelector('audio')){
+                  const aud = document.createElement('audio');
+                  aud.srcObject = stream;
+                  aud.autoplay = true;
+                  aud.setAttribute('autoplay','');
+                  aud.controls = true;
+                  box.appendChild(aud);
+                }
               }
             }
-            // try to begin playback immediately (mobile requires user gesture)
-            vid.muted = true;
-            vid.setAttribute('muted','');
-            const playPromise = vid.play();
-            if(playPromise && playPromise.then){
-              playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
-            } else {
-              vid.muted = false;
-              vid.removeAttribute('muted');
-            }
-            if(streams[msg.id]){
-              if(!streams[msg.id].vid) streams[msg.id].vid = vid;
-              streams[msg.id].captionTrack = liveTrack;
-            } else if(guestMap[msg.id] && streams[guestMap[msg.id]]){
-              streams[guestMap[msg.id]].captionTrack = liveTrack;
-            }
-            pc._videos = pc._videos || [];
-            pc._videos.push(vid);
           };
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
         }
@@ -2312,7 +2373,8 @@
 
     function handleGuestStart({ id, host }){
       guestMap[id] = host;
-      if(streams[id]){
+      // Remove the guest's separate tile for other viewers but keep our own
+      if(id !== clientId && streams[id]){
         streams[id].container.remove();
         delete streams[id];
       }
@@ -2323,7 +2385,13 @@
           startWatching(host);
           hostStream.started = true;
         }
-        startWatching(id);
+        // Other viewers watch the guest separately so their video can be merged
+        if(id !== clientId) startWatching(id);
+      }
+      // Ensure the guest sees their own tile when joining
+      if(id === clientId && streams[id]){
+        streams[id].container.classList.add('open');
+        streams[id].started = true;
       }
       layoutMode = 'split';
       updateVideoLayout();
