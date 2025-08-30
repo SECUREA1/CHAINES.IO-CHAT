@@ -93,8 +93,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #controls-toggle { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #controls-toggle {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -106,8 +106,8 @@
         width:24px;
         height:24px;
       }
-      /* layout toggle button is hidden by default and revealed when multiple videos are present */
-
+      #swap-btn { display:none; }
+      body.broadcast-mode #swap-btn { display:flex; }
       #camera-btn.off img { opacity:0.5; }
       #invite-cc {
         display:flex;
@@ -285,9 +285,7 @@
   gap: 10px;
   padding: 10px;
   overflow-x: auto;
-  overflow-y: hidden;
   width: 100%;
-  scroll-snap-type: x mandatory;
 }
 
 /* Self tile row */
@@ -307,7 +305,6 @@
   padding: 8px;
   background: var(--panel);
   cursor: pointer;
-  scroll-snap-align: start;
 }
 
 /* Expanded stream state */
@@ -321,12 +318,7 @@
     .stream.open .thumb { display:none; }
     .stream .video { display:none; }
     .stream.open .video { display:block; }
-    .stream .video video {
-      width:100%;
-      border-radius:8px;
-      aspect-ratio:16/9;
-      object-fit:cover;
-    }
+    .stream .video video { width:100%; border-radius:8px; }
     .stream.open .video.has-guest { display:flex; }
     .stream.open .video.has-guest video {
       width:50%;
@@ -392,67 +384,10 @@
       cursor:pointer;
     }
     .tune-btn:disabled { opacity:.5; cursor:not-allowed; }
-    #video-container {
-      position: relative;
-      max-width: 640px;
-      margin: 12px auto 0;
-      border: 1px solid var(--lining);
-      border-radius: 12px;
-      background: var(--panel);
-      overflow: hidden;
-    }
-    #video-container video {
-      width: 100%;
-      height: 100%;
-      aspect-ratio: 16/9;
-      object-fit: cover;
-      display: block;
-    }
-    .video-canvas {
-      position: relative;
-    }
-    #video-container.has-guest {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
-    #video-container.has-guest #host-canvas,
-    #video-container.has-guest #guest-canvas {
-      width: 100%;
-      height: 100%;
-    }
-    @media (orientation: portrait) {
-      #video-container.has-guest {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
-      }
-      #video-container.has-guest #host-canvas,
-      #video-container.has-guest #guest-canvas {
-        width: 100%;
-        height: 100%;
-      }
-    }
-    #video-container.pip {
-      display: block;
-    }
-    #video-container.pip #host-canvas {
-      width: 100%;
-      height: 100%;
-    }
-    #video-container.pip #guest-canvas {
-      position: absolute;
-      width: 30%;
-      height: 30%;
-      bottom: 10px;
-      right: 10px;
-      border: 2px solid #fff;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    #video-container.pip #guest-canvas video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    #video-container { display:flex; flex-wrap:wrap; gap:10px; padding:10px; justify-content:center; }
+    #video-container video { max-width:240px; border-radius:12px; border:1px solid var(--lining); }
+    .video-canvas { position:relative; flex:1 1 50%; display:flex; align-items:center; justify-content:center; }
+    .video-canvas video { width:100%; height:100%; object-fit:contain; }
 
     #overlay-chat {
       position: fixed;
@@ -521,6 +456,24 @@
     }
     .broadcast-controls .chip { flex:1; }
     body.broadcast-mode .broadcast-controls { display:flex; }
+    body.broadcast-mode #video-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    body.broadcast-mode #video-container video {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      border: 0;
+      border-radius: 0;
+      object-fit: contain;
+    }
     body.broadcast-mode #feed {
       position: fixed;
       left: 0;
@@ -562,23 +515,55 @@
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
     }
-    body.broadcast-mode main {
-      padding-top: calc(var(--header-height, 0px) + 8px);
-      padding-bottom: calc(var(--footer-height, 0px) + 8px);
-    }
     body.broadcast-mode #feed .bubble {
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
       color: #fff;
     }
     body.broadcast-mode #feed .meta { color: #ddd; }
+    body.broadcast-mode #video-container.has-guest {
+      display: flex;
+    }
+    body.broadcast-mode #video-container.has-guest #host-canvas,
+    body.broadcast-mode #video-container.has-guest #guest-canvas {
+      width: 50%;
+      height: 100%;
+      max-width: 50%;
+      max-height: 100%;
+    }
+    @media (orientation: portrait) {
+      body.broadcast-mode #video-container.has-guest {
+        flex-direction: column;
+      }
+      body.broadcast-mode #video-container.has-guest #host-canvas,
+      body.broadcast-mode #video-container.has-guest #guest-canvas {
+        width: 100%;
+        height: 50%;
+        max-width: 100%;
+        max-height: 50%;
+      }
+    }
 
-    /* Hide UI controls when toggled */
-    body.controls-hidden header .top-actions > :not(#controls-toggle),
-    body.controls-hidden header .toolbar,
-    body.controls-hidden header .status.top,
-    body.controls-hidden footer {
-      display: none;
+    body.broadcast-mode #video-container.pip {
+      display: block;
+    }
+    body.broadcast-mode #video-container.pip #host-canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    body.broadcast-mode #video-container.pip #guest-canvas {
+      position: absolute;
+      width: 30%;
+      height: 30%;
+      bottom: 10px;
+      right: 10px;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      max-width: none;
+      max-height: none;
+      overflow: hidden;
     }
 
     #thumb-chooser {
@@ -615,18 +600,6 @@
       font-size: 1rem;
     }
 
-    #controls-toggle {
-      position: fixed;
-      top: 8px;
-      right: 8px;
-      z-index: 10;
-    }
-
-    body.controls-hidden header,
-    body.controls-hidden footer {
-      display: none;
-    }
-
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -639,7 +612,6 @@
   </style>
 </head>
 <body>
-  <button id="controls-toggle" class="chip" type="button" title="Toggle controls">🎛</button>
   <div class="wrap">
     <header>
                 <div class="bar">
@@ -656,10 +628,9 @@
               <img src="static/camera.svg" alt="Toggle camera" />
             </button>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
-            <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
+            <button class="chip" id="swap-btn" type="button" title="Split view">
               <img src="static/flip.svg" alt="Switch view" />
             </button>
-            <button class="chip" id="controls-toggle" type="button" title="Toggle controls">🎛️</button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
@@ -847,13 +818,11 @@
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const swapBtn = el('#swap-btn');
-    const controlsToggle = el('#controls-toggle');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
-    const controlsToggle = el('#controls-toggle');
     const cameraBtn = el('#camera-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -895,23 +864,11 @@
       new MutationObserver(() => keepVisible(el)).observe(el, { attributes: true });
     });
 
-    function updateOffsets(){
-      document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
-      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
-    }
-    updateOffsets();
-
     el('#year').textContent = new Date().getFullYear();
 
     chatToggle.addEventListener('click', () => {
       document.body.classList.toggle('chat-open');
     });
-
-    if(controlsToggle){
-      controlsToggle.addEventListener('click', () => {
-        document.body.classList.toggle('controls-hidden');
-      });
-    }
 
     if(cameraBtn){
       cameraBtn.addEventListener('click', toggleCamera);
@@ -923,11 +880,6 @@
       swapBtn.addEventListener('click', swapVideos);
       swapBtn.title = layoutTitles[layoutMode];
     }
-    if(controlsToggle){
-      controlsToggle.addEventListener('click', () => {
-        document.body.classList.toggle('controls-hidden');
-      });
-    }
 
     window.addEventListener('resize', () => {
       updateVideoLayout();
@@ -936,7 +888,6 @@
           updateVideoLayout(streams[id].video);
         }
       }
-      if(document.body.classList.contains('broadcast-mode')) updateOffsets();
     });
 
     // --- Basic state ---
@@ -1278,19 +1229,8 @@
           }
         });
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
-        if (isSelf) {
-          selfStreamEl.innerHTML = '';
-          selfStreamEl.appendChild(div);
-        } else {
-          streamsEl.prepend(div);
-        }
+        (isSelf ? selfStreamEl : streamsEl).appendChild(div);
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, requestBtn: reqBtn, micBtn, tuneBtn, vid: null, captionTrack: null, thumbEl };
-        if (broadcasting && !isSelf) {
-          div.classList.add('open');
-          startWatching(id);
-          streams[id].started = true;
-          if (streams[id].tuneBtn) streams[id].tuneBtn.disabled = true;
-        }
       }
       function chooseThumbnail(){
         return new Promise(resolve => {
@@ -1743,10 +1683,7 @@
       broadcastBtn.title = 'End live broadcast';
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
-      if(!audioOnly) {
-        document.body.classList.add('broadcast-mode');
-        updateOffsets();
-      }
+      if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
@@ -1940,8 +1877,6 @@
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
       document.body.classList.remove('broadcast-mode');
-      document.documentElement.style.removeProperty('--header-height');
-      document.documentElement.style.removeProperty('--footer-height');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
       if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
@@ -1962,13 +1897,11 @@
 
       function updateVideoLayout(container = videoContainer){
         const vids = container.querySelectorAll('video');
+        const multi = vids.length > 1;
         if(container === videoContainer){
-          if(vids.length) container.removeAttribute('hidden');
-          else container.setAttribute('hidden','');
           vids.forEach(v => v.style.display = '');
           if(layoutMode === 'self' && vids[1]) vids[1].style.display = 'none';
           if(layoutMode === 'guest' && vids[0]) vids[0].style.display = 'none';
-          const multi = vids.length > 1;
           container.classList.toggle('has-guest', multi && layoutMode === 'split');
           container.classList.toggle('pip', multi && layoutMode === 'pip');
           const guestCanvas = el('#guest-canvas');
@@ -1980,7 +1913,6 @@
           if(swapBtn) swapBtn.hidden = !multi;
           if(swapBtn) swapBtn.title = layoutTitles[layoutMode];
         } else {
-          const multi = vids.length > 1;
           container.classList.toggle('has-guest', multi && layoutMode === 'split');
           container.classList.toggle('pip', multi && layoutMode === 'pip');
         }
