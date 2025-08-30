@@ -5,10 +5,8 @@
       <stop offset="100%" stop-color="#0072FF" />
     </linearGradient>
   </defs>
-  <rect x="2" y="4" width="20" height="16" rx="2" />
-  <polyline points="2,6 12,13 22,6" />
-  <rect x="9" y="9" width="6" height="7" rx="3" />
-  <path d="M5 14a7 7 0 0 0 14 0" />
-  <line x1="12" y1="21" x2="12" y2="17" />
-  <line x1="8" y1="21" x2="16" y2="21" />
+  <circle cx="7" cy="12" r="3" />
+  <path d="M10 12h11" />
+  <path d="M18 12v3" />
+  <path d="M15 12v3" />
 </svg>
