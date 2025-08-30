@@ -88,8 +88,9 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:center; gap:8px; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; flex-wrap:wrap; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
+    footer .status.bottom .composer { flex:1; }
     .send img { width:24px; height:24px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
@@ -213,8 +214,8 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
-    #composer { grid-template-columns: minmax(0,1fr) repeat(2,56px); }
+    .composer { display:flex; align-items:center; gap:10px; margin:0; width:100%; }
+    #composer { flex:1; }
     .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
@@ -693,13 +694,22 @@
       </main>
 
     <footer>
-      <form id="composer" class="composer" autocomplete="off" hidden>
-        <label class="input" for="text">
-          <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
-        </label>
-        <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
-        <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
-      </form>
+      <div class="status bottom">
+        <button class="chip live-btn" id="broadcast-btn" title="Go live">
+          <span class="live-dot"></span><img src="static/camera.svg" alt="Go live" />Go Live
+        </button>
+        <button id="post-btn" class="chip" title="Post" aria-label="Post"><img src="static/post.svg" alt="Post" /></button>
+        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands" hidden><img src="static/command.svg" alt="Commands" /></button>
+        <button id="cleanup-btn" class="chip" title="Clean up" aria-label="Clean up" hidden><img src="static/cleanup.svg" alt="Clean up" /></button>
+        <button id="attention-btn" class="chip" title="Attention" aria-label="Attention" hidden><img src="static/attention.svg" alt="Attention" /></button>
+        <form id="composer" class="composer" autocomplete="off" hidden>
+          <label class="input" for="text">
+            <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
+          </label>
+          <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
+          <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
+        </form>
+      </div>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
@@ -711,15 +721,6 @@
         </label>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
-      <div class="status bottom">
-        <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <span class="live-dot"></span><img src="static/camera.svg" alt="Go live" />Go Live
-        </button>
-        <button id="post-btn" class="chip" title="Post" aria-label="Post"><img src="static/post.svg" alt="Post" /></button>
-        <button id="cleanup-btn" class="chip" title="Clean up" aria-label="Clean up" hidden><img src="static/cleanup.svg" alt="Clean up" /></button>
-        <button id="attention-btn" class="chip" title="Attention" aria-label="Attention" hidden><img src="static/attention.svg" alt="Attention" /></button>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands" hidden><img src="static/command.svg" alt="Commands" /></button>
-      </div>
     </footer>
   </div>
 
