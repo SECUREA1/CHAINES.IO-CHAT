@@ -562,6 +562,10 @@
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
     }
+    body.broadcast-mode main {
+      padding-top: calc(var(--header-height, 0px) + 8px);
+      padding-bottom: calc(var(--footer-height, 0px) + 8px);
+    }
     body.broadcast-mode #feed .bubble {
       background: rgba(0,0,0,0.6);
       border-color: rgba(255,255,255,0.2);
@@ -891,6 +895,12 @@
       new MutationObserver(() => keepVisible(el)).observe(el, { attributes: true });
     });
 
+    function updateOffsets(){
+      document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
+      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
+    }
+    updateOffsets();
+
     el('#year').textContent = new Date().getFullYear();
 
     chatToggle.addEventListener('click', () => {
@@ -926,6 +936,7 @@
           updateVideoLayout(streams[id].video);
         }
       }
+      if(document.body.classList.contains('broadcast-mode')) updateOffsets();
     });
 
     // --- Basic state ---
@@ -1732,7 +1743,10 @@
       broadcastBtn.title = 'End live broadcast';
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
-      if(!audioOnly) document.body.classList.add('broadcast-mode');
+      if(!audioOnly) {
+        document.body.classList.add('broadcast-mode');
+        updateOffsets();
+      }
       videoContainer.removeAttribute('hidden');
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
@@ -1926,6 +1940,8 @@
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
       document.body.classList.remove('broadcast-mode');
+      document.documentElement.style.removeProperty('--header-height');
+      document.documentElement.style.removeProperty('--footer-height');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
       if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
