@@ -93,8 +93,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #controls-toggle { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #controls-toggle {
       width:36px;
       height:36px;
       padding:0;
@@ -408,25 +408,6 @@
       object-fit: cover;
       display: block;
     }
-
-    body.broadcast-mode #video-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      margin: 0;
-      max-width: none;
-      border: 0;
-      border-radius: 0;
-    }
-    body.broadcast-mode #video-container video {
-      object-fit: contain;
-    }
-
-    body.broadcast-mode #overlay-chat {
-      bottom: 70px;
-    }
     .video-canvas {
       position: relative;
     }
@@ -470,22 +451,6 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-    }
-
-    #video-container.three {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-    }
-    #video-container.three video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    @media (orientation: portrait) {
-      #video-container.three {
-        grid-template-columns: 1fr;
-        grid-template-rows: repeat(3, 1fr);
-      }
     }
 
     #overlay-chat {
@@ -581,9 +546,20 @@
       z-index: 1002;
       background: rgba(0,0,0,0.03);
     }
-    body.broadcast-mode #stream-tiles { display:none; }
     body.broadcast-mode header {
-      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(4px);
+      z-index: 1003;
+    }
+    body.broadcast-mode header .brand { display:none; }
+    body.broadcast-mode header .status.top { width:100%; justify-content:center; }
+    body.broadcast-mode header .chip {
+      background: rgba(0,0,0,0.6);
+      border-color: rgba(255,255,255,0.2);
     }
     body.broadcast-mode #feed .bubble {
       background: rgba(0,0,0,0.6);
@@ -591,6 +567,14 @@
       color: #fff;
     }
     body.broadcast-mode #feed .meta { color: #ddd; }
+
+    /* Hide UI controls when toggled */
+    body.controls-hidden header .top-actions > :not(#controls-toggle),
+    body.controls-hidden header .toolbar,
+    body.controls-hidden header .status.top,
+    body.controls-hidden footer {
+      display: none;
+    }
 
     #thumb-chooser {
       position: fixed;
@@ -657,6 +641,7 @@
             <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
               <img src="static/flip.svg" alt="Switch view" />
             </button>
+            <button class="chip" id="controls-toggle" type="button" title="Toggle controls">🎛️</button>
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
@@ -844,6 +829,7 @@
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const swapBtn = el('#swap-btn');
+    const controlsToggle = el('#controls-toggle');
     const inviteBtn = el('#invite-btn');
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
@@ -905,6 +891,11 @@
     if(swapBtn){
       swapBtn.addEventListener('click', swapVideos);
       swapBtn.title = layoutTitles[layoutMode];
+    }
+    if(controlsToggle){
+      controlsToggle.addEventListener('click', () => {
+        document.body.classList.toggle('controls-hidden');
+      });
     }
 
     window.addEventListener('resize', () => {
@@ -1941,7 +1932,6 @@
           if(layoutMode === 'guest' && vids[0]) vids[0].style.display = 'none';
           container.classList.toggle('has-guest', multi && layoutMode === 'split');
           container.classList.toggle('pip', multi && layoutMode === 'pip');
-          container.classList.toggle('three', vids.length === 3 && layoutMode === 'split');
           const guestCanvas = el('#guest-canvas');
           if(guestCanvas) guestCanvas.hidden = guestCanvas.querySelectorAll('video').length === 0;
           vids.forEach(v => v.onclick = null);
@@ -1953,7 +1943,6 @@
         } else {
           container.classList.toggle('has-guest', multi && layoutMode === 'split');
           container.classList.toggle('pip', multi && layoutMode === 'pip');
-          container.classList.toggle('three', vids.length === 3 && layoutMode === 'split');
         }
       }
 
