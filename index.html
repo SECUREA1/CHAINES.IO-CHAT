@@ -327,6 +327,7 @@
     .stream .video { display:none; }
     .stream.open .video { display:block; }
     .stream .tune-btn { margin-top:6px; width:100%; }
+    .stream .cam-btn, .stream .mic-btn { margin-top:6px; width:100%; }
     .stream .video video {
       width:100%;
       border-radius:8px;
@@ -1260,7 +1261,7 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><button class="tune-btn chip" type="button">Tune In</button><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -1269,6 +1270,8 @@
         const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
         const tuneBtn = div.querySelector('.tune-btn');
+        const camBtn = div.querySelector('.cam-btn');
+        const micBtn = div.querySelector('.mic-btn');
         form.addEventListener('submit', ev => {
           ev.preventDefault();
           const text = input.value.trim();
@@ -1277,21 +1280,35 @@
           input.value='';
         });
         if(!isSelf){
+          camBtn.addEventListener('click', () => {
+            sendSignal({ type: 'join-request', id, user: store.user });
+          });
+          micBtn.addEventListener('click', () => {
+            sendSignal({ type: 'mic-request', id, user: store.user });
+          });
+          camBtn.hidden = true;
+          micBtn.hidden = true;
           tuneBtn.addEventListener('click', () => {
             if(streams[id].started){
               endWatching(id);
               streams[id].started = false;
               div.classList.remove('open');
               tuneBtn.textContent = 'Tune In';
+              camBtn.hidden = true;
+              micBtn.hidden = true;
             } else {
               startWatching(id);
               streams[id].started = true;
               div.classList.add('open');
               tuneBtn.textContent = 'Leave';
+              camBtn.hidden = false;
+              micBtn.hidden = false;
             }
           });
         } else {
           tuneBtn.style.display = 'none';
+          camBtn.style.display = 'none';
+          micBtn.style.display = 'none';
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         (isSelf ? selfStreamEl : streamsEl).appendChild(div);
