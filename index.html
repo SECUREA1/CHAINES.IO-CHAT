@@ -1655,7 +1655,7 @@
       }
 
     // --- WebRTC helpers ---
-      function startBroadcast(stream, audioOnly=false){
+      function startBroadcast(stream, audioOnly=false, asGuest=false){
         if(broadcasting) return;
         overlayMessages = [];
         cameraOff = false;
@@ -1768,10 +1768,10 @@
               try{ speechRec.start(); }catch{}
             }
           }
-          const hostCanvas = el('#host-canvas');
-          if(hostCanvas){
-            hostCanvas.innerHTML = '';
-            hostCanvas.appendChild(mediaEl);
+          const canvas = el(asGuest ? '#guest-canvas' : '#host-canvas');
+          if(canvas){
+            canvas.innerHTML = '';
+            canvas.appendChild(mediaEl);
           } else {
             videoContainer.appendChild(mediaEl);
           }
@@ -2153,7 +2153,18 @@
         startWatching(pendingJoinHost);
         stream.started = true;
       }
-      startBroadcast();
+      const hostVid = stream && stream.video.querySelector('video');
+      if(hostVid){
+        const hostCanvas = el('#host-canvas');
+        if(hostCanvas){
+          hostCanvas.innerHTML = '';
+          hostCanvas.appendChild(hostVid);
+        } else {
+          videoContainer.appendChild(hostVid);
+        }
+        updateVideoLayout();
+      }
+      startBroadcast(null, false, true);
       // Keep pendingJoinHost so chat stays in host room
     }
 
@@ -2186,10 +2197,16 @@
       const stream = streams[pendingMicHost];
       const hostVid = stream && stream.video.querySelector('video');
       if(hostVid){
-        videoContainer.appendChild(hostVid);
+        const hostCanvas = el('#host-canvas');
+        if(hostCanvas){
+          hostCanvas.innerHTML = '';
+          hostCanvas.appendChild(hostVid);
+        } else {
+          videoContainer.appendChild(hostVid);
+        }
         updateVideoLayout();
       }
-      startBroadcast(null, true);
+      startBroadcast(null, true, true);
       // Clear pending mic host to ensure the broadcast persists
       pendingMicHost = null;
     }
