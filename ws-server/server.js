@@ -132,12 +132,22 @@ function sendPush(username, title, body, opts = {}) {
     .prepare("SELECT subscription FROM push_subscriptions WHERE username = ?")
     .all(username);
   for (const { subscription } of subs) {
-    try {
-      webpush.sendNotification(
+    webpush
+      .sendNotification(
         JSON.parse(subscription),
         JSON.stringify({ title, body })
-      );
-    } catch {}
+      )
+      .catch((err) => {
+        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+          try {
+            db
+              .prepare(
+                "DELETE FROM push_subscriptions WHERE subscription = ?"
+              )
+              .run(subscription);
+          } catch {}
+        }
+      });
   }
 }
 
