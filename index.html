@@ -25,6 +25,7 @@
         --caption-color: #ffffff;
         --caption-bg: rgba(0,0,0,0.6);
         --header-height: 0px;
+        --footer-height: 0px;
       }
       :root[data-theme='light']{
         --bg:#2a004f;
@@ -391,7 +392,8 @@
     #video-container {
       position: relative;
       width: 100%;
-      aspect-ratio: 1/1;
+      max-height: calc(100vh - var(--header-height) - var(--footer-height));
+      aspect-ratio: 16/9;
       margin: 0 auto;
       border: 1px solid var(--lining);
       border-radius: 12px;
@@ -401,7 +403,7 @@
     #video-container video {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
     }
     .video-canvas {
@@ -454,7 +456,7 @@
 
     #join-controls {
       position: absolute;
-      bottom: 8px;
+      bottom: calc(var(--footer-height) + 8px);
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -463,7 +465,7 @@
 
     #overlay-chat {
       position: fixed;
-      bottom: 80px;
+      bottom: calc(var(--footer-height) + 80px);
       left: 0;
       width: 100%;
       display: flex;
@@ -1205,10 +1207,12 @@
         if(btn) btn.hidden = !show;
       });
       document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
+      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
     }
     updateHeaderButtons();
     window.addEventListener('resize', () => {
       document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
+      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
     });
 
     function updateUsers(list){
@@ -2261,6 +2265,8 @@
         stream.started = true;
       }
       startBroadcast();
+      layoutMode = 'split';
+      updateVideoLayout();
       // Keep pendingJoinHost so chat stays in host room
     }
 
@@ -2289,8 +2295,9 @@
       const hostVid = stream && stream.video.querySelector('video');
       if(hostVid){
         videoContainer.appendChild(hostVid);
-        updateVideoLayout();
       }
+      layoutMode = 'split';
+      updateVideoLayout();
       startBroadcast(null, true);
       // Clear pending mic host to ensure the broadcast persists
       pendingMicHost = null;
@@ -2320,6 +2327,8 @@
         }
         startWatching(id);
       }
+      layoutMode = 'split';
+      updateVideoLayout();
     }
 
     function handleInvite({ id, mode, user }) {
