@@ -2117,11 +2117,17 @@
       }
     }
 
-    function handleInvite({ id, mode, user }){
+    function handleInvite({ id, mode, user }) {
       const verb = mode === 'mic' ? 'join via mic' : 'join the broadcast';
-      appendMessage({ id: `invite-${Date.now()}`, user: user || 'host', text: `invites you to ${verb}.` });
+      const msg = { id: `invite-${Date.now()}`, user: user || 'host', text: `invites you to ${verb}.` };
+      const stream = streams[id];
+      if (stream && stream.feed) {
+        appendMessage(msg, false, stream.feed);
+      } else {
+        appendMessage(msg);
+      }
       const ok = confirm(`@${user || 'host'} invites you to ${verb}. Accept?`);
-      if(ok){
+      if (ok) {
         sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
       }
     }
