@@ -8,6 +8,7 @@ import multer from "multer";
 import bcrypt from "bcryptjs";
 import { WebSocketServer } from "ws";
 import Database from "better-sqlite3";
+import webpush from "web-push";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -63,6 +64,11 @@ db.exec(`
     read INTEGER DEFAULT 0,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    subscription TEXT
+  );
 `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -82,6 +88,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use("/static", express.static(path.join(ROOT, "static")));
+app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    "mailto:example@example.com",
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+}
 
 app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
@@ -94,6 +111,18 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
+app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
+app.post("/push/subscribe", (req, res) => {
+  const { username, subscription } = req.body || {};
+  if (!username || !subscription) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  db.prepare(
+    "INSERT INTO push_subscriptions (username, subscription) VALUES (?, ?)"
+  ).run(username, JSON.stringify(subscription));
+  res.json({ success: true });
+});
 
 app.post("/register", upload.single("profile"), async (req, res) => {
   const { username, password } = req.body || {};
@@ -402,6 +431,30 @@ wss.on("connection", (ws) => {
         }
         broadcasters.set(ws.id, ws);
         broadcastUsers();
+        const followers = db
+          .prepare("SELECT follower FROM follows WHERE following = ?")
+          .all(ws.username || "");
+        for (const { follower } of followers) {
+          const subs = db
+            .prepare("SELECT subscription FROM push_subscriptions WHERE username = ?")
+            .all(follower);
+          for (const { subscription } of subs) {
+            try {
+              webpush.sendNotification(
+                JSON.parse(subscription),
+                JSON.stringify({
+                  title: "New Broadcast",
+                  body: `${ws.username} is live`,
+                })
+              );
+            } catch {}
+          }
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'broadcast', ?)"
+            )
+            .run(follower, JSON.stringify({ from: ws.username || "", mode: "start" }));
+        }
         const hostId = guestHosts.get(ws.id);
         if(hostId){
           const set = listeners.get(hostId);

@@ -1539,6 +1539,39 @@
       if (!bc) setupLocal();
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
+      setupPush();
+    }
+
+    async function setupPush(){
+      if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const perm = await Notification.requestPermission();
+        if(perm !== 'granted') return;
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const res = await fetch('/push/key');
+        const data = await res.json().catch(()=>({}));
+        if(!data.key) return;
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.key)
+        });
+        await fetch('/push/subscribe', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ username: store.user, subscription: sub })
+        });
+      } catch{}
+    }
+
+    function urlBase64ToUint8Array(base64String){
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
     }
 
     async function doLogin(){
