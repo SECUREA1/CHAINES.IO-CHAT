@@ -1222,13 +1222,19 @@
 
     function updateUsers(list){
         userCache = list;
-        liveCount.textContent = list.length;
+        const selfLive = list.some(u => typeof u !== 'string' && u.id === clientId && u.live);
+        liveCount.textContent = list.length - (selfLive ? 1 : 0);
         usersEl.innerHTML = '';
         const liveIds = new Set();
         list.forEach(u => {
-          const li = document.createElement('li');
           const name = typeof u === 'string' ? u : u.name;
           const id = typeof u === 'string' ? u : u.id;
+          if(u.live){
+            liveIds.add(id);
+            ensureStreamThumb(id, name, id === clientId);
+            if(id === clientId) return;
+          }
+          const li = document.createElement('li');
           if(u.live){
             const dot = document.createElement('span');
             dot.className = 'live-dot';
@@ -1237,8 +1243,6 @@
             camIcon.textContent = '🎥';
             camIcon.title = 'Camera';
             li.appendChild(camIcon);
-            liveIds.add(id);
-            ensureStreamThumb(id, name, id === clientId);
           }
           if(u.mic){
             li.classList.add('mic-user');
