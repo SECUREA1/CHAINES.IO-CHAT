@@ -88,15 +88,13 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; }
-    footer .status.bottom > button { flex:0 0 100px; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:center; gap:8px; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { flex:1 1 auto; }
-    footer .legal { font-size:12px; color:var(--muted); text-align:center; }
+    .send img { width:24px; height:24px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn, #post-btn, #cleanup-btn, #attention-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn, #post-btn, #cleanup-btn, #attention-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -104,7 +102,7 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #swap-btn img {
+      #camera-btn img, #swap-btn img, #post-btn img, #cleanup-btn img, #attention-btn img, #cmd-list img {
         width:24px;
         height:24px;
       }
@@ -527,8 +525,7 @@
       padding: 8px;
       gap: 0;
     }
-    body.broadcast-mode footer .status.bottom,
-    body.broadcast-mode footer .legal {
+    body.broadcast-mode footer .status.bottom {
       display: none;
     }
     .broadcast-controls {
@@ -700,8 +697,8 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
-        <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
-        <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
+        <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
@@ -712,14 +709,16 @@
         <label class="input" for="broadcast-text">
           <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
         </label>
-        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message">🐒</button>
+        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <span class="live-dot"></span>Go Live
+          <span class="live-dot"></span><img src="static/camera.svg" alt="Go live" />Go Live
         </button>
-        <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+        <button id="post-btn" class="chip" title="Post" aria-label="Post"><img src="static/post.svg" alt="Post" /></button>
+        <button id="cleanup-btn" class="chip" title="Clean up" aria-label="Clean up"><img src="static/cleanup.svg" alt="Clean up" /></button>
+        <button id="attention-btn" class="chip" title="Attention" aria-label="Attention"><img src="static/attention.svg" alt="Attention" /></button>
+        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/command.svg" alt="Commands" /></button>
       </div>
     </footer>
   </div>
