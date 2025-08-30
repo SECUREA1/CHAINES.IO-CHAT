@@ -132,6 +132,10 @@
       height:100%;
       backdrop-filter: blur(8px);
     }
+    #invite-cc button img {
+      width:24px;
+      height:24px;
+    }
     #invite-cc button + button { border-left:1px solid var(--lining); }
     #profile-link { display:inline-flex; align-items:center; gap:4px; }
     #profile-link img { width:24px; height:24px; border-radius:50%; }
@@ -145,6 +149,7 @@
     #listener-count {
       cursor: default;
       pointer-events: none;
+      gap:4px;
     }
     #ghost-btn {
       background: linear-gradient(180deg, var(--accent), var(--accent-2));
@@ -658,15 +663,15 @@
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
         </div>
-      <div class="status top">
-        <div class="chip" id="invite-cc">
-          <button id="stream-code-btn" type="button" title="Copy stream code">🔑 Stream Code</button>
-          <button id="camera-flip-btn" type="button" title="Switch camera">🔁 Flip</button>
-          <button id="invite-btn" type="button" title="Invite listeners">📢 Invite</button>
-          <button id="end-btn" type="button" title="End broadcast" hidden>⏹ End</button>
-          <button id="listener-count" type="button" title="Active listeners">0 listening</button>
+        <div class="status top">
+          <div class="chip" id="invite-cc">
+            <button id="stream-code-btn" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/key.svg" alt="Stream code" /></button>
+            <button id="camera-flip-btn" type="button" title="Switch camera" aria-label="Switch camera"><img src="static/flip.svg" alt="Flip camera" /></button>
+            <button id="invite-btn" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/invite.svg" alt="Invite" /></button>
+            <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
+            <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
+          </div>
         </div>
-      </div>
     </header>
 
       <main>
@@ -866,6 +871,7 @@
     const thumbCamera = el('#thumb-camera');
     const thumbSkip = el('#thumb-skip');
     const listenerCountBtn = el('#listener-count');
+    const listenerCountSpan = el('#listener-count-number');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#remote-tiles');
@@ -1201,14 +1207,13 @@
       setTimeout(() => wrap.remove(), 5000);
     }
 
-    function updateHeaderButtons(){
-      const show = broadcasting;
-      [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
-        if(btn) btn.hidden = !show;
-      });
-      document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
-      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
-    }
+      function updateHeaderButtons(){
+        [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+          if(btn) btn.hidden = false;
+        });
+        document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
+        document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
+      }
     updateHeaderButtons();
     window.addEventListener('resize', () => {
       document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
@@ -1404,7 +1409,7 @@
 
       function updateListenerCount(id, n){
         if(streams[id]) streams[id].count.textContent = n;
-        if(id === clientId && listenerCountBtn) listenerCountBtn.textContent = `${n} listening`;
+        if(id === clientId && listenerCountSpan) listenerCountSpan.textContent = n;
       }
     function sendJoin(){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
