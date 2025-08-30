@@ -237,6 +237,11 @@
     .users-panel li:last-child { border-bottom:0; }
     .users-panel li.mic-user { color:#22c55e; }
 
+    .popup { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); }
+    .popup-content { background:var(--panel); color:var(--fg); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow); min-width:200px; text-align:center; }
+    .popup-actions { margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+    .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
+
     .live-btn {
       display:inline-flex;
       align-items:center;
@@ -695,6 +700,13 @@
     <ul id="users"></ul>
   </div>
 
+  <div id="popup" class="popup" hidden>
+    <div class="popup-content">
+      <p id="popup-text"></p>
+      <div id="popup-actions" class="popup-actions"></div>
+    </div>
+  </div>
+
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
@@ -811,6 +823,10 @@
     const themeToggleIcon = themeToggle.querySelector('img');
     const userList = el('#user-list');
     const usersEl = el('#users');
+    const popup = el('#popup');
+    const popupText = el('#popup-text');
+    const popupActions = el('#popup-actions');
+    let userCache = [];
     const broadcastBtn = el('#broadcast-btn');
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
@@ -1092,8 +1108,21 @@
       }
     });
     inviteBtn.addEventListener('click', () => {
-      const mode = confirm('Invite watchers to broadcast with camera?\nPress Cancel to invite for mic only.') ? 'join' : 'mic';
-      sendSignal({ type: 'invite', mode });
+      if(!userCache.length){ alert('No users online'); return; }
+      showPopup('Invite who?', userCache.map(u => {
+        const name = typeof u === 'string' ? u : u.name;
+        const id = typeof u === 'string' ? u : u.id;
+        return {
+          label: '@' + name,
+          onClick: () => {
+            showPopup(`Invite @${name} to join via…`, [
+              { label: 'Camera', onClick: () => { sendSignal({ type: 'invite', mode: 'join', target: id }); hidePopup(); } },
+              { label: 'Mic', onClick: () => { sendSignal({ type: 'invite', mode: 'mic', target: id }); hidePopup(); } },
+              { label: 'Cancel', onClick: () => hidePopup() }
+            ]);
+          }
+        };
+      }));
     });
     endBtn.addEventListener('click', () => { endBroadcast(); });
     exitBroadcast.addEventListener('click', () => { endBroadcast(); });
@@ -1161,7 +1190,8 @@
       document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
     });
 
-      function updateUsers(list){
+    function updateUsers(list){
+        userCache = list;
         liveCount.textContent = list.length;
         usersEl.innerHTML = '';
         const liveIds = new Set();
@@ -2188,10 +2218,16 @@
       } else {
         appendMessage(msg);
       }
-      const ok = confirm(`@${user || 'host'} invites you to ${verb}. Accept?`);
-      if (ok) {
-        sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
-      }
+      showPopup(`@${user || 'host'} invites you to ${verb}.`, [
+        {
+          label: 'Accept',
+          onClick: () => {
+            sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
+            hidePopup();
+          }
+        },
+        { label: 'Deny', onClick: () => hidePopup() }
+      ]);
     }
 
     function sendSignal(data){
@@ -2406,6 +2442,22 @@
         const Cue = window.VTTCue || window.TextTrackCue;
         try{ s.captionTrack.addCue(new Cue(s.vid.currentTime, s.vid.currentTime+5, c.text)); }catch{}
       }
+
+      function showPopup(message, actions){
+        popupText.textContent = message;
+        popupActions.innerHTML = '';
+        actions.forEach(a => {
+          const btn = document.createElement('button');
+          btn.textContent = a.label;
+          btn.addEventListener('click', () => {
+            if(a.onClick) a.onClick();
+          }, { once: true });
+          popupActions.appendChild(btn);
+        });
+        popup.hidden = false;
+      }
+
+      function hidePopup(){ popup.hidden = true; }
 
       function systemNote(t){
         const div = document.createElement('div');

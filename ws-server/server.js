@@ -478,14 +478,23 @@ wss.on("connection", (ws) => {
         return;
       }
       case "invite": {
-        const set = listeners.get(ws.id);
-        if (set) {
-          for (const wid of set) {
-            const guest = clients.get(wid);
-            if (guest && guest.readyState === 1) {
-              guest.send(
-                JSON.stringify({ type: "invite", id: ws.id, mode: msg.mode, user: ws.username })
-              );
+        if (msg.target) {
+          const guest = clients.get(msg.target);
+          if (guest && guest.readyState === 1) {
+            guest.send(
+              JSON.stringify({ type: "invite", id: ws.id, mode: msg.mode, user: ws.username })
+            );
+          }
+        } else {
+          const set = listeners.get(ws.id);
+          if (set) {
+            for (const wid of set) {
+              const guest = clients.get(wid);
+              if (guest && guest.readyState === 1) {
+                guest.send(
+                  JSON.stringify({ type: "invite", id: ws.id, mode: msg.mode, user: ws.username })
+                );
+              }
             }
           }
         }
