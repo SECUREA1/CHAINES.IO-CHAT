@@ -1878,7 +1878,13 @@
           broadcastVideo = mediaEl;
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
-        }).catch(() => { broadcasting = false; alert('Unable to access camera/microphone'); });
+        }).catch(() => {
+          broadcasting = false;
+          if(joinControls) joinControls.removeAttribute('hidden');
+          if(joinCamBtn) joinCamBtn.disabled = false;
+          if(joinMicBtn) joinMicBtn.disabled = false;
+          alert('Unable to access camera/microphone');
+        });
       }
 
       function switchCamera(){
