@@ -1336,7 +1336,6 @@
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, vid: null, captionTrack: null, thumbEl };
         if(isSelf){
           div.classList.add('open');
-          startWatching(id);
           streams[id].started = true;
         }
       }
