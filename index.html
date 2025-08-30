@@ -429,6 +429,15 @@
       object-fit: cover;
     }
 
+    #join-controls {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+    }
+
     #overlay-chat {
       position: fixed;
       bottom: 80px;
@@ -622,6 +631,7 @@
           <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
           <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
+          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
         </div>
       <div class="status top">
         <div class="chip" id="invite-cc">
@@ -642,6 +652,10 @@
         <div id="video-container" hidden>
           <div id="host-canvas" class="video-canvas"></div>
           <div id="guest-canvas" class="video-canvas" hidden></div>
+          <div id="join-controls" hidden>
+            <button id="join-cam" class="chip" type="button" title="Request to join with camera">📷</button>
+            <button id="join-mic" class="chip" type="button" title="Request to join with mic">🎤</button>
+          </div>
         </div>
         <div id="overlay-chat" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
@@ -823,6 +837,11 @@
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
+    const videoToggle = el('#video-toggle');
+    const joinControls = el('#join-controls');
+    const joinCamBtn = el('#join-cam');
+    const joinMicBtn = el('#join-mic');
+    let currentHost = null;
     let broadcastThumb = null;
     let pendingJoinHost = null;
     let joinApproved = false;
@@ -858,6 +877,33 @@
     }
     if(cameraFlipBtn){
       cameraFlipBtn.addEventListener('click', switchCamera);
+    }
+    if(videoToggle){
+      videoToggle.addEventListener('click', () => {
+        if(videoContainer.hasAttribute('hidden')){
+          videoContainer.removeAttribute('hidden');
+          videoToggle.textContent = 'Hide Feed';
+        } else {
+          videoContainer.setAttribute('hidden','');
+          videoToggle.textContent = 'Show Feed';
+        }
+      });
+    }
+    if(joinCamBtn){
+      joinCamBtn.addEventListener('click', () => {
+        if(currentHost){
+          sendSignal({ type: 'join-request', id: currentHost, user: store.user });
+          systemNote('Join request sent');
+        }
+      });
+    }
+    if(joinMicBtn){
+      joinMicBtn.addEventListener('click', () => {
+        if(currentHost){
+          sendSignal({ type: 'mic-request', id: currentHost, user: store.user });
+          systemNote('Mic request sent');
+        }
+      });
     }
     if(swapBtn){
       swapBtn.addEventListener('click', swapVideos);
@@ -1578,6 +1624,7 @@
         blankTrack = null;
         savedVideoTrack = null;
         broadcasting = true;
+        if(joinControls) joinControls.setAttribute('hidden','');
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
@@ -1643,6 +1690,7 @@
       updateHeaderButtons();
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
+      if(videoToggle) videoToggle.textContent = 'Hide Feed';
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
         cameraBtn.hidden = audioOnly;
@@ -1828,6 +1876,7 @@
       if(guestCanvas){ guestCanvas.innerHTML = ''; guestCanvas.setAttribute('hidden',''); }
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
+      if(videoToggle) videoToggle.textContent = 'Show Feed';
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
@@ -1844,6 +1893,7 @@
         selfStream.container.remove();
         delete streams[clientId];
       }
+      if(joinControls && activeRooms.size > 0) joinControls.removeAttribute('hidden');
       broadcastThumb = null;
     }
 
@@ -1878,13 +1928,25 @@
 
       function startWatching(id){
         activeRooms.add(id);
-        if(!broadcasting) feed.setAttribute('hidden','');
+        currentHost = id;
+        if(!broadcasting){
+          feed.setAttribute('hidden','');
+          if(joinControls) joinControls.removeAttribute('hidden');
+          if(videoToggle) videoToggle.textContent = 'Hide Feed';
+        }
         sendSignal({ type: 'watcher', id });
       }
 
       function endWatching(id){
         activeRooms.delete(id);
-        if(activeRooms.size === 0) feed.removeAttribute('hidden');
+        if(activeRooms.size === 0){
+          feed.removeAttribute('hidden');
+          if(joinControls) joinControls.setAttribute('hidden','');
+          currentHost = null;
+          if(videoToggle) videoToggle.textContent = 'Show Feed';
+        } else if(currentHost === id){
+          currentHost = [...activeRooms][0];
+        }
         sendSignal({ type: 'unwatcher', id });
       }
 
