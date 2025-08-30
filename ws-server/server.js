@@ -124,7 +124,7 @@ function setNotifSettings(username, vals = {}) {
   return next;
 }
 
-function sendPush(username, title, body, opts = {}) {
+async function sendPush(username, title, body, opts = {}) {
   const settings = getNotifSettings(username);
   if (!settings.push) return;
   if (opts.requireLive && !settings.live) return;
@@ -133,11 +133,17 @@ function sendPush(username, title, body, opts = {}) {
     .all(username);
   for (const { subscription } of subs) {
     try {
-      webpush.sendNotification(
+      await webpush.sendNotification(
         JSON.parse(subscription),
         JSON.stringify({ title, body })
       );
-    } catch {}
+    } catch (err) {
+      try {
+        db.prepare("DELETE FROM push_subscriptions WHERE subscription = ?").run(
+          subscription
+        );
+      } catch {}
+    }
   }
 }
 
