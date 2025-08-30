@@ -873,12 +873,14 @@
     const listenerCountBtn = el('#listener-count');
     const listenerCountSpan = el('#listener-count-number');
     const videoContainer = el('#video-container');
+    const streamTiles = el('#stream-tiles');
     const overlayChat = el('#overlay-chat');
     const streamsEl = el('#remote-tiles');
     const selfStreamEl = el('#self-tile');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
+    const pendingWatchers = new Set();
     const videoToggle = el('#video-toggle');
     const joinControls = el('#join-controls');
     const joinCamBtn = el('#join-cam');
@@ -920,12 +922,13 @@
       cameraFlipBtn.addEventListener('click', switchCamera);
     }
     if(videoToggle){
+      videoToggle.textContent = streamTiles.hasAttribute('hidden') ? 'Show Feed' : 'Hide Feed';
       videoToggle.addEventListener('click', () => {
-        if(videoContainer.hasAttribute('hidden')){
-          videoContainer.removeAttribute('hidden');
+        if(streamTiles.hasAttribute('hidden')){
+          streamTiles.removeAttribute('hidden');
           videoToggle.textContent = 'Hide Feed';
         } else {
-          videoContainer.setAttribute('hidden','');
+          streamTiles.setAttribute('hidden','');
           videoToggle.textContent = 'Show Feed';
         }
       });
@@ -1784,6 +1787,10 @@
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
+          if(pendingWatchers.size){
+            pendingWatchers.forEach(id => handleWatcher(id));
+            pendingWatchers.clear();
+          }
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -1846,7 +1853,7 @@
       updateHeaderButtons();
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
-      if(videoToggle) videoToggle.textContent = 'Hide Feed';
+      if(videoToggle) videoToggle.textContent = streamTiles.hasAttribute('hidden') ? 'Show Feed' : 'Hide Feed';
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
         cameraBtn.hidden = audioOnly;
@@ -2068,7 +2075,7 @@
       if(guestCanvas){ guestCanvas.innerHTML = ''; guestCanvas.setAttribute('hidden',''); }
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
-      if(videoToggle) videoToggle.textContent = 'Show Feed';
+      if(videoToggle) videoToggle.textContent = streamTiles.hasAttribute('hidden') ? 'Show Feed' : 'Hide Feed';
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
@@ -2119,10 +2126,23 @@
       function startWatching(id){
         activeRooms.add(id);
         currentHost = id;
+        const stream = streams[id];
+        if(stream && !stream.started){
+          stream.started = true;
+          stream.container.classList.add('open');
+          const tuneBtn = stream.container.querySelector('.tune-btn');
+          if(tuneBtn) tuneBtn.textContent = 'Leave';
+          const camBtn = stream.container.querySelector('.cam-btn');
+          const micBtn = stream.container.querySelector('.mic-btn');
+          if(camBtn) camBtn.hidden = false;
+          if(micBtn) micBtn.hidden = false;
+          const joinBtns = stream.container.querySelector('.join-btns');
+          if(joinBtns) joinBtns.hidden = false;
+        }
         if(!broadcasting){
           feed.setAttribute('hidden','');
           if(joinControls) joinControls.removeAttribute('hidden');
-          if(videoToggle) videoToggle.textContent = 'Hide Feed';
+          if(videoToggle) videoToggle.textContent = streamTiles.hasAttribute('hidden') ? 'Show Feed' : 'Hide Feed';
         }
         sendSignal({ type: 'watcher', id });
       }
@@ -2133,7 +2153,7 @@
           feed.removeAttribute('hidden');
           if(joinControls) joinControls.setAttribute('hidden','');
           currentHost = null;
-          if(videoToggle) videoToggle.textContent = 'Show Feed';
+          if(videoToggle) videoToggle.textContent = streamTiles.hasAttribute('hidden') ? 'Show Feed' : 'Hide Feed';
         } else if(currentHost === id){
           currentHost = [...activeRooms][0];
         }
@@ -2141,6 +2161,10 @@
       }
 
     function handleWatcher(id){
+      if(!localStream){
+        pendingWatchers.add(id);
+        return;
+      }
       const pc = new RTCPeerConnection();
       peerConnections[id] = pc;
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
