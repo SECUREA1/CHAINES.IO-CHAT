@@ -141,6 +141,10 @@
     #profile-link img { width:24px; height:24px; border-radius:50%; }
     #live-chip { display:inline-flex; align-items:center; gap:4px; }
     #end-btn {
+      flex: 0 0 36px;
+      padding: 0;
+    }
+    #end-btn.live {
       background: var(--danger);
       border-color: var(--danger);
       color: #fff;
@@ -665,9 +669,9 @@
         </div>
         <div class="status top">
           <div class="chip" id="invite-cc">
-            <button id="stream-code-btn" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/key.svg" alt="Stream code" /></button>
+            <button id="stream-code-btn" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/antenna.svg" alt="Stream code" /></button>
             <button id="camera-flip-btn" type="button" title="Switch camera" aria-label="Switch camera"><img src="static/flip.svg" alt="Flip camera" /></button>
-            <button id="invite-btn" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/invite.svg" alt="Invite" /></button>
+            <button id="invite-btn" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/mail-mic.svg" alt="Invite" /></button>
             <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
             <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
           </div>
@@ -1843,6 +1847,7 @@
       broadcastBtn.textContent = '⏹ End';
       broadcastBtn.title = 'End live broadcast';
       broadcastBtn.classList.add('live');
+      if(endBtn) endBtn.classList.add('live');
       updateHeaderButtons();
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       videoContainer.removeAttribute('hidden');
@@ -2019,6 +2024,7 @@
       if(joinCamBtn) joinCamBtn.disabled = false;
       if(joinMicBtn) joinMicBtn.disabled = false;
         broadcastBtn.classList.remove('live');
+        if(endBtn) endBtn.classList.remove('live');
         broadcastVideo = null;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
