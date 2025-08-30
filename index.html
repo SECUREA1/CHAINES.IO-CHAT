@@ -401,7 +401,6 @@
     #video-container video {
       width: 100%;
       height: 100%;
-      aspect-ratio: 1/1;
       object-fit: cover;
       display: block;
     }
@@ -411,11 +410,13 @@
     #video-container.has-guest {
       display: flex;
       flex-direction: row;
+      aspect-ratio: auto;
     }
     #video-container.has-guest #host-canvas,
     #video-container.has-guest #guest-canvas {
       width: 50%;
-      height: 100%;
+      height: auto;
+      aspect-ratio: 16/9;
     }
     @media (orientation: portrait) {
       #video-container.has-guest {
@@ -424,7 +425,8 @@
       #video-container.has-guest #host-canvas,
       #video-container.has-guest #guest-canvas {
         width: 100%;
-        height: 50%;
+        height: auto;
+        aspect-ratio: 16/9;
       }
     }
     #video-container.pip {
