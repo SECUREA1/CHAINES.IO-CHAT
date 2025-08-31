@@ -646,8 +646,11 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
-            <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-              <img src="static/camera.svg" alt="Toggle camera" />
+           <button class="chip" id="camera-btn" type="button" title="Turn camera off">
+             <img src="static/camera.svg" alt="Toggle camera" />
+           </button>
+            <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
+              <img src="static/wallet.svg" alt="Wallet" />
             </button>
             <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
             <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
@@ -774,6 +777,7 @@
     </div>
   </div>
 
+  <script src="static/wallet.js"></script>
   <script>
   ;(() => {
     const el = (q, parent=document) => parent.querySelector(q);
