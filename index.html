@@ -1968,7 +1968,7 @@
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
             const stream = ev.streams[0];
-            if(broadcasting){
+            if(broadcasting && !joinApproved){
               if(ev.track.kind === 'video'){
                 const vid = document.createElement('video');
                 vid.srcObject = stream;
