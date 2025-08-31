@@ -286,9 +286,11 @@
 /* Stream tiles */
 #streams {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 10px;
   padding: 10px;
+  scroll-snap-type: x mandatory;
 }
 
 /* Stream cards */
@@ -301,6 +303,7 @@
   padding: 8px;
   background: var(--panel);
   cursor: pointer;
+  scroll-snap-align: start;
 }
 
 /* Expanded stream state */
@@ -381,6 +384,21 @@
       flex-wrap: wrap;
       gap: 10px;
       padding: 10px;
+    }
+    #video-container.has-guest {
+      flex-wrap: nowrap;
+    }
+    #video-container.has-guest video {
+      flex: 1 1 50%;
+      max-width: 50%;
+    }
+    @media (orientation: portrait) {
+      #video-container.has-guest {
+        flex-direction: column;
+      }
+      #video-container.has-guest video {
+        max-width: 100%;
+      }
     }
     #video-container video {
       max-width: 240px;
@@ -1170,6 +1188,7 @@
               camBtn.hidden = false;
               micBtn.hidden = false;
               if(joinBtns) joinBtns.hidden = false;
+              div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
           });
         } else {
@@ -1902,7 +1921,12 @@
       broadcastThumb = null;
     }
 
-      function updateVideoLayout(){}
+      function updateVideoLayout(target){
+        const box = target || videoContainer;
+        if(!box) return;
+        const count = box.querySelectorAll('video').length;
+        box.classList.toggle('has-guest', count > 1);
+      }
 
     function swapVideos(){}
 
@@ -2196,6 +2220,7 @@
       videoContainer.removeAttribute('hidden');        // ★ make sure stage is visible
       if(videoToggle) videoToggle.textContent = 'Hide Feed'; // ★ sync toggle label
       updateVideoLayout();
+      if(stream) updateVideoLayout(stream.video);
       // Keep pendingJoinHost so chat stays in host room
     }
 
