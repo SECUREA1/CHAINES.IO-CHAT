@@ -742,6 +742,16 @@
     const guestMap = {};
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
+    function showStream(){
+      videoContainer.removeAttribute('hidden');
+      feed.setAttribute('hidden','');
+      if(videoToggle) videoToggle.textContent = 'Show Chat';
+    }
+    function showChat(){
+      videoContainer.setAttribute('hidden','');
+      feed.removeAttribute('hidden');
+      if(videoToggle) videoToggle.textContent = 'Show Feed';
+    }
     let currentHost = null;
     let broadcastThumb = null;
     let pendingJoinHost = null;
@@ -803,11 +813,9 @@
     if(videoToggle){
       videoToggle.addEventListener('click', () => {
         if(videoContainer.hasAttribute('hidden')){
-          videoContainer.removeAttribute('hidden');
-          videoToggle.textContent = 'Hide Feed';
+          showStream();
         } else {
-          videoContainer.setAttribute('hidden','');
-          videoToggle.textContent = 'Show Feed';
+          showChat();
         }
       });
     }
@@ -1683,7 +1691,7 @@
           }
       updateListenerCount(clientId, 0);
       activeRooms.add(clientId);
-      feed.setAttribute('hidden','');
+      showStream();
       document.body.classList.remove('chat-open');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
@@ -1692,8 +1700,6 @@
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
       if(!audioOnly) document.body.classList.add('broadcast-mode');
-      videoContainer.removeAttribute('hidden');
-      if(videoToggle) videoToggle.textContent = 'Hide Feed';
       broadcastControls.removeAttribute('hidden');
       if(cameraBtn){
         cameraBtn.hidden = audioOnly;
@@ -1845,7 +1851,7 @@
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
       overlayMessages = [];
       activeRooms.delete(clientId);
-      if(activeRooms.size === 0) feed.removeAttribute('hidden');
+      if(activeRooms.size === 0) showChat();
       updateHeaderButtons();
       joinApproved = false;
       micApproved = false;
@@ -1900,8 +1906,7 @@
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       updateVideoLayout();
-      videoContainer.setAttribute('hidden','');
-      if(videoToggle) videoToggle.textContent = 'Show Feed';
+      if(activeRooms.size === 0) showChat();
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
@@ -1934,8 +1939,7 @@
         activeRooms.add(id);
         currentHost = id;
         if(!broadcasting){
-          feed.setAttribute('hidden','');
-          if(videoToggle) videoToggle.textContent = 'Hide Feed';
+          showStream();
         }
         sendSignal({ type: 'watcher', id });
       }
@@ -1943,9 +1947,8 @@
       function endWatching(id){
         activeRooms.delete(id);
         if(activeRooms.size === 0){
-          feed.removeAttribute('hidden');
+          showChat();
           currentHost = null;
-          if(videoToggle) videoToggle.textContent = 'Show Feed';
         } else if(currentHost === id){
           currentHost = [...activeRooms][0];
         }
@@ -2162,7 +2165,7 @@
           localStream.getTracks().forEach(t => { if(t.readyState === 'ended') try{ localStream.removeTrack(t); }catch{} });
         }
         activeRooms.delete(msg.id);
-        if(activeRooms.size === 0) feed.removeAttribute('hidden');
+        if(activeRooms.size === 0) showChat();
         const host = guestMap[msg.id];
         if(host && streams[host]){
           streams[host].guestVid = null;
@@ -2217,8 +2220,7 @@
         stream.started = true;
       }
       startBroadcast();
-      videoContainer.removeAttribute('hidden');        // ★ make sure stage is visible
-      if(videoToggle) videoToggle.textContent = 'Hide Feed'; // ★ sync toggle label
+      showStream();
       updateVideoLayout();
       if(stream) updateVideoLayout(stream.video);
       // Keep pendingJoinHost so chat stays in host room
@@ -2288,8 +2290,7 @@
         const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
         if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
       }
-      videoContainer.removeAttribute('hidden');        // ★ ensure big stage is showing
-      if(videoToggle) videoToggle.textContent = 'Hide Feed';
+      showStream();
       updateVideoLayout();
     }
 
