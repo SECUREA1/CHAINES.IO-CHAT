@@ -2232,15 +2232,15 @@
                   let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
                   if(!stageAud){
                     stageAud = document.createElement('audio');
-                    stageAud.srcObject = ev.streams[0];
                     stageAud.autoplay = true;
                     stageAud.controls = false;
                     stageAud.muted = false;
                     stageAud.removeAttribute('muted');
                     stageAud.dataset.guest = msg.id;
                     videoContainer.appendChild(stageAud);
-                    tryPlay(stageAud);
                   }
+                  stageAud.srcObject = ev.streams[0];
+                  tryPlay(stageAud);
                 }
 
                 // Keep tile audio for viewers too (as you already had)
@@ -2379,6 +2379,8 @@
           pc.close();
           delete peerConnections[msg.id];
         }
+        const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
+        if(stageAud) stageAud.remove();
         for(const id in peerConnections){
           const senders = peerConnections[id].getSenders();
           senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
