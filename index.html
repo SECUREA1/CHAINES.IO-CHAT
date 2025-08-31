@@ -1242,23 +1242,34 @@
           camBtn.hidden = true;
           micBtn.hidden = true;
           if(joinBtns) joinBtns.hidden = true;
-          tuneBtn.addEventListener('click', () => {
-            if(streams[id].started){
-              endWatching(id);
-              streams[id].started = false;
-              div.classList.remove('open');
-              tuneBtn.textContent = 'Tune In';
-              camBtn.hidden = true;
-              micBtn.hidden = true;
-              if(joinBtns) joinBtns.hidden = true;
-            } else {
+          tuneBtn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            if(streams[id].started) return;
+            div.classList.add('open');
+            startWatching(id);
+            streams[id].started = true;
+            tuneBtn.disabled = true;
+            camBtn.hidden = false;
+            micBtn.hidden = false;
+            if(joinBtns) joinBtns.hidden = false;
+          });
+          div.addEventListener('click', e => {
+            if(e.target.closest('form') || e.target.closest('.join-btns') || e.target.closest('.tune-btn')) return;
+            div.classList.toggle('open');
+            if(div.classList.contains('open') && !streams[id].started){
               startWatching(id);
               streams[id].started = true;
-              div.classList.add('open');
-              tuneBtn.textContent = 'Leave';
+              tuneBtn.disabled = true;
               camBtn.hidden = false;
               micBtn.hidden = false;
               if(joinBtns) joinBtns.hidden = false;
+            } else if(!div.classList.contains('open') && streams[id].started){
+              endWatching(id);
+              streams[id].started = false;
+              tuneBtn.disabled = false;
+              camBtn.hidden = true;
+              micBtn.hidden = true;
+              if(joinBtns) joinBtns.hidden = true;
             }
           });
         } else {
@@ -2237,7 +2248,13 @@
             streams[msg.id].video.innerHTML = '';
             streams[msg.id].container.classList.remove('open');
             const t = streams[msg.id].container.querySelector('.tune-btn');
-            if(t) t.textContent = 'Tune In';
+            if(t) t.disabled = false;
+            const jb = streams[msg.id].container.querySelector('.join-btns');
+            const cb = streams[msg.id].container.querySelector('.cam-btn');
+            const mb = streams[msg.id].container.querySelector('.mic-btn');
+            if(jb) jb.hidden = true;
+            if(cb) cb.hidden = true;
+            if(mb) mb.hidden = true;
             streams[msg.id].vid = null;
             streams[msg.id].captionTrack = null;
             updateVideoLayout(streams[msg.id].video);
@@ -2250,7 +2267,13 @@
             streams[msg.id].video.innerHTML = '';
             streams[msg.id].container.classList.remove('open');
             const t = streams[msg.id].container.querySelector('.tune-btn');
-            if(t) t.textContent = 'Tune In';
+            if(t) t.disabled = false;
+            const jb = streams[msg.id].container.querySelector('.join-btns');
+            const cb = streams[msg.id].container.querySelector('.cam-btn');
+            const mb = streams[msg.id].container.querySelector('.mic-btn');
+            if(jb) jb.hidden = true;
+            if(cb) cb.hidden = true;
+            if(mb) mb.hidden = true;
             streams[msg.id].vid = null;
             streams[msg.id].captionTrack = null;
             updateVideoLayout(streams[msg.id].video);
