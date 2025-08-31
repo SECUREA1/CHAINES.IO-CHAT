@@ -283,30 +283,12 @@
       animation: live-pulse 1s infinite;
     }
 
-/* Vertical wrapper for self + remote tiles */
-#stream-tiles {
+/* Stream tiles */
+#streams {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Horizontal scrollers for streams */
-#streams,
-#remote-tiles {
-  display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px;
-  overflow-x: auto;
-  width: 100%;
-}
-
-/* Self tile row */
-#self-tile {
-  display: flex;
-  justify-content: center;
-  width: 100%;
 }
 
 /* Stream cards */
@@ -395,77 +377,15 @@
     .stream.open .stream-composer { display:flex; }
     .stream-composer input { flex:1; }
     #video-container {
-      position: relative;
-      width: 100%;
-      max-height: calc(100vh - var(--header-height) - var(--footer-height));
-      aspect-ratio: 16/9;
-      margin: 0 auto;
-      border: 1px solid var(--lining);
-      border-radius: 12px;
-      background: var(--panel);
-      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
     }
     #video-container video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-    .video-canvas {
-      position: relative;
-    }
-    #video-container.has-guest {
-      display: flex;
-      flex-direction: row;
-      aspect-ratio: auto;
-    }
-    #video-container.has-guest #host-canvas,
-    #video-container.has-guest #guest-canvas {
-      width: 50%;
-      height: auto;
-      aspect-ratio: 16/9;
-    }
-    @media (orientation: portrait) {
-      #video-container.has-guest {
-        flex-direction: column;
-      }
-      #video-container.has-guest #host-canvas,
-      #video-container.has-guest #guest-canvas {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 9/16;
-      }
-    }
-    #video-container.pip {
-      display: block;
-    }
-    #video-container.pip #host-canvas {
-      width: 100%;
-      height: 100%;
-    }
-    #video-container.pip #guest-canvas {
-      position: absolute;
-      width: 30%;
-      height: 30%;
-      bottom: 10px;
-      right: 10px;
-      border: 2px solid #fff;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    #video-container.pip #guest-canvas video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    #join-controls {
-      position: absolute;
-      bottom: calc(var(--footer-height) + 8px);
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
+      max-width: 240px;
+      border-radius: 12px;
+      border: 1px solid var(--lining);
     }
 
     #overlay-chat {
@@ -527,14 +447,34 @@
     body.broadcast-mode footer .legal {
       display: none;
     }
-    .broadcast-controls {
-      display: none;
-      gap: 8px;
-      width: 100%;
-      justify-content: center;
+    .broadcast-controls { 
+      display: none; 
+      gap: 8px; 
+      width: 100%; 
+      justify-content: center; 
     }
     .broadcast-controls .chip { flex:1; }
     body.broadcast-mode .broadcast-controls { display:flex; }
+    body.broadcast-mode #video-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 0;
+      background: #000;
+      flex-wrap: nowrap;
+    }
+    body.broadcast-mode #video-container video {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      border: 0;
+      border-radius: 0;
+      object-fit: cover;
+    }
     body.broadcast-mode #feed {
       position: fixed;
       left: 0;
@@ -678,18 +618,8 @@
     </header>
 
       <main>
-        <div id="stream-tiles">
-          <div id="remote-tiles" class="streams"></div>
-          <div id="self-tile"></div>
-        </div>
-        <div id="video-container" hidden>
-          <div id="host-canvas" class="video-canvas"></div>
-          <div id="guest-canvas" class="video-canvas" hidden></div>
-          <div id="join-controls" hidden>
-            <button id="join-cam" class="chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button>
-            <button id="join-mic" class="chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button>
-          </div>
-        </div>
+        <div id="streams" class="streams"></div>
+        <div id="video-container" hidden></div>
         <div id="overlay-chat" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
       </main>
@@ -878,24 +808,17 @@
     const listenerCountSpan = el('#listener-count-number');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
-    const streamsEl = el('#remote-tiles');
-    const selfStreamEl = el('#self-tile');
+    const streamsEl = el('#streams');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
-    const joinControls = el('#join-controls');
-    const joinCamBtn = el('#join-cam');
-    const joinMicBtn = el('#join-mic');
     let currentHost = null;
     let broadcastThumb = null;
     let pendingJoinHost = null;
     let joinApproved = false;
     let pendingMicHost = null;
     let micApproved = false;
-    const layoutTitles = { split: 'Split view', pip: 'Picture-in-picture' };
-    const layouts = ['split', 'pip'];
-    let layoutMode = 'split';
     let cameraOff = false;
     let blankTrack = null;
 
@@ -959,39 +882,9 @@
         }
       });
     }
-    if(joinCamBtn){
-      joinCamBtn.addEventListener('click', () => {
-        if(currentHost){
-          pendingJoinHost = currentHost;
-          joinCamBtn.disabled = true;
-          sendSignal({ type: 'join-request', id: currentHost, user: store.user });
-          systemNote('Join request sent');
-        }
-      });
-    }
-    if(joinMicBtn){
-      joinMicBtn.addEventListener('click', () => {
-        if(currentHost){
-          pendingMicHost = currentHost;
-          joinMicBtn.disabled = true;
-          sendSignal({ type: 'mic-request', id: currentHost, user: store.user });
-          systemNote('Mic request sent');
-        }
-      });
-    }
     if(swapBtn){
-      swapBtn.addEventListener('click', swapVideos);
-      swapBtn.title = layoutTitles[layoutMode];
+      swapBtn.hidden = true;
     }
-
-    window.addEventListener('resize', () => {
-      updateVideoLayout();
-      for(const id in streams){
-        if(streams[id] && streams[id].video){
-          updateVideoLayout(streams[id].video);
-        }
-      }
-    });
 
     // --- Basic state ---
     const store = {
@@ -1237,7 +1130,7 @@
     }
 
       function updateHeaderButtons(){
-        [streamCodeBtn, cameraFlipBtn, swapBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
+        [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
           if(btn) btn.hidden = false;
         });
         document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
@@ -1375,7 +1268,7 @@
           if(joinBtns) joinBtns.style.display = 'none';
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
-        (isSelf ? selfStreamEl : streamsEl).appendChild(div);
+        streamsEl.appendChild(div);
         streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, vid: null, captionTrack: null, thumbEl };
         if(isSelf){
           div.classList.add('open');
@@ -1805,7 +1698,6 @@
         cameraOff = false;
         blankTrack = null;
         broadcasting = true;
-        if(joinControls) joinControls.setAttribute('hidden','');
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
@@ -1911,13 +1803,7 @@
               try{ speechRec.start(); }catch{}
             }
           }
-          const hostCanvas = el('#host-canvas');
-          if(hostCanvas){
-            hostCanvas.innerHTML = '';
-            hostCanvas.appendChild(mediaEl);
-          } else {
-            videoContainer.appendChild(mediaEl);
-          }
+          videoContainer.appendChild(mediaEl);
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
@@ -1949,9 +1835,6 @@
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
-          if(joinControls) joinControls.removeAttribute('hidden');
-          if(joinCamBtn) joinCamBtn.disabled = false;
-          if(joinMicBtn) joinMicBtn.disabled = false;
           alert('Unable to access camera/microphone');
         });
       }
@@ -2041,8 +1924,6 @@
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Go Live';
       broadcastBtn.title = 'Go live';
-      if(joinCamBtn) joinCamBtn.disabled = false;
-      if(joinMicBtn) joinMicBtn.disabled = false;
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
         const share = forced ? true :
@@ -2087,10 +1968,7 @@
         delete peerConnections[id];
       }
       sendSignal({ type: 'end-broadcast' });
-      const hostCanvas = el('#host-canvas');
-      if(hostCanvas) hostCanvas.innerHTML = '';
-      const guestCanvas = el('#guest-canvas');
-      if(guestCanvas){ guestCanvas.innerHTML = ''; guestCanvas.setAttribute('hidden',''); }
+      videoContainer.innerHTML = '';
       updateVideoLayout();
       videoContainer.setAttribute('hidden','');
       if(videoToggle) videoToggle.textContent = 'Show Feed';
@@ -2110,43 +1988,18 @@
         selfStream.container.remove();
         delete streams[clientId];
       }
-      if(joinControls && activeRooms.size > 0) joinControls.removeAttribute('hidden');
       broadcastThumb = null;
     }
 
-      function updateVideoLayout(container = videoContainer){
-        const vids = container.querySelectorAll('video');
-        const multi = vids.length > 1;
-        if(container === videoContainer){
-          vids.forEach(v => v.style.display = '');
-          container.classList.toggle('has-guest', multi && layoutMode === 'split');
-          container.classList.toggle('pip', multi && layoutMode === 'pip');
-          const guestCanvas = el('#guest-canvas');
-          if(guestCanvas) guestCanvas.hidden = guestCanvas.querySelectorAll('video').length === 0;
-          vids.forEach(v => v.onclick = null);
-          if(multi){
-            vids.forEach(v => v.onclick = swapVideos);
-          }
-          if(swapBtn) swapBtn.hidden = !multi;
-          if(swapBtn) swapBtn.title = layoutTitles[layoutMode];
-        } else {
-          container.classList.toggle('has-guest', multi && layoutMode === 'split');
-          container.classList.toggle('pip', multi && layoutMode === 'pip');
-        }
-      }
+      function updateVideoLayout(){}
 
-    function swapVideos(){
-      const idx = layouts.indexOf(layoutMode);
-      layoutMode = layouts[(idx + 1) % layouts.length];
-      updateVideoLayout();
-    }
+    function swapVideos(){}
 
       function startWatching(id){
         activeRooms.add(id);
         currentHost = id;
         if(!broadcasting){
           feed.setAttribute('hidden','');
-          if(joinControls) joinControls.removeAttribute('hidden');
           if(videoToggle) videoToggle.textContent = 'Hide Feed';
         }
         sendSignal({ type: 'watcher', id });
@@ -2156,7 +2009,6 @@
         activeRooms.delete(id);
         if(activeRooms.size === 0){
           feed.removeAttribute('hidden');
-          if(joinControls) joinControls.setAttribute('hidden','');
           currentHost = null;
           if(videoToggle) videoToggle.textContent = 'Show Feed';
         } else if(currentHost === id){
@@ -2174,13 +2026,6 @@
         sendSignal({ type:'offer', id, sdp: pc.localDescription });
       });
     }
-
-    function unhideGuestCanvasIfNeeded(){
-      const g = document.getElementById('guest-canvas');
-      if(!g) return;
-      if(g.querySelector('video')) g.removeAttribute('hidden');
-    }
-
       function handleOffer(msg){
         let pc = peerConnections[msg.id];
         if(!pc){
@@ -2200,14 +2045,7 @@
                 attachCaptions(vid);
                 const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
                 liveTrack.mode = 'showing';
-                const guestCanvas = el('#guest-canvas');
-                if(guestCanvas){
-                  guestCanvas.innerHTML = '';
-                  guestCanvas.appendChild(vid);
-                  unhideGuestCanvasIfNeeded();              // ★ unhide if a video is present
-                } else {
-                  videoContainer.appendChild(vid);
-                }
+                videoContainer.appendChild(vid);
                 updateVideoLayout();
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
                 for(const id in peerConnections){
@@ -2390,11 +2228,6 @@
         }
         activeRooms.delete(msg.id);
         if(activeRooms.size === 0) feed.removeAttribute('hidden');
-        const guestCanvas = el('#guest-canvas');
-        if(guestCanvas && guestCanvas.querySelector('video')){
-          guestCanvas.innerHTML = '';
-          guestCanvas.setAttribute('hidden','');
-        }
         const host = guestMap[msg.id];
         if(host && streams[host]){
           streams[host].guestVid = null;
@@ -2449,7 +2282,6 @@
         stream.started = true;
       }
       startBroadcast();
-      layoutMode = 'split';
       videoContainer.removeAttribute('hidden');        // ★ make sure stage is visible
       if(videoToggle) videoToggle.textContent = 'Hide Feed'; // ★ sync toggle label
       updateVideoLayout();
@@ -2462,8 +2294,6 @@
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
       broadcastBtn.textContent = '🎥 Go Live';
-      if(joinCamBtn) joinCamBtn.disabled = false;
-      if(joinMicBtn) joinMicBtn.disabled = false;
       alert('Join request denied or busy.');
     }
 
@@ -2482,7 +2312,6 @@
       if(hostVid){
         videoContainer.appendChild(hostVid);
       }
-      layoutMode = 'split';
       updateVideoLayout();
       startBroadcast(null, true);
       // Clear pending mic host to ensure the broadcast persists
@@ -2493,8 +2322,6 @@
       micApproved = false;
       const stream = streams[pendingMicHost];
       pendingMicHost = null;
-      if(joinMicBtn) joinMicBtn.disabled = false;
-      if(joinCamBtn) joinCamBtn.disabled = false;
       alert('Mic request denied.');
     }
 
@@ -2525,7 +2352,6 @@
         const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
         if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
       }
-      layoutMode = 'split';
       videoContainer.removeAttribute('hidden');        // ★ ensure big stage is showing
       if(videoToggle) videoToggle.textContent = 'Hide Feed';
       updateVideoLayout();
