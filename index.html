@@ -899,6 +899,31 @@
     let cameraOff = false;
     let blankTrack = null;
 
+    let audioUnlocked = false;
+    const pendingPlayables = new Set();
+
+    function tryPlay(el){
+      const p = el.play?.();
+      if(p && p.catch){
+        p.catch(() => pendingPlayables.add(el));
+      }
+    }
+
+    function unlockAudio(){
+      if(audioUnlocked) return;
+      audioUnlocked = true;
+      pendingPlayables.forEach(el => {
+        try { el.muted = false; el.removeAttribute('muted'); el.play?.(); } catch {}
+      });
+      pendingPlayables.clear();
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    }
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchend', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
     // ensure header and footer remain visible
     const keepVisible = el => {
       if(!el) return;
@@ -2150,6 +2175,12 @@
       });
     }
 
+    function unhideGuestCanvasIfNeeded(){
+      const g = document.getElementById('guest-canvas');
+      if(!g) return;
+      if(g.querySelector('video')) g.removeAttribute('hidden');
+    }
+
       function handleOffer(msg){
         let pc = peerConnections[msg.id];
         if(!pc){
@@ -2173,6 +2204,7 @@
                 if(guestCanvas){
                   guestCanvas.innerHTML = '';
                   guestCanvas.appendChild(vid);
+                  unhideGuestCanvasIfNeeded();              // ★ unhide if a video is present
                 } else {
                   videoContainer.appendChild(vid);
                 }
@@ -2188,20 +2220,47 @@
                     });
                   }catch{}
                 }
-                // try to begin playback immediately (mobile requires user gesture)
-                vid.muted = true;
-                vid.setAttribute('muted','');
-                const playPromise = vid.play();
-                if(playPromise && playPromise.then){
-                  playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
-                } else {
-                  vid.muted = false;
-                  vid.removeAttribute('muted');
-                }
+                vid.muted = false;                 // remote video: let audio be heard
+                vid.removeAttribute('muted');
+                tryPlay(vid);                      // will queue for unlock if blocked
                 pc._videos = pc._videos || [];
                 pc._videos.push(vid);
               } else if(ev.track.kind === 'audio'){
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
+                // Prefer a single <audio> sink in the stage during broadcast
+                if(broadcasting){
+                  let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
+                  if(!stageAud){
+                    stageAud = document.createElement('audio');
+                    stageAud.srcObject = ev.streams[0];
+                    stageAud.autoplay = true;
+                    stageAud.controls = false;
+                    stageAud.muted = false;
+                    stageAud.removeAttribute('muted');
+                    stageAud.dataset.guest = msg.id;
+                    videoContainer.appendChild(stageAud);
+                    tryPlay(stageAud);
+                  }
+                }
+
+                // Keep tile audio for viewers too (as you already had)
+                let target = streams[msg.id];
+                let box = target && target.video;
+                if(!box && guestMap[msg.id]){
+                  target = streams[guestMap[msg.id]];
+                  box = target && target.video;
+                }
+                if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                  const aud = document.createElement('audio');
+                  aud.srcObject = ev.streams[0];
+                  aud.autoplay = true;
+                  aud.controls = true;
+                  aud.muted = false;                 // remote audio should be audible
+                  aud.removeAttribute('muted');
+                  aud.dataset.guest = msg.id;
+                  box.appendChild(aud);
+                  tryPlay(aud);
+                }
               }
             } else {
               if(ev.track.kind === 'video'){
@@ -2220,15 +2279,9 @@
                     hostTarget.video.appendChild(hostVid);
                     updateVideoLayout(hostTarget.video);
                     hostTarget.guestVid = hostVid;
-                    hostVid.muted = true;
-                    hostVid.setAttribute('muted','');
-                    const hp = hostVid.play();
-                    if(hp && hp.then){
-                      hp.then(() => { hostVid.muted = false; hostVid.removeAttribute('muted'); }).catch(() => { hostVid.muted = false; hostVid.removeAttribute('muted'); });
-                    } else {
-                      hostVid.muted = false;
-                      hostVid.removeAttribute('muted');
-                    }
+                    hostVid.muted = false;
+                    hostVid.removeAttribute('muted');
+                    tryPlay(hostVid);
                     pc._videos = pc._videos || [];
                     pc._videos.push(hostVid);
                   }
@@ -2247,15 +2300,9 @@
                     updateVideoLayout(guestTarget.video);
                     if(!guestTarget.vid) guestTarget.vid = guestVid;
                     guestTarget.captionTrack = liveTrack;
-                    guestVid.muted = true;
-                    guestVid.setAttribute('muted','');
-                    const gp = guestVid.play();
-                    if(gp && gp.then){
-                      gp.then(() => { guestVid.muted = false; guestVid.removeAttribute('muted'); }).catch(() => { guestVid.muted = false; guestVid.removeAttribute('muted'); });
-                    } else {
-                      guestVid.muted = false;
-                      guestVid.removeAttribute('muted');
-                    }
+                    guestVid.muted = false;
+                    guestVid.removeAttribute('muted');
+                    tryPlay(guestVid);
                     pc._videos = pc._videos || [];
                     pc._videos.push(guestVid);
                   }
@@ -2276,15 +2323,9 @@
                     box.appendChild(vid);
                     updateVideoLayout(box);
                   }
-                  vid.muted = true;
-                  vid.setAttribute('muted','');
-                  const playPromise = vid.play();
-                  if(playPromise && playPromise.then){
-                    playPromise.then(() => { vid.muted = false; vid.removeAttribute('muted'); }).catch(() => { vid.muted = false; vid.removeAttribute('muted'); });
-                  } else {
-                    vid.muted = false;
-                    vid.removeAttribute('muted');
-                  }
+                  vid.muted = false;
+                  vid.removeAttribute('muted');
+                  tryPlay(vid);
                   if(streams[msg.id]){
                     if(!streams[msg.id].vid) streams[msg.id].vid = vid;
                     streams[msg.id].captionTrack = liveTrack;
@@ -2303,10 +2344,12 @@
                     const aud = document.createElement('audio');
                     aud.srcObject = stream;
                     aud.autoplay = true;
-                    aud.setAttribute('autoplay','');
                     aud.controls = true;
+                    aud.muted = false;                 // remote audio should be audible
+                    aud.removeAttribute('muted');
                     aud.dataset.guest = msg.id;
                     box.appendChild(aud);
+                    tryPlay(aud);
                   }
                 }
             }
@@ -2405,6 +2448,8 @@
       }
       startBroadcast();
       layoutMode = 'split';
+      videoContainer.removeAttribute('hidden');        // ★ make sure stage is visible
+      if(videoToggle) videoToggle.textContent = 'Hide Feed'; // ★ sync toggle label
       updateVideoLayout();
       // Keep pendingJoinHost so chat stays in host room
     }
@@ -2479,6 +2524,8 @@
         if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
       }
       layoutMode = 'split';
+      videoContainer.removeAttribute('hidden');        // ★ ensure big stage is showing
+      if(videoToggle) videoToggle.textContent = 'Hide Feed';
       updateVideoLayout();
     }
 
@@ -2574,10 +2621,14 @@
         bubble.appendChild(meta);
       bubble.appendChild(text);
       const plain = text.textContent.trim();
-      if(broadcasting && m.room === clientId && plain){
-        const overlayText = `@${m.user}: ${plain}`;
-        overlayMessages.push({ text: overlayText, ts: Date.now() });
-        showOverlayMessage({ user: m.user, text: plain, profilePic: m.profilePic });
+      if (broadcasting && plain) {
+        const isMyRoom = (m.room === clientId);
+        const isHostRoomWhileGuest = (pendingJoinHost && m.room === pendingJoinHost);
+        if (isMyRoom || isHostRoomWhileGuest) {
+          const overlayText = `@${m.user}: ${plain}`;
+          overlayMessages.push({ text: overlayText, ts: Date.now() });
+          showOverlayMessage({ user: m.user, text: plain, profilePic: m.profilePic });
+        }
       }
       const fileData = m.file || m.image;
       if(fileData){
