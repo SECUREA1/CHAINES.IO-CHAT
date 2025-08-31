@@ -78,6 +78,23 @@ db.exec(`
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 
+const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
+
+function loadProfiles() {
+  try {
+    return JSON.parse(fs.readFileSync(PROFILE_MEMORY_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveProfiles() {
+  fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
+  fs.writeFileSync(PROFILE_MEMORY_PATH, JSON.stringify(profiles, null, 2));
+}
+
+let profiles = loadProfiles();
+
 // express setup
 const app = express();
 app.use(express.json());
@@ -199,6 +216,10 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
+  if (profiles[username]) {
+    res.status(400).json({ error: "User exists" });
+    return;
+  }
   try {
     const hash = await bcrypt.hash(password, 10);
     let pic = null;
@@ -206,6 +227,8 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     db.prepare(
       "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
     ).run(username, hash, pic);
+    profiles[username] = { password: hash, profilePic: pic, description: null };
+    saveProfiles();
     res.json({ success: true });
   } catch (e) {
     res.status(400).json({ error: "User exists" });
@@ -218,19 +241,29 @@ app.post("/login", async (req, res) => {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
-  const user = db
+  const dbUser = db
     .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
     .get(username);
-  if (!user) {
+  const memUser = profiles[username];
+  const hash = dbUser?.password || memUser?.password;
+  if (!hash) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  const ok = await bcrypt.compare(password, user.password);
+  const ok = await bcrypt.compare(password, hash);
   if (!ok) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  res.json({ success: true, username: user.username, profilePic: user.profile_pic });
+  const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
+  if (!dbUser) {
+    try {
+      db.prepare("INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)").run(username, hash, profilePic);
+    } catch {}
+  }
+  profiles[username] = { ...(memUser || {}), password: hash, profilePic };
+  saveProfiles();
+  res.json({ success: true, username, profilePic });
 });
 
 app.get(["/profile.html"], (req, res) =>
@@ -239,39 +272,48 @@ app.get(["/profile.html"], (req, res) =>
 
 app.get("/profile/:username", (req, res) => {
   const viewer = req.query.viewer || "";
-  const user = db
+  const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
     )
     .get(req.params.username);
-  if (!user) {
+  const memUser = profiles[req.params.username] || {};
+  if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const posts = db
-    .prepare(
-      "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
-    )
-    .all(req.params.username);
-  const followers = db
-    .prepare("SELECT follower FROM follows WHERE following=?")
-    .all(req.params.username)
-    .map((r) => r.follower);
-  const following = db
-    .prepare("SELECT following FROM follows WHERE follower=?")
-    .all(req.params.username)
-    .map((r) => r.following);
-  const isFollowing = viewer
-    ? !!db
+  const posts = dbUser
+    ? db
         .prepare(
-          "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
-        .get(viewer, req.params.username)
+        .all(req.params.username)
+    : [];
+  const followers = dbUser
+    ? db
+        .prepare("SELECT follower FROM follows WHERE following=?")
+        .all(req.params.username)
+        .map((r) => r.follower)
+    : [];
+  const following = dbUser
+    ? db
+        .prepare("SELECT following FROM follows WHERE follower=?")
+        .all(req.params.username)
+        .map((r) => r.following)
+    : [];
+  const isFollowing = viewer
+    ? dbUser
+      ? !!db
+          .prepare(
+            "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          )
+          .get(viewer, req.params.username)
+      : false
     : false;
   res.json({
-    username: user.username,
-    profilePic: user.profile_pic,
-    description: user.description || null,
+    username: req.params.username,
+    profilePic: dbUser?.profile_pic || memUser.profilePic || null,
+    description: dbUser?.description || memUser.description || null,
     posts,
     followers,
     following,
@@ -297,6 +339,14 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
       .get(req.params.username);
     pic = row?.profile_pic || null;
   }
+  const mem = profiles[req.params.username] || {};
+  profiles[req.params.username] = {
+    ...mem,
+    description: description || null,
+    profilePic: pic,
+    password: mem.password,
+  };
+  saveProfiles();
   res.json({ success: true, profilePic: pic });
 });
 
