@@ -104,11 +104,15 @@
       justify-content:center;
       border-radius:12px;
     }
-      #conn-chip img, #theme-toggle img, #ghost-btn img, #logout-btn img, #live-chip img,
+      #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #logout-btn img, #live-chip img,
       #camera-btn img, #swap-btn img {
         width:24px;
         height:24px;
       }
+    #cmd-list {
+      width:auto;
+      padding:0 10px;
+    }
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
       #camera-btn.off img { opacity:0.5; }
@@ -580,7 +584,7 @@
           <span class="live-dot"></span>Go Live
         </button>
         <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands">⚡</button>
+        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button>
       </div>
     </footer>
   </div>
