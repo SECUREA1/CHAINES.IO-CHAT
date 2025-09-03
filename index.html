@@ -109,6 +109,11 @@
         width:24px;
         height:24px;
       }
+      #theme-toggle img, #logout-btn img {
+        width:28px;
+        height:28px;
+        display:block;
+      }
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
       #camera-btn.off img { opacity:0.5; }
@@ -212,12 +217,13 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:grid; grid-template-columns: minmax(0,1fr) 56px; gap:10px; margin:0; width:100%; }
-    #composer { grid-template-columns: minmax(0,1fr) repeat(2,56px); }
-    .input { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
+    .composer .input { flex:1; }
+    .composer .send { flex:0 0 56px; }
+    .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { display:flex; align-items:center; justify-content:center; width:56px; height:56px; font-size:24px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:28px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
