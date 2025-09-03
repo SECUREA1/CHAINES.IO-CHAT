@@ -59,6 +59,7 @@
         width:100%;
         max-width:100%;
         margin:0 auto;
+        padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
       }
 
     header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
@@ -67,8 +68,8 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .top-actions { display:flex; align-items:center; gap:8px; }
-    .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar .chip { flex:0 0 auto; }
+    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
+    .toolbar .chip, .const-buttons .chip { flex:0 0 auto; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
@@ -505,7 +506,7 @@
 <body>
   <div class="wrap">
     <header>
-                <div class="bar">
+        <div class="bar">
           <div class="brand">
             <div class="logo" aria-hidden="true"></div>
             <h1>CHAINeS Chat</h1>
@@ -528,18 +529,20 @@
             <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           </div>
         </div>
-        <div class="toolbar">
+        <div class="const-buttons">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
+          <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/key.svg" alt="Stream code" /></button>
+          <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera"><img src="static/flip.svg" alt="Flip camera" /></button>
+          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
+          <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/invite.svg" alt="Invite" /></button>
+        </div>
+        <div class="toolbar">
           <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
           <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
-          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
         </div>
         <div class="status top">
           <div class="chip" id="invite-cc">
-            <button id="stream-code-btn" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/key.svg" alt="Stream code" /></button>
-            <button id="camera-flip-btn" type="button" title="Switch camera" aria-label="Switch camera"><img src="static/flip.svg" alt="Flip camera" /></button>
-            <button id="invite-btn" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/invite.svg" alt="Invite" /></button>
             <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
             <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
           </div>
