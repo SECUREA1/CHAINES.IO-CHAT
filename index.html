@@ -682,7 +682,8 @@
         b.textContent = info.icon;
         b.title = '/' + cmd;
         b.addEventListener('click', () => {
-          postMessage({ text: `*${info.text}*`, isAction: true });
+          input.value = `/${cmd} `;
+          input.focus();
           cmdPanel.hidden = true;
         });
         cmdPanel.appendChild(b);
