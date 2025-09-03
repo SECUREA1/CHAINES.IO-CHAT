@@ -929,8 +929,10 @@
       if (onlineMode === 'cloud') {
         try { socket && socket.close(); } catch {}
         socket = null;
+        if(!bc) setupLocal();
         setStatus(bc ? 'local' : 'off');
       } else {
+        if(!bc) setupLocal();
         connectWS();
       }
     });
