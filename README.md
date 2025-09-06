@@ -47,6 +47,10 @@ SpeechRecognition API. When you start broadcasting, your spoken audio is
 transcribed into caption cues shown on the stream, adapting to the language
 configured for the page.
 
+### Screen sharing
+
+Use the screen button in the header to broadcast either your entire screen or a specific window. You can trigger it while live to replace your camera feed. After choosing a surface, a thumbnail is captured and the stream begins broadcasting to other users.
+
 ### File-type backups
 
 Run `python backup.py` to copy repository files into the `backups/` directory.
