@@ -528,7 +528,7 @@
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
-           </label>
+            </label>
            <button class="chip" id="camera-btn" type="button" title="Turn camera off">
              <img src="static/camera.svg" alt="Toggle camera" />
            </button>
@@ -830,7 +830,6 @@
     }
     if(screenBtn){
       screenBtn.addEventListener('click', () => {
-        if(broadcasting){ alert('Already live'); return; }
         showPopup('Share screen via…', [
           { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
           { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
@@ -1877,6 +1876,7 @@
           if(surface === 'window') opts.video = { displaySurface: 'window' };
           if(surface === 'screen') opts.video = { displaySurface: 'monitor' };
           const stream = await navigator.mediaDevices.getDisplayMedia(opts);
+          const [track] = stream.getVideoTracks();
           const thumb = await captureStreamThumb(stream);
           if(thumb){
             broadcastThumb = thumb;
@@ -1884,7 +1884,24 @@
             handleThumbnail(clientId, broadcastThumb);
             sendSignal({ type: 'thumb', thumb: broadcastThumb });
           }
-          startBroadcast(stream);
+          if(!track) return;
+          if(!broadcasting){
+            startBroadcast(stream);
+          } else {
+            stream.getAudioTracks().forEach(t => t.stop());
+            const oldTrack = localStream.getVideoTracks()[0];
+            if(oldTrack){
+              localStream.removeTrack(oldTrack);
+              oldTrack.stop();
+            }
+            localStream.addTrack(track);
+            if(broadcastVideo) broadcastVideo.srcObject = localStream;
+            for(const id in peerConnections){
+              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+              if(sender) sender.replaceTrack(track);
+            }
+          }
+          track.addEventListener('ended', () => endBroadcast(true), { once: true });
         } catch(err){
           console.error('Screen share failed', err);
         }
