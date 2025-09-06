@@ -96,8 +96,8 @@
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #swap-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #swap-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #swap-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #logout-btn, #camera-btn, #screen-btn, #swap-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -105,7 +105,7 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #swap-btn img {
+      #camera-btn img, #screen-btn img, #swap-btn img {
         width:24px;
         height:24px;
       }
@@ -528,9 +528,12 @@
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
-            </label>
+           </label>
            <button class="chip" id="camera-btn" type="button" title="Turn camera off">
              <img src="static/camera.svg" alt="Toggle camera" />
+           </button>
+           <button class="chip" id="screen-btn" type="button" title="Share screen">
+             <img src="static/screen.svg" alt="Share screen" />
            </button>
             <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
               <img src="static/wallet.svg" alt="Wallet" />
@@ -742,6 +745,7 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
@@ -823,6 +827,16 @@
 
     if(cameraBtn){
       cameraBtn.addEventListener('click', toggleCamera);
+    }
+    if(screenBtn){
+      screenBtn.addEventListener('click', () => {
+        if(broadcasting){ alert('Already live'); return; }
+        showPopup('Share screen via…', [
+          { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
+          { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
+          { label: 'Cancel', onClick: () => hidePopup() }
+        ]);
+      });
     }
     if(cameraFlipBtn){
       cameraFlipBtn.addEventListener('click', switchCamera);
@@ -1855,6 +1869,53 @@
             })
             .catch(() => alert('Unable to access camera'));
         }
+      }
+
+      async function shareScreen(surface){
+        try{
+          const opts = { video: true, audio: true };
+          if(surface === 'window') opts.video = { displaySurface: 'window' };
+          if(surface === 'screen') opts.video = { displaySurface: 'monitor' };
+          const stream = await navigator.mediaDevices.getDisplayMedia(opts);
+          const thumb = await captureStreamThumb(stream);
+          if(thumb){
+            broadcastThumb = thumb;
+            ensureStreamThumb(clientId, store.user, true);
+            handleThumbnail(clientId, broadcastThumb);
+            sendSignal({ type: 'thumb', thumb: broadcastThumb });
+          }
+          startBroadcast(stream);
+        } catch(err){
+          console.error('Screen share failed', err);
+        }
+      }
+
+      function captureStreamThumb(stream){
+        return new Promise(resolve => {
+          try {
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.muted = true;
+            video.play().catch(() => {});
+            video.addEventListener('loadeddata', () => {
+              try{
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/png'));
+              } catch{
+                resolve(null);
+              }
+              video.pause();
+              video.srcObject = null;
+            }, { once: true });
+            setTimeout(() => resolve(null), 1000);
+          } catch {
+            resolve(null);
+          }
+        });
       }
 
       function endBroadcast(forced=false){
