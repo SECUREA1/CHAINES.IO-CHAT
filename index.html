@@ -2756,6 +2756,28 @@
       return isAction ? `<em>${withLinks}</em>` : withLinks;
     }
 
+    // Make the hologhost button evade the cursor
+    const ghostBtn = document.getElementById('ghost-btn');
+    if(ghostBtn){
+      const flee = () => {
+        const rect = ghostBtn.getBoundingClientRect();
+        const maxX = window.innerWidth - rect.width;
+        const maxY = window.innerHeight - rect.height;
+        const newX = Math.random() * maxX;
+        const newY = Math.random() * maxY;
+        ghostBtn.style.position = 'fixed';
+        ghostBtn.style.left = `${newX}px`;
+        ghostBtn.style.top = `${newY}px`;
+      };
+
+      document.addEventListener('mousemove', (e) => {
+        const rect = ghostBtn.getBoundingClientRect();
+        const dx = e.clientX - (rect.left + rect.width / 2);
+        const dy = e.clientY - (rect.top + rect.height / 2);
+        if(Math.hypot(dx, dy) < 80) flee();
+      });
+    }
+
     // Boot
     requireAuth();
   })();
