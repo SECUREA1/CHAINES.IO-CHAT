@@ -109,6 +109,7 @@
       #broadcast-btn img, #attach img, #send img, #broadcast-send img {
         width:24px;
         height:24px;
+        display:block;
       }
 #cmd-list {
   width: auto;
@@ -232,9 +233,8 @@
     .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:28px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:0; border-radius:12px; border:2px solid var(--accent-2); cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
-    .send img { width:24px; height:24px; }
 
     /* Auth screen */
     .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow:auto; }
@@ -393,9 +393,6 @@
     }
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
-    .stream-composer { display:none; margin-top:4px; gap:4px; }
-    .stream.open .stream-composer { display:flex; }
-    .stream-composer input { flex:1; }
     #video-container {
       display: flex;
       flex-wrap: wrap;
@@ -545,7 +542,7 @@
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
       </div>
-      <div class="const-buttons">
+      <div class="const-buttons" hidden>
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
@@ -592,7 +589,7 @@
       </form>
       <div class="status bottom">
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <img src="static/go-live.svg" alt="Go Live" /><span class="live-dot"></span><span class="label">Go Live</span>
+          <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
@@ -744,6 +741,7 @@
     const swapBtn = el('#swap-btn');
     const inviteBtn = el('#invite-btn');
     const inviteCC = el('#invite-cc');
+    const constButtons = el('.const-buttons');
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
@@ -1195,25 +1193,16 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul><form class="stream-composer"><input type="text" placeholder="Comment" /><button type="submit">Send</button></form>`;
+        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
         const feed = div.querySelector('.stream-feed');
-        const form = div.querySelector('.stream-composer');
-        const input = form.querySelector('input');
         const count = div.querySelector('.listener-count');
         const tuneBtn = div.querySelector('.tune-btn');
         const camBtn = div.querySelector('.cam-btn');
         const micBtn = div.querySelector('.mic-btn');
         const joinBtns = div.querySelector('.join-btns');
-        form.addEventListener('submit', ev => {
-          ev.preventDefault();
-          const text = input.value.trim();
-          if(!text) return;
-          postMessage({ text, room: id });
-          input.value='';
-        });
         if(!isSelf){
           camBtn.addEventListener('click', () => {
             sendSignal({ type: 'join-request', id, user: store.user });
@@ -1748,6 +1737,7 @@
       updateHeaderButtons();
       if(!audioOnly) document.body.classList.add('broadcast-mode');
       broadcastControls.removeAttribute('hidden');
+      if(constButtons) constButtons.removeAttribute('hidden');
       if(cameraBtn){
         cameraBtn.hidden = audioOnly;
         cameraBtn.classList.remove('off');
@@ -2058,6 +2048,7 @@
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
       broadcastControls.setAttribute('hidden','');
+      if(constButtons) constButtons.setAttribute('hidden','');
       if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
