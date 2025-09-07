@@ -96,7 +96,9 @@
     footer .status.bottom .chip { display:flex; justify-content:center; }
     footer .status.bottom .legal { flex:1 1 100%; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
-    .copywriter { font-size:12px; color:var(--muted); text-align:center; margin-top:-8px; }
+    .composer-actions { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .composer-actions .send { flex:0 0 auto; width:56px; }
+    .composer-actions .copywriter { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn { cursor:pointer; }
@@ -566,10 +568,12 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
-        <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
-        <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
+        <div class="composer-actions">
+          <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
+          <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
+          <div class="copywriter">CHAINeS Copywriter</div>
+        </div>
       </form>
-      <div class="copywriter">CHAINeS Copywriter</div>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button" title="Toggle chat" aria-label="Toggle chat"><img src="static/chat.svg" alt="Chat" /></button>
