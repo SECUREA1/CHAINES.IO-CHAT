@@ -234,6 +234,7 @@
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:28px; border-radius:12px; border:2px solid var(--accent-2); font-weight:700; cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
+    .send img { width:24px; height:24px; }
 
     /* Auth screen */
     .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow:auto; }
@@ -531,14 +532,8 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
-          <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-            <img src="static/camera.svg" alt="Toggle camera" />
-          </button>
-          <button class="chip" id="screen-btn" type="button" title="Share screen">
-            <img src="static/screen.svg" alt="Share screen" />
-          </button>
-          <button class="chip" id="wallet-btn" type="button" title="Connect Cardano wallet">
-            <img src="static/cardano.svg" alt="Cardano" />
+          <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
+            <img src="static/wallet.svg" alt="Wallet" />
           </button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
           <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
@@ -551,6 +546,12 @@
         </div>
       </div>
       <div class="const-buttons">
+        <button class="chip" id="camera-btn" type="button" title="Turn camera off">
+          <img src="static/camera.svg" alt="Toggle camera" />
+        </button>
+        <button class="chip" id="screen-btn" type="button" title="Share screen">
+          <img src="static/screen.svg" alt="Share screen" />
+        </button>
         <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
         <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
         <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
@@ -590,11 +591,11 @@
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
-        <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
-        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="live-dot"></span><span class="label">Go Live</span>
         </button>
+        <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
+        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
         <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button>
       </div>
@@ -1091,6 +1092,7 @@
 
     function showOverlayMessage({ user, text, profilePic }){
       if(!overlayChat) return;
+      overlayChat.innerHTML = '';
       const wrap = document.createElement('div');
       wrap.className = 'overlay-msg';
       const av = document.createElement('div');
