@@ -15,8 +15,8 @@
         --panel: #1e293b;
         --muted: #94a3b8;
         --fg: #f1f5f9;
-        --accent: #00c6ff;
-        --accent-2: #0072ff;
+        --accent: #1e3a8a;
+        --accent-2: #1e40af;
         --danger: #ef4444;
         --shadow: 0 0 12px rgba(0,114,255,.35);
         --radius: 16px;
@@ -68,9 +68,12 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .top-actions { display:flex; align-items:center; gap:8px; flex:1 1 100%; flex-wrap:wrap; justify-content:center; }
-    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar .chip, .const-buttons .chip { flex:0 0 auto; }
-    .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
+    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
+    .toolbar { justify-content:space-between; flex-wrap:nowrap; }
+    .toolbar > * { flex:1; }
+    .toolbar .chip { justify-content:center; }
+    .const-buttons { flex-wrap:wrap; justify-content:center; }
+    .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
     .status.top, .status.user { justify-content:space-between; }
@@ -89,10 +92,10 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; }
-    footer .status.bottom > button { flex:0 0 100px; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+    footer .status.bottom > * { flex:1; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { flex:1 1 auto; }
+    footer .status.bottom .legal { flex:1 1 100%; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
@@ -521,24 +524,26 @@
             <div class="logo" aria-hidden="true"></div>
             <h1>CHAINeS Chat</h1>
           </div>
-          <div class="top-actions">
-            <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
-              <input type="checkbox" id="auto-delete" />
-              Self-destruct in 5m
-            </label>
+        </div>
+        <div class="toolbar">
+          <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
+            <input type="checkbox" id="auto-delete" />
+            Self-destruct in 5m
+          </label>
           <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
             <img src="static/wallet.svg" alt="Wallet" />
           </button>
+          <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
+          <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
+        </div>
+        <div class="toolbar">
+          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
+          <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
           <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
             <img src="static/flip.svg" alt="Switch view" />
           </button>
-          <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
-          <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
-          <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
-      </div>
       <div class="const-buttons" hidden>
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
@@ -588,7 +593,7 @@
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
-        <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
+        <div class="legal">© <span id="year"></span> CHAINeS</div>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button>
       </div>
     </footer>
