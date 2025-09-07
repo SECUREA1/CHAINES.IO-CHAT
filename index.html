@@ -531,34 +531,30 @@
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
             </label>
-           <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-             <img src="static/camera.svg" alt="Toggle camera" />
-           </button>
-           <button class="chip" id="screen-btn" type="button" title="Share screen">
-             <img src="static/screen.svg" alt="Share screen" />
-           </button>
-            <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
-              <img src="static/wallet.svg" alt="Wallet" />
-            </button>
-            <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
-            <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
-              <img src="static/flip.svg" alt="Switch view" />
-            </button>
-            <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
-          </div>
-        </div>
-        <div class="const-buttons">
+          <button class="chip" id="camera-btn" type="button" title="Turn camera off">
+            <img src="static/camera.svg" alt="Toggle camera" />
+          </button>
+          <button class="chip" id="screen-btn" type="button" title="Share screen">
+            <img src="static/screen.svg" alt="Share screen" />
+          </button>
+          <button class="chip" id="wallet-btn" type="button" title="Connect wallet">
+            <img src="static/wallet.svg" alt="Wallet" />
+          </button>
+          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+          <button class="chip" id="swap-btn" type="button" title="Split view" hidden>
+            <img src="static/flip.svg" alt="Switch view" />
+          </button>
+          <button id="logout-btn" class="chip" type="button" title="Logout" aria-label="Logout"><img src="static/logout.svg" alt="Logout" /></button>
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
-          <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
-          <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
-        </div>
-        <div class="toolbar">
-          <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
-          <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
+      </div>
+      <div class="const-buttons">
+        <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
+        <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
+        <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
+      </div>
         <div class="status top">
           <div class="chip" id="invite-cc" hidden>
             <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
@@ -594,6 +590,8 @@
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
+        <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
+        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/camera.svg" alt="Go Live" /><span class="live-dot"></span><span class="label">Go Live</span>
         </button>
