@@ -63,12 +63,12 @@
       }
 
     header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
-    .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
-    .top-actions { display:flex; align-items:center; gap:8px; }
-    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
+    .top-actions { display:flex; align-items:center; gap:8px; flex:1 1 100%; flex-wrap:wrap; justify-content:center; }
+    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
     .toolbar .chip, .const-buttons .chip { flex:0 0 auto; }
     .self-destruct { display:flex; align-items:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
