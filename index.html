@@ -91,10 +91,9 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
-    footer .status.bottom > * { flex:1; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { flex:1 1 100%; }
+    footer .status.bottom .legal { display:flex; align-items:center; gap:4px; margin-left:auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .composer-actions { display:flex; flex-direction:column; align-items:center; gap:4px; }
     .composer-actions .send { flex:0 0 auto; width:56px; }
@@ -233,8 +232,10 @@
     .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
     .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .input input { flex:1; width:100%; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
-    .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
+    .input input,
+    .input textarea { flex:1; width:100%; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; resize:none; overflow-y:auto; }
+    .input input::placeholder,
+    .input textarea::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:0; border-radius:12px; border:2px solid var(--accent-2); cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
@@ -564,9 +565,9 @@
       </main>
 
     <footer>
-      <form id="composer" class="composer" autocomplete="off">
+      <form id="composer" class="composer" autocomplete="off" hidden>
         <label class="input" for="text">
-          <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
+          <textarea id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" rows="1"></textarea>
         </label>
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
@@ -586,13 +587,13 @@
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
+        <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
-        <div class="legal">© <span id="year"></span> CHAINeS</div>
-        <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button>
+        <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
       </div>
     </footer>
   </div>
@@ -661,9 +662,24 @@
     const fileInput = el('#file');
     const sendBtn = el('#send');
     const cmdListBtn = el('#cmd-list');
+    const messageBtn = el('#message-btn');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
+
+    function autoResize(el){
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+    input.addEventListener('input', () => autoResize(input));
+
+    messageBtn.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      if(!form.hidden){
+        autoResize(input);
+        input.focus();
+      }
+    });
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
       shrug:     { text: 'shrugs \u{1F937}', icon: '🤷' },
@@ -1553,11 +1569,12 @@
 
       if(raw){
         // Commands
-        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
           input.value='';
+          autoResize(input);
           input.placeholder = defaultPlaceholder;
           pendingFile = null;
           return;
@@ -1568,6 +1585,7 @@
           if(entry){
             postMessage({ text: `*${entry.text}*`, isAction:true });
             input.value='';
+            autoResize(input);
             input.placeholder = defaultPlaceholder;
             pendingFile = null;
             return;
@@ -1587,6 +1605,7 @@
       }
       postMessage(msg);
       input.value = '';
+      autoResize(input);
       input.placeholder = defaultPlaceholder;
       pendingFile = null;
     });
