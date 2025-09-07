@@ -133,8 +133,6 @@
         border-radius:12px;
         overflow:hidden;
         height:36px;
-        flex:1 1 auto;
-        width:100%;
       }
     #invite-cc button {
       flex:1;
@@ -163,8 +161,7 @@
       animation: live-pulse 1s infinite;
     }
     #listener-count {
-      cursor: default;
-      pointer-events: none;
+      cursor: pointer;
       gap:4px;
     }
     #ghost-btn {
@@ -552,13 +549,11 @@
         <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
         <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
         <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
-      </div>
-        <div class="status top">
-          <div class="chip" id="invite-cc" hidden>
-            <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
-            <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
-          </div>
+        <div class="chip" id="invite-cc" hidden>
+          <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
+          <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
         </div>
+      </div>
     </header>
 
       <main>
@@ -768,11 +763,15 @@
     function showStream(){
       videoContainer.removeAttribute('hidden');
       feed.setAttribute('hidden','');
+      if(form) form.setAttribute('hidden','');
+      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(videoToggle) videoToggle.textContent = 'Show Chat';
     }
     function showChat(){
       videoContainer.setAttribute('hidden','');
       feed.removeAttribute('hidden');
+      if(form) form.removeAttribute('hidden');
+      if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(videoToggle) videoToggle.textContent = 'Show Feed';
     }
     let currentHost = null;
