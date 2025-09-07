@@ -8,12 +8,18 @@
   document.addEventListener('DOMContentLoaded', () => {
     const context = window.APP_CONTEXT = {};
     const saved = localStorage.getItem(USER_DATA_KEY);
+    const container = document.querySelector('.top-actions');
+    if(container){
+      container.style.display = 'flex';
+      container.style.flexWrap = 'wrap';
+      container.style.justifyContent = 'center';
+    }
     if(saved){
       try{ Object.assign(context, JSON.parse(saved)); } catch {}
     }
     if(context.username){
       const chatBtn = createIconButton('chat-toggle-btn', '/static/chat.svg');
-      container.appendChild(chatBtn);
+      if(container) container.appendChild(chatBtn);
       // Inject live chat for logged-in users
       const sio = document.createElement('script');
       // Load Socket.IO client from the official CDN
