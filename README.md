@@ -1,4 +1,4 @@
-# CHAINeS Chat
+# CHAINeS Composer
 
 Single-page chat client for chaines.io with optional WebSocket backend and
 persistent chat history.

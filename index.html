@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>CHAINeS Chat</title>
+  <title>CHAINeS Composer</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/static/logo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -230,10 +230,10 @@
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
     .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
-    .composer .input { flex:1; }
+    .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
     .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .input input { flex:1; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
+    .input input { flex:1; width:100%; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; }
     .input input::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
     .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:0; border-radius:12px; border:2px solid var(--accent-2); cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     .send:disabled { opacity:.6; cursor:not-allowed; }
@@ -524,7 +524,7 @@
         <div class="bar">
           <div class="brand">
             <div class="logo" aria-hidden="true"></div>
-            <h1>CHAINeS Chat</h1>
+            <h1>CHAINeS Composer</h1>
           </div>
           <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
             <input type="checkbox" id="auto-delete" />
@@ -612,7 +612,7 @@
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
-      <h2>Welcome to CHAINeS Chat</h2>
+      <h2>Welcome to CHAINeS Composer</h2>
       <p>Create an account or log in to join the chatroom.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
