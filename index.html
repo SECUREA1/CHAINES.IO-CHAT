@@ -583,6 +583,7 @@
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
         <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
+        <button class="chip" id="screen-toggle" type="button">Screen</button>
         <button class="chip" id="exit-broadcast" type="button">Exit</button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
@@ -746,6 +747,7 @@
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
     const screenBtn = el('#screen-btn');
+    const screenToggle = el('#screen-toggle');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
     const headerBar = el('header');
@@ -829,13 +831,17 @@
       cameraBtn.addEventListener('click', toggleCamera);
     }
     if(screenBtn){
-      screenBtn.addEventListener('click', () => {
-        showPopup('Share screen via…', [
-          { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
-          { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
-          { label: 'Cancel', onClick: () => hidePopup() }
-        ]);
+      screenBtn.addEventListener('click', promptScreenShare);
+    }
+    if(screenToggle){
+      screenToggle.addEventListener('click', () => {
+        if(screenSharing){
+          stopScreenShare();
+        } else {
+          promptScreenShare();
+        }
       });
+      updateScreenToggle();
     }
     if(cameraFlipBtn){
       cameraFlipBtn.addEventListener('click', switchCamera);
@@ -1076,6 +1082,8 @@
     let recordCanvas = null;
     let recordCtx = null;
     let drawHandle = null;
+    let screenSharing = false;
+    let screenTrack = null;
     let recordMime = 'video/webm';
     let overlayMessages = [];
 
@@ -1870,6 +1878,43 @@
         }
       }
 
+      function promptScreenShare(){
+        showPopup('Share screen via…', [
+          { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
+          { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
+          { label: 'Cancel', onClick: () => hidePopup() }
+        ]);
+      }
+
+      function updateScreenToggle(){
+        if(!screenToggle) return;
+        screenToggle.textContent = screenSharing ? 'Camera' : 'Screen';
+        screenToggle.title = screenSharing ? 'Return to camera' : 'Share screen';
+      }
+
+      function stopScreenShare(){
+        if(!screenSharing || !localStream) return;
+        screenSharing = false;
+        if(screenTrack){
+          try{ localStream.removeTrack(screenTrack); }catch{}
+          screenTrack.stop();
+          screenTrack = null;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
+          .then(stream => {
+            const newVideoTrack = stream.getVideoTracks()[0];
+            localStream.addTrack(newVideoTrack);
+            if(broadcastVideo) broadcastVideo.srcObject = localStream;
+            for(const id in peerConnections){
+              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+              if(sender) sender.replaceTrack(newVideoTrack);
+            }
+            stream.getTracks().forEach(t => { if(t !== newVideoTrack) t.stop(); });
+            updateScreenToggle();
+          })
+          .catch(err => { console.error('Camera restore failed', err); endBroadcast(true); });
+      }
+
       async function shareScreen(surface){
         try{
           const opts = { video: true, audio: true };
@@ -1901,7 +1946,10 @@
               if(sender) sender.replaceTrack(track);
             }
           }
-          track.addEventListener('ended', () => endBroadcast(true), { once: true });
+          screenSharing = true;
+          screenTrack = track;
+          updateScreenToggle();
+          track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
           console.error('Screen share failed', err);
         }
@@ -1946,6 +1994,9 @@
         }
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
+        screenSharing = false;
+        screenTrack = null;
+        updateScreenToggle();
       overlayMessages = [];
       activeRooms.delete(clientId);
       if(activeRooms.size === 0) showChat();
