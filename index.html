@@ -62,8 +62,8 @@
         padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
       }
 
-    header { display:flex; flex-direction:column; gap:8px; padding:8px 12px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
-    .bar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
+    .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
@@ -105,7 +105,8 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #screen-btn img, #swap-btn img {
+      #camera-btn img, #screen-btn img, #swap-btn img, #chat-toggle img, #exit-broadcast img,
+      #broadcast-btn img, #attach img, #send img, #broadcast-send img {
         width:24px;
         height:24px;
       }
@@ -548,10 +549,10 @@
         </div>
         <div class="const-buttons">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code"><img src="static/key.svg" alt="Stream code" /></button>
-          <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera"><img src="static/flip.svg" alt="Flip camera" /></button>
+          <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
+          <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
-          <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners"><img src="static/invite.svg" alt="Invite" /></button>
+          <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
         </div>
         <div class="toolbar">
           <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
@@ -559,7 +560,7 @@
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
         </div>
         <div class="status top">
-          <div class="chip" id="invite-cc">
+          <div class="chip" id="invite-cc" hidden>
             <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
             <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
           </div>
@@ -578,23 +579,23 @@
         <label class="input" for="text">
           <input id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" />
         </label>
-        <button class="send" id="attach" type="button" aria-label="Attach file">📎</button>
-        <button class="send" id="send" type="submit" aria-label="Send message">🐒</button>
+        <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
+        <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <input id="file" type="file" hidden />
       <div class="broadcast-controls" id="broadcast-controls" hidden>
-        <button class="chip" id="chat-toggle" type="button">💬 Chat</button>
-        <button class="chip" id="exit-broadcast" type="button">Exit</button>
+        <button class="chip" id="chat-toggle" type="button" title="Toggle chat" aria-label="Toggle chat"><img src="static/chat.svg" alt="Chat" /></button>
+        <button class="chip" id="exit-broadcast" type="button" title="Exit broadcast" aria-label="Exit broadcast"><img src="static/logout.svg" alt="Exit" /></button>
       </div>
       <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
         <label class="input" for="broadcast-text">
           <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
         </label>
-        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message">🐒</button>
+        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <span class="live-dot"></span>Go Live
+          <img src="static/camera.svg" alt="Go Live" /><span class="live-dot"></span><span class="label">Go Live</span>
         </button>
         <div class="legal">© <span id="year"></span> CHAINeS • Built for <a href="https://chaines.io" target="_blank" rel="noopener">chaines.io</a></div>
         <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button>
@@ -737,10 +738,13 @@
     const popupActions = el('#popup-actions');
     let userCache = [];
     const broadcastBtn = el('#broadcast-btn');
+    const broadcastIcon = broadcastBtn.querySelector('img');
+    const broadcastLabel = broadcastBtn.querySelector('.label');
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const swapBtn = el('#swap-btn');
     const inviteBtn = el('#invite-btn');
+    const inviteCC = el('#invite-cc');
     const endBtn = el('#end-btn');
     const exitBroadcast = el('#exit-broadcast');
     const broadcastControls = el('#broadcast-controls');
@@ -982,7 +986,7 @@
         pendingJoinHost = hostId;
         sendSignal({ type: 'join-request', id: hostId, user: store.user });
         broadcastBtn.disabled = true;
-        broadcastBtn.textContent = '⏳ Pending';
+        broadcastLabel.textContent = 'Pending';
       } else {
         let stream;
         try {
@@ -1107,8 +1111,9 @@
     }
 
       function updateHeaderButtons(){
-        [streamCodeBtn, cameraFlipBtn, inviteBtn, listenerCountBtn, endBtn].forEach(btn => {
-          if(btn) btn.hidden = false;
+        const show = broadcasting;
+        [streamCodeBtn, cameraFlipBtn, inviteBtn, inviteCC, listenerCountBtn, endBtn].forEach(btn => {
+          if(btn) btn.hidden = !show;
         });
         document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
         document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
@@ -1735,7 +1740,9 @@
       document.body.classList.remove('chat-open');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
-      broadcastBtn.textContent = '⏹ End';
+      broadcastLabel.textContent = 'End';
+      broadcastIcon.src = 'static/stop.svg';
+      broadcastIcon.alt = 'End';
       broadcastBtn.title = 'End live broadcast';
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
@@ -1997,7 +2004,9 @@
       pendingJoinHost = null;
       pendingMicHost = null;
       broadcastBtn.disabled = false;
-      broadcastBtn.textContent = '🎥 Go Live';
+      broadcastLabel.textContent = 'Go Live';
+      broadcastIcon.src = 'static/camera.svg';
+      broadcastIcon.alt = 'Go Live';
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
@@ -2370,7 +2379,9 @@
       const stream = streams[pendingJoinHost];
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
-      broadcastBtn.textContent = '🎥 Go Live';
+      broadcastLabel.textContent = 'Go Live';
+      broadcastIcon.src = 'static/camera.svg';
+      broadcastIcon.alt = 'Go Live';
       alert('Join request denied or busy.');
     }
 
