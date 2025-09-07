@@ -1,7 +1,7 @@
-# CHAINeS Chat Brand Guide
+# CHAINeS Composer Brand Guide
 
 ## Identity
-- **Name**: CHAINeS Chat
+- **Name**: CHAINeS Composer
 - **Tagline**: Linking conversations across the chain.
 - **Logo**: Blue gradient chain link icon.
 
