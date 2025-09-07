@@ -124,6 +124,7 @@
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
       #camera-btn.off img { opacity:0.5; }
+      #screen-btn.on img { opacity:0.5; }
       #invite-cc {
         display:flex;
         padding:0;
@@ -781,6 +782,9 @@
     let micApproved = false;
     let cameraOff = false;
     let blankTrack = null;
+    let screenStream = null;
+    let screenTrack = null;
+    let screenSharing = false;
 
     let audioUnlocked = false;
     const pendingPlayables = new Set();
@@ -830,11 +834,15 @@
     }
     if(screenBtn){
       screenBtn.addEventListener('click', () => {
-        showPopup('Share screen via…', [
-          { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
-          { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
-          { label: 'Cancel', onClick: () => hidePopup() }
-        ]);
+        if(screenSharing){
+          stopScreenShare();
+        } else {
+          showPopup('Share screen via…', [
+            { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
+            { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
+            { label: 'Cancel', onClick: () => hidePopup() }
+          ]);
+        }
       });
     }
     if(cameraFlipBtn){
@@ -1870,14 +1878,45 @@
         }
       }
 
+      function stopScreenShare(){
+        if(!screenSharing) return;
+        screenSharing = false;
+        if(screenStream){
+          screenStream.getTracks().forEach(t => t.stop());
+          screenStream = null;
+        }
+        if(screenTrack){
+          localStream.removeTrack(screenTrack);
+          screenTrack.stop();
+          screenTrack = null;
+        }
+        localStream.getTracks().forEach(t => { if(t.readyState === 'ended') localStream.removeTrack(t); });
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
+          .then(stream => {
+            const camTrack = stream.getVideoTracks()[0];
+            if(camTrack){
+              localStream.addTrack(camTrack);
+              for(const id in peerConnections){
+                const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
+                if(sender) sender.replaceTrack(camTrack);
+              }
+              if(broadcastVideo) broadcastVideo.srcObject = localStream;
+            } else {
+              endBroadcast(true);
+            }
+          })
+          .catch(() => endBroadcast(true));
+        if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
+      }
+
       async function shareScreen(surface){
         try{
           const opts = { video: true, audio: true };
           if(surface === 'window') opts.video = { displaySurface: 'window' };
           if(surface === 'screen') opts.video = { displaySurface: 'monitor' };
-          const stream = await navigator.mediaDevices.getDisplayMedia(opts);
-          const [track] = stream.getVideoTracks();
-          const thumb = await captureStreamThumb(stream);
+          screenStream = await navigator.mediaDevices.getDisplayMedia(opts);
+          const [track] = screenStream.getVideoTracks();
+          const thumb = await captureStreamThumb(screenStream);
           if(thumb){
             broadcastThumb = thumb;
             ensureStreamThumb(clientId, store.user, true);
@@ -1886,9 +1925,9 @@
           }
           if(!track) return;
           if(!broadcasting){
-            startBroadcast(stream);
+            startBroadcast(screenStream);
           } else {
-            stream.getAudioTracks().forEach(t => t.stop());
+            screenStream.getAudioTracks().forEach(t => t.stop());
             const oldTrack = localStream.getVideoTracks()[0];
             if(oldTrack){
               localStream.removeTrack(oldTrack);
@@ -1901,7 +1940,10 @@
               if(sender) sender.replaceTrack(track);
             }
           }
-          track.addEventListener('ended', () => endBroadcast(true), { once: true });
+          screenTrack = track;
+          screenSharing = true;
+          if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
+          track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
           console.error('Screen share failed', err);
         }
