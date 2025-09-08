@@ -702,7 +702,7 @@
       } else {
         body = `<a href="${content}" download="${escapeHTML(filename)}">Download original file</a>`;
       }
-      return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML(filename || 'download')}</title></head><body><header style="text-align:center;margin-bottom:20px;"><h1>CHAINeS Copywriter</h1><p>${escapeHTML(user)} - ${date}</p></header>${body}<footer style="text-align:center;margin-top:20px;">CHAINeS Copywriter</footer></body></html>`;
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML(filename || 'download')}</title></head><body><header style="text-align:center;margin-bottom:20px;"><h1>Written on the CHAINeS Copywriters</h1><p>${escapeHTML(user)} | ${date}</p></header>${body}<footer style="text-align:center;margin-top:20px;"><p>${escapeHTML(user)} | ${date}</p><p>CHAINeS Copywriters</p></footer></body></html>`;
     }
 
     function downloadCopywriter(content, filename, mime, user){
