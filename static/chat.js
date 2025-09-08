@@ -47,6 +47,51 @@
     const sendAllowed = !!ctx.username;
     const socket = io();
     chatSocket = socket;
+
+    function escapeHTML(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+    function createCopywriterDoc(content, filename, mime, user){
+      const date = new Date().toLocaleString();
+      let body = '';
+      if(mime.startsWith('text/')){
+        body = `<pre>${escapeHTML(content)}</pre>`;
+      } else if(mime.startsWith('image/')){
+        body = `<img src="${content}" alt="${escapeHTML(filename)}" style="max-width:100%;"/>`;
+      } else if(mime.startsWith('audio/')){
+        body = `<audio controls src="${content}"></audio>`;
+      } else if(mime.startsWith('video/')){
+        body = `<video controls src="${content}" style="max-width:100%;"></video>`;
+      } else {
+        body = `<a href="${content}" download="${escapeHTML(filename)}">Download original file</a>`;
+      }
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML(filename || 'download')}</title></head><body><header style="text-align:center;margin-bottom:20px;"><h1>CHAINeS Copywriter</h1><p>${escapeHTML(user)} - ${date}</p></header>${body}<footer style="text-align:center;margin-top:20px;">CHAINeS Copywriter</footer></body></html>`;
+    }
+    function downloadCopywriter(content, filename, mime, user){
+      const html = createCopywriterDoc(content, filename, mime, user);
+      const blob = new Blob([html], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const name = (filename || 'download').replace(/\.[^.]+$/, '') + '.html';
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    function createDownloadLink(content, filename, mime, user){
+      const link = document.createElement('a');
+      const name = filename || 'download';
+      link.href = '#';
+      link.textContent = `Download ${name}`;
+      link.style.color = '#ffd700';
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        downloadCopywriter(content, name, mime || 'application/octet-stream', user);
+      });
+      return link;
+    }
     socket.on('connect', () => {
       socket.emit('get_chat_history');
     });
@@ -59,6 +104,9 @@
       header.style.color = '#00a0ff';
       header.style.textShadow = '0 0 6px gold';
       msg.appendChild(header);
+      if(data.message){
+        msg.appendChild(createDownloadLink(data.message, 'message', 'text/plain', data.user));
+      }
       const fileName = data.file_name || data.fileName;
       const fileType = data.file_type || data.fileType || '';
       if(data.image){
@@ -67,6 +115,7 @@
         img.alt = fileName || data.message || 'image';
         img.style.maxWidth = '100%';
         msg.appendChild(img);
+        msg.appendChild(createDownloadLink(data.image, fileName || 'image', fileType || 'image/*', data.user));
       } else if(data.file){
         const type = fileType;
         if(type.startsWith('video/')){
@@ -75,18 +124,15 @@
           vid.controls = true;
           vid.style.maxWidth = '100%';
           msg.appendChild(vid);
+          msg.appendChild(createDownloadLink(data.file, fileName || 'video', type, data.user));
         } else if(type.startsWith('audio/')){
           const aud = document.createElement('audio');
           aud.src = data.file;
           aud.controls = true;
           msg.appendChild(aud);
+          msg.appendChild(createDownloadLink(data.file, fileName || 'audio', type, data.user));
         } else {
-          const link = document.createElement('a');
-          link.href = data.file;
-          const name = fileName || 'download';
-          link.textContent = name;
-          link.download = name;
-          link.style.color = '#ffd700';
+          const link = createDownloadLink(data.file, fileName || 'download', type, data.user);
           msg.appendChild(link);
         }
       }
