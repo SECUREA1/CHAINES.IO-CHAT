@@ -513,6 +513,19 @@
       font-size: 1rem;
     }
 
+    .download-btn{
+      display:inline-block;
+      margin-top:4px;
+      padding:4px 8px;
+      border:1px solid var(--lining);
+      border-radius:8px;
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+      color: var(--fg);
+      text-decoration:none;
+      font-size:12px;
+      box-shadow: var(--shadow);
+    }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -1644,8 +1657,14 @@
       fileLoading = true;
       sendBtn.disabled = true;
       const reader = new FileReader();
-      reader.onload = () => {
-        pendingFile = { dataUrl: reader.result, name: file.name, type: file.type };
+      reader.onload = async () => {
+        let dataUrl = reader.result;
+        if(file.type.startsWith('image/')){
+          let wmText = `© ${store.user}`;
+          try{ wmText = prompt('Watermark text', wmText) || wmText; }catch{}
+          try{ dataUrl = await addWatermark(dataUrl, wmText); }catch{}
+        }
+        pendingFile = { dataUrl, name: file.name, type: file.type };
         input.placeholder = `Comment on ${file.name}`;
         input.focus();
         fileLoading = false;
@@ -2608,6 +2627,12 @@
           img.style.borderRadius = '8px';
           img.loading = 'lazy';
           bubble.appendChild(img);
+          const link = document.createElement('a');
+          link.href = fileData;
+          link.download = filename || 'image';
+          link.textContent = filename ? `Download ${filename}` : 'Download';
+          link.className = 'download-btn';
+          bubble.appendChild(link);
         } else {
           const link = document.createElement('a');
           link.href = fileData;
@@ -2779,6 +2804,29 @@
       const safe = escapeHTML(s);
       const withLinks = linkify(safe);
       return isAction ? `<em>${withLinks}</em>` : withLinks;
+    }
+
+    async function addWatermark(dataUrl, text){
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const size = Math.floor(canvas.width / 20);
+          ctx.font = `${size}px Poppins, sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.textBaseline = 'bottom';
+          const padding = 10;
+          const width = ctx.measureText(text).width;
+          ctx.fillText(text, canvas.width - width - padding, canvas.height - padding);
+          resolve(canvas.toDataURL());
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
     }
 
     // Make the hologhost button evade the cursor
