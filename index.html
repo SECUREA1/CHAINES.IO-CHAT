@@ -2828,8 +2828,23 @@
               const scale = Math.min(canvas.width / (wmImg.width * 5), canvas.height / (wmImg.height * 5));
               const wmWidth = wmImg.width * scale;
               const wmHeight = wmImg.height * scale;
-              ctx.globalAlpha = 0.6;
-              ctx.drawImage(wmImg, canvas.width - wmWidth - padding, canvas.height - wmHeight - padding, wmWidth, wmHeight);
+              const x = canvas.width - wmWidth - padding;
+              const y = canvas.height - wmHeight - padding;
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(x + wmWidth / 2, y + wmHeight / 2, Math.min(wmWidth, wmHeight) / 2, 0, Math.PI * 2);
+              ctx.closePath();
+              ctx.clip();
+              ctx.globalAlpha = 0.3;
+              ctx.drawImage(wmImg, x, y, wmWidth, wmHeight);
+              ctx.restore();
+              ctx.globalAlpha = 0.3;
+              const size = Math.floor(wmWidth / 4);
+              ctx.font = `${size}px Poppins, sans-serif`;
+              ctx.fillStyle = '#fff';
+              ctx.textBaseline = 'bottom';
+              const width = ctx.measureText(text).width;
+              ctx.fillText(text, x + wmWidth - width - 5, y + wmHeight - 5);
               ctx.globalAlpha = 1;
               resolve(canvas.toDataURL());
             };
@@ -2838,7 +2853,7 @@
           } else {
             const size = Math.floor(canvas.width / 20);
             ctx.font = `${size}px Poppins, sans-serif`;
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.textBaseline = 'bottom';
             const width = ctx.measureText(text).width;
             ctx.fillText(text, canvas.width - width - padding, canvas.height - padding);
