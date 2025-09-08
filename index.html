@@ -71,7 +71,7 @@
     .toolbar { justify-content:space-between; flex-wrap:nowrap; }
     .toolbar > * { flex:1; }
     .toolbar .chip { justify-content:center; }
-    .const-buttons { flex-wrap:wrap; justify-content:center; }
+    .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
@@ -471,9 +471,11 @@
       100% { opacity: 0; }
     }
 
-    .broadcast-controls { display:none; gap:8px; width:100%; justify-content:center; }
-    .broadcast-controls .chip { flex:1; }
+    .broadcast-controls { display:none; gap:8px; width:100%; justify-content:space-evenly; }
+    .broadcast-controls .chip { flex:0 0 auto; }
     body.broadcast-mode .broadcast-controls { display:flex; }
+    #broadcast-composer { display:none; }
+    body.broadcast-mode #broadcast-composer { display:flex; }
     #thumb-chooser {
       position: fixed;
       inset: 0;
