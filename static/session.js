@@ -25,9 +25,14 @@
       // Load Socket.IO client from the official CDN
       sio.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
       document.body.appendChild(sio);
-      const script = document.createElement('script');
-      script.src = '/static/chat.js';
-      document.body.appendChild(script);
+      const copyScript = document.createElement('script');
+      copyScript.src = '/static/copywriter.js';
+      copyScript.onload = () => {
+        const script = document.createElement('script');
+        script.src = '/static/chat.js';
+        document.body.appendChild(script);
+      };
+      document.body.appendChild(copyScript);
       chatBtn.addEventListener('click', () => {
         if(window.initChatBox){
           window.initChatBox();
