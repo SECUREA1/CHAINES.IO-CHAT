@@ -92,12 +92,13 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; }
+    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; justify-content:space-evenly; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { display:flex; align-items:center; gap:4px; margin-left:auto; }
+    footer .status.bottom .legal { display:flex; align-items:center; gap:4px; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
-    .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px); gap:4px; }
+    .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
     .composer-actions .send { width:56px; height:56px; }
+    .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn { cursor:pointer; }
@@ -269,6 +270,7 @@
     .popup-content { background:var(--panel); color:var(--fg); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow); min-width:200px; text-align:center; }
     .popup-actions { margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
     .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
+    .popup-actions button img { width:24px; height:24px; display:block; }
 
     .live-btn {
       display:inline-flex;
@@ -576,6 +578,7 @@
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
           <button class="send" id="command-btn" type="button" aria-label="Show commands"><img src="static/whitehat.svg" alt="Command" /></button>
           <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
+          <div class="copywriter">CHAINeS Composer</div>
         </div>
       </form>
       <input id="file" type="file" hidden />
