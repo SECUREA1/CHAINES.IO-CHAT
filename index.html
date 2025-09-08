@@ -688,6 +688,49 @@
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
 
+    function createCopywriterDoc(content, filename, mime, user){
+      const date = new Date().toLocaleString();
+      let body = '';
+      if(mime.startsWith('text/')){
+        body = `<pre>${escapeHTML(content)}</pre>`;
+      } else if(mime.startsWith('image/')){
+        body = `<img src="${content}" alt="${escapeHTML(filename)}" style="max-width:100%;"/>`;
+      } else if(mime.startsWith('audio/')){
+        body = `<audio controls src="${content}"></audio>`;
+      } else if(mime.startsWith('video/')){
+        body = `<video controls src="${content}" style="max-width:100%;"></video>`;
+      } else {
+        body = `<a href="${content}" download="${escapeHTML(filename)}">Download original file</a>`;
+      }
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML(filename || 'download')}</title></head><body><header style="text-align:center;margin-bottom:20px;"><h1>CHAINeS Copywriter</h1><p>${escapeHTML(user)} - ${date}</p></header>${body}<footer style="text-align:center;margin-top:20px;">CHAINeS Copywriter</footer></body></html>`;
+    }
+
+    function downloadCopywriter(content, filename, mime, user){
+      const html = createCopywriterDoc(content, filename, mime, user);
+      const blob = new Blob([html], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const name = (filename || 'download').replace(/\.[^.]+$/, '') + '.html';
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function createDownloadLink(content, filename, mime, user){
+      const link = document.createElement('a');
+      link.href = '#';
+      link.textContent = filename ? `Download ${filename}` : 'Download';
+      link.className = 'download-btn';
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        downloadCopywriter(content, filename || 'file', mime || 'application/octet-stream', user);
+      });
+      return link;
+    }
+
     function autoResize(el){
       el.style.height = 'auto';
       el.style.height = el.scrollHeight + 'px';
@@ -2593,6 +2636,9 @@
           showOverlayMessage({ user: m.user, text: plain, profilePic: m.profilePic });
         }
       }
+      if(plain){
+        bubble.appendChild(createDownloadLink(plain, 'message', 'text/plain', m.user));
+      }
       const fileData = m.file || m.image;
       if(fileData){
         const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
@@ -2609,12 +2655,14 @@
           attachCaptions(vid);
           if(m.image) vid.poster = m.image;
           bubble.appendChild(vid);
+          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         } else if(mime.startsWith('audio/')){
           const aud = document.createElement('audio');
           aud.src = fileData;
           aud.controls = true;
           aud.style.width = '100%';
           bubble.appendChild(aud);
+          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         } else if(isModel){
           const model = document.createElement('model-viewer');
           model.src = fileData;
@@ -2625,6 +2673,7 @@
           model.setAttribute('camera-controls','');
           model.setAttribute('auto-rotate','');
           bubble.appendChild(model);
+          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         } else if(mime.startsWith('image/')){
           const img = document.createElement('img');
           img.src = fileData;
@@ -2633,18 +2682,9 @@
           img.style.borderRadius = '8px';
           img.loading = 'lazy';
           bubble.appendChild(img);
-          const link = document.createElement('a');
-          link.href = fileData;
-          link.download = filename || 'image';
-          link.textContent = filename ? `Download ${filename}` : 'Download';
-          link.className = 'download-btn';
-          bubble.appendChild(link);
+          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         } else {
-          const link = document.createElement('a');
-          link.href = fileData;
-          link.textContent = filename || 'download';
-          link.download = filename || 'file';
-          bubble.appendChild(link);
+          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         }
       }
 
