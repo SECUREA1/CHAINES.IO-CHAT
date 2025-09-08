@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script src="static/wallet.js" defer></script>
   <style>
       :root {
         --bg: #0f172a;
@@ -95,9 +96,8 @@
     footer .status.bottom .chip { display:flex; justify-content:center; }
     footer .status.bottom .legal { display:flex; align-items:center; gap:4px; margin-left:auto; }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
-    .composer-actions { display:flex; flex-direction:column; align-items:center; gap:4px; }
-    .composer-actions .send { flex:0 0 auto; width:56px; }
-    .composer-actions .copywriter { font-size:12px; color:var(--muted); text-align:center; }
+    .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px); gap:4px; }
+    .composer-actions .send { width:56px; height:56px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn { cursor:pointer; }
@@ -110,7 +110,7 @@
     }
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #feed-btn img, #logout-btn img, #live-chip img,
       #camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
-      #broadcast-btn img, #attach img, #send img, #broadcast-send img {
+      #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img {
         width:24px;
         height:24px;
         display:block;
@@ -572,7 +572,8 @@
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
-          <div class="copywriter">CHAINeS Copywriter</div>
+          <button class="send" id="command-btn" type="button" aria-label="Show commands"><img src="static/whitehat.svg" alt="Command" /></button>
+          <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
         </div>
       </form>
       <input id="file" type="file" hidden />
@@ -662,6 +663,7 @@
     const fileInput = el('#file');
     const sendBtn = el('#send');
     const cmdListBtn = el('#cmd-list');
+    const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
@@ -1619,6 +1621,9 @@
     });
 
     cmdListBtn.addEventListener('click', () => {
+      cmdPanel.hidden = !cmdPanel.hidden;
+    });
+    cmdBtn.addEventListener('click', () => {
       cmdPanel.hidden = !cmdPanel.hidden;
     });
     attachBtn.addEventListener('click', () => fileInput.click());
