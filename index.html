@@ -1661,8 +1661,14 @@
         let dataUrl = reader.result;
         if(file.type.startsWith('image/')){
           let wmText = `© ${store.user}`;
+          let wmFile;
           try{ wmText = prompt('Watermark text', wmText) || wmText; }catch{}
-          try{ dataUrl = await addWatermark(dataUrl, wmText); }catch{}
+          try{
+            if(confirm('Use an image file as watermark instead of text?')){
+              wmFile = await selectWatermarkFile();
+            }
+            dataUrl = await addWatermark(dataUrl, wmText, wmFile);
+          }catch{}
         }
         pendingFile = { dataUrl, name: file.name, type: file.type };
         input.placeholder = `Comment on ${file.name}`;
@@ -2806,7 +2812,7 @@
       return isAction ? `<em>${withLinks}</em>` : withLinks;
     }
 
-    async function addWatermark(dataUrl, text){
+    async function addWatermark(dataUrl, text, wmDataUrl){
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -2815,17 +2821,49 @@
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          const size = Math.floor(canvas.width / 20);
-          ctx.font = `${size}px Poppins, sans-serif`;
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.textBaseline = 'bottom';
           const padding = 10;
-          const width = ctx.measureText(text).width;
-          ctx.fillText(text, canvas.width - width - padding, canvas.height - padding);
-          resolve(canvas.toDataURL());
+          if(wmDataUrl){
+            const wmImg = new Image();
+            wmImg.onload = () => {
+              const scale = Math.min(canvas.width / (wmImg.width * 5), canvas.height / (wmImg.height * 5));
+              const wmWidth = wmImg.width * scale;
+              const wmHeight = wmImg.height * scale;
+              ctx.globalAlpha = 0.6;
+              ctx.drawImage(wmImg, canvas.width - wmWidth - padding, canvas.height - wmHeight - padding, wmWidth, wmHeight);
+              ctx.globalAlpha = 1;
+              resolve(canvas.toDataURL());
+            };
+            wmImg.onerror = () => resolve(canvas.toDataURL());
+            wmImg.src = wmDataUrl;
+          } else {
+            const size = Math.floor(canvas.width / 20);
+            ctx.font = `${size}px Poppins, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.textBaseline = 'bottom';
+            const width = ctx.measureText(text).width;
+            ctx.fillText(text, canvas.width - width - padding, canvas.height - padding);
+            resolve(canvas.toDataURL());
+          }
         };
         img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;
+      });
+    }
+
+    async function selectWatermarkFile(){
+      return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = () => {
+          const file = input.files[0];
+          if(!file) return resolve(null);
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        };
+        input.click();
       });
     }
 
