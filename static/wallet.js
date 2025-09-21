@@ -1,8 +1,5 @@
 (function(){
-  const CSL_SCRIPT_URL = 'https://unpkg.com/@emurgo/cardano-serialization-lib-browser@11.4.0/cardano_serialization_lib.js';
-  const CSL_MODULE_URL = `${CSL_SCRIPT_URL}?module`;
   const CARDANO_EVENT = 'cardano#initialized';
-  let serializationLibPromise = null;
 
   const state = {
     overlay: null,
@@ -41,183 +38,256 @@
     return new TextEncoder().encode(str);
   }
 
-  const CSL_WASM_URL = CSL_SCRIPT_URL.replace(/cardano_serialization_lib\.js(?:\?.*)?$/, 'cardano_serialization_lib_bg.wasm');
+  function createCborReader(bytes){
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let offset = 0;
 
-  function normalizeSerializationLib(candidate){
-    if(!candidate || typeof candidate !== 'object') return null;
-    const lib = candidate.CardanoWasm || candidate.default || candidate;
-    if(
-      lib && typeof lib === 'object' &&
-      typeof lib.Value === 'function' &&
-      typeof lib.MultiAsset === 'function' &&
-      typeof lib.AssetName === 'function'
-    ){
-      return lib;
+    function ensure(length){
+      if(offset + length > bytes.length){
+        throw new Error('Unexpected end of CBOR data.');
+      }
+    }
+
+    function readUint(additional){
+      if(additional < 24) return BigInt(additional);
+      if(additional === 24){
+        ensure(1);
+        const value = bytes[offset];
+        offset += 1;
+        return BigInt(value);
+      }
+      if(additional === 25){
+        ensure(2);
+        const value = view.getUint16(offset);
+        offset += 2;
+        return BigInt(value);
+      }
+      if(additional === 26){
+        ensure(4);
+        const value = view.getUint32(offset);
+        offset += 4;
+        return BigInt(value);
+      }
+      if(additional === 27){
+        ensure(8);
+        const high = view.getUint32(offset);
+        const low = view.getUint32(offset + 4);
+        offset += 8;
+        return (BigInt(high) << 32n) + BigInt(low);
+      }
+      throw new Error(`Unsupported integer additional info: ${additional}`);
+    }
+
+    function readLength(additional){
+      if(additional === 31) return null;
+      const length = readUint(additional);
+      if(length > Number.MAX_SAFE_INTEGER){
+        throw new Error('CBOR length exceeds supported range.');
+      }
+      return Number(length);
+    }
+
+    function readBytes(additional){
+      const length = readLength(additional);
+      if(length === null){
+        throw new Error('Indefinite byte strings are not supported.');
+      }
+      ensure(length);
+      const slice = bytes.slice(offset, offset + length);
+      offset += length;
+      return slice;
+    }
+
+    function readArray(additional){
+      const length = readLength(additional);
+      const result = [];
+      if(length === null){
+        while(true){
+          if(offset >= bytes.length) throw new Error('Unexpected end while reading indefinite array.');
+          if(bytes[offset] === 0xff){
+            offset += 1;
+            break;
+          }
+          result.push(readValue());
+        }
+        return result;
+      }
+      for(let index = 0; index < length; index += 1){
+        result.push(readValue());
+      }
+      return result;
+    }
+
+    function readMap(additional){
+      const length = readLength(additional);
+      const map = new Map();
+      if(length === null){
+        while(true){
+          if(offset >= bytes.length) throw new Error('Unexpected end while reading indefinite map.');
+          if(bytes[offset] === 0xff){
+            offset += 1;
+            break;
+          }
+          const key = readValue();
+          const value = readValue();
+          map.set(key, value);
+        }
+        return map;
+      }
+      for(let index = 0; index < length; index += 1){
+        const key = readValue();
+        const value = readValue();
+        map.set(key, value);
+      }
+      return map;
+    }
+
+    function readTag(additional){
+      const tag = readUint(additional);
+      const value = readValue();
+      return { tag, value };
+    }
+
+    function readSimple(additional){
+      if(additional === 20) return false;
+      if(additional === 21) return true;
+      if(additional === 22) return null;
+      if(additional === 23) return undefined;
+      if(additional === 24){
+        ensure(1);
+        const value = bytes[offset];
+        offset += 1;
+        return { simple: value };
+      }
+      if(additional === 25){
+        ensure(2);
+        const value = view.getUint16(offset);
+        offset += 2;
+        return value;
+      }
+      if(additional === 26){
+        ensure(4);
+        const value = view.getFloat32(offset);
+        offset += 4;
+        return value;
+      }
+      if(additional === 27){
+        ensure(8);
+        const value = view.getFloat64(offset);
+        offset += 8;
+        return value;
+      }
+      if(additional === 31){
+        throw new Error('Invalid use of CBOR break code.');
+      }
+      return { simple: additional };
+    }
+
+    function readValue(){
+      ensure(1);
+      const initial = bytes[offset];
+      offset += 1;
+      const major = initial >> 5;
+      const additional = initial & 0x1f;
+      switch(major){
+        case 0:
+          return readUint(additional);
+        case 1:
+          return -1n - readUint(additional);
+        case 2:
+          return readBytes(additional);
+        case 3:{
+          const chunk = readBytes(additional);
+          return new TextDecoder().decode(chunk);
+        }
+        case 4:
+          return readArray(additional);
+        case 5:
+          return readMap(additional);
+        case 6:
+          return readTag(additional);
+        case 7:
+          return readSimple(additional);
+        default:
+          throw new Error(`Unsupported CBOR major type: ${major}`);
+      }
+    }
+
+    function finish(){
+      const value = readValue();
+      if(offset !== bytes.length){
+        throw new Error('Unexpected trailing data after CBOR decode.');
+      }
+      return value;
+    }
+
+    return { finish };
+  }
+
+  function decodeCbor(bytes){
+    return createCborReader(bytes).finish();
+  }
+
+  function toHexLike(value){
+    if(value instanceof Uint8Array){
+      return bytesToHex(value);
+    }
+    if(typeof value === 'string'){
+      return bytesToHex(stringToBytes(value));
     }
     return null;
   }
 
-  function isPromiseLike(value){
-    return value && (typeof value === 'object' || typeof value === 'function') && typeof value.then === 'function';
-  }
-
-  async function resolveSerializationLibCandidate(candidate, seen = new Set()){
-    if(!candidate || seen.has(candidate)) return null;
-    seen.add(candidate);
-
-    const normalized = normalizeSerializationLib(candidate);
-    if(normalized) return normalized;
-
-    if(candidate && typeof candidate === 'object'){
-      if(candidate.CardanoWasm && !seen.has(candidate.CardanoWasm)){
-        const lib = await resolveSerializationLibCandidate(candidate.CardanoWasm, seen);
-        if(lib) return lib;
-      }
-      if(candidate.default && !seen.has(candidate.default)){
-        const lib = await resolveSerializationLibCandidate(candidate.default, seen);
-        if(lib) return lib;
-      }
-      if(typeof candidate.load === 'function'){
-        try{
-          const loaded = await candidate.load();
-          const lib = await resolveSerializationLibCandidate(loaded, seen);
-          if(lib) return lib;
-        }catch(err){
-          console.warn('Failed to load Cardano serialization library via load() helper.', err);
-        }
-      }
-    }
-
-    if(typeof candidate === 'function'){
-      try{
-        const result = candidate();
-        const lib = await resolveSerializationLibCandidate(result, seen);
-        if(lib) return lib;
-      }catch(err){
-        console.warn('Cardano serialization library function invocation without arguments failed.', err);
-      }
-
-      try{
-        const resultWithUrl = candidate(CSL_WASM_URL);
-        const lib = await resolveSerializationLibCandidate(resultWithUrl, seen);
-        if(lib) return lib;
-      }catch(err){
-        console.warn('Cardano serialization library function invocation with WASM URL failed.', err);
-      }
-    }
-
-    if(isPromiseLike(candidate)){
-      try{
-        const resolved = await candidate;
-        return await resolveSerializationLibCandidate(resolved, seen);
-      }catch(err){
-        console.warn('Cardano serialization library promise rejected.', err);
-      }
-    }
-
+  function toBigInt(value){
+    if(typeof value === 'bigint') return value;
+    if(typeof value === 'number') return BigInt(value);
     return null;
   }
 
-  function loadViaScriptTag(){
-    const attemptResolve = () => resolveSerializationLibCandidate(window.CardanoWasm || window.Cardano || window.CardanoSerializationLib);
-
-    return attemptResolve().then(existingLib => {
-      if(existingLib){
-        window.CardanoWasm = existingLib;
-        return existingLib;
-      }
-
-      return new Promise((resolve, reject) => {
-        const handleScript = scriptEl => {
-          let settled = false;
-
-          const cleanup = () => {
-            scriptEl.removeEventListener('load', onLoad);
-            scriptEl.removeEventListener('error', onError);
-          };
-
-          async function onLoad(){
-            if(settled) return;
-            try{
-              const lib = await attemptResolve();
-              if(lib){
-                settled = true;
-                cleanup();
-                scriptEl.dataset.cslLoaded = 'true';
-                window.CardanoWasm = lib;
-                resolve(lib);
-                return;
-              }
-              settled = true;
-              cleanup();
-              reject(new Error('Cardano serialization library loaded but did not expose the expected API.'));
-            }catch(err){
-              settled = true;
-              cleanup();
-              reject(err);
-            }
-          }
-
-          function onError(){
-            if(settled) return;
-            settled = true;
-            cleanup();
-            reject(new Error('Cardano serialization library script failed to load.'));
-          }
-
-          scriptEl.addEventListener('load', onLoad);
-          scriptEl.addEventListener('error', onError);
-
-          if(scriptEl.readyState === 'complete' || scriptEl.dataset.cslLoaded === 'true'){
-            onLoad();
-          }
-        };
-
-        const existingScript = document.querySelector('script[data-csl-loader="true"]');
-        if(existingScript){
-          handleScript(existingScript);
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.src = CSL_SCRIPT_URL;
-        script.async = true;
-        script.dataset.cslLoader = 'true';
-        handleScript(script);
-        document.head.appendChild(script);
-      });
-    });
+  function extractMultiAsset(decoded){
+    if(decoded instanceof Map) return decoded;
+    if(Array.isArray(decoded)){
+      if(decoded.length === 0) return null;
+      if(decoded.length === 1 && decoded[0] instanceof Map) return decoded[0];
+      if(decoded.length >= 2 && decoded[1] instanceof Map) return decoded[1];
+    }
+    if(decoded && typeof decoded === 'object' && decoded.value instanceof Map){
+      return decoded.value;
+    }
+    return null;
   }
 
-  async function importSerializationLib(){
-    const existingLib = await resolveSerializationLibCandidate(window.CardanoWasm || window.Cardano || window.CardanoSerializationLib);
-    if(existingLib){
-      window.CardanoWasm = existingLib;
-      return existingLib;
-    }
-
+  function balanceHasAsset(balanceHex, policyBytes, assetBytes){
+    if(typeof balanceHex !== 'string' || balanceHex.length === 0) return false;
+    let decoded;
     try{
-      const module = await import(/* @vite-ignore */ CSL_MODULE_URL);
-      const lib = await resolveSerializationLibCandidate(module);
-      if(lib){
-        window.CardanoWasm = lib;
-        return lib;
-      }
-      console.warn('Cardano serialization library module loaded without the expected exports. Falling back to script tag.');
+      decoded = decodeCbor(hexToBytes(balanceHex));
     }catch(err){
-      console.warn('Failed to import Cardano serialization library as an ES module. Falling back to script tag.', err);
+      console.warn('Failed to decode balance CBOR payload.', err);
+      return false;
     }
 
-    return loadViaScriptTag();
-  }
+    const multiAsset = extractMultiAsset(decoded);
+    if(!multiAsset) return false;
 
-  function loadSerializationLib(){
-    if(serializationLibPromise) return serializationLibPromise;
-    serializationLibPromise = importSerializationLib().catch(err => {
-      serializationLibPromise = null;
-      throw err;
-    });
-    return serializationLibPromise;
+    const targetPolicy = bytesToHex(policyBytes);
+    const targetAsset = bytesToHex(assetBytes);
+
+    for(const [policyKey, assets] of multiAsset.entries()){
+      const policyHex = toHexLike(policyKey);
+      if(policyHex !== targetPolicy) continue;
+      if(!(assets instanceof Map)) continue;
+      for(const [assetKey, amount] of assets.entries()){
+        const assetHex = toHexLike(assetKey);
+        if(assetHex !== targetAsset) continue;
+        const quantity = toBigInt(amount);
+        if(quantity !== null && quantity > 0n){
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   function setStatus(message, tone = 'info', opts = {}){
@@ -388,25 +458,8 @@
     if(!state.config || !state.config.valid){
       throw new Error('Token gate is not configured.');
     }
-    const CSL = await loadSerializationLib();
     const balanceHex = await api.getBalance();
-    if(typeof balanceHex !== 'string' || balanceHex.length === 0){
-      return false;
-    }
-    const balance = CSL.Value.from_bytes(hexToBytes(balanceHex));
-    const multiAsset = balance.multiasset();
-    if(!multiAsset) return false;
-
-    const policyHash = CSL.ScriptHash.from_bytes(state.config.policyBytes);
-    const assets = multiAsset.get(policyHash);
-    if(!assets) return false;
-
-    const assetName = CSL.AssetName.new(state.config.assetBytes);
-    const amount = assets.get(assetName);
-    if(!amount) return false;
-
-    const zero = CSL.BigNum.from_str('0');
-    return amount.compare(zero) > 0;
+    return balanceHasAsset(balanceHex, state.config.policyBytes, state.config.assetBytes);
   }
 
   function recordSelection(walletKey){
