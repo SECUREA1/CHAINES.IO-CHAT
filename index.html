@@ -306,6 +306,48 @@
       justify-content: center;
       box-shadow: var(--shadow);
     }
+    .ghost-ticker {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: linear-gradient(120deg, color-mix(in oklab, var(--accent), transparent 40%), color-mix(in oklab, var(--accent-2), transparent 35%));
+      border: 1px solid color-mix(in oklab, var(--lining), transparent 35%);
+      box-shadow: var(--shadow);
+      color: var(--fg);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-16px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 1100;
+    }
+    .ghost-ticker.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ghost-ticker img {
+      width: 28px;
+      height: 28px;
+      filter: drop-shadow(0 0 8px rgba(148, 163, 255, 0.45));
+    }
+    .ghost-ticker__text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.2;
+    }
+    .ghost-ticker__message {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .ghost-ticker__total {
+      font-size: 12px;
+      color: var(--muted);
+    }
     #conn-chip { display:inline-flex; align-items:center; gap:4px; }
     .usr { font-weight:600; color: var(--fg); }
 
@@ -665,6 +707,15 @@
       footer { padding:0 12px 12px; gap:8px; }
       .feed { padding:12px; }
       .composer { margin:0; }
+      .ghost-ticker {
+        left: 50%;
+        right: auto;
+        top: 12px;
+        transform: translate(-50%, -16px);
+      }
+      .ghost-ticker.is-visible {
+        transform: translate(-50%, 0);
+      }
     }
   </style>
 </head>
@@ -684,6 +735,13 @@
         Connect wallet
       </button>
       <p class="token-gate__hint">Need access? Make sure the wallet you connect holds the configured policy ID and asset name.</p>
+    </div>
+  </div>
+  <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
+    <img src="static/hologhost.svg" alt="" aria-hidden="true" />
+    <div class="ghost-ticker__text">
+      <span class="ghost-ticker__message" data-role="message"></span>
+      <span class="ghost-ticker__total" data-role="total" hidden></span>
     </div>
   </div>
   <div class="wrap">
@@ -3036,9 +3094,72 @@
 
     // Make the hologhost button evade the cursor
     const ghostBtn = document.getElementById('ghost-btn');
+    const ghostTicker = document.getElementById('ghost-ticker');
+    const ghostTickerMessage = ghostTicker ? ghostTicker.querySelector('[data-role="message"]') : null;
+    const ghostTickerTotal = ghostTicker ? ghostTicker.querySelector('[data-role="total"]') : null;
+    let ghostTickerTimer = null;
+    let ghostTickerHideTimer = null;
+    let ghostTokenCount = 0;
+
+    if(window.GhostWallet && typeof window.GhostWallet.getGhostTokenCount === 'function'){
+      const initialCount = Number(window.GhostWallet.getGhostTokenCount());
+      if(Number.isFinite(initialCount) && initialCount > 0){
+        ghostTokenCount = initialCount;
+      }
+    }
+
+    const showGhostTicker = ({ message, count } = {}) => {
+      if(!ghostTicker) return;
+
+      if(ghostTickerTimer){
+        clearTimeout(ghostTickerTimer);
+        ghostTickerTimer = null;
+      }
+
+      if(ghostTickerHideTimer){
+        clearTimeout(ghostTickerHideTimer);
+        ghostTickerHideTimer = null;
+      }
+
+      const displayMessage = message || 'The hologhost is on the move!';
+      if(ghostTickerMessage){
+        ghostTickerMessage.textContent = displayMessage;
+      }
+
+      let total = ghostTokenCount;
+      if(typeof count === 'number' && Number.isFinite(count)){
+        ghostTokenCount = count;
+        total = count;
+      }
+
+      if(ghostTickerTotal){
+        if(typeof total === 'number' && total > 0){
+          ghostTickerTotal.textContent = total === 1 ? '1 ghost token secured' : `${total} ghost tokens secured`;
+          ghostTickerTotal.hidden = false;
+        } else {
+          ghostTickerTotal.textContent = '';
+          ghostTickerTotal.hidden = true;
+        }
+      }
+
+      ghostTicker.hidden = false;
+      // Force layout to allow transition when toggling from hidden state
+      void ghostTicker.offsetWidth;
+      ghostTicker.classList.add('is-visible');
+
+      ghostTickerTimer = setTimeout(() => {
+        ghostTicker.classList.remove('is-visible');
+        ghostTickerHideTimer = setTimeout(() => {
+          ghostTicker.hidden = true;
+          ghostTickerHideTimer = null;
+        }, 300);
+      }, 4000);
+    };
+
     if(ghostBtn){
       const syncGhostBadge = (count) => {
         if(typeof count !== 'number' || count <= 0){
+          ghostTokenCount = 0;
           delete ghostBtn.dataset.ghostCount;
           ghostBtn.setAttribute('title', 'Hologhost');
           ghostBtn.setAttribute('aria-label', 'Hologhost');
@@ -3049,11 +3170,24 @@
         const described = `Hologhost · ${label}`;
         ghostBtn.setAttribute('title', described);
         ghostBtn.setAttribute('aria-label', described);
+        ghostTokenCount = count;
       };
 
       if(window.GhostWallet && typeof window.GhostWallet.getGhostTokenCount === 'function'){
         syncGhostBadge(window.GhostWallet.getGhostTokenCount());
       }
+
+      const attemptGhostTransfer = () => {
+        if(!window.GhostWallet || typeof window.GhostWallet.grantGhostToken !== 'function'){
+          showGhostTicker({ message: 'The ghost wallet counter is unavailable.' });
+          return;
+        }
+
+        const result = window.GhostWallet.grantGhostToken({ silent: true });
+        if(result && !result.success && result.message){
+          showGhostTicker({ message: result.message, count: result.count });
+        }
+      };
 
       const flee = () => {
         const rect = ghostBtn.getBoundingClientRect();
@@ -3064,18 +3198,22 @@
         ghostBtn.style.position = 'fixed';
         ghostBtn.style.left = `${newX}px`;
         ghostBtn.style.top = `${newY}px`;
+        attemptGhostTransfer();
       };
 
       ghostBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         if(!window.GhostWallet || typeof window.GhostWallet.grantGhostToken !== 'function'){
-          systemNote('The ghost wallet counter is unavailable.');
+          const message = 'The ghost wallet counter is unavailable.';
+          systemNote(message);
+          showGhostTicker({ message });
           return;
         }
         const result = window.GhostWallet.grantGhostToken();
         if(result && !result.success && result.message){
           systemNote(result.message);
+          showGhostTicker({ message: result.message, count: result.count });
         }
       });
 
@@ -3085,6 +3223,7 @@
         if(detail.message){
           systemNote(detail.message);
         }
+        showGhostTicker({ message: detail.message, count: detail.count });
       });
 
       document.addEventListener('mousemove', (e) => {
