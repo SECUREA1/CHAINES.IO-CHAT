@@ -372,32 +372,37 @@
 
   function parseConfig(){
     if(!state.overlay) return { valid: false, error: 'Token gate element not found.' };
-    const policyId = (state.overlay.dataset.policyId || '').trim();
-    const assetName = (state.overlay.dataset.assetName || '').trim();
-    const assetNameHex = (state.overlay.dataset.assetNameHex || '').trim();
 
-    if(!policyId){
+    const policyIdRaw = (state.overlay.dataset.policyId || '').trim();
+    const assetName = (state.overlay.dataset.assetName || '').trim();
+    const assetNameHexRaw = (state.overlay.dataset.assetNameHex || '').trim();
+
+    if(!policyIdRaw){
       return { valid: false, error: 'Token gate not configured. Set data-policy-id on #token-gate.' };
     }
 
     let policyBytes;
     try{
-      policyBytes = hexToBytes(policyId);
+      policyBytes = hexToBytes(policyIdRaw);
     }catch(err){
       return { valid: false, error: 'Policy ID must be a valid hex string.' };
     }
 
+    const policyId = bytesToHex(policyBytes);
+
     let assetBytes;
     let assetLabel = assetName;
-    if(assetNameHex){
+    let assetNameHex = assetNameHexRaw ? assetNameHexRaw.toLowerCase() : '';
+    if(assetNameHexRaw){
       try{
-        assetBytes = hexToBytes(assetNameHex);
+        assetBytes = hexToBytes(assetNameHexRaw);
       }catch(err){
         return { valid: false, error: 'Asset name hex must be a valid hex string.' };
       }
-      assetLabel = assetLabel || `0x${assetNameHex}`;
+      assetLabel = assetLabel || `0x${assetNameHexRaw}`;
     }else if(assetName){
       assetBytes = stringToBytes(assetName);
+      assetNameHex = bytesToHex(assetBytes);
     }
 
     if(!assetBytes || assetBytes.length === 0){
@@ -408,6 +413,68 @@
       return { valid: false, error: 'Asset name must be 32 bytes or fewer.' };
     }
 
+    if(!assetLabel){
+      assetLabel = assetNameHex ? `0x${assetNameHex}` : '';
+    }
+
+    const ghostPolicyIdRaw = (state.overlay.dataset.ghostPolicyId || '').trim();
+    const ghostAssetName = (state.overlay.dataset.ghostAssetName || '').trim();
+    const ghostAssetNameHexRaw = (state.overlay.dataset.ghostAssetNameHex || '').trim();
+
+    let ghostPolicyBytes = null;
+    let ghostPolicyId = policyId;
+    let ghostPolicyError = '';
+
+    if(ghostPolicyIdRaw){
+      try{
+        ghostPolicyBytes = hexToBytes(ghostPolicyIdRaw);
+        ghostPolicyId = bytesToHex(ghostPolicyBytes);
+      }catch(err){
+        ghostPolicyError = 'Ghost policy ID must be a valid hex string.';
+      }
+    }else{
+      ghostPolicyBytes = policyBytes;
+    }
+
+    let ghostAssetBytes = null;
+    let ghostAssetLabel = ghostAssetName;
+    let ghostAssetNameHex = ghostAssetNameHexRaw ? ghostAssetNameHexRaw.toLowerCase() : '';
+    let ghostAssetError = '';
+
+    if(ghostAssetNameHexRaw){
+      try{
+        ghostAssetBytes = hexToBytes(ghostAssetNameHexRaw);
+        ghostAssetLabel = ghostAssetLabel || `0x${ghostAssetNameHexRaw}`;
+      }catch(err){
+        ghostAssetError = 'Ghost asset name hex must be a valid hex string.';
+      }
+    }else if(ghostAssetName){
+      ghostAssetBytes = stringToBytes(ghostAssetName);
+      ghostAssetNameHex = bytesToHex(ghostAssetBytes);
+    }else if(!ghostPolicyError){
+      ghostAssetBytes = assetBytes;
+      ghostAssetNameHex = assetNameHex;
+      ghostAssetLabel = assetLabel;
+    }
+
+    if(!ghostAssetError && ghostAssetBytes && ghostAssetBytes.length > 32){
+      ghostAssetError = 'Ghost asset name must be 32 bytes or fewer.';
+    }
+
+    if(!ghostPolicyBytes && !ghostPolicyError){
+      ghostPolicyBytes = policyBytes;
+    }
+
+    if(!ghostAssetLabel){
+      if(ghostAssetNameHex){
+        ghostAssetLabel = `0x${ghostAssetNameHex}`;
+      }else{
+        ghostAssetLabel = assetLabel;
+      }
+    }
+
+    const ghostValid = !ghostPolicyError && !ghostAssetError && Boolean(ghostPolicyBytes && ghostAssetBytes);
+
     return {
       valid: true,
       policyId,
@@ -415,7 +482,17 @@
       assetName,
       assetNameHex,
       assetBytes,
-      assetLabel: assetLabel || `0x${bytesToHex(assetBytes)}`
+      assetLabel,
+      ghost: {
+        valid: ghostValid,
+        error: ghostPolicyError || ghostAssetError || '',
+        policyId: ghostPolicyId,
+        policyBytes: ghostPolicyBytes || null,
+        assetName: ghostAssetName,
+        assetNameHex: ghostAssetNameHex || assetNameHex,
+        assetBytes: ghostAssetBytes || null,
+        assetLabel: ghostAssetLabel
+      }
     };
   }
 
@@ -567,6 +644,14 @@
     if(!state.accessGranted || !state.config || !state.config.valid){
       return state.ghostTokenCount;
     }
+    const ghostConfig = state.config.ghost;
+    if(!ghostConfig || !ghostConfig.valid){
+      if(!silent){
+        const message = ghostConfig && ghostConfig.error ? ghostConfig.error : 'Ghost token vending is not configured.';
+        setStatus(message, 'error', { skipIfError: true });
+      }
+      return state.ghostTokenCount;
+    }
     try{
       const addressHex = await getWalletAddressHex();
       const response = await fetch('/api/hologhosts/status', {
@@ -574,8 +659,8 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           addressHex,
-          policyId: state.config.policyId,
-          assetNameHex: state.config.assetNameHex,
+          policyId: ghostConfig.policyId,
+          assetNameHex: ghostConfig.assetNameHex,
         })
       });
       let data = {};
@@ -683,6 +768,16 @@
       return result;
     }
 
+    const ghostConfig = state.config && state.config.ghost;
+    if(!ghostConfig || !ghostConfig.valid){
+      const message = (ghostConfig && ghostConfig.error) || 'Ghost token vending is not configured.';
+      result.message = message;
+      if(!silent){
+        setStatus(message, 'error', { skipIfError: true });
+      }
+      return result;
+    }
+
     if(state.pendingDispense){
       result.message = 'A ghost transfer is already in progress.';
       if(!silent){
@@ -703,8 +798,8 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           addressHex,
-          policyId: state.config.policyId,
-          assetNameHex: state.config.assetNameHex,
+          policyId: ghostConfig.policyId,
+          assetNameHex: ghostConfig.assetNameHex,
         })
       });
       let data = {};
