@@ -11,6 +11,10 @@ import Database from "better-sqlite3";
 import webpush from "web-push";
 import { bech32 } from "bech32";
 import fetch from "node-fetch";
+import {
+  isDirectVendorEnabled,
+  vendGhostTokenDirect,
+} from "./hologhostVendor.js";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -333,11 +337,14 @@ app.post("/api/hologhosts/dispense", async (req, res) => {
   let vendorStatus = null;
   let txId = null;
   let message = "Ghost token transfer initiated.";
-  const useSimulation = vendingUrl.trim().length === 0;
+  const trimmedVendingUrl = vendingUrl.trim();
+  const hasExternalVendor = trimmedVendingUrl.length > 0;
+  const useDirectVendor = !hasExternalVendor && isDirectVendorEnabled();
+  const useSimulation = !hasExternalVendor && !useDirectVendor;
 
-  if (!useSimulation) {
+  if (hasExternalVendor) {
     try {
-      const response = await fetch(vendingUrl, {
+      const response = await fetch(trimmedVendingUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -369,6 +376,33 @@ app.post("/api/hologhosts/dispense", async (req, res) => {
       txId = vendorResponse?.txId || vendorResponse?.tx_id || null;
       message = vendorResponse?.message || message;
     } catch (err) {
+      recordGhostDrop({
+        walletAddress: bechAddress,
+        txId: null,
+        policyId,
+        assetNameHex,
+        success: false,
+        vendorStatus,
+        vendorResponse: { error: err?.message || "Unexpected vending error." },
+      });
+      res.status(502).json({ success: false, error: err?.message || "Ghost token transfer failed." });
+      return;
+    }
+  } else if (useDirectVendor) {
+    try {
+      const directResult = await vendGhostTokenDirect({
+        address: bechAddress,
+        policyId,
+        assetNameHex,
+      });
+      txId = directResult?.txId || null;
+      vendorStatus = directResult?.vendorStatus ?? 200;
+      vendorResponse = directResult?.vendorResponse || null;
+      message = directResult?.message || message;
+    } catch (err) {
+      vendorStatus = Number.isFinite(err?.statusCode)
+        ? err.statusCode
+        : 500;
       recordGhostDrop({
         walletAddress: bechAddress,
         txId: null,
