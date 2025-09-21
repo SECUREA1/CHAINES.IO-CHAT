@@ -15,7 +15,10 @@
     selectedWallet: null,
     connectedApi: null,
     walletInfo: null,
-    ghostTokenCount: 0
+    walletAddressHex: null,
+    walletAddressBech32: null,
+    ghostTokenCount: 0,
+    pendingDispense: false
   };
 
   function hexToBytes(hex){
@@ -33,6 +36,21 @@
 
   function bytesToHex(bytes){
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function normalizeHex(hex){
+    const trimmed = (hex || '').toString().trim();
+    const normalized = trimmed.startsWith('0x') ? trimmed.slice(2) : trimmed;
+    if(normalized.length === 0){
+      throw new Error('Hex value is required.');
+    }
+    if(!/^[0-9a-fA-F]+$/.test(normalized)){
+      throw new Error('Value must be a valid hexadecimal string.');
+    }
+    if(normalized.length % 2 !== 0){
+      throw new Error('Hex value must contain an even number of characters.');
+    }
+    return normalized.toLowerCase();
   }
 
   function stringToBytes(str){
@@ -487,10 +505,53 @@
     state.selectedWallet = walletKey;
   }
 
+  function resetWalletAddressCache(){
+    state.walletAddressHex = null;
+    state.walletAddressBech32 = null;
+  }
+
+  function storeWalletAddressHex(hex){
+    const normalized = normalizeHex(hex);
+    state.walletAddressHex = normalized;
+    return normalized;
+  }
+
+  async function getWalletAddressHex(){
+    if(state.walletAddressHex){
+      return state.walletAddressHex;
+    }
+    const api = state.connectedApi;
+    if(!api){
+      throw new Error('Wallet API is not available. Connect a wallet first.');
+    }
+    if(typeof api.getChangeAddress === 'function'){
+      try{
+        const changeAddress = await api.getChangeAddress();
+        if(changeAddress){
+          return storeWalletAddressHex(changeAddress);
+        }
+      }catch(err){
+        console.warn('Failed to retrieve change address.', err);
+      }
+    }
+    if(typeof api.getUsedAddresses === 'function'){
+      try{
+        const used = await api.getUsedAddresses();
+        if(Array.isArray(used) && used.length > 0 && used[0]){
+          return storeWalletAddressHex(used[0]);
+        }
+      }catch(err){
+        console.warn('Failed to retrieve used addresses.', err);
+      }
+    }
+    throw new Error('Unable to determine wallet address. Ensure the wallet has on-chain activity.');
+  }
+
   function onAccessGranted(walletInfo){
     state.accessGranted = true;
     recordSelection(walletInfo.key);
     state.walletInfo = walletInfo;
+    state.pendingDispense = false;
     setStatus(`Access granted with ${walletInfo.name}.`, 'success');
     hideOverlay();
     if(state.connectBtn){
@@ -500,6 +561,48 @@
       state.walletBtn.classList.add('wallet-connected');
       refreshWalletButtonLabel();
     }
+  }
+
+  async function syncGhostTokenCount({ silent } = {}){
+    if(!state.accessGranted || !state.config || !state.config.valid){
+      return state.ghostTokenCount;
+    }
+    try{
+      const addressHex = await getWalletAddressHex();
+      const response = await fetch('/api/hologhosts/status', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          addressHex,
+          policyId: state.config.policyId,
+          assetNameHex: state.config.assetNameHex,
+        })
+      });
+      let data = {};
+      try{
+        data = await response.json();
+      }catch{
+        data = {};
+      }
+      if(!response.ok || !data.success){
+        throw new Error(data.error || 'Unable to retrieve hologhost status.');
+      }
+      const count = Number(data.count);
+      if(Number.isFinite(count)){
+        state.ghostTokenCount = count;
+        if(data.address){
+          state.walletAddressBech32 = data.address;
+        }
+        refreshWalletButtonLabel();
+        return count;
+      }
+    }catch(err){
+      console.warn('Failed to sync ghost token count.', err);
+      if(!silent){
+        setStatus(err?.message || 'Ghost token status unavailable.', 'error', { skipIfError: true });
+      }
+    }
+    return state.ghostTokenCount;
   }
 
   async function connectAndValidate(){
@@ -530,16 +633,21 @@
       }
       const api = await wallet.enable();
       state.connectedApi = api;
+      resetWalletAddressCache();
       setStatus('Checking token balance…');
       const hasToken = await verifyToken(api);
       if(!hasToken){
         setStatus('Wallet connected but required token was not found.', 'error');
+        state.connectedApi = null;
+        resetWalletAddressCache();
+        state.pendingDispense = false;
         if(state.connectBtn && !state.accessGranted){
           state.connectBtn.disabled = false;
         }
         return;
       }
       onAccessGranted(walletInfo);
+      await syncGhostTokenCount({ silent: true });
     }catch(err){
       console.error('Wallet connection failed', err);
       const message = err && err.message ? err.message : 'Wallet connection failed.';
@@ -559,11 +667,12 @@
     showOverlay();
   }
 
-  function grantGhostToken({ silent } = {}){
+  async function grantGhostToken({ silent } = {}){
     const result = {
       success: false,
       count: state.ghostTokenCount,
-      message: ''
+      message: '',
+      txId: null
     };
 
     if(!state.accessGranted){
@@ -574,24 +683,78 @@
       return result;
     }
 
-    state.ghostTokenCount += 1;
-    result.success = true;
-    result.count = state.ghostTokenCount;
-    const descriptor = state.ghostTokenCount === 1 ? 'your first ghost token' : `ghost token #${state.ghostTokenCount}`;
-    result.message = `Boo! You received ${descriptor}.`;
-
-    refreshWalletButtonLabel();
-
-    if(!silent){
-      setStatus(result.message, 'success');
+    if(state.pendingDispense){
+      result.message = 'A ghost transfer is already in progress.';
+      if(!silent){
+        setStatus(result.message, 'info', { skipIfError: true });
+      }
+      return result;
     }
 
-    window.dispatchEvent(new CustomEvent('wallet:ghost-token', {
-      detail: {
-        count: state.ghostTokenCount,
-        message: result.message
+    state.pendingDispense = true;
+
+    try{
+      const addressHex = await getWalletAddressHex();
+      if(!silent){
+        setStatus('Requesting hologhost transfer…');
       }
-    }));
+      const response = await fetch('/api/hologhosts/dispense', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          addressHex,
+          policyId: state.config.policyId,
+          assetNameHex: state.config.assetNameHex,
+        })
+      });
+      let data = {};
+      try{
+        data = await response.json();
+      }catch{
+        data = {};
+      }
+      if(!response.ok || !data.success){
+        throw new Error(data.error || 'Ghost token transfer failed.');
+      }
+
+      const count = Number(data.count);
+      if(Number.isFinite(count)){
+        state.ghostTokenCount = count;
+      }else{
+        state.ghostTokenCount += 1;
+      }
+      result.count = state.ghostTokenCount;
+      result.success = true;
+      result.txId = data.txId || null;
+      if(data.address){
+        state.walletAddressBech32 = data.address;
+      }
+      result.message = data.message || 'Ghost token transfer initiated.';
+
+      refreshWalletButtonLabel();
+
+      if(!silent){
+        const statusMessage = result.txId ? `${result.message} · Tx: ${result.txId}` : result.message;
+        setStatus(statusMessage, 'success');
+      }
+
+      window.dispatchEvent(new CustomEvent('wallet:ghost-token', {
+        detail: {
+          count: state.ghostTokenCount,
+          message: result.message,
+          txId: result.txId,
+          address: state.walletAddressBech32
+        }
+      }));
+    }catch(err){
+      console.error('Ghost token transfer failed', err);
+      result.message = err && err.message ? err.message : 'Ghost token transfer failed.';
+      if(!silent){
+        setStatus(result.message, 'error');
+      }
+    }finally{
+      state.pendingDispense = false;
+    }
 
     return result;
   }
@@ -652,7 +815,9 @@
 
   window.GhostWallet = Object.assign({}, window.GhostWallet, {
     grantGhostToken,
-    getGhostTokenCount: () => state.ghostTokenCount
+    getGhostTokenCount: () => state.ghostTokenCount,
+    refreshGhostTokenCount: () => syncGhostTokenCount({ silent: true }),
+    resolveWalletAddressHex: () => getWalletAddressHex()
   });
 
   document.addEventListener('DOMContentLoaded', init);
