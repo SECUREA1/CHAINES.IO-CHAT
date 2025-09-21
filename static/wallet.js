@@ -41,6 +41,8 @@
     return new TextEncoder().encode(str);
   }
 
+  const CSL_WASM_URL = CSL_SCRIPT_URL.replace(/cardano_serialization_lib\.js(?:\?.*)?$/, 'cardano_serialization_lib_bg.wasm');
+
   function normalizeSerializationLib(candidate){
     if(!candidate || typeof candidate !== 'object') return null;
     const lib = candidate.CardanoWasm || candidate.default || candidate;
@@ -55,39 +57,140 @@
     return null;
   }
 
-  function loadViaScriptTag(){
-    return new Promise((resolve, reject) => {
-      if(document.querySelector('script[data-csl-loader="true"]')){
-        const lib = normalizeSerializationLib(window.CardanoWasm || window.Cardano);
-        if(lib){
-          window.CardanoWasm = lib;
-          resolve(lib);
-          return;
+  function isPromiseLike(value){
+    return value && (typeof value === 'object' || typeof value === 'function') && typeof value.then === 'function';
+  }
+
+  async function resolveSerializationLibCandidate(candidate, seen = new Set()){
+    if(!candidate || seen.has(candidate)) return null;
+    seen.add(candidate);
+
+    const normalized = normalizeSerializationLib(candidate);
+    if(normalized) return normalized;
+
+    if(candidate && typeof candidate === 'object'){
+      if(candidate.CardanoWasm && !seen.has(candidate.CardanoWasm)){
+        const lib = await resolveSerializationLibCandidate(candidate.CardanoWasm, seen);
+        if(lib) return lib;
+      }
+      if(candidate.default && !seen.has(candidate.default)){
+        const lib = await resolveSerializationLibCandidate(candidate.default, seen);
+        if(lib) return lib;
+      }
+      if(typeof candidate.load === 'function'){
+        try{
+          const loaded = await candidate.load();
+          const lib = await resolveSerializationLibCandidate(loaded, seen);
+          if(lib) return lib;
+        }catch(err){
+          console.warn('Failed to load Cardano serialization library via load() helper.', err);
         }
       }
+    }
 
-      const script = document.createElement('script');
-      script.src = CSL_SCRIPT_URL;
-      script.async = true;
-      script.dataset.cslLoader = 'true';
-      script.addEventListener('load', () => {
-        const lib = normalizeSerializationLib(window.CardanoWasm || window.Cardano);
-        if(lib){
-          window.CardanoWasm = lib;
-          resolve(lib);
+    if(typeof candidate === 'function'){
+      try{
+        const result = candidate();
+        const lib = await resolveSerializationLibCandidate(result, seen);
+        if(lib) return lib;
+      }catch(err){
+        console.warn('Cardano serialization library function invocation without arguments failed.', err);
+      }
+
+      try{
+        const resultWithUrl = candidate(CSL_WASM_URL);
+        const lib = await resolveSerializationLibCandidate(resultWithUrl, seen);
+        if(lib) return lib;
+      }catch(err){
+        console.warn('Cardano serialization library function invocation with WASM URL failed.', err);
+      }
+    }
+
+    if(isPromiseLike(candidate)){
+      try{
+        const resolved = await candidate;
+        return await resolveSerializationLibCandidate(resolved, seen);
+      }catch(err){
+        console.warn('Cardano serialization library promise rejected.', err);
+      }
+    }
+
+    return null;
+  }
+
+  function loadViaScriptTag(){
+    const attemptResolve = () => resolveSerializationLibCandidate(window.CardanoWasm || window.Cardano || window.CardanoSerializationLib);
+
+    return attemptResolve().then(existingLib => {
+      if(existingLib){
+        window.CardanoWasm = existingLib;
+        return existingLib;
+      }
+
+      return new Promise((resolve, reject) => {
+        const handleScript = scriptEl => {
+          let settled = false;
+
+          const cleanup = () => {
+            scriptEl.removeEventListener('load', onLoad);
+            scriptEl.removeEventListener('error', onError);
+          };
+
+          async function onLoad(){
+            if(settled) return;
+            try{
+              const lib = await attemptResolve();
+              if(lib){
+                settled = true;
+                cleanup();
+                scriptEl.dataset.cslLoaded = 'true';
+                window.CardanoWasm = lib;
+                resolve(lib);
+                return;
+              }
+              settled = true;
+              cleanup();
+              reject(new Error('Cardano serialization library loaded but did not expose the expected API.'));
+            }catch(err){
+              settled = true;
+              cleanup();
+              reject(err);
+            }
+          }
+
+          function onError(){
+            if(settled) return;
+            settled = true;
+            cleanup();
+            reject(new Error('Cardano serialization library script failed to load.'));
+          }
+
+          scriptEl.addEventListener('load', onLoad);
+          scriptEl.addEventListener('error', onError);
+
+          if(scriptEl.readyState === 'complete' || scriptEl.dataset.cslLoaded === 'true'){
+            onLoad();
+          }
+        };
+
+        const existingScript = document.querySelector('script[data-csl-loader="true"]');
+        if(existingScript){
+          handleScript(existingScript);
           return;
         }
-        reject(new Error('Cardano serialization library loaded but did not expose the expected API.'));
+
+        const script = document.createElement('script');
+        script.src = CSL_SCRIPT_URL;
+        script.async = true;
+        script.dataset.cslLoader = 'true';
+        handleScript(script);
+        document.head.appendChild(script);
       });
-      script.addEventListener('error', () => {
-        reject(new Error('Cardano serialization library script failed to load.'));
-      });
-      document.head.appendChild(script);
     });
   }
 
   async function importSerializationLib(){
-    const existingLib = normalizeSerializationLib(window.CardanoWasm || window.Cardano);
+    const existingLib = await resolveSerializationLibCandidate(window.CardanoWasm || window.Cardano || window.CardanoSerializationLib);
     if(existingLib){
       window.CardanoWasm = existingLib;
       return existingLib;
@@ -95,7 +198,7 @@
 
     try{
       const module = await import(/* @vite-ignore */ CSL_MODULE_URL);
-      const lib = normalizeSerializationLib(module);
+      const lib = await resolveSerializationLibCandidate(module);
       if(lib){
         window.CardanoWasm = lib;
         return lib;
@@ -109,7 +212,6 @@
   }
 
   function loadSerializationLib(){
-    if(window.CardanoWasm) return Promise.resolve(window.CardanoWasm);
     if(serializationLibPromise) return serializationLibPromise;
     serializationLibPromise = importSerializationLib().catch(err => {
       serializationLibPromise = null;
