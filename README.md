@@ -57,3 +57,26 @@ Run `python backup.py` to copy repository files into the `backups/` directory.
 The script uses the same backup process for every file type, storing each
 extension in its own subdirectory and preserving metadata so all files retain
 their information.
+
+## Hologhost vending
+
+Wallet-connected users can request Hologhost tokens directly from the Cardano
+pool via the built-in vending flow. Configure the following environment
+variables on the WebSocket server service:
+
+- `HOLOGHOST_VENDING_URL` – HTTPS endpoint that accepts vending requests in the
+  form `{ "address": "addr...", "policyId": "...", "assetNameHex": "..." }`.
+- `HOLOGHOST_VENDING_API_KEY` – Optional bearer token sent as the
+  `Authorization` header.
+
+When the vending URL is unset the server operates in simulation mode. Transfers
+are recorded locally and surfaced to the UI but no blockchain calls are made.
+
+The client exposes `GhostWallet.grantGhostToken()` and
+`GhostWallet.refreshGhostTokenCount()` helpers for integrating custom UI flows.
+Both endpoints are also available directly:
+
+- `POST /api/hologhosts/dispense` – Initiates a transfer to the provided
+  Cardano address.
+- `POST /api/hologhosts/status` – Returns the number of successful transfers
+  recorded for the address.

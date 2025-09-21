@@ -9,6 +9,8 @@ import bcrypt from "bcryptjs";
 import { WebSocketServer } from "ws";
 import Database from "better-sqlite3";
 import webpush from "web-push";
+import { bech32 } from "bech32";
+import fetch from "node-fetch";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -74,9 +76,23 @@ db.exec(`
     push INTEGER DEFAULT 1,
     live INTEGER DEFAULT 1
   );
+  CREATE TABLE IF NOT EXISTS ghost_drops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wallet_address TEXT NOT NULL,
+    tx_id TEXT,
+    policy_id TEXT,
+    asset_name_hex TEXT,
+    success INTEGER DEFAULT 0,
+    vendor_status INTEGER,
+    vendor_response TEXT,
+    dispensed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
+try {
+  db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
+} catch {}
 
 const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
@@ -199,6 +215,203 @@ app.post("/push/unsubscribe", (req, res) => {
   }
   db.prepare("DELETE FROM push_subscriptions WHERE username = ?").run(username);
   res.json({ success: true });
+});
+
+function normalizeHex(hex = "") {
+  const trimmed = (hex || "").toString().trim();
+  const normalized = trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+  if (normalized.length === 0) {
+    throw new Error("Hex value is required.");
+  }
+  if (!/^[0-9a-fA-F]+$/.test(normalized)) {
+    throw new Error("Value must be a valid hexadecimal string.");
+  }
+  if (normalized.length % 2 !== 0) {
+    throw new Error("Hex value must contain an even number of characters.");
+  }
+  return normalized.toLowerCase();
+}
+
+function addressHexToBech32(addressHex) {
+  const normalized = normalizeHex(addressHex);
+  const bytes = Buffer.from(normalized, "hex");
+  if (bytes.length === 0) {
+    throw new Error("Wallet address payload is empty.");
+  }
+  const header = bytes[0];
+  const addressType = header >> 4;
+  const networkId = header & 0x0f;
+  const isReward = addressType >= 14;
+  let hrpBase = isReward ? "stake" : "addr";
+  const hrp = networkId === 1 ? hrpBase : `${hrpBase}_test`;
+  const words = bech32.toWords(Uint8Array.from(bytes));
+  return bech32.encode(hrp, words, 128);
+}
+
+function recordGhostDrop({
+  walletAddress,
+  txId,
+  policyId,
+  assetNameHex,
+  success,
+  vendorStatus,
+  vendorResponse,
+}) {
+  db.prepare(
+    "INSERT INTO ghost_drops (wallet_address, tx_id, policy_id, asset_name_hex, success, vendor_status, vendor_response) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run(
+    walletAddress,
+    txId || null,
+    policyId || null,
+    assetNameHex || null,
+    success ? 1 : 0,
+    Number.isFinite(vendorStatus) ? vendorStatus : null,
+    vendorResponse != null ? JSON.stringify(vendorResponse) : null
+  );
+}
+
+function getGhostDropCount(walletAddress) {
+  const row = db
+    .prepare(
+      "SELECT COUNT(*) AS count FROM ghost_drops WHERE wallet_address = ? AND success = 1"
+    )
+    .get(walletAddress);
+  return row?.count ?? 0;
+}
+
+app.post("/api/hologhosts/status", (req, res) => {
+  try {
+    const { addressHex } = req.body || {};
+    if (!addressHex) {
+      res.status(400).json({ success: false, error: "addressHex is required." });
+      return;
+    }
+    const bechAddress = addressHexToBech32(addressHex);
+    const count = getGhostDropCount(bechAddress);
+    res.json({ success: true, address: bechAddress, count });
+  } catch (err) {
+    res
+      .status(400)
+      .json({ success: false, error: err?.message || "Unable to resolve wallet address." });
+  }
+});
+
+app.post("/api/hologhosts/dispense", async (req, res) => {
+  const { addressHex, policyId, assetNameHex } = req.body || {};
+  if (!addressHex) {
+    res.status(400).json({ success: false, error: "addressHex is required." });
+    return;
+  }
+  if (!policyId) {
+    res.status(400).json({ success: false, error: "policyId is required." });
+    return;
+  }
+  if (!assetNameHex) {
+    res.status(400).json({ success: false, error: "assetNameHex is required." });
+    return;
+  }
+
+  let bechAddress;
+  try {
+    bechAddress = addressHexToBech32(addressHex);
+  } catch (err) {
+    res
+      .status(400)
+      .json({ success: false, error: err?.message || "Unable to resolve wallet address." });
+    return;
+  }
+
+  const vendingUrl = process.env.HOLOGHOST_VENDING_URL || "";
+  const apiKey = process.env.HOLOGHOST_VENDING_API_KEY || "";
+  const vendorPayload = {
+    address: bechAddress,
+    policyId,
+    assetNameHex,
+  };
+
+  let vendorResponse = null;
+  let vendorStatus = null;
+  let txId = null;
+  let message = "Ghost token transfer initiated.";
+  const useSimulation = vendingUrl.trim().length === 0;
+
+  if (!useSimulation) {
+    try {
+      const response = await fetch(vendingUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify(vendorPayload),
+      });
+      vendorStatus = response.status;
+      const bodyText = await response.text();
+      try {
+        vendorResponse = bodyText ? JSON.parse(bodyText) : null;
+      } catch {
+        vendorResponse = { raw: bodyText };
+      }
+      if (!response.ok) {
+        const errorMessage = vendorResponse?.error || `Vending request failed with status ${response.status}`;
+        recordGhostDrop({
+          walletAddress: bechAddress,
+          txId: null,
+          policyId,
+          assetNameHex,
+          success: false,
+          vendorStatus,
+          vendorResponse,
+        });
+        res.status(502).json({ success: false, error: errorMessage });
+        return;
+      }
+      txId = vendorResponse?.txId || vendorResponse?.tx_id || null;
+      message = vendorResponse?.message || message;
+    } catch (err) {
+      recordGhostDrop({
+        walletAddress: bechAddress,
+        txId: null,
+        policyId,
+        assetNameHex,
+        success: false,
+        vendorStatus,
+        vendorResponse: { error: err?.message || "Unexpected vending error." },
+      });
+      res.status(502).json({ success: false, error: err?.message || "Ghost token transfer failed." });
+      return;
+    }
+  } else {
+    vendorStatus = 200;
+    vendorResponse = {
+      simulated: true,
+      message: "Simulation mode: no live vending endpoint configured.",
+    };
+    txId = `sim-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    message = "Simulation: ghost token recorded locally.";
+  }
+
+  recordGhostDrop({
+    walletAddress: bechAddress,
+    txId,
+    policyId,
+    assetNameHex,
+    success: true,
+    vendorStatus,
+    vendorResponse,
+  });
+
+  const count = getGhostDropCount(bechAddress);
+
+  res.json({
+    success: true,
+    address: bechAddress,
+    count,
+    txId,
+    message,
+    simulated: useSimulation,
+    vendorStatus,
+  });
 });
 
 app.get("/notification-settings/:username", (req, res) => {

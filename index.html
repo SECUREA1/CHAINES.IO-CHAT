@@ -3183,10 +3183,17 @@
           return;
         }
 
-        const result = window.GhostWallet.grantGhostToken({ silent: true });
-        if(result && !result.success && result.message){
-          showGhostTicker({ message: result.message, count: result.count });
-        }
+        const maybePromise = window.GhostWallet.grantGhostToken({ silent: true });
+        Promise.resolve(maybePromise)
+          .then((result) => {
+            if(result && !result.success && result.message){
+              showGhostTicker({ message: result.message, count: result.count });
+            }
+          })
+          .catch((err) => {
+            const message = err && err.message ? err.message : 'Ghost token transfer failed.';
+            showGhostTicker({ message });
+          });
       };
 
       const flee = () => {
@@ -3210,11 +3217,19 @@
           showGhostTicker({ message });
           return;
         }
-        const result = window.GhostWallet.grantGhostToken();
-        if(result && !result.success && result.message){
-          systemNote(result.message);
-          showGhostTicker({ message: result.message, count: result.count });
-        }
+        const maybePromise = window.GhostWallet.grantGhostToken();
+        Promise.resolve(maybePromise)
+          .then((result) => {
+            if(result && !result.success && result.message){
+              systemNote(result.message);
+              showGhostTicker({ message: result.message, count: result.count });
+            }
+          })
+          .catch((err) => {
+            const message = err && err.message ? err.message : 'Ghost token transfer failed.';
+            systemNote(message);
+            showGhostTicker({ message });
+          });
       });
 
       window.addEventListener('wallet:ghost-token', (event) => {
