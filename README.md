@@ -69,8 +69,30 @@ variables on the WebSocket server service:
 - `HOLOGHOST_VENDING_API_KEY` – Optional bearer token sent as the
   `Authorization` header.
 
-When the vending URL is unset the server operates in simulation mode. Transfers
-are recorded locally and surfaced to the UI but no blockchain calls are made.
+When the vending URL is unset the server operates in simulation mode unless a
+direct Cardano vending configuration is provided. Transfers are recorded locally
+and surfaced to the UI but no blockchain calls are made.
+
+### Direct on-chain vending
+
+You can vend Hologhost tokens straight from a custodial wallet without relying
+on an external HTTPS vending API. Provide the following environment variables to
+enable live transfers:
+
+- `BLOCKFROST_PROJECT_ID` – Blockfrost project ID for the selected network.
+- `CARDANO_NETWORK` – Network name (`Mainnet`, `Preprod`, or `Preview`). Defaults
+  to `Mainnet`.
+- `HOLOGHOST_VENDING_PAYMENT_SKEY` – Payment signing key (CBOR hex or bech32
+  string) that controls the vending wallet. Provide an enterprise payment key
+  derived for the vending address.
+- `HOLOGHOST_VENDING_MIN_ADA` – Optional lovelace value to include with each
+  transfer (defaults to `2000000`).
+- `HOLOGHOST_VENDING_AWAIT_CONFIRMATION` – Set to `true` to wait for chain
+  confirmation before responding.
+
+With these variables configured the server crafts and submits transactions using
+`lucid-cardano`, ensuring the requested policy ID and asset name are delivered
+directly to the requesting wallet address.
 
 The client exposes `GhostWallet.grantGhostToken()` and
 `GhostWallet.refreshGhostTokenCount()` helpers for integrating custom UI flows.
