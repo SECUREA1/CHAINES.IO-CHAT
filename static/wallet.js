@@ -14,7 +14,8 @@
     availableWallets: [],
     selectedWallet: null,
     connectedApi: null,
-    walletInfo: null
+    walletInfo: null,
+    ghostTokenCount: 0
   };
 
   function hexToBytes(hex){
@@ -301,6 +302,26 @@
     }
   }
 
+  function refreshWalletButtonLabel(){
+    if(!state.walletBtn) return;
+    const connectedLabel = state.accessGranted && state.walletInfo
+      ? `Connected wallet: ${state.walletInfo.name}`
+      : 'Connect wallet';
+    let label = connectedLabel;
+
+    if(state.ghostTokenCount > 0){
+      const count = state.ghostTokenCount;
+      const tokenLabel = count === 1 ? '1 ghost token' : `${count} ghost tokens`;
+      label = `${connectedLabel} · ${tokenLabel}`;
+      state.walletBtn.dataset.ghostCount = String(count);
+    }else{
+      delete state.walletBtn.dataset.ghostCount;
+    }
+
+    state.walletBtn.setAttribute('title', label);
+    state.walletBtn.setAttribute('aria-label', label);
+  }
+
   function lockApp(){
     document.body.classList.add('auth-lock');
     if(state.appShell){
@@ -477,8 +498,7 @@
     }
     if(state.walletBtn){
       state.walletBtn.classList.add('wallet-connected');
-      state.walletBtn.setAttribute('title', `Connected wallet: ${walletInfo.name}`);
-      state.walletBtn.setAttribute('aria-label', `Connected wallet: ${walletInfo.name}`);
+      refreshWalletButtonLabel();
     }
   }
 
@@ -539,6 +559,43 @@
     showOverlay();
   }
 
+  function grantGhostToken({ silent } = {}){
+    const result = {
+      success: false,
+      count: state.ghostTokenCount,
+      message: ''
+    };
+
+    if(!state.accessGranted){
+      result.message = 'Connect a wallet to collect ghost tokens.';
+      if(!silent){
+        setStatus(result.message, 'error', { skipIfError: true });
+      }
+      return result;
+    }
+
+    state.ghostTokenCount += 1;
+    result.success = true;
+    result.count = state.ghostTokenCount;
+    const descriptor = state.ghostTokenCount === 1 ? 'your first ghost token' : `ghost token #${state.ghostTokenCount}`;
+    result.message = `Boo! You received ${descriptor}.`;
+
+    refreshWalletButtonLabel();
+
+    if(!silent){
+      setStatus(result.message, 'success');
+    }
+
+    window.dispatchEvent(new CustomEvent('wallet:ghost-token', {
+      detail: {
+        count: state.ghostTokenCount,
+        message: result.message
+      }
+    }));
+
+    return result;
+  }
+
   function init(){
     state.overlay = document.getElementById('token-gate');
     state.appShell = document.querySelector('.wrap');
@@ -567,6 +624,7 @@
 
     if(state.walletBtn){
       state.walletBtn.addEventListener('click', handleWalletButton);
+      refreshWalletButtonLabel();
     }
 
     if(state.walletSelect){
@@ -591,6 +649,11 @@
       }
     }, 1500);
   }
+
+  window.GhostWallet = Object.assign({}, window.GhostWallet, {
+    grantGhostToken,
+    getGhostTokenCount: () => state.ghostTokenCount
+  });
 
   document.addEventListener('DOMContentLoaded', init);
 })();
