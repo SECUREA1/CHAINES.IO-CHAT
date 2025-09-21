@@ -40,22 +40,26 @@
     return new TextEncoder().encode(str);
   }
 
+  async function importSerializationLib(){
+    try{
+      const module = await import(/* @vite-ignore */ CSL_SCRIPT_URL);
+      if(module && typeof module === 'object'){
+        window.CardanoWasm = module;
+        return module;
+      }
+      throw new Error('Cardano serialization library did not provide any exports.');
+    }catch(err){
+      console.error('Failed to import Cardano serialization library', err);
+      throw new Error('Cardano serialization library failed to load.');
+    }
+  }
+
   function loadSerializationLib(){
     if(window.CardanoWasm) return Promise.resolve(window.CardanoWasm);
     if(serializationLibPromise) return serializationLibPromise;
-    serializationLibPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = CSL_SCRIPT_URL;
-      script.onload = () => {
-        if(window.CardanoWasm){
-          resolve(window.CardanoWasm);
-        }else{
-          reject(new Error('Cardano serialization library failed to load.'));
-        }
-      };
-      script.onerror = () => reject(new Error('Unable to load the Cardano serialization library.'));
-      document.head.appendChild(script);
+    serializationLibPromise = importSerializationLib().catch(err => {
+      serializationLibPromise = null;
+      throw err;
     });
     return serializationLibPromise;
   }
