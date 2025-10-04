@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sentinel Multi-cam AI | CHAINeS Composer</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/static/logo.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --muted: #94a3b8;
+      --fg: #f1f5f9;
+      --accent: #00c6ff;
+      --accent-2: #0072ff;
+      --danger: #ef4444;
+      --shadow: 0 0 20px rgba(0, 114, 255, 0.35);
+      --radius: 18px;
+      --grid-gap: clamp(18px, 3vw, 32px);
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f1f5f9;
+      --panel: #e2e8f0;
+      --fg: #0f172a;
+      --muted: #475569;
+      --accent: #1e40af;
+      --accent-2: #1e3a8a;
+      --shadow: 0 0 28px rgba(30, 58, 138, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1200px 1200px at 20% -10%, color-mix(in oklab, var(--accent-2), transparent 80%), transparent 60%),
+        radial-gradient(1000px 1000px at 120% 20%, color-mix(in oklab, var(--accent), transparent 82%), transparent 60%),
+        var(--bg);
+      color: var(--fg);
+      font: 15px/1.6 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(32px, 6vw, 60px);
+      padding: clamp(18px, 3vw, 36px);
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 18px clamp(18px, 4vw, 36px);
+      border-radius: clamp(18px, 3vw, 28px);
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 55%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: clamp(12px, 3vw, 24px);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: url('static/logo.svg') no-repeat center/cover;
+      box-shadow: var(--shadow);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(18px, 3vw, 24px);
+      letter-spacing: 0.4px;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: clamp(12px, 3vw, 24px);
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    nav a:hover,
+    nav a:focus-visible {
+      color: var(--fg);
+    }
+
+    .cta-button,
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 999px;
+      border: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .pill {
+      font-size: 13px;
+      padding: 8px 16px;
+    }
+
+    .cta-button:hover,
+    .cta-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(0, 114, 255, 0.35);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(36px, 7vw, 72px);
+    }
+
+    section {
+      display: grid;
+      gap: clamp(24px, 4vw, 40px);
+    }
+
+    .hero {
+      display: grid;
+      gap: clamp(24px, 4vw, 40px);
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items: center;
+    }
+
+    .hero h2 {
+      margin: 0;
+      font-size: clamp(32px, 8vw, 54px);
+      line-height: 1.1;
+      font-weight: 700;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(15px, 2.4vw, 18px);
+    }
+
+    .hero-card {
+      padding: clamp(24px, 4vw, 36px);
+      border-radius: clamp(18px, 3vw, 28px);
+      background:
+        linear-gradient(160deg, color-mix(in oklab, var(--panel), transparent 10%), color-mix(in oklab, #0ea5e9, transparent 45%));
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 40%);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-highlights {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: clamp(12px, 3vw, 24px);
+    }
+
+    .hero-highlights .stat {
+      padding: 16px;
+      border-radius: 16px;
+      background: color-mix(in oklab, var(--panel), transparent 30%);
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 55%);
+      display: grid;
+      gap: 6px;
+    }
+
+    .stat strong {
+      font-size: clamp(18px, 3vw, 26px);
+    }
+
+    .grid-card {
+      padding: clamp(22px, 3vw, 32px);
+      border-radius: var(--radius);
+      background: color-mix(in oklab, var(--panel), transparent 18%);
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 60%);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid-card h3 {
+      margin: 0;
+      font-size: clamp(18px, 3vw, 24px);
+    }
+
+    .grid-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .features {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 14px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    .feature-list li::before {
+      content: '';
+      flex-shrink: 0;
+      width: 10px;
+      height: 10px;
+      margin-top: 6px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 12px rgba(0, 114, 255, 0.6);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--grid-gap);
+      align-items: center;
+    }
+
+    .callout {
+      padding: clamp(28px, 5vw, 48px);
+      border-radius: clamp(18px, 3vw, 28px);
+      background:
+        linear-gradient(140deg, color-mix(in oklab, var(--panel), transparent 8%), color-mix(in oklab, var(--accent), transparent 35%));
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 45%);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .callout::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(600px 600px at 85% 20%, rgba(0, 198, 255, 0.25), transparent 60%);
+      pointer-events: none;
+    }
+
+    .callout h3 {
+      margin: 0;
+      font-size: clamp(22px, 5vw, 32px);
+      z-index: 1;
+    }
+
+    .callout p,
+    .callout ul,
+    .callout li {
+      z-index: 1;
+      position: relative;
+    }
+
+    .callout ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    .callout li::before {
+      content: '▹';
+      color: var(--accent);
+      margin-right: 8px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 18px;
+    }
+
+    .timeline-step {
+      display: grid;
+      gap: 6px;
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 60%);
+      background: color-mix(in oklab, var(--panel), transparent 16%);
+      position: relative;
+    }
+
+    .timeline-step::before {
+      content: attr(data-step);
+      position: absolute;
+      top: -12px;
+      left: 18px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+    }
+
+    footer {
+      padding: 24px;
+      border-radius: clamp(18px, 3vw, 28px);
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      border: 1px solid color-mix(in oklab, var(--panel), transparent 55%);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .theme-toggle {
+      border: 0;
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+      color: var(--fg);
+      padding: 10px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--panel), transparent 65%);
+      transition: background 0.2s ease;
+    }
+
+    .theme-toggle:hover,
+    .theme-toggle:focus-visible {
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+    }
+
+    @media (max-width: 640px) {
+      header {
+        position: static;
+      }
+
+      .hero {
+        text-align: center;
+      }
+
+      .hero-highlights {
+        justify-items: center;
+      }
+
+      nav {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true"></div>
+        <div>
+          <h1>CHAINeS Composer</h1>
+          <span class="pill">Sentinel Multi-cam AI</span>
+        </div>
+      </div>
+      <nav>
+        <a href="/">Overview</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#cta">Book a demo</a>
+      </nav>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button class="theme-toggle" type="button" id="theme-toggle">Toggle theme</button>
+        <a class="cta-button" href="mailto:hello@chaines.io">Launch Consultation</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-card">
+          <h2>Multi-camera intelligence that keeps every mission-ready surface in sight.</h2>
+          <p>
+            Sentinel orchestrates autonomous, multi-angle perception for command teams that cannot afford blind spots. Pair thermal,
+            optical, and aerial feeds with inference-grade analytics to decide faster and respond with confidence.
+          </p>
+          <div class="hero-highlights">
+            <div class="stat">
+              <strong>12+</strong>
+              <span>Sensor modalities synchronized in real-time</span>
+            </div>
+            <div class="stat">
+              <strong>&lt;180ms</strong>
+              <span>Edge-to-analyst video relay latency under load</span>
+            </div>
+            <div class="stat">
+              <strong>360°</strong>
+              <span>Adaptive coverage with autonomous scene triage</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px;">
+            <a class="cta-button" href="mailto:hello@chaines.io?subject=Sentinel%20Multi-cam%20AI">Schedule a mission rehearsal</a>
+            <button class="theme-toggle" type="button" id="scroll-capabilities">Explore capabilities</button>
+          </div>
+        </div>
+        <div class="grid-card" style="align-self: stretch;">
+          <h3>Trusted for complex multi-domain operations</h3>
+          <p>
+            Sentinel aligns distributed teams with a single adaptive operating picture. Network-aware orchestration, zero-trust
+            device onboarding, and live telemetry scoring deliver situational fluency wherever your analysts are stationed.
+          </p>
+          <ul class="feature-list">
+            <li>Secure ingest from UAV, UGV, and fixed infrastructure streams</li>
+            <li>Policy-aware AI agents for anomaly recognition and escalation</li>
+            <li>Edge prioritization that preserves quality over contested links</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="capabilities" class="features">
+        <div class="grid-card">
+          <h3>Unified Command Canvas</h3>
+          <p>
+            Blend simultaneous feeds into a cognitive overlay. Operators pivot between thermal, EO/IR, LiDAR, and telemetry views
+            with adaptive layouts designed for rapid triage.
+          </p>
+        </div>
+        <div class="grid-card">
+          <h3>AI-driven Detection Stack</h3>
+          <p>
+            Deploy tuned models for perimeter breaches, asset tracking, and behavior deviation. Sentinel’s inference bus routes the
+            right alert to the right analyst without manual filtering.
+          </p>
+        </div>
+        <div class="grid-card">
+          <h3>Mission Proven Reliability</h3>
+          <p>
+            Hardened for austere bandwidth and harsh weather. Adaptive encoding, redundant path selection, and live health scoring
+            keep your mission feeds resilient.
+          </p>
+        </div>
+        <div class="grid-card">
+          <h3>Composable Integrations</h3>
+          <p>
+            Extend Sentinel with airspace awareness, command chat, and on-demand transcription services from the CHAINeS platform.
+            API-first design ensures interoperability across your stack.
+          </p>
+        </div>
+      </section>
+
+      <section class="split">
+        <div class="callout">
+          <h3>From incident to insight in three decisive beats.</h3>
+          <p>
+            Sentinel coordinates multi-cam intelligence with an operator-first workflow that compresses the distance between
+            detection and decision.
+          </p>
+          <div class="timeline" id="workflow">
+            <div class="timeline-step" data-step="1">
+              <strong>Connect &amp; Verify</strong>
+              <p>Zero-touch onboarding assigns trust levels, calibrates feeds, and aligns geofences in under five minutes.</p>
+            </div>
+            <div class="timeline-step" data-step="2">
+              <strong>Synthesize &amp; Predict</strong>
+              <p>Edge AI fuses views into a living 3D context, surfacing anomalies, predicted trajectories, and mission-critical cues.</p>
+            </div>
+            <div class="timeline-step" data-step="3">
+              <strong>Command &amp; Share</strong>
+              <p>Secure channels push enriched clips, metrics, and recommended actions straight into your team’s collaboration stack.</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid-card">
+          <h3>Deployment Options</h3>
+          <p>Select the architecture that matches your mission tempo.</p>
+          <ul class="feature-list">
+            <li>Forward Edge Kits with offline inference caching</li>
+            <li>Hybrid cloud orchestration on CHAINeS secure enclaves</li>
+            <li>Enterprise integrations with existing PSIM and VMS tooling</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="split" id="cta">
+        <div class="grid-card">
+          <h3>Analytics that speak your mission language</h3>
+          <p>
+            Configure detection libraries tuned to critical infrastructure, defense readiness, and public safety missions. Sentinel
+            captures evidence-grade audit trails so you can brief leadership with certainty.
+          </p>
+          <ul class="feature-list">
+            <li>Chain-of-custody logging with tamper-evident signatures</li>
+            <li>Real-time collaboration with CHAINeS Composer live rooms</li>
+            <li>Automated reporting with policy-compliant retention</li>
+          </ul>
+        </div>
+        <div class="callout">
+          <h3>Ready to operationalize Sentinel?</h3>
+          <p>Our mission engineers will help tailor a Sentinel deployment to your infrastructure, policies, and mission cadence.</p>
+          <ul>
+            <li>Deep-dive discovery with command and technical leads</li>
+            <li>Reference architecture aligned to your security posture</li>
+            <li>Pilot activation with measurable mission outcomes</li>
+          </ul>
+          <a class="cta-button" href="mailto:hello@chaines.io?subject=Sentinel%20Demo">Start the briefing</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>© <script>document.write(new Date().getFullYear());</script> CHAINeS Composer. All rights reserved.</span>
+      <span>Secure communications • Intelligent orchestration • Mission-ready support.</span>
+    </footer>
+  </div>
+
+  <script>
+    const toggle = document.getElementById('theme-toggle');
+    const scrollBtn = document.getElementById('scroll-capabilities');
+    const root = document.documentElement;
+
+    const updateToggleLabel = () => {
+      const isLight = root.getAttribute('data-theme') === 'light';
+      toggle.textContent = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+    };
+
+    const switchTheme = () => {
+      const isLight = root.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        root.removeAttribute('data-theme');
+      } else {
+        root.setAttribute('data-theme', 'light');
+      }
+      updateToggleLabel();
+    };
+
+    toggle.addEventListener('click', switchTheme);
+    toggle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        switchTheme();
+      }
+    });
+
+    updateToggleLabel();
+
+    if (scrollBtn) {
+      scrollBtn.addEventListener('click', () => {
+        document.getElementById('capabilities')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  </script>
+</body>
+</html>
