@@ -137,6 +137,13 @@
       color: var(--muted);
     }
 
+    .token-gate__actions {
+      display: grid;
+      gap: 10px;
+      align-items: center;
+      justify-items: center;
+    }
+
     .token-gate__button {
       border: 0;
       border-radius: 999px;
@@ -151,11 +158,18 @@
       gap: 10px;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: var(--shadow);
+      text-decoration: none;
     }
 
     .token-gate__button:disabled {
       cursor: not-allowed;
       opacity: 0.5;
+      box-shadow: none;
+    }
+
+    .token-gate__button--ghost {
+      background: transparent;
+      border: 1px solid var(--lining);
       box-shadow: none;
     }
 
@@ -734,7 +748,12 @@
         <img src="static/wallet.svg" alt="" width="24" height="24" aria-hidden="true" />
         Connect wallet
       </button>
-      <p class="token-gate__hint">Need access? Make sure the wallet you connect holds the configured policy ID and asset name.</p>
+      <div class="token-gate__actions">
+        <p class="token-gate__hint">Need access? Buy the CHAINeS token to unlock CHAINeS Composer.</p>
+        <a class="token-gate__button token-gate__button--ghost" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">
+          Buy access now
+        </a>
+      </div>
     </div>
   </div>
   <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
