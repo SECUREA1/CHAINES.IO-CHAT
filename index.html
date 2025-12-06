@@ -953,6 +953,8 @@
     renderCmdPanel();
     let pendingFile = null;
     let fileLoading = false;
+    let dropperStatus = null;
+    let dropperStatusError = null;
     const auth = el('#auth');
     const usernameInput = el('#username');
     const passwordInput = el('#password');
@@ -1193,6 +1195,94 @@
         try { localStorage.removeItem('chaines_messages'); } catch {}
       }
     };
+
+    async function fetchDropperStatus(force){
+      if(dropperStatus && !force) return dropperStatus;
+      try{
+        const res = await fetch('/api/nft-dropper/info');
+        if(!res.ok) throw new Error('Unable to reach NFT dropper.');
+        const data = await res.json();
+        dropperStatus = data;
+        dropperStatusError = null;
+        return data;
+      }catch(err){
+        dropperStatus = null;
+        dropperStatusError = err?.message || 'Unable to reach NFT dropper.';
+        return null;
+      }
+    }
+
+    function describeDropperStatus(info){
+      if(!info) return '';
+      const parts = [];
+      if(info.dropper?.address){
+        parts.push(`Mint address: ${info.dropper.address}`);
+      }
+      if(typeof info.dropper?.tokensLeft === 'number' && Number.isFinite(info.dropper.tokensLeft)){
+        parts.push(`${info.dropper.tokensLeft} tokens left`);
+      }
+      return parts.join(' · ');
+    }
+
+    async function mintPendingFile(file, info){
+      if(!file) return;
+      const defaultName = (file.name || '').replace(/\.[^.]+$/, '') || 'New NFT';
+      let nftName = defaultName;
+      let nftDescription = '';
+      try { nftName = prompt('NFT name', defaultName) || defaultName; } catch{}
+      try { nftDescription = prompt('NFT description (optional)', '') || ''; } catch{}
+
+      try{
+        const res = await fetch('/api/nft-dropper/mint', {
+          method:'POST',
+          headers:{ 'content-type': 'application/json' },
+          body: JSON.stringify({
+            fileDataUrl: file.dataUrl,
+            fileName: file.name,
+            fileType: file.type,
+            metadata: { name: nftName, description: nftDescription || undefined }
+          })
+        });
+        const data = await res.json();
+        if(!res.ok || !data?.success){
+          throw new Error(data?.error || 'Minting failed.');
+        }
+        const summary = describeDropperStatus({ dropper: data.dropper });
+        const noteParts = [`Mint staged for ${data.fileName}.`];
+        if(summary) noteParts.push(summary);
+        systemNote(noteParts.join(' '));
+        postMessage({
+          text: `Mint staged for ${data.fileName}${summary ? ` — ${summary}` : ''}`,
+          file: file.dataUrl,
+          fileName: file.name,
+          fileType: file.type,
+        });
+        pendingFile = null;
+        input.placeholder = defaultPlaceholder;
+      }catch(err){
+        alert(err?.message || 'Minting failed.');
+      }
+    }
+
+    async function maybeOfferMint(){
+      if(!pendingFile) return;
+      const status = await fetchDropperStatus();
+      const dropperReady = Boolean(status && (status.sourceDir || status.sourceDirReady));
+      const actions = [
+        { label: 'Send normally', onClick: () => hidePopup() },
+        { label: 'Remove attachment', onClick: () => { pendingFile=null; input.placeholder=defaultPlaceholder; hidePopup(); } }
+      ];
+      if(dropperReady){
+        actions.unshift({ label: 'Mint & share', onClick: () => { hidePopup(); mintPendingFile(pendingFile, status); } });
+      }
+      const desc = dropperReady
+        ? describeDropperStatus(status)
+        : (dropperStatusError || 'Configure NFT_DROPPER_SOURCE_DIR to enable minting.');
+      const message = dropperReady
+        ? `Mint or send ${pendingFile.name}. ${desc}`
+        : `Send ${pendingFile.name}. ${desc}`;
+      showPopup(message.trim(), actions);
+    }
 
     autoDeleteToggle.checked = store.autoDelete;
     autoDeleteToggle.addEventListener('change', () => {
@@ -1888,6 +1978,7 @@
         input.focus();
         fileLoading = false;
         sendBtn.disabled = false;
+        maybeOfferMint();
       };
       reader.onerror = () => {
         fileLoading = false;

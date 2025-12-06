@@ -18,6 +18,10 @@ import {
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
+const NFT_DROPPER_SOURCE_DIR =
+  (process.env.NFT_DROPPER_SOURCE_DIR || "").trim();
+const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
+
 // Locate repo root to serve the client HTML
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -91,6 +95,16 @@ db.exec(`
     vendor_response TEXT,
     dispensed_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS nft_mints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_name TEXT,
+    file_type TEXT,
+    stored_path TEXT,
+    metadata TEXT,
+    dropper_address TEXT,
+    dropper_tokens_left INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -117,7 +131,8 @@ let profiles = loadProfiles();
 
 // express setup
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "75mb" }));
+app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");
 fs.mkdirSync(profileDir, { recursive: true });
 const storage = multer.diskStorage({
@@ -282,6 +297,181 @@ function getGhostDropCount(walletAddress) {
     .get(walletAddress);
   return row?.count ?? 0;
 }
+
+function parseDataUrl(dataUrl = "") {
+  const match = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl || "");
+  if (!match) {
+    throw new Error("Invalid file data. Expected a base64 data URL.");
+  }
+  const [, mime, b64] = match;
+  return { mime, buffer: Buffer.from(b64, "base64") };
+}
+
+function sanitizeFileName(name = "") {
+  const base = path.basename(name || "asset");
+  const cleaned = base.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return cleaned || `asset-${Date.now().toString(36)}`;
+}
+
+function ensureUniqueFileName(dir, fileName) {
+  const ext = path.extname(fileName);
+  const stem = path.basename(fileName, ext) || "asset";
+  let candidate = fileName;
+  let counter = 1;
+  while (fs.existsSync(path.join(dir, candidate))) {
+    candidate = `${stem}-${counter}${ext}`;
+    counter += 1;
+  }
+  return candidate;
+}
+
+function loadDropperMetadata(targetDir) {
+  const metaPath = path.join(targetDir, "metadata.json");
+  try {
+    const raw = fs.readFileSync(metaPath, "utf8");
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDropperMetadata(targetDir, metadata) {
+  const metaPath = path.join(targetDir, "metadata.json");
+  fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 4));
+  return metaPath;
+}
+
+async function fetchDropperRemoteInfo() {
+  if (!NFT_DROPPER_API_URL) return null;
+  const base = NFT_DROPPER_API_URL.replace(/\/$/, "");
+  const makeUrl = (suffix) => `${base}${suffix.startsWith("/") ? "" : "/"}${suffix}`;
+  const [addrRes, tokensRes] = await Promise.all([
+    fetch(makeUrl("/api/address")).catch((err) => ({ error: err })),
+    fetch(makeUrl("/api/tokensLeft")).catch((err) => ({ error: err })),
+  ]);
+
+  const address = addrRes?.ok ? await addrRes.text() : null;
+  let tokensLeft = null;
+  if (tokensRes?.ok) {
+    const text = await tokensRes.text();
+    const num = Number(text);
+    tokensLeft = Number.isFinite(num) ? num : null;
+  }
+
+  return {
+    address: address || null,
+    tokensLeft,
+    reachable: Boolean(addrRes?.ok || tokensRes?.ok),
+  };
+}
+
+async function getDropperStatus() {
+  const sourceDirReady =
+    NFT_DROPPER_SOURCE_DIR && fs.existsSync(NFT_DROPPER_SOURCE_DIR);
+  const remote = await fetchDropperRemoteInfo().catch(() => null);
+  return {
+    sourceDir: NFT_DROPPER_SOURCE_DIR || null,
+    sourceDirReady,
+    apiUrl: NFT_DROPPER_API_URL || null,
+    dropper: remote,
+  };
+}
+
+app.get("/api/nft-dropper/info", async (req, res) => {
+  const status = await getDropperStatus();
+  res.json({ success: true, ...status });
+});
+
+app.post("/api/nft-dropper/mint", async (req, res) => {
+  if (!NFT_DROPPER_SOURCE_DIR) {
+    res
+      .status(400)
+      .json({
+        success: false,
+        error:
+          "NFT dropper source directory is not configured. Set NFT_DROPPER_SOURCE_DIR to continue.",
+      });
+    return;
+  }
+
+  const { fileDataUrl, fileName, fileType, metadata } = req.body || {};
+  if (!fileDataUrl || !fileName) {
+    res
+      .status(400)
+      .json({ success: false, error: "fileDataUrl and fileName are required." });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = parseDataUrl(fileDataUrl);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err?.message || "Invalid file." });
+    return;
+  }
+
+  if (parsed.buffer.length > 50_000_000) {
+    res
+      .status(413)
+      .json({ success: false, error: "File exceeds 50MB limit for minting." });
+    return;
+  }
+
+  const safeName = ensureUniqueFileName(
+    NFT_DROPPER_SOURCE_DIR,
+    sanitizeFileName(fileName)
+  );
+
+  try {
+    fs.mkdirSync(NFT_DROPPER_SOURCE_DIR, { recursive: true });
+    const targetPath = path.join(NFT_DROPPER_SOURCE_DIR, safeName);
+    fs.writeFileSync(targetPath, parsed.buffer);
+
+    const dropperMeta = loadDropperMetadata(NFT_DROPPER_SOURCE_DIR);
+    const baseName = path.basename(safeName, path.extname(safeName)) || "asset";
+    const mergedMeta = {
+      name: metadata?.name || baseName,
+      description:
+        metadata?.description || "Minted via CHAINeS Composer and NFT Dropper.",
+      mediaType: metadata?.mediaType || fileType || parsed.mime,
+    };
+
+    if (metadata?.properties && typeof metadata.properties === "object") {
+      mergedMeta.Properties = metadata.properties;
+    }
+
+    if (metadata?.attributes && typeof metadata.attributes === "object") {
+      mergedMeta.attributes = metadata.attributes;
+    }
+
+    dropperMeta[safeName] = { ...(dropperMeta[safeName] || {}), ...mergedMeta };
+    saveDropperMetadata(NFT_DROPPER_SOURCE_DIR, dropperMeta);
+
+    const dropper = await fetchDropperRemoteInfo().catch(() => null);
+
+    db.prepare(
+      "INSERT INTO nft_mints (file_name, file_type, stored_path, metadata, dropper_address, dropper_tokens_left) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(
+      safeName,
+      fileType || parsed.mime,
+      targetPath,
+      metadata ? JSON.stringify(metadata) : null,
+      dropper?.address || null,
+      Number.isFinite(dropper?.tokensLeft) ? dropper.tokensLeft : null
+    );
+
+    res.json({
+      success: true,
+      fileName: safeName,
+      storedPath: targetPath,
+      dropper,
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, error: err?.message || "Mint preparation failed." });
+  }
+});
 
 app.post("/api/hologhosts/status", (req, res) => {
   try {

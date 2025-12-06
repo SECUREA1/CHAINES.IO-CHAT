@@ -102,3 +102,27 @@ Both endpoints are also available directly:
   Cardano address.
 - `POST /api/hologhosts/status` – Returns the number of successful transfers
   recorded for the address.
+
+## NFT dropper integration
+
+Files shared through the chat composer can also be staged for minting with
+[`nft-dropper-composed`](https://github.com/SECUREA1/nft-dropper-composed).
+When a file is attached the UI offers a choice to send normally or stage it for
+minting. On successful staging a chat message is posted with the mint address
+and tokens-remaining information from the dropper service.
+
+Configure the WebSocket server with:
+
+- `NFT_DROPPER_SOURCE_DIR` – Path to the dropper's `nft-source` directory where
+  assets and `metadata.json` should be written.
+- `NFT_DROPPER_API_URL` – Optional base URL of a running dropper instance. When
+  set, the server queries `/api/address` and `/api/tokensLeft` to surface mint
+  instructions in the UI.
+
+REST endpoints provided by the chat server:
+
+- `GET /api/nft-dropper/info` – Returns dropper configuration status and remote
+  address/token counts when available.
+- `POST /api/nft-dropper/mint` – Accepts `{ fileDataUrl, fileName, fileType,
+  metadata }`, writes the file and metadata into `NFT_DROPPER_SOURCE_DIR`, and
+  echoes dropper status for the client UI.
