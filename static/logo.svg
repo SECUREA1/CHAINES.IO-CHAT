@@ -1,23 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
-  <title id="title">CHAINeS Ioncore Wolf Mark</title>
-  <desc id="desc">A neon outlined husky head with an Ioncore bolt.</desc>
+  <title id="title">CHAINeS POST Wolfmark</title>
+  <desc id="desc">A neon wolf face crest glowing in blue and teal for the CHAINeS POST brand.</desc>
   <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1224" />
+      <stop offset="100%" stop-color="#0f1a33" />
+    </linearGradient>
     <linearGradient id="fur" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#0ea5e9" />
+      <stop offset="0%" stop-color="#67e8f9" />
+      <stop offset="100%" stop-color="#0ef3c5" />
     </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.6" />
-    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#5eead4" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#0ea5e9" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#0b1224" stop-opacity="0" />
+    </radialGradient>
   </defs>
-  <rect width="128" height="128" rx="22" fill="#0b1224" />
-  <circle cx="64" cy="64" r="54" fill="url(#glow)" opacity="0.9" />
-  <path fill="url(#fur)" stroke="#67e8f9" stroke-width="4" d="M28 80c0-18 7-36 36-40 29 4 36 22 36 40 0 13-11 24-36 24S28 93 28 80Z" />
-  <path fill="#e2ecff" stroke="#9ac8ff" stroke-width="3" d="M44 84c0-10 8-20 20-21 12 1 20 11 20 21-3 8-13 12-20 12s-17-4-20-12Z" />
-  <path fill="#0ef3c5" d="M54 70h20l-8 10h8l-20 18 6-14h-8z" />
-  <path fill="none" stroke="#0ef3c5" stroke-width="4" d="M50 54h14v12H50Zm14 0h14v12H64Z" />
-  <path stroke="#0ef3c5" stroke-width="4" d="M64 56v10" />
-  <path fill="#0ef3c5" d="M36 58c0-8 6-16 16-16l-10 18-6-2Zm56 0c0-8-6-16-16-16l10 18 6-2Z" opacity="0.85" />
-  <path fill="none" stroke="#0ef3c5" stroke-width="5" opacity="0.6" d="M28 80c0-18 7-36 36-40 29 4 36 22 36 40 0 13-11 24-36 24S28 93 28 80Z" />
+  <rect width="128" height="128" rx="24" fill="url(#bg)" />
+  <rect width="128" height="128" rx="24" fill="url(#glow)" />
+  <path d="M24 88c0-22 8-42 40-46 32 4 40 24 40 46 0 18-16 30-40 30S24 106 24 88Z" fill="#0f172a" stroke="#0ef3c5" stroke-width="3" opacity="0.8" />
+  <path d="M42 92c0-12 10-24 22-24s22 12 22 24c-4 11-16 18-22 18s-18-7-22-18Z" fill="rgba(14,243,197,0.08)" stroke="#67e8f9" stroke-width="3" />
+  <path d="M52 96c0-6 5-14 12-14s12 8 12 14c-3 6-9 10-12 10s-9-4-12-10Z" fill="#0ef3c5" opacity="0.4" />
+  <path d="M32 60c0-10 8-20 18-22l-8 20-10-3Zm64 0c0-10-8-20-18-22l8 20 10-3Z" fill="url(#fur)" opacity="0.9" />
+  <path d="M44 48c8-6 16-8 20-8s12 2 20 8l-10 8H54Z" fill="#0b1224" stroke="#67e8f9" stroke-width="3" />
+  <path d="M56 64c0-4 3-8 8-8s8 4 8 8-3 8-8 8-8-4-8-8Z" fill="#0ef3c5" stroke="#0b1224" stroke-width="3" />
+  <path d="M48 72c0-6 6-10 14-10s14 4 14 10-6 10-14 10-14-4-14-10Z" fill="none" stroke="#5eead4" stroke-width="2.5" />
+  <path d="M52 74c-3 0-6 2-6 5s3 5 6 5 6-2 6-5-3-5-6-5Zm24 0c-3 0-6 2-6 5s3 5 6 5 6-2 6-5-3-5-6-5Z" fill="#0b1224" stroke="#38bdf8" stroke-width="2" />
+  <path d="M64 28c-6 0-12 4-16 8l6-14c3-4 7-8 10-8s7 4 10 8l6 14c-4-4-10-8-16-8Z" fill="#0ef3c5" stroke="#67e8f9" stroke-width="3" opacity="0.95" />
+  <path d="M64 84 56 96h16Z" fill="#0ef3c5" stroke="#0b1224" stroke-width="3" />
+  <circle cx="50" cy="64" r="4" fill="#b9f27c" />
+  <circle cx="78" cy="64" r="4" fill="#b9f27c" />
+  <path d="M36 102c8 8 20 10 28 10s20-2 28-10" fill="none" stroke="#0ef3c5" stroke-width="3" stroke-linecap="round" />
 </svg>
