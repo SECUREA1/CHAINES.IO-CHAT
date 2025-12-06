@@ -1,11 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">CHAINeS Ioncore Wolf Mark</title>
+  <desc id="desc">A neon outlined husky head with an Ioncore bolt.</desc>
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00c6ff"/>
-      <stop offset="100%" stop-color="#0072ff"/>
+    <linearGradient id="fur" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.6" />
     </linearGradient>
   </defs>
-  <rect width="100" height="100" rx="20" fill="url(#grad)"/>
-  <path d="M35 50a15 15 0 0 1 15-15h10a15 15 0 0 1 15 15a15 15 0 0 1-15 15H50" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M65 50a15 15 0 0 0-15-15H40a15 15 0 0 0-15 15a15 15 0 0 0 15 15h10" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="128" height="128" rx="22" fill="#0b1224" />
+  <circle cx="64" cy="64" r="54" fill="url(#glow)" opacity="0.9" />
+  <path fill="url(#fur)" stroke="#67e8f9" stroke-width="4" d="M28 80c0-18 7-36 36-40 29 4 36 22 36 40 0 13-11 24-36 24S28 93 28 80Z" />
+  <path fill="#e2ecff" stroke="#9ac8ff" stroke-width="3" d="M44 84c0-10 8-20 20-21 12 1 20 11 20 21-3 8-13 12-20 12s-17-4-20-12Z" />
+  <path fill="#0ef3c5" d="M54 70h20l-8 10h8l-20 18 6-14h-8z" />
+  <path fill="none" stroke="#0ef3c5" stroke-width="4" d="M50 54h14v12H50Zm14 0h14v12H64Z" />
+  <path stroke="#0ef3c5" stroke-width="4" d="M64 56v10" />
+  <path fill="#0ef3c5" d="M36 58c0-8 6-16 16-16l-10 18-6-2Zm56 0c0-8-6-16-16-16l10 18 6-2Z" opacity="0.85" />
+  <path fill="none" stroke="#0ef3c5" stroke-width="5" opacity="0.6" d="M28 80c0-18 7-36 36-40 29 4 36 22 36 40 0 13-11 24-36 24S28 93 28 80Z" />
 </svg>
