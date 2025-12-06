@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="880" version="1.1" width="720">
+  <defs>
+    <linearGradient id="faceGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#3bb9ff"/>
+      <stop offset="1" stop-color="#0c4da8"/>
+    </linearGradient>
+    <radialGradient cx="50%" cy="40%" id="glow" r="65%">
+      <stop offset="0" stop-color="#67e8f9" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#0b1224" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="furWhite" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#cbd5f5"/>
+    </linearGradient>
+    <linearGradient id="hatGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#142b42"/>
+    </linearGradient>
+    <linearGradient id="chainGrad" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <circle cx="360.0" cy="400.0" fill="url(#glow)" opacity="0.9" r="320"/>
+  <path d="M180 620 C180 500 230 360 360 330 C490 360 540 500 540 620 C540 700 470 760 360 760 C250 760 180 700 180 620Z" fill="url(#faceGrad)" stroke="#67e8f9" stroke-width="6"/>
+  <path d="M260 640 C260 570 300 520 360 510 C420 520 460 570 460 640 C430 700 290 700 260 640Z" fill="url(#furWhite)" stroke="#dbeafe" stroke-width="4"/>
+  <ellipse cx="360" cy="440" fill="url(#furWhite)" rx="120" ry="70" stroke="#bcd0f5" stroke-width="4"/>
+  <path d="M340 418 Q360 402 380 418 Q360 432 340 418Z" fill="#0a1a33"/>
+  <path d="M280 440 Q360 470 440 440" fill="none" stroke="#8da2d6" stroke-linecap="round" stroke-width="6"/>
+  <ellipse cx="300" cy="400" fill="#0b1728" rx="46" ry="32" stroke="#67e8f9" stroke-width="5"/>
+  <ellipse cx="420" cy="400" fill="#0b1728" rx="46" ry="32" stroke="#67e8f9" stroke-width="5"/>
+  <circle cx="294" cy="398" fill="#67e8f9" r="18"/>
+  <circle cx="298" cy="398" fill="#041423" r="9"/>
+  <circle cx="304" cy="392" fill="#9bf6ff" r="4"/>
+  <circle cx="414" cy="398" fill="#67e8f9" r="18"/>
+  <circle cx="418" cy="398" fill="#041423" r="9"/>
+  <circle cx="424" cy="392" fill="#9bf6ff" r="4"/>
+  <path d="M240 390 h120 v40 h-120 Z M360 390 h120 v40 h-120 Z" fill="none" stroke="#0ef3c5" stroke-linejoin="round" stroke-width="6"/>
+  <line stroke="#0ef3c5" stroke-width="6" x1="360" x2="360" y1="392" y2="426"/>
+  <line stroke="#0ef3c5" stroke-linecap="round" stroke-width="6" x1="240" x2="200" y1="400" y2="380"/>
+  <line stroke="#0ef3c5" stroke-linecap="round" stroke-width="6" x1="480" x2="520" y1="400" y2="380"/>
+  <rect fill="url(#hatGrad)" height="90" rx="24" ry="24" stroke="#0ef3c5" stroke-width="5" width="320" x="200" y="300"/>
+  <path d="M220 385 C280 420 440 420 500 385 C460 410 260 410 220 385Z" fill="#0d2135" stroke="#0ef3c5" stroke-width="4"/>
+  <text fill="#7af868" font-family="&quot;Poppins&quot;, Arial, sans-serif" font-size="42px" font-weight="700" letter-spacing="1px" x="240" y="358">IONCORE</text>
+  <path d="M190 340 C180 260 240 210 300 240 C250 270 230 320 230 360Z" fill="url(#furWhite)" stroke="#67e8f9" stroke-width="5"/>
+  <path d="M530 340 C540 260 480 210 420 240 C470 270 490 320 490 360Z" fill="url(#furWhite)" stroke="#67e8f9" stroke-width="5"/>
+  <path d="M215 320 C210 270 255 245 285 262 C255 280 240 305 240 330Z" fill="#0ef3c5" opacity="0.65"/>
+  <path d="M505 320 C510 270 465 245 435 262 C465 280 480 305 480 330Z" fill="#0ef3c5" opacity="0.65"/>
+  <path d="M210 610 C230 540 260 510 320 500 L400 500 C460 510 490 540 510 610 L470 750 L250 750Z" fill="#0b1728" stroke="#12233b" stroke-width="8"/>
+  <ellipse cx="280" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(-6,280,610)"/>
+  <ellipse cx="315" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(8,315,610)"/>
+  <ellipse cx="350" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(-6,350,610)"/>
+  <ellipse cx="385" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(8,385,610)"/>
+  <ellipse cx="420" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(-6,420,610)"/>
+  <ellipse cx="455" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(8,455,610)"/>
+  <ellipse cx="490" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(-6,490,610)"/>
+  <ellipse cx="525" cy="610" fill="url(#chainGrad)" rx="26" ry="16" stroke="#b45309" stroke-width="3" transform="rotate(8,525,610)"/>
+  <circle cx="360" cy="585" fill="none" r="32" stroke="#7af868" stroke-width="9"/>
+  <path d="M348 572 L380 552 L370 578 L388 580 L350 612 L360 586 L342 584 Z" fill="#7af868"/>
+  <path d="M180 620 C180 500 230 360 360 330 C490 360 540 500 540 620 C540 700 470 760 360 760 C250 760 180 700 180 620Z" fill="none" opacity="0.5" stroke="#0ef3c5" stroke-width="10"/>
+</svg>

@@ -1,5 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-  <path d="M16 7V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2"/>
-  <circle cx="18" cy="12" r="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">IONCORE wallet button</title>
+  <desc id="desc">Wallet icon featuring the Ioncore wolf badge.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1224" />
+      <stop offset="100%" stop-color="#111c33" />
+    </linearGradient>
+    <linearGradient id="bolt" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9" />
+      <stop offset="100%" stop-color="#0ef3c5" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="8" width="56" height="44" rx="10" fill="url(#bg)" stroke="#0ef3c5" stroke-width="2.5" />
+  <rect x="8" y="16" width="44" height="28" rx="8" fill="#0f172a" stroke="#1e3a8a" />
+  <circle cx="46" cy="30" r="6" fill="#0ef3c5" opacity="0.25" />
+  <circle cx="46" cy="30" r="3" fill="#7af868" />
+  <circle cx="22" cy="30" r="10" fill="#0b1224" stroke="#67e8f9" />
+  <path fill="url(#bolt)" d="M18 24h10l-4 6h6l-10 12 3-8h-5z" />
+  <path d="M12 18c2-5 6-10 10-10 3 0 6 2 8 4-5-1-12 2-18 6Z" fill="#0ef3c5" opacity="0.4" />
+  <path d="M32 12c4-2 8-4 12-2-4 1-8 4-12 8Z" fill="#67e8f9" opacity="0.55" />
 </svg>
