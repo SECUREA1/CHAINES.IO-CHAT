@@ -498,14 +498,7 @@
 
   function describeRequiredToken(){
     if(!state.hintEl || !state.config || !state.config.valid) return;
-    const parts = [];
-    if(state.config.policyId){
-      parts.push(`Policy ID: ${state.config.policyId}`);
-    }
-    if(state.config.assetLabel){
-      parts.push(`Asset: ${state.config.assetLabel}`);
-    }
-    state.hintEl.textContent = parts.length ? `Required token → ${parts.join(' · ')}` : state.hintEl.textContent;
+    state.hintEl.textContent = 'Need access? Buy the CHAINeS token to unlock CHAINeS Composer.';
   }
 
   function getAvailableWallets(){
