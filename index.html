@@ -215,10 +215,13 @@
         display:flex;
         flex-direction:column;
         min-height:100vh;
+        height:100vh;
+        max-height:100vh;
         width:100%;
         max-width:100%;
         margin:0 auto;
         padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+        overflow:hidden;
       }
 
     header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
@@ -413,9 +416,9 @@
     }
     #cmd-panel .chip { width:36px; height:36px; padding:0; justify-content:center; }
 
-    main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; }
+    main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
 
-    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; min-height:0; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; }
     .msg.mine { flex-direction: row-reverse; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
