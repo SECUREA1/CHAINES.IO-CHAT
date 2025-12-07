@@ -470,7 +470,7 @@
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
     .actions { display:flex; gap:10px; margin-top:12px; }
-    .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; }
+    .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
     .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
     .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
 
@@ -506,6 +506,14 @@
       color:#05130e;
       font-weight:700;
       box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 640px) {
+      .card { width: 100%; margin: 16px; padding: 18px; }
+      .fields { gap: 12px; }
+      .fields input { font-size: 15px; }
+      .actions { flex-direction: column; align-items: stretch; }
+      .actions .btn { width: 100%; }
     }
     .live-dot {
       display:inline-block;
@@ -904,6 +912,7 @@
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
+        <a class="btn primary" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">Buy Now</a>
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
