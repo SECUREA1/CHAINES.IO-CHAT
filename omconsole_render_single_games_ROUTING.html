@@ -1,0 +1,4761 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>OMConsole — Multi-Modal Control Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230b2a66'/%3E%3Cstop offset='1' stop-color='%23d4af37'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 34c6-12 22-12 28 0' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E" />
+
+  <!-- MediaPipe (CDN) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+  <style>
+    :root{
+      --bg0:#071428;
+      --bg1:#0a1e3a;
+      --panel: rgba(13, 31, 60, .62);
+      --panel2: rgba(9, 20, 40, .58);
+      --stroke: rgba(212,175,55,.18);
+      --stroke2: rgba(140,180,255,.16);
+      --text:#eaf2ff;
+      --muted:#9bb0d1;
+      --blue:#0b2a66;
+      --blue2:#12408c;
+      --gold:#d4af37;
+      --gold2:#f2d57a;
+      --danger:#ff4d4d;
+      --ok:#32d583;
+      --shadow: 0 30px 90px rgba(0,0,0,.45);
+      --shadow2: 0 16px 45px rgba(0,0,0,.35);
+      --glass: blur(14px) saturate(130%);
+      --radius-xl: 26px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+      --pad: 18px;
+      --pad2: 14px;
+      --pad3: 10px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --ease: cubic-bezier(.22,.61,.36,1);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 18% 10%, rgba(18,64,140,.30), transparent 60%),
+        radial-gradient(900px 600px at 80% 18%, rgba(212,175,55,.20), transparent 55%),
+        radial-gradient(1100px 700px at 60% 90%, rgba(18,64,140,.20), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+      user-select:none;
+    }
+
+    .app{
+      height:100%;
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      grid-template-rows: 84px 1fr;
+      grid-template-areas:
+        "sidebar topbar"
+        "sidebar main";
+      gap: 14px;
+      padding: 16px;
+    }
+
+    /* Topbar */
+    .topbar{
+      grid-area: topbar;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 18px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(13, 31, 60, .65), rgba(9, 20, 40, .55));
+      backdrop-filter: var(--glass);
+      box-shadow: var(--shadow2);
+      border: 1px solid var(--stroke2);
+      position:relative;
+      overflow:hidden;
+    }
+    .topbar:before{
+      content:"";
+      position:absolute; inset:-1px;
+      background:
+        radial-gradient(800px 200px at 20% 0%, rgba(212,175,55,.13), transparent 60%),
+        radial-gradient(900px 260px at 70% 0%, rgba(140,180,255,.12), transparent 55%);
+      pointer-events:none;
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px; position:relative;
+    }
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background: linear-gradient(135deg, rgba(11,42,102,.95), rgba(212,175,55,.9));
+      box-shadow: 0 12px 30px rgba(0,0,0,.4);
+      border:1px solid rgba(255,255,255,.08);
+      display:grid; place-items:center;
+    }
+    .logo svg{width:26px;height:26px;opacity:.96}
+    .brand h1{
+      margin:0;
+      font-size: 16.5px;
+      letter-spacing:.35px;
+      font-weight:700;
+    }
+    .brand .sub{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top:3px;
+    }
+    .top-actions{display:flex; align-items:center; gap:10px; position:relative;}
+    .pill{
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(7, 20, 40, .55);
+      border: 1px solid rgba(212,175,55,.18);
+      box-shadow: 0 16px 35px rgba(0,0,0,.25) inset;
+    }
+    .pill b{font-size:12px; letter-spacing:.3px}
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.ok{background: var(--ok); box-shadow: 0 0 0 3px rgba(50,213,131,.16), 0 0 18px rgba(50,213,131,.35)}
+    .dot.bad{background: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,77,.16), 0 0 18px rgba(255,77,77,.35)}
+
+    .btn{
+      appearance:none; border:none;
+      background: linear-gradient(180deg, rgba(18,64,140,.9), rgba(10,30,58,.9));
+      color: var(--text);
+      border: 1px solid rgba(212,175,55,.22);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 700;
+      letter-spacing: .2px;
+      cursor:pointer;
+      transition: transform .15s var(--ease), filter .15s var(--ease), box-shadow .15s var(--ease);
+      box-shadow: 0 14px 30px rgba(0,0,0,.35);
+    }
+    .btn:hover{transform: translateY(-1px); filter: brightness(1.06)}
+    .btn:active{transform: translateY(0px) scale(.99)}
+    .btn.gold{
+      background: linear-gradient(180deg, rgba(212,175,55,.96), rgba(165,129,25,.92));
+      color: #0a1330;
+      border-color: rgba(255,255,255,.12);
+      box-shadow: 0 14px 30px rgba(212,175,55,.20);
+    }
+    .btn.ghost{
+      background: rgba(7, 20, 40, .45);
+      border-color: rgba(140,180,255,.18);
+    }
+
+    /* Sidebar */
+    .sidebar{
+      grid-area: sidebar;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(13, 31, 60, .62), rgba(9, 20, 40, .52));
+      border: 1px solid var(--stroke2);
+      backdrop-filter: var(--glass);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .side-head{
+      padding: 18px;
+      border-bottom: 1px solid rgba(140,180,255,.12);
+      position:relative;
+    }
+    .side-head:after{
+      content:"";
+      position:absolute; inset:auto 0 -1px 0; height:1px;
+      background: linear-gradient(90deg, transparent, rgba(212,175,55,.30), transparent);
+      opacity:.9;
+    }
+    .side-head .title{
+      font-weight:800;
+      letter-spacing:.28px;
+      font-size: 13.5px;
+      color: rgba(234,242,255,.92);
+    }
+    .side-head .desc{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top:6px;
+      line-height: 1.35;
+    }
+    .nav{
+      padding: 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      overflow:auto;
+    }
+    .group{
+      border: 1px solid rgba(212,175,55,.14);
+      border-radius: var(--radius-lg);
+      background: rgba(7, 20, 40, .35);
+      padding: 12px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.22) inset;
+    }
+    .group .gtitle{
+      font-size:12px;
+      color: rgba(242,213,122,.88);
+      letter-spacing:.3px;
+      font-weight:800;
+      margin-bottom:10px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .badge{
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(234,242,255,.85);
+      padding: 4px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(140,180,255,.18);
+      background: rgba(9, 20, 40, .4);
+    }
+    .navbtn{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(140,180,255,.14);
+      background: linear-gradient(180deg, rgba(10,30,58,.70), rgba(7,20,40,.55));
+      color: var(--text);
+      cursor:pointer;
+      transition: transform .14s var(--ease), filter .14s var(--ease), border-color .14s var(--ease);
+    }
+    .navbtn:hover{transform: translateY(-1px); filter: brightness(1.06); border-color: rgba(212,175,55,.28)}
+    .navbtn:active{transform: translateY(0px) scale(.995)}
+    .navbtn .left{
+      display:flex; align-items:center; gap:10px;
+    }
+    .icon{
+      width:30px;height:30px;border-radius:12px;
+      background: rgba(18,64,140,.30);
+      border:1px solid rgba(212,175,55,.18);
+      display:grid; place-items:center;
+      box-shadow: 0 12px 26px rgba(0,0,0,.28);
+      flex:none;
+    }
+    .icon svg{width:18px;height:18px;opacity:.95}
+    .navbtn .label{
+      font-weight:800;
+      letter-spacing:.18px;
+      font-size: 13px;
+      text-align:left;
+    }
+    .navbtn .sublabel{
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top:2px;
+    }
+    .navbtn .right{
+      display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(234,242,255,.78);
+    }
+    .navbtn.active{
+      border-color: rgba(212,175,55,.45);
+      background: linear-gradient(180deg, rgba(18,64,140,.78), rgba(7,20,40,.55));
+      box-shadow: 0 0 0 1px rgba(212,175,55,.12), 0 24px 45px rgba(0,0,0,.36);
+    }
+
+    .side-foot{
+      margin-top:auto;
+      padding: 14px 18px;
+      border-top: 1px solid rgba(140,180,255,.12);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .kv{
+      display:flex; align-items:center; justify-content:space-between;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(140,180,255,.12);
+      background: rgba(7, 20, 40, .32);
+    }
+    .kv b{color: rgba(234,242,255,.92); font-family:var(--mono); font-size: 11.5px}
+
+    /* Main */
+    .main{
+      grid-area: main;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(13, 31, 60, .55), rgba(9, 20, 40, .40));
+      border: 1px solid rgba(140,180,255,.16);
+      backdrop-filter: var(--glass);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .stage{
+      position:absolute; inset: 0;
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap: 12px;
+      padding: 16px;
+    }
+    .viewport{
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(212,175,55,.18);
+      background:
+        radial-gradient(900px 600px at 20% 20%, rgba(18,64,140,.26), transparent 60%),
+        radial-gradient(700px 500px at 80% 10%, rgba(212,175,55,.18), transparent 55%),
+        linear-gradient(180deg, rgba(7,20,40,.92), rgba(6,16,30,.92));
+      box-shadow: 0 30px 80px rgba(0,0,0,.35);
+      overflow:hidden;
+      position:relative;
+    }
+    canvas#viz{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+    .panel{
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(140,180,255,.16);
+      background: rgba(7, 20, 40, .40);
+      box-shadow: 0 26px 70px rgba(0,0,0,.30);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .panel .ph{
+      padding: 14px 14px 12px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid rgba(140,180,255,.12);
+      background: linear-gradient(180deg, rgba(9, 20, 40, .55), rgba(7, 20, 40, .25));
+    }
+    .panel .ph .pt{
+      font-size: 12.5px;
+      letter-spacing:.28px;
+      font-weight:900;
+      color: rgba(242,213,122,.92);
+    }
+    .panel .ph .ps{
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: rgba(234,242,255,.75);
+    }
+    .panel .pc{
+      padding: 14px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
+
+    /* Cards / form */
+    .card{
+      border-radius: 18px;
+      border: 1px solid rgba(212,175,55,.14);
+      background: rgba(7, 20, 40, .34);
+      box-shadow: 0 20px 55px rgba(0,0,0,.22) inset;
+      padding: 12px;
+    }
+    .card .ct{
+      font-weight:900;
+      letter-spacing:.22px;
+      font-size: 12px;
+      color: rgba(234,242,255,.92);
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .row{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .row > * {flex: 1 1 auto}
+    label{
+      font-size: 11.5px;
+      color: rgba(234,242,255,.84);
+      font-weight:800;
+      letter-spacing:.18px;
+    }
+    input[type="range"]{width:100%}
+    select.select{
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(140,180,255,.14);
+      background: rgba(7, 20, 40, .35);
+      color: var(--text);
+      font-weight: 900;
+      letter-spacing: .12px;
+      outline: none;
+      box-shadow: 0 18px 40px rgba(0,0,0,.18) inset;
+      cursor:pointer;
+    }
+    select.select:focus{
+      border-color: rgba(212,175,55,.35);
+      filter: brightness(1.05);
+    }
+
+    .kv2{
+      display:flex; align-items:center; justify-content:space-between;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: rgba(234,242,255,.82);
+      padding-top: 6px;
+    }
+    .smallbtn{
+      padding: 8px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(212,175,55,.18);
+      background: rgba(18,64,140,.30);
+      color: var(--text);
+      font-weight:900;
+      cursor:pointer;
+      transition: transform .14s var(--ease), filter .14s var(--ease);
+    }
+    .smallbtn:hover{transform: translateY(-1px); filter: brightness(1.06)}
+    .smallbtn:active{transform: translateY(0px) scale(.99)}
+    .smallbtn.gold{
+      background: linear-gradient(180deg, rgba(212,175,55,.90), rgba(165,129,25,.88));
+      color: #061022;
+      border-color: rgba(255,255,255,.10);
+    }
+    .smallbtn.danger{
+      background: rgba(255,77,77,.18);
+      border-color: rgba(255,77,77,.25);
+    }
+    .smallbtn.ghost{
+      background: rgba(7, 20, 40, .35);
+      border-color: rgba(140,180,255,.16);
+    }
+
+    /* Cursor overlay */
+    #cursor{
+      position:fixed;
+      left:0;top:0;
+      width:24px;height:24px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(212,175,55,.92) 35%, rgba(11,42,102,.92) 70%);
+      box-shadow:
+        0 0 0 4px rgba(212,175,55,.12),
+        0 0 30px rgba(212,175,55,.22),
+        0 0 48px rgba(140,180,255,.18);
+      transform: translate(-100px, -100px);
+      pointer-events:none;
+      z-index: 9999;
+      mix-blend-mode: screen;
+    }
+    #cursor.click{
+      box-shadow:
+        0 0 0 6px rgba(50,213,131,.18),
+        0 0 38px rgba(50,213,131,.35),
+        0 0 60px rgba(212,175,55,.18);
+    }
+
+    /* Modals */
+    .modal{
+      position:absolute; inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.46);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+    }
+    .modal.show{display:flex}
+    .sheet{
+      width: min(980px, 92vw);
+      max-height: min(86vh, 820px);
+      border-radius: 26px;
+      border: 1px solid rgba(212,175,55,.22);
+      background: linear-gradient(180deg, rgba(13,31,60,.86), rgba(7,20,40,.80));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      display:flex; flex-direction:column;
+    }
+    .sheet .sh{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      border-bottom: 1px solid rgba(140,180,255,.14);
+      background:
+        radial-gradient(700px 200px at 20% 0%, rgba(212,175,55,.12), transparent 60%),
+        linear-gradient(180deg, rgba(9,20,40,.70), rgba(7,20,40,.36));
+    }
+    .sheet .sh .ttl{
+      font-weight: 950;
+      letter-spacing: .25px;
+      font-size: 13px;
+      color: rgba(242,213,122,.92);
+    }
+    .sheet .sb{
+      padding: 16px;
+      overflow:auto;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+    .sheet .left{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+    .sheet .right{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+    .grid3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;}
+
+    .kbd{
+      display:grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 8px;
+    }
+    .key{
+      padding: 10px 0;
+      border-radius: 14px;
+      border:1px solid rgba(140,180,255,.14);
+      background: rgba(18,64,140,.25);
+      font-weight: 900;
+      cursor:pointer;
+      text-align:center;
+      transition: transform .14s var(--ease), filter .14s var(--ease), border-color .14s var(--ease);
+    }
+    .key:hover{transform: translateY(-1px); filter: brightness(1.06); border-color: rgba(212,175,55,.28)}
+    .key.wide{grid-column: span 3}
+    .key.wider{grid-column: span 5}
+    .key.danger{background: rgba(255,77,77,.18); border-color: rgba(255,77,77,.22)}
+    .key.gold{background: linear-gradient(180deg, rgba(212,175,55,.90), rgba(165,129,25,.88)); color:#061022; border-color: rgba(255,255,255,.12)}
+    .hidden{display:none !important}
+
+    /* Responsive */
+    @media (max-width: 1200px){
+      .app{grid-template-columns: 320px 1fr;}
+      .stage{grid-template-columns: 1fr; grid-template-rows: 1fr 360px;}
+      .panel{height: 360px}
+    }
+    @media (max-width: 900px){
+      body{overflow:auto}
+      .app{grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "topbar" "sidebar" "main";}
+      .sidebar{max-height: 520px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-head">
+      <div class="title">SYSTEM MODULES</div>
+      <div class="desc">
+        Blue/Gold console optimized for high-DPI. Use a control system, then tune &amp; <b>Save</b> to activate.
+        <br/><span style="color:rgba(242,213,122,.92); font-weight:900">Note:</span> Browsers cannot take over your OS mouse for security. This console provides an <b>in-app cursor</b> and click automation across the UI.
+      </div>
+    </div>
+    <div class="nav">
+      <div class="group">
+        <div class="gtitle">
+          Apps <span class="badge" id="badgeMode">DASHBOARD</span>
+        </div>
+        <button class="navbtn" data-open="internet" id="btnInternet">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M3 12h18" stroke="white" opacity=".8" stroke-width="1.7"/><path d="M12 3c2.6 2.5 4.2 5.6 4.2 9s-1.6 6.5-4.2 9c-2.6-2.5-4.2-5.6-4.2-9S9.4 5.5 12 3Z" stroke="white" opacity=".8" stroke-width="1.7"/></svg>
+            </div>
+            <div>
+              <div class="label">Internet</div>
+              <div class="sublabel">Open web in new tab</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+I</span></div>
+        </button>
+
+        <button class="navbtn" data-open="games" id="btnGames">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 9h10a4 4 0 0 1 4 4v2.5A3.5 3.5 0 0 1 17.5 19h-1l-1.7-1.7a4 4 0 0 0-5.6 0L7.5 19h-1A3.5 3.5 0 0 1 3 15.5V13a4 4 0 0 1 4-4Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M8 13h3M9.5 11.5v3" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M16 12.7h.01M18 14.3h.01" stroke="white" opacity=".9" stroke-width="2.4" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="label">Games</div>
+              <div class="sublabel">Built-in simulation</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+G</span></div>
+        </button>
+
+        <button class="navbtn" data-open="notepad" id="btnNotepad">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="label">Notepad</div>
+              <div class="sublabel">On-screen keyboard</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+N</span></div>
+        </button>
+
+        <button class="navbtn" data-open="audio" id="btnAudio">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M19 11v1a7 7 0 0 1-14 0v-1" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/><path d="M12 19v2" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="label">Audio</div>
+              <div class="sublabel">Record / playback</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+A</span></div>
+        </button>
+
+        <button class="navbtn" data-open="video" id="btnVideo">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M17 10l4-2v8l-4-2" stroke="white" opacity=".85" stroke-width="1.7" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="label">Video</div>
+              <div class="sublabel">Capture / playback</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+V</span></div>
+        </button>
+
+        <button class="navbtn" data-open="calendar" id="btnCalendar">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3v3M17 3v3" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M4 7h16" stroke="white" opacity=".85" stroke-width="1.7"/><path d="M6 5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="white" opacity=".9" stroke-width="1.7"/></svg>
+            </div>
+            <div>
+              <div class="label">Calendar</div>
+              <div class="sublabel">Bookings + time slots</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+C</span></div>
+        </button>
+      </div>
+
+      <div class="group">
+        <div class="gtitle">
+          Controls <span class="badge" id="badgeControl">GESTURE</span>
+        </div>
+        <button class="navbtn" data-open="controlSelector" id="btnControlSelector">
+          <div class="left">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h6M14 12h6" stroke="white" opacity=".88" stroke-width="1.7" stroke-linecap="round"/><path d="M10 8l-2 8" stroke="white" opacity=".88" stroke-width="1.7" stroke-linecap="round"/><path d="M16 16l2-8" stroke="white" opacity=".88" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="label">Control Selector</div>
+              <div class="sublabel">Assign controllers to tasks</div>
+            </div>
+          </div>
+          <div class="right"><span>⌘</span><span>ALT+S</span></div>
+        </button>
+
+        <div class="grid2">
+          
+          <button class="navbtn" data-open="gestureTuner" id="btnGestureTuner">
+            <div class="left">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M8 12V6.8a1.8 1.8 0 1 1 3.6 0V12" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/>
+                  <path d="M11.6 12V5.6a1.8 1.8 0 1 1 3.6 0V12" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/>
+                  <path d="M15.2 12V7.4a1.8 1.8 0 1 1 3.6 0V13c0 4-2.6 7-6.6 7H11c-4 0-7-2.8-7-6.8V11a1.8 1.8 0 1 1 3.6 0v1" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div class="label">Gesture</div>
+                <div class="sublabel">Hands + Pinch</div>
+              </div>
+            </div>
+            <div class="right"><span>TUNE</span><span>ALT+H</span></div>
+          </button>
+
+<button class="navbtn" data-open="retinaTuner" id="btnRetinaTuner">
+            <div class="left">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="white" opacity=".85" stroke-width="1.7"/></svg>
+              </div>
+              <div>
+                <div class="label">Retina</div>
+                <div class="sublabel">FaceMesh + Iris</div>
+              </div>
+            </div>
+            <div class="right"><span>TUNE</span><span>ALT+R</span></div>
+          </button>
+
+          <button class="navbtn" data-open="emgTuner" id="btnEmgTuner">
+            <div class="left">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 7h12M6 12h12M6 17h12" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M4 6v12" stroke="white" opacity=".75" stroke-width="1.7"/></svg>
+              </div>
+              <div>
+                <div class="label">EMG</div>
+                <div class="sublabel">SIM / WebSerial</div>
+              </div>
+            </div>
+            <div class="right"><span>TUNE</span><span>ALT+E</span></div>
+          </button>
+
+          <button class="navbtn" data-open="eegTuner" id="btnEegTuner">
+            <div class="left">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 7c1-2 3-3 5-3s4 1 5 3" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M5 11c0-2 1-4 2-5" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/><path d="M19 11c0-2-1-4-2-5" stroke="white" opacity=".85" stroke-width="1.7" stroke-linecap="round"/><path d="M8 20c-2-2-3-4-3-7 0-2 1-4 2-6" stroke="white" opacity=".65" stroke-width="1.7" stroke-linecap="round"/><path d="M16 20c2-2 3-4 3-7 0-2-1-4-2-6" stroke="white" opacity=".65" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="label">EEG</div>
+                <div class="sublabel">SIM / WebSerial</div>
+              </div>
+            </div>
+            <div class="right"><span>TUNE</span><span>ALT+Q</span></div>
+          </button>
+
+          <button class="navbtn" data-open="toneTuner" id="btnToneTuner">
+            <div class="left">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 10v4" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M8 7v10" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M12 4v16" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M16 7v10" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/><path d="M20 10v4" stroke="white" opacity=".9" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="label">Tone</div>
+                <div class="sublabel">Pitch-to-control</div>
+              </div>
+            </div>
+            <div class="right"><span>TUNE</span><span>ALT+T</span></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <div class="kv"><span>OS Control</span><b id="kvOS">IN-APP</b></div>
+      <div class="kv"><span>Hover Click</span><b id="kvHover">ON</b></div>
+      <div class="kv"><span>Active Cursor</span><b id="kvCursor">GESTURE</b></div>
+    </div>
+  </aside>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M7 13c3-6 10-6 13 0" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="2.1" fill="white" opacity=".95"/>
+        </svg>
+      </div>
+      <div>
+        <h1>OMConsole</h1>
+        <div class="sub">Web Operating Console • Multi-Modal Tuners • Blue/Gold High Gloss</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <div class="pill" title="Camera / mic status">
+        <span class="dot" id="dotCam"></span><b>CAM</b>
+        <span class="dot" id="dotMic"></span><b>MIC</b>
+      </div>
+      <div class="pill" title="Control status">
+        <span class="dot ok" id="dotCtl"></span><b>CONTROL</b>
+      </div>
+      <button class="btn ghost" id="btnToggleHover" title="F11">Hover Click</button>
+      <button class="btn gold" id="btnToggleOS" title="F12">Toggle OS*</button>
+      <div class="pill" title="Local time">
+        <b id="clock">--:--:--</b>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="stage">
+      <div class="viewport" id="viewport">
+        <canvas id="viz"></canvas>
+
+        <!-- Hidden media elements used for processing -->
+        <video id="cam" playsinline muted class="hidden"></video>
+        <audio id="aud" class="hidden"></audio>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <div class="pt" id="panelTitle">LIVE TELEMETRY</div>
+          <div class="ps" id="panelSub">Cursor • Click • Signals</div>
+        </div>
+        <div class="pc" id="panelContent">
+          <!-- Dynamic cards inserted by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="modal">
+      <div class="sheet" role="dialog" aria-modal="true">
+        <div class="sh">
+          <div class="ttl" id="modalTitle">Tuner</div>
+          <div class="row" style="gap:8px; justify-content:flex-end">
+            <button class="smallbtn ghost" id="modalBack">Back</button>
+            <button class="smallbtn gold" id="modalSave">Save & Activate</button>
+          </div>
+        </div>
+        <div class="sb" id="modalBody">
+          <!-- Two-column content -->
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="cursor"></div>
+
+<script type="module">
+/**
+ * OMConsole Web
+ * A high-gloss, blue/gold operating console with:
+ * - Gesture cursor (MediaPipe Hands)
+ * - Retina cursor (MediaPipe FaceMesh + Iris landmarks)
+ * - Tone controller (WebAudio pitch)
+ * - EMG/EEG controllers (SIM + WebSerial optional)
+ * - Apps: Notepad, Audio Recorder, Video Recorder, Calendar, Games
+ *
+ * IMPORTANT LIMITATION:
+ * Browsers cannot take full OS mouse control for security reasons.
+ * "OS Control" toggle here means "In-app cursor automation across this console UI."
+ */
+
+// -----------------------------
+// Utilities
+// -----------------------------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const fmt = (n, d=2) => Number.isFinite(n) ? n.toFixed(d) : "--";
+const nowMs = () => performance.now();
+
+class RollingMean {
+  constructor(windowSize=6){
+    this.windowSize = Math.max(1, windowSize|0);
+    this.values = [];
+  }
+  setWindowSize(n){
+    this.windowSize = Math.max(1, n|0);
+    if(this.values.length > this.windowSize){
+      this.values = this.values.slice(-this.windowSize);
+    }
+  }
+  push(v){
+    this.values.push(v);
+    if(this.values.length > this.windowSize) this.values.shift();
+    const s = this.values.reduce((acc, x)=>acc + x, 0);
+    return s / this.values.length;
+  }
+}
+
+class Deque {
+  constructor(maxlen=200){
+    this.maxlen = maxlen;
+    this.arr = [];
+  }
+  push(v){
+    this.arr.push(v);
+    if(this.arr.length > this.maxlen) this.arr.shift();
+  }
+  toArray(){ return this.arr.slice(); }
+}
+
+function el(tag, attrs={}, children=[]){
+  const e = document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k === "class") e.className = v;
+    else if(k === "html") e.innerHTML = v;
+    else if(k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for(const c of children){
+    if(typeof c === "string") e.appendChild(document.createTextNode(c));
+    else if(c) e.appendChild(c);
+  }
+  return e;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+
+
+// -----------------------------
+// Control Targets + Routing
+// -----------------------------
+const CONTROL_TARGETS = [
+  { key:"cursor_ui", label:"Cursor (UI)", group:"Cursor" },
+
+  { key:"zoom", label:"Zoom", group:"Camera / UI" },
+  { key:"scroll", label:"Scroll", group:"Camera / UI" },
+  { key:"pan2d", label:"Pan (2D camera)", group:"Camera / UI" },
+  { key:"rotate3d", label:"Rotate (3D camera)", group:"Camera / UI" },
+
+  { key:"excavator_track", label:"Excavator Track", group:"Heavy Equipment" },
+  { key:"excavator_right_arm", label:"Excavator Right Arm", group:"Heavy Equipment" },
+  { key:"excavator_left_arm", label:"Excavator Left Arm", group:"Heavy Equipment" },
+  { key:"loader_bucket", label:"Loader / Bucket", group:"Heavy Equipment" },
+
+  { key:"forklift", label:"Forklift", group:"Vehicles" },
+  { key:"crane", label:"Crane", group:"Vehicles" },
+  { key:"drone", label:"Drone", group:"Vehicles" },
+
+  { key:"smart_home", label:"Smart Home", group:"Environment" },
+  { key:"office_presentation", label:"Office / Presentation", group:"Productivity" },
+
+  { key:"safety", label:"Safety (E-Stop / Horn)", group:"Safety", exclusive:true }
+];
+
+const CONTROL_TARGET_INDEX = Object.fromEntries(CONTROL_TARGETS.map(t => [t.key, t]));
+const TUNER_ORDER = ["Gesture","Retina","Tone","EMG","EEG"];
+
+// Ephemeral UI hooks for active modal content (cleared on open/close)
+const uiHooks = { routingSummaryRefreshers: {} };
+
+function controlTargetLabel(key){
+  return CONTROL_TARGET_INDEX[key]?.label || (key || "—");
+}
+function getTunerKey(tunerName){ return (tunerName || "").toLowerCase(); }
+
+function getTunerTarget(tunerName){
+  const k = state?.settings?.routing?.[tunerName]?.target;
+  return k || "cursor_ui";
+}
+
+function setTunerTarget(tunerName, targetKey){
+  if(!state.settings.routing) state.settings.routing = {};
+  if(!state.settings.routing[tunerName]) state.settings.routing[tunerName] = { target: "cursor_ui" };
+  state.settings.routing[tunerName].target = targetKey;
+
+  // If we set Cursor target, keep legacy behavior: make this tuner the active cursor controller.
+  if(targetKey === "cursor_ui"){
+    if(typeof controlManager?.setActiveCursor === "function"){
+      controlManager.setActiveCursor(tunerName);
+      // setActiveCursor already saves
+      return;
+    }else{
+      state.settings.active.cursorControl = tunerName;
+    }
+  }
+
+  // If we moved the active cursor controller away from Cursor, pick a fallback
+  if(state.settings.active?.cursorControl === tunerName && targetKey !== "cursor_ui"){
+    const fallback = TUNER_ORDER.find(n => n !== tunerName && getTunerTarget(n) === "cursor_ui") || "Gesture";
+    if(typeof controlManager?.setActiveCursor === "function"){
+      controlManager.setActiveCursor(fallback);
+      // setActiveCursor already saves
+      return;
+    }else{
+      state.settings.active.cursorControl = fallback;
+    }
+  }
+
+  saveSettings();
+}
+
+function getTunerSummaryPairs(tunerName){
+  const key = getTunerKey(tunerName);
+  const s = state.settings[key] || {};
+  if(tunerName === "Gesture"){
+    return [
+      { k: "Pinch Threshold", v: fmt(s.pinchThreshold, 3) },
+      { k: "Smoothing", v: `${s.smoothing}` }
+    ];
+  }
+  if(tunerName === "Retina"){
+    const inv = `${s.invertX ? "X" : ""}${s.invertY ? "Y" : ""}`;
+    return [
+      { k: "Sensitivity", v: fmt(s.sensitivity, 2) },
+      { k: "Smoothing", v: `${s.smoothing}` },
+      { k: "Grid", v: `${s.gridSize}px` },
+      { k: "Invert", v: inv || "—" }
+    ];
+  }
+  if(tunerName === "Tone"){
+    const tuned = s.tuned || {};
+    return [
+      { k: "Tolerance", v: `${s.toleranceHz} Hz` },
+      { k: "Speed", v: `${s.speed} px/s` },
+      { k: "Tuned (U/D/L/R)", v: `${tuned.up ?? "—"} / ${tuned.down ?? "—"} / ${tuned.left ?? "—"} / ${tuned.right ?? "—"}` }
+    ];
+  }
+  if(tunerName === "EMG"){
+    return [
+      { k: "Sensitivity", v: `${s.sensitivity}` },
+      { k: "Click Threshold", v: `${s.clickThreshold}` },
+      { k: "Mode", v: s.simMode ? "SIM" : "DEVICE" }
+    ];
+  }
+  if(tunerName === "EEG"){
+    return [
+      { k: "Move Distance", v: `${s.moveDistance}` },
+      { k: "Cooldown", v: `${s.cooldownMs} ms` },
+      { k: "Mode", v: s.simMode ? "SIM" : "DEVICE" }
+    ];
+  }
+  return [];
+}
+
+function makeControlTargetSelect(valueKey, onChange){
+  const sel = el("select", { class:"select" }, CONTROL_TARGETS.map(t => el("option",{value:t.key},[t.label])));
+  sel.value = valueKey || "cursor_ui";
+  sel.addEventListener("change", ()=> onChange(sel.value));
+  return sel;
+}
+
+function makeRoutingCard(tunerName){
+  const sel = makeControlTargetSelect(getTunerTarget(tunerName), async (v)=>{
+    setTunerTarget(tunerName, v);
+    // If routed to Cursor, ensure it can actually drive cursor immediately (permission prompt may occur).
+    if(v === "cursor_ui"){
+      try{ await controlManager.activateAsCursor(tunerName); }catch(e){}
+    }
+    uiHooks.routingSummaryRefreshers[tunerName]?.();
+  });
+
+  const summaryWrap = el("div", { id:`routeSum_${tunerName}` }, []);
+  const rebuild = ()=>{
+    summaryWrap.innerHTML = "";
+    const pairs = getTunerSummaryPairs(tunerName);
+    for(const p of pairs){
+      summaryWrap.append(el("div",{class:"kv2"},[el("span",{},[p.k]), el("b",{},[p.v])]));
+    }
+  };
+  rebuild();
+  uiHooks.routingSummaryRefreshers[tunerName] = rebuild;
+
+  return makeCard("Control Routing", [
+    el("div", { class:"hint" }, ["Control Target"]),
+    sel,
+    el("div",{style:"height:10px"}),
+    el("div",{class:"hint"},["Tuner Settings Summary"]),
+    summaryWrap,
+    el("div",{style:"height:8px"}),
+    el("div", { class:"hint" }, ["Set a tuner to Cursor (UI) to drive the in-app pointer. Other targets publish to the Sim Bus panel."])
+  ]);
+}
+
+
+async function activateTunerByRoute(name){
+  const key = getTunerKey(name);
+  if(state.settings[key]) state.settings[key].enabled = true;
+  saveSettings();
+
+  if(getTunerTarget(name) === "cursor_ui"){
+    await controlManager.activateAsCursor(name);
+  }else{
+    await controlManager.ensure(name);
+  }
+}
+
+function formatRoutedValuesForDisplay(targetKey, values){
+  if(!values) return "—";
+  const f = (n)=> (typeof n === "number" ? fmt(n,2) : n);
+  switch(targetKey){
+    case "cursor_ui": return `x=${Math.round(values.x ?? 0)} y=${Math.round(values.y ?? 0)} click=${values.click ? 1:0}`;
+    case "zoom": return `zoomΔ=${f(values.zoomDelta)} click=${values.click ? 1:0}`;
+    case "scroll": return `sx=${f(values.scrollX)} sy=${f(values.scrollY)} click=${values.click ? 1:0}`;
+    case "pan2d": return `panX=${f(values.panX)} panY=${f(values.panY)} click=${values.click ? 1:0}`;
+    case "rotate3d": return `yaw=${f(values.yaw)} pitch=${f(values.pitch)} click=${values.click ? 1:0}`;
+    case "excavator_track": return `L=${f(values.leftTrack)} R=${f(values.rightTrack)} estop=${values.estop?1:0}`;
+    case "excavator_right_arm":
+    case "excavator_left_arm":
+      return `boom=${f(values.boom)} stick=${f(values.stick)} grip=${values.grip?1:0}`;
+    case "loader_bucket": return `lift=${f(values.lift)} tilt=${f(values.tilt)} dump=${values.dump?1:0}`;
+    case "forklift": return `drive=${f(values.drive)} steer=${f(values.steer)} lift=${values.lift?1:0}`;
+    case "crane": return `slew=${f(values.slew)} boom=${f(values.boom)} hook=${values.hook?1:0}`;
+    case "drone": return `yaw=${f(values.yaw)} thr=${f(values.throttle)} act=${values.action?1:0}`;
+    case "smart_home": return `brightΔ=${f(values.brightnessDelta)} tempΔ=${f(values.tempDelta)} toggle=${values.toggle?1:0}`;
+    case "office_presentation": return `nav=${f(values.nav)} scrollY=${f(values.scrollY)} click=${values.click?1:0}`;
+    case "safety": return `E_STOP=${values.estop?1:0} HORN=${values.horn?1:0}`;
+    default: return JSON.stringify(values);
+  }
+}
+
+function resolveCursorDriver(){
+  const preferred = state.settings.active?.cursorControl || "Gesture";
+  if(getTunerTarget(preferred) === "cursor_ui") return preferred;
+  const alt = TUNER_ORDER.find(n => getTunerTarget(n) === "cursor_ui");
+  return alt || preferred;
+}
+
+function updateControlSelectorLive(){
+  if(!state.ui.modalOpen || state.ui.modalKey !== "controlSelector") return;
+
+  const timeEl = $("#simBusTime");
+  if(timeEl){
+    const ms = state.simBus?.lastUpdateMs || 0;
+    if(ms){
+      const age = Math.max(0, nowMs() - ms);
+      timeEl.textContent = `Updated ${Math.round(age)} ms ago`;
+    }else{
+      timeEl.textContent = "No routed values yet";
+    }
+  }
+
+  const panel = $("#simBusPanel");
+  if(panel){
+    panel.innerHTML = "";
+    const cursorDriver = resolveCursorDriver();
+    for(const name of TUNER_ORDER){
+      const key = getTunerKey(name);
+      const enabled = !!state.settings[key]?.enabled;
+      const targetKey = getTunerTarget(name);
+      const line = state.simBus?.perTuner?.[name];
+      const values = line?.values;
+
+      const row = el("div", { class:"kv" }, [
+        el("span", {}, [`${name}${name===cursorDriver ? " • ACTIVE" : ""} → ${controlTargetLabel(targetKey)}${enabled ? "" : " (OFF)"}`]),
+        el("b", { style:"font-family:var(--mono); font-size: 11px; opacity:.95" }, [ enabled ? formatRoutedValuesForDisplay(targetKey, values) : "—" ])
+      ]);
+      panel.append(row);
+    }
+  }
+
+  const csActive = $("#csActive");
+  if(csActive) csActive.textContent = resolveCursorDriver();
+  const csCam = $("#csCam");
+  if(csCam) csCam.textContent = state.runtime.camReady ? "READY" : "OFF";
+  const csMic = $("#csMic");
+  if(csMic) csMic.textContent = state.runtime.micReady ? "READY" : "OFF";
+
+  // Refresh routing summaries if those cards are visible inside this modal.
+  for(const name of TUNER_ORDER){
+    uiHooks.routingSummaryRefreshers[name]?.();
+  }
+}
+
+
+
+// -----------------------------
+// Sim Bus Routing (live values)
+// -----------------------------
+function ensureSimBus(){
+  if(!state.simBus) state.simBus = { lastUpdateMs: 0, perTuner: {}, targets: {} };
+  if(!state.simBus.perTuner) state.simBus.perTuner = {};
+  if(!state.simBus.targets) state.simBus.targets = {};
+}
+
+function routeToTarget(targetKey, norm){
+  switch(targetKey){
+    case "cursor_ui":
+      return { x:norm.x, y:norm.y, dx:norm.dx, dy:norm.dy, click:norm.click, clickEdge:norm.clickEdge };
+
+    case "zoom":
+      return { zoomDelta: -norm.dy, click:norm.click, clickEdge:norm.clickEdge };
+
+    case "scroll":
+      return { scrollX: norm.dx, scrollY: norm.dy, click:norm.click, clickEdge:norm.clickEdge };
+
+    case "pan2d":
+      return { panX: norm.dx, panY: norm.dy, click:norm.click, clickEdge:norm.clickEdge };
+
+    case "rotate3d":
+      return { yaw: norm.dx, pitch: norm.dy, click:norm.click, clickEdge:norm.clickEdge };
+
+    case "excavator_track": {
+      const throttle = -norm.dy;
+      const turn = norm.dx;
+      return {
+        throttle, turn,
+        leftTrack: throttle - turn,
+        rightTrack: throttle + turn,
+        click: norm.click,
+        clickEdge: norm.clickEdge
+      };
+    }
+    case "excavator_right_arm":
+    case "excavator_left_arm":
+      return { boom: -norm.dy, stick: norm.dx, grip: norm.click, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "loader_bucket":
+      return { lift: -norm.dy, tilt: norm.dx, dump: norm.click, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "forklift":
+      return { drive: -norm.dy, steer: norm.dx, lift: norm.click, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "crane":
+      return { slew: norm.dx, boom: -norm.dy, hook: norm.click, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "drone":
+      return { yaw: norm.dx, throttle: -norm.dy, action: norm.clickEdge, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "smart_home":
+      return { brightnessDelta: norm.dx, tempDelta: -norm.dy, toggle: norm.clickEdge, click: norm.click, clickEdge: norm.clickEdge };
+
+    case "office_presentation":
+      return { nav: norm.dx, scrollY: norm.dy, click: norm.clickEdge, clickEdge: norm.clickEdge };
+
+    case "safety":
+      return { estop: norm.clickEdge, horn: norm.click, click: norm.click, clickEdge: norm.clickEdge };
+
+    default:
+      return { ...norm };
+  }
+}
+
+function updateSimBusFromController(name, out){
+  ensureSimBus();
+
+  const now = nowMs();
+  const targetKey = getTunerTarget(name);
+
+  if(!state.simBus.perTuner[name]){
+    state.simBus.perTuner[name] = {
+      target: targetKey,
+      values: null,
+      raw: null,
+      updatedAtMs: 0,
+      lastClick: false,
+      lastPos: null,
+      virtualPos: [state.cursor.x, state.cursor.y]
+    };
+  }
+  const per = state.simBus.perTuner[name];
+  per.target = targetKey;
+
+  const click = !!out.click;
+  const clickEdge = click && !per.lastClick;
+  per.lastClick = click;
+
+  let dx = out.dx || 0;
+  let dy = out.dy || 0;
+
+  let x = null, y = null;
+  if(out.setPos){
+    x = out.setPos[0];
+    y = out.setPos[1];
+    if(Array.isArray(per.lastPos)){
+      dx = x - per.lastPos[0];
+      dy = y - per.lastPos[1];
+    }
+    per.lastPos = [x, y];
+    per.virtualPos = [x, y];
+  }else{
+    if(!Array.isArray(per.virtualPos)){
+      per.virtualPos = [state.cursor.x, state.cursor.y];
+    }
+    per.virtualPos = [
+      clamp(per.virtualPos[0] + dx, 0, window.innerWidth),
+      clamp(per.virtualPos[1] + dy, 0, window.innerHeight)
+    ];
+    x = per.virtualPos[0];
+    y = per.virtualPos[1];
+  }
+
+  const norm = { x, y, dx, dy, click, clickEdge };
+  const values = routeToTarget(targetKey, norm);
+
+  per.raw = norm;
+  per.values = values;
+  per.updatedAtMs = now;
+
+  if(!state.simBus.targets[targetKey]) state.simBus.targets[targetKey] = { sources: {}, updatedAtMs: 0 };
+  state.simBus.targets[targetKey].sources[name] = values;
+  state.simBus.targets[targetKey].updatedAtMs = now;
+  state.simBus.lastUpdateMs = now;
+}
+
+// -----------------------------
+// Global State + Storage
+// -----------------------------
+const STORAGE_KEY = "omconsole.web.settings.v1";
+const defaultSettings = {
+  ui: {
+    hoverClick: true,
+    hoverTime: 550, // ms
+    osMode: "IN_APP" // can't do OS-level; toggle kept for parity
+  },
+  active: {
+    cursorControl: "Gesture" // Gesture | Retina | Tone | EMG | EEG
+  },
+  gesture: {
+    enabled: true,
+    simMode: false,
+    pinchThreshold: 0.055,
+    smoothing: 6
+  },
+  retina: {
+    enabled: false,
+    simMode: false,
+    sensitivity: 1.6,
+    offsetX: 0,
+    offsetY: 0,
+    invertX: false,
+    invertY: false,
+    gridSize: 48,
+    smoothing: 8,
+    showGrid: true
+  },
+  tone: {
+    enabled: false,
+    simMode: false,
+    toleranceHz: 45,
+    speed: 920, // px/s
+    tuned: {
+      up: 700,
+      down: 500,
+      left: 350,
+      right: 900
+    }
+  },
+  emg: {
+    enabled: false,
+    simMode: true,
+    sensitivity: 50,
+    clickThreshold: 70,
+    serial: { enabled: false, baudRate: 115200 }
+  },
+  eeg: {
+    enabled: false,
+    simMode: true,
+    smoothing: 5,
+    moveDistance: 22,
+    cooldownMs: 650,
+    thr: {
+      leftUpper: 0.20,
+      leftLower: -0.20,
+      rightUpper: 0.20,
+      rightLower: -0.20,
+      centerUpper: 0.20,
+      centerLower: -0.20
+    },
+    serial: { enabled: false, baudRate: 115200 }
+  },
+  notepad: {
+    lastDoc: "default",
+    docs: { "default": "" }
+  },
+  calendar: {
+    bookings: {} // yyyy-mm-dd => {time, text}
+  },
+  games: {
+    last: "pong",
+    highs: {
+      breakout: 0,
+      bubbles: 0,
+      catch: 0,
+      reactionBestMs: null
+    }
+  },
+  routing: {
+    Gesture: { target: "cursor_ui" },
+    Retina: { target: "cursor_ui" },
+    Tone: { target: "cursor_ui" },
+    EMG: { target: "cursor_ui" },
+    EEG: { target: "cursor_ui" }
+  }
+};
+
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return structuredClone(defaultSettings);
+    const data = JSON.parse(raw);
+    return deepMerge(structuredClone(defaultSettings), data);
+  }catch(e){
+    console.warn("Settings load failed:", e);
+    return structuredClone(defaultSettings);
+  }
+}
+function saveSettings(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
+}
+function deepMerge(base, patch){
+  if(typeof patch !== "object" || patch === null) return base;
+  for(const [k,v] of Object.entries(patch)){
+    if(Array.isArray(v)) base[k] = v.slice();
+    else if(typeof v === "object" && v !== null){
+      base[k] = deepMerge(base[k] ?? {}, v);
+    }else base[k] = v;
+  }
+  return base;
+}
+
+const state = {
+  settings: loadSettings(),
+  ui: {
+    mode: "dashboard", // dashboard | app:<name> | tuner:<name>
+    modalOpen: false
+  },
+  runtime: {
+    camReady: false,
+    micReady: false,
+    lastFrameMs: nowMs(),
+    fps: 0,
+    osEnabled: true, // "OS" mode (in-app)
+    hoverEnabled: true
+  },
+  cursor: {
+    x: 120,
+    y: 120,
+    vx: 0,
+    vy: 0,
+    click: false,
+    clickEdge: false,
+    lastClick: false,
+    hoverTarget: null,
+    hoverStartMs: 0
+  },
+  telemetry: {
+    gesture: { pinch:false, lm:null, confidence:0 },
+    retina: { x:0, y:0, has:false },
+    tone: { hz:0, active:false },
+    emg: { s1:50, s2:50, s3:0, connected:false },
+    eeg: { l:0, r:0, c:0, connected:false }
+  },
+  simBus: {
+    lastUpdateMs: 0,
+    perTuner: {},
+    targets: {}
+  }
+};
+
+// -----------------------------
+// DOM references
+// -----------------------------
+const $ = (sel) => document.querySelector(sel);
+const cursorEl = $("#cursor");
+const viz = $("#viz");
+const viewportEl = $("#viewport");
+const panelTitle = $("#panelTitle");
+const panelSub = $("#panelSub");
+const panelContent = $("#panelContent");
+const badgeMode = $("#badgeMode");
+const badgeControl = $("#badgeControl");
+const kvOS = $("#kvOS");
+const kvHover = $("#kvHover");
+const kvCursor = $("#kvCursor");
+
+const dotCam = $("#dotCam");
+const dotMic = $("#dotMic");
+const dotCtl = $("#dotCtl");
+const clockEl = $("#clock");
+
+const modal = $("#modal");
+const modalTitle = $("#modalTitle");
+const modalBack = $("#modalBack");
+const modalSave = $("#modalSave");
+const modalBody = $("#modalBody");
+
+const camVideo = $("#cam");
+
+// -----------------------------
+// Canvas / HiDPI
+// -----------------------------
+function resizeCanvas(){
+  const rect = viz.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  viz.width = Math.floor(rect.width * dpr);
+  viz.height = Math.floor(rect.height * dpr);
+  const ctx = viz.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", resizeCanvas);
+
+// -----------------------------
+// Control Manager (mixes active systems)
+// -----------------------------
+class ControlManager{
+  constructor(){
+    this.active = new Map(); // name -> instance
+  }
+  setActiveCursor(name){
+    state.settings.active.cursorControl = name;
+    saveSettings();
+    badgeControl.textContent = name.toUpperCase();
+    kvCursor.textContent = name.toUpperCase();
+  }
+  enable(name, enabled){
+    const inst = controllers[name];
+    if(!inst) return;
+    inst.enabled = enabled;
+    if(enabled){
+      this.active.set(name, inst);
+      inst.onEnable?.();
+    }else{
+      this.active.delete(name);
+      inst.onDisable?.();
+    }
+  }
+  async ensure(name){
+    // make sure controller is enabled and started
+    const inst = controllers[name];
+    if(!inst) return;
+    if(!this.active.has(name)){
+      this.enable(name, true);
+    }
+    await inst.ensureReady?.();
+  }
+  async activateAsCursor(name){
+    await this.ensure(name);
+    for(const [k,inst] of this.active.entries()){
+      if(k !== name && inst.exclusiveCursor){
+        // allow others to remain enabled for telemetry, but cursor routing uses selected control
+      }
+    }
+    this.setActiveCursor(name);
+  }
+  update(dt){
+    ensureSimBus();
+    // Rebuild target map every frame (avoids stale routing when targets change)
+    state.simBus.targets = {};
+
+    let dx = 0, dy = 0, click = false, setPos = null;
+
+    // Determine which controller is currently driving the in-app cursor
+    let cursorControl = resolveCursorDriver();
+    if(!this.active.has(cursorControl)){
+      cursorControl = [...this.active.keys()].find(n => getTunerTarget(n) === "cursor_ui") || cursorControl;
+    }
+
+    // Update all active controllers; each publishes to Sim Bus based on its routed target.
+    for(const [name, inst] of this.active.entries()){
+      const out = inst.update(dt) || {};
+
+      // Route to sim bus (per-tuner + per-target)
+      updateSimBusFromController(name, out);
+
+      // Only the active cursor controller (routed to Cursor) drives the on-screen pointer
+      if(name === cursorControl && getTunerTarget(name) === "cursor_ui"){
+        if(out.setPos) setPos = out.setPos;
+        dx += out.dx || 0;
+        dy += out.dy || 0;
+        click = click || !!out.click;
+      }
+    }
+    return {dx, dy, click, setPos};
+  }
+}
+const controlManager = new ControlManager();
+
+// -----------------------------
+// Media: Camera Access
+// -----------------------------
+let cameraStream = null;
+async function ensureCamera(){
+  if(cameraStream) return cameraStream;
+  try{
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+    camVideo.srcObject = cameraStream;
+    await camVideo.play();
+    state.runtime.camReady = true;
+    dotCam.classList.add("ok"); dotCam.classList.remove("bad");
+    return cameraStream;
+  }catch(e){
+    console.warn("Camera permission denied / failed:", e);
+    state.runtime.camReady = false;
+    dotCam.classList.add("bad"); dotCam.classList.remove("ok");
+    throw e;
+  }
+}
+
+// -----------------------------
+// Gesture Controller (MediaPipe Hands)
+// -----------------------------
+class GestureController{
+  constructor(){
+    this.enabled = false;
+    this.exclusiveCursor = true;
+    this.hands = null;
+    this.camera = null;
+    this.ready = false;
+    this.lastPos = {x: state.cursor.x, y: state.cursor.y};
+    this.xf = new RollingMean(state.settings.gesture.smoothing);
+    this.yf = new RollingMean(state.settings.gesture.smoothing);
+    this.lastPinch = false;
+    this.pinchEdge = false;
+  }
+  async ensureReady(){
+    if(this.ready) return;
+    if(state.settings.gesture.simMode){
+      this.ready = true;
+      return;
+    }
+    await ensureCamera();
+    await this.initHands();
+    this.ready = true;
+  }
+  async initHands(){
+    // wait for MediaPipe to load
+    await waitForGlobal("Hands");
+    await waitForGlobal("Camera");
+    this.hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+    this.hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+    this.hands.onResults((res)=>this.onResults(res));
+
+    this.camera = new Camera(camVideo, {
+      onFrame: async () => { if(this.enabled) await this.hands.send({image: camVideo}); },
+      width: 640,
+      height: 480
+    });
+    this.camera.start();
+  }
+  onEnable(){
+    this.xf.setWindowSize(state.settings.gesture.smoothing);
+    this.yf.setWindowSize(state.settings.gesture.smoothing);
+  }
+  onDisable(){}
+  onResults(results){
+    const lm = results.multiHandLandmarks?.[0];
+    state.telemetry.gesture.lm = lm || null;
+    state.telemetry.gesture.confidence = lm ? 1 : 0;
+
+    if(!lm) {
+      state.telemetry.gesture.pinch = false;
+      this.pinchEdge = false;
+      this.lastPinch = false;
+      return;
+    }
+    const idx = lm[8]; // index tip
+    const th = lm[4];  // thumb tip
+    const dx = idx.x - th.x, dy = idx.y - th.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const pinch = dist < state.settings.gesture.pinchThreshold;
+    state.telemetry.gesture.pinch = pinch;
+    this.pinchEdge = pinch && !this.lastPinch;
+    this.lastPinch = pinch;
+
+    const w = window.innerWidth, h = window.innerHeight;
+    const tx = clamp(idx.x * w, 0, w);
+    const ty = clamp(idx.y * h, 0, h);
+    const sx = this.xf.push(tx);
+    const sy = this.yf.push(ty);
+    this.lastPos = {x: sx, y: sy};
+  }
+  update(dt){
+    if(!this.enabled) return {dx:0, dy:0, click:false};
+
+    // SIM: synthetic cursor & pinch
+    if(state.settings.gesture.simMode){
+      const t = nowMs()/1000;
+      const w = window.innerWidth, h = window.innerHeight;
+      const tx = w*(0.5 + 0.36*Math.sin(t*0.7));
+      const ty = h*(0.5 + 0.32*Math.sin(t*1.0 + 0.6));
+      const sx = this.xf.push(tx);
+      const sy = this.yf.push(ty);
+      const pinch = (Math.sin(t*2.5) > 0.92); // occasional clicks
+      state.telemetry.gesture.pinch = pinch;
+      state.telemetry.gesture.confidence = 1;
+      return { setPos: [sx, sy], click: pinch };
+    }
+
+    if(!this.ready) return {dx:0, dy:0, click:false};
+
+    // Set position override from MediaPipe
+    const pos = this.lastPos;
+    const click = !!state.telemetry.gesture.pinch;
+    return { setPos: [pos.x, pos.y], click };
+  }
+}
+
+// -----------------------------
+// Retina Controller (MediaPipe FaceMesh + Iris)
+// -----------------------------
+class RetinaController{
+  constructor(){
+    this.enabled = false;
+    this.exclusiveCursor = true;
+    this.face = null;
+    this.camera = null;
+    this.ready = false;
+
+    this.xf = new RollingMean(state.settings.retina.smoothing);
+    this.yf = new RollingMean(state.settings.retina.smoothing);
+    this.lastHas = false;
+    this.lastPos = {x: state.cursor.x, y: state.cursor.y};
+  }
+  async ensureReady(){
+    if(this.ready) return;
+    if(state.settings.retina.simMode){
+      this.ready = true;
+      state.telemetry.retina.has = true;
+      return;
+    }
+    await ensureCamera();
+    await this.initFace();
+    this.ready = true;
+  }
+  async initFace(){
+    await waitForGlobal("FaceMesh");
+    await waitForGlobal("Camera");
+
+    this.face = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    this.face.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.6
+    });
+    this.face.onResults((res)=>this.onResults(res));
+
+    this.camera = new Camera(camVideo, {
+      onFrame: async () => { if(this.enabled) await this.face.send({image: camVideo}); },
+      width: 640, height: 480
+    });
+    this.camera.start();
+  }
+  onEnable(){
+    this.xf.setWindowSize(state.settings.retina.smoothing);
+    this.yf.setWindowSize(state.settings.retina.smoothing);
+  }
+  onResults(res){
+    const lm = res.multiFaceLandmarks?.[0];
+    if(!lm){
+      state.telemetry.retina.has = false;
+      this.lastHas = false;
+      return;
+    }
+
+    // Iris landmark indices (refineLandmarks=true). If unavailable in some builds, fallback to eye corners.
+    const irisL = [468,469,470,471,472]; // left iris
+    const irisR = [473,474,475,476,477]; // right iris
+    let ix = 0, iy = 0, count = 0;
+
+    for(const idx of [...irisL, ...irisR]){
+      if(lm[idx]){
+        ix += lm[idx].x; iy += lm[idx].y; count++;
+      }
+    }
+    if(count === 0){
+      // fallback: average of eye corners (approx)
+      const fallback = [33, 133, 362, 263]; // eye corners
+      for(const idx of fallback){
+        if(lm[idx]){
+          ix += lm[idx].x; iy += lm[idx].y; count++;
+        }
+      }
+    }
+    ix /= count; iy /= count;
+
+    // Map to screen with sensitivity/offset/invert
+    const w = window.innerWidth, h = window.innerHeight;
+    let x = ix * w;
+    let y = iy * h;
+
+    const s = state.settings.retina.sensitivity;
+    x = (x - w/2) * s + w/2 + state.settings.retina.offsetX;
+    y = (y - h/2) * s + h/2 + state.settings.retina.offsetY;
+
+    if(state.settings.retina.invertX) x = w - x;
+    if(state.settings.retina.invertY) y = h - y;
+
+    x = clamp(x, 0, w);
+    y = clamp(y, 0, h);
+
+    const sx = this.xf.push(x);
+    const sy = this.yf.push(y);
+
+    this.lastPos = {x: sx, y: sy};
+    state.telemetry.retina = {x: sx, y: sy, has:true};
+  }
+  update(dt){
+    if(!this.enabled) return {dx:0, dy:0, click:false};
+
+    if(state.settings.retina.simMode){
+      const t = nowMs()/1000;
+      const w = window.innerWidth, h = window.innerHeight;
+      const tx = w*(0.5 + 0.33*Math.sin(t*0.55 + 1.2));
+      const ty = h*(0.5 + 0.28*Math.sin(t*0.85 + 2.1));
+      const sx = this.xf.push(tx);
+      const sy = this.yf.push(ty);
+      state.telemetry.retina = {x:sx, y:sy, has:true};
+      return { setPos: [sx, sy], click:false };
+    }
+
+    if(!this.ready || !state.telemetry.retina.has) return {dx:0, dy:0, click:false};
+    return { setPos: [this.lastPos.x, this.lastPos.y], click:false };
+  }
+}
+
+// -----------------------------
+// Tone Controller (WebAudio Pitch)
+// -----------------------------
+class ToneController{
+  constructor(){
+    this.enabled = false;
+    this.exclusiveCursor = true;
+    this.ready = false;
+
+    this.audioCtx = null;
+    this.analyser = null;
+    this.buf = null;
+    this.stream = null;
+
+    this.pitchHz = 0;
+    this.smooth = new RollingMean(6);
+    this.lastClick = false;
+    this.simPhase = 0;
+
+    this.tuning = {
+      active: false,
+      directionIndex: 0,
+      directions: ["up","down","left","right"],
+      data: { up: [], down: [], left: [], right: [] }
+    };
+  }
+  async ensureReady(){
+    if(this.ready) return;
+    try{
+      await this.initAudio();
+      state.runtime.micReady = true;
+      dotMic.classList.add("ok"); dotMic.classList.remove("bad");
+    }catch(e){
+      // fallback to sim mode
+      console.warn("Mic init failed. Using SIM tone mode.", e);
+      state.settings.tone.simMode = true;
+      saveSettings();
+      state.runtime.micReady = false;
+      dotMic.classList.add("bad"); dotMic.classList.remove("ok");
+    }
+    this.ready = true;
+  }
+  async initAudio(){
+    // Must be called from a user gesture in many browsers.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video:false });
+    this.stream = stream;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    this.audioCtx = new AudioContext();
+    const src = this.audioCtx.createMediaStreamSource(stream);
+    this.analyser = this.audioCtx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    src.connect(this.analyser);
+    this.buf = new Float32Array(this.analyser.fftSize);
+  }
+  startTuning(){
+    this.tuning.active = true;
+    this.tuning.directionIndex = 0;
+    this.tuning.data = { up: [], down: [], left: [], right: [] };
+  }
+  acceptTone(){
+    const dir = this.tuning.directions[this.tuning.directionIndex];
+    if(!dir) return;
+    const hz = this.pitchHz;
+    if(hz > 0){
+      this.tuning.data[dir].push(hz);
+      const avg = this.tuning.data[dir].reduce((a,b)=>a+b,0) / this.tuning.data[dir].length;
+      state.settings.tone.tuned[dir] = Math.round(avg);
+      saveSettings();
+    }
+    this.tuning.directionIndex++;
+    if(this.tuning.directionIndex >= this.tuning.directions.length){
+      this.tuning.active = false;
+    }
+  }
+  update(dt){
+    if(!this.enabled || !this.ready) return {dx:0, dy:0, click:false};
+
+    // Get pitch (real or SIM)
+    let hz = 0;
+    if(state.settings.tone.simMode || !this.analyser){
+      this.simPhase += dt * 0.001;
+      // Oscillate between tuned tones
+      const tones = Object.values(state.settings.tone.tuned);
+      const idx = Math.floor((Math.sin(this.simPhase*0.9)+1)/2 * tones.length) % tones.length;
+      hz = tones[idx] + (Math.sin(this.simPhase*3.2)*12);
+    }else{
+      this.analyser.getFloatTimeDomainData(this.buf);
+      hz = autoCorrelate(this.buf, this.audioCtx.sampleRate);
+    }
+
+    if(hz && hz > 0){
+      this.pitchHz = this.smooth.push(hz);
+      state.telemetry.tone = { hz: this.pitchHz, active:true };
+    }else{
+      this.pitchHz = 0;
+      state.telemetry.tone = { hz: 0, active:false };
+    }
+
+    // Use tuned discrete tones to decide direction
+    const tuned = state.settings.tone.tuned;
+    const tol = state.settings.tone.toleranceHz;
+    const spd = state.settings.tone.speed; // px/s
+
+    let dx = 0, dy = 0;
+    if(this.pitchHz > 0){
+      const candidates = [
+        ["up", tuned.up],
+        ["down", tuned.down],
+        ["left", tuned.left],
+        ["right", tuned.right]
+      ];
+      let best = null, bestDiff = Infinity;
+      for(const [dir, target] of candidates){
+        const diff = Math.abs(this.pitchHz - target);
+        if(diff < bestDiff){ bestDiff = diff; best = dir; }
+      }
+      if(bestDiff <= tol){
+        const step = spd * (dt/1000);
+        if(best === "up") dy -= step;
+        if(best === "down") dy += step;
+        if(best === "left") dx -= step;
+        if(best === "right") dx += step;
+      }
+    }
+
+    // no click for tone by default
+    return {dx, dy, click:false};
+  }
+}
+
+// Standard autocorrelation pitch detection
+function autoCorrelate(buf, sampleRate){
+  // buf is Float32Array time-domain audio
+  const SIZE = buf.length;
+  let rms = 0;
+  for (let i=0; i<SIZE; i++) { const v = buf[i]; rms += v*v; }
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.01) return 0;
+
+  // Trim leading/trailing silence
+  let r1 = 0, r2 = SIZE-1, thres = 0.2;
+  for (let i=0; i<SIZE/2; i++){
+    if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+  }
+  for (let i=1; i<SIZE/2; i++){
+    if (Math.abs(buf[SIZE-i]) < thres) { r2 = SIZE-i; break; }
+  }
+  buf = buf.slice(r1, r2);
+  const newSize = buf.length;
+
+  const c = new Array(newSize).fill(0);
+  for (let i=0; i<newSize; i++){
+    for (let j=0; j<newSize-i; j++){
+      c[i] = c[i] + buf[j]*buf[j+i];
+    }
+  }
+
+  let d = 0;
+  while (c[d] > c[d+1]) d++;
+  let maxval = -1, maxpos = -1;
+  for (let i=d; i<newSize; i++){
+    if (c[i] > maxval){ maxval = c[i]; maxpos = i; }
+  }
+  let T0 = maxpos;
+
+  // parabolic interpolation
+  const x1 = c[T0-1], x2 = c[T0], x3 = c[T0+1];
+  const a = (x1 + x3 - 2*x2) / 2;
+  const b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b/(2*a);
+
+  const freq = sampleRate / T0;
+  if(!Number.isFinite(freq) || freq < 50 || freq > 2000) return 0;
+  return freq;
+}
+
+// -----------------------------
+// EMG Controller (SIM + WebSerial)
+// -----------------------------
+class EMGController{
+  constructor(){
+    this.enabled = false;
+    this.exclusiveCursor = true;
+    this.ready = true; // SIM ready immediately
+    this.connected = false;
+    this.serialPort = null;
+    this.reader = null;
+
+    this.hist1 = new Deque(160);
+    this.hist2 = new Deque(160);
+    this.hist3 = new Deque(160);
+  }
+  async ensureReady(){ return; }
+
+  async connectSerial(){
+    if(!("serial" in navigator)){
+      alert("WebSerial is not supported in this browser. Use Chrome/Edge over HTTPS.");
+      return;
+    }
+    try{
+      this.serialPort = await navigator.serial.requestPort();
+      await this.serialPort.open({ baudRate: state.settings.emg.serial.baudRate });
+      this.connected = true;
+      state.telemetry.emg.connected = true;
+      this.reader = this.serialPort.readable.getReader();
+      this.readLoop();
+    }catch(e){
+      console.warn("EMG serial connect failed:", e);
+      this.connected = false;
+      state.telemetry.emg.connected = false;
+    }
+  }
+  async disconnectSerial(){
+    try{
+      if(this.reader){ await this.reader.cancel(); this.reader.releaseLock(); this.reader = null; }
+      if(this.serialPort){ await this.serialPort.close(); this.serialPort = null; }
+    }catch(e){}
+    this.connected = false;
+    state.telemetry.emg.connected = false;
+  }
+  async readLoop(){
+    let buf = "";
+    while(this.connected && this.reader){
+      const { value, done } = await this.reader.read();
+      if(done) break;
+      if(value){
+        buf += new TextDecoder().decode(value);
+        let lines = buf.split("\n");
+        buf = lines.pop() || "";
+        for(const line of lines){
+          this.parseLine(line.trim());
+        }
+      }
+    }
+  }
+  parseLine(line){
+    // Accept JSON: {"s1":..,"s2":..,"s3":..} OR CSV: s1,s2,s3
+    try{
+      if(!line) return;
+      if(line.startsWith("{")){
+        const o = JSON.parse(line);
+        state.telemetry.emg.s1 = clamp(Number(o.s1 ?? o.sensor1 ?? 50), 0, 100);
+        state.telemetry.emg.s2 = clamp(Number(o.s2 ?? o.sensor2 ?? 50), 0, 100);
+        state.telemetry.emg.s3 = clamp(Number(o.s3 ?? o.sensor3 ?? 0), 0, 100);
+      }else{
+        const parts = line.split(",").map(x=>Number(x.trim()));
+        if(parts.length >= 3){
+          state.telemetry.emg.s1 = clamp(parts[0], 0, 100);
+          state.telemetry.emg.s2 = clamp(parts[1], 0, 100);
+          state.telemetry.emg.s3 = clamp(parts[2], 0, 100);
+        }
+      }
+    }catch(e){}
+  }
+
+  update(dt){
+    if(!this.enabled) return {dx:0, dy:0, click:false};
+
+    let s1, s2, s3;
+    if(state.settings.emg.simMode || !this.connected){
+      // SIM: mild random walk
+      const t = nowMs()/1000;
+      s1 = 50 + Math.sin(t*1.2)*22 + (Math.random()-0.5)*8;
+      s2 = 50 + Math.cos(t*1.0)*22 + (Math.random()-0.5)*8;
+      s3 = 50 + Math.sin(t*1.8)*30 + (Math.random()-0.5)*10;
+      s1 = clamp(s1, 0, 100); s2 = clamp(s2, 0, 100); s3 = clamp(s3, 0, 100);
+      state.telemetry.emg = { s1, s2, s3, connected:false };
+    }else{
+      ({s1, s2, s3} = state.telemetry.emg);
+    }
+
+    this.hist1.push(s1); this.hist2.push(s2); this.hist3.push(s3);
+
+    const sens = state.settings.emg.sensitivity;
+    const dx = ((s1 - 50) / 50) * (sens/50) * 900 * (dt/1000);
+    const dy = ((s2 - 50) / 50) * (sens/50) * 900 * (dt/1000);
+    const click = s3 >= state.settings.emg.clickThreshold;
+
+    return {dx, dy, click};
+  }
+}
+
+// -----------------------------
+// EEG Controller (SIM + WebSerial)
+// -----------------------------
+class EEGController{
+  constructor(){
+    this.enabled = false;
+    this.exclusiveCursor = true;
+    this.ready = true;
+    this.connected = false;
+    this.serialPort = null;
+    this.reader = null;
+
+    this.histL = new Deque(220);
+    this.histR = new Deque(220);
+    this.histC = new Deque(220);
+
+    this.lastActionMs = 0;
+  }
+  async ensureReady(){ return; }
+
+  async connectSerial(){
+    if(!("serial" in navigator)){
+      alert("WebSerial is not supported in this browser. Use Chrome/Edge over HTTPS.");
+      return;
+    }
+    try{
+      this.serialPort = await navigator.serial.requestPort();
+      await this.serialPort.open({ baudRate: state.settings.eeg.serial.baudRate });
+      this.connected = true;
+      state.telemetry.eeg.connected = true;
+      this.reader = this.serialPort.readable.getReader();
+      this.readLoop();
+    }catch(e){
+      console.warn("EEG serial connect failed:", e);
+      this.connected = false;
+      state.telemetry.eeg.connected = false;
+    }
+  }
+  async disconnectSerial(){
+    try{
+      if(this.reader){ await this.reader.cancel(); this.reader.releaseLock(); this.reader = null; }
+      if(this.serialPort){ await this.serialPort.close(); this.serialPort = null; }
+    }catch(e){}
+    this.connected = false;
+    state.telemetry.eeg.connected = false;
+  }
+  async readLoop(){
+    let buf = "";
+    while(this.connected && this.reader){
+      const { value, done } = await this.reader.read();
+      if(done) break;
+      if(value){
+        buf += new TextDecoder().decode(value);
+        let lines = buf.split("\n");
+        buf = lines.pop() || "";
+        for(const line of lines){
+          this.parseLine(line.trim());
+        }
+      }
+    }
+  }
+  parseLine(line){
+    // JSON {"l":..,"r":..,"c":..} in [-1,1] or CSV
+    try{
+      if(!line) return;
+      if(line.startsWith("{")){
+        const o = JSON.parse(line);
+        state.telemetry.eeg.l = clamp(Number(o.l ?? o.left ?? 0), -1, 1);
+        state.telemetry.eeg.r = clamp(Number(o.r ?? o.right ?? 0), -1, 1);
+        state.telemetry.eeg.c = clamp(Number(o.c ?? o.center ?? 0), -1, 1);
+      }else{
+        const parts = line.split(",").map(x=>Number(x.trim()));
+        if(parts.length >= 3){
+          state.telemetry.eeg.l = clamp(parts[0], -1, 1);
+          state.telemetry.eeg.r = clamp(parts[1], -1, 1);
+          state.telemetry.eeg.c = clamp(parts[2], -1, 1);
+        }
+      }
+    }catch(e){}
+  }
+
+  update(dt){
+    if(!this.enabled) return {dx:0, dy:0, click:false};
+
+    let l, r, c;
+    if(state.settings.eeg.simMode || !this.connected){
+      const t = nowMs()/1000;
+      l = Math.sin(t*1.1)*0.28 + (Math.random()-0.5)*0.12;
+      r = Math.cos(t*1.0)*0.28 + (Math.random()-0.5)*0.12;
+      c = Math.sin(t*0.8)*0.22 + (Math.random()-0.5)*0.10;
+      l = clamp(l, -1, 1); r = clamp(r, -1, 1); c = clamp(c, -1, 1);
+      state.telemetry.eeg = { l, r, c, connected:false };
+    }else{
+      ({l, r, c} = state.telemetry.eeg);
+    }
+
+    this.histL.push(l); this.histR.push(r); this.histC.push(c);
+
+    // Decide direction based on thresholds and smoothing
+    const thr = state.settings.eeg.thr;
+    const move = state.settings.eeg.moveDistance; // px per action
+    const cooldown = state.settings.eeg.cooldownMs;
+
+    const tNow = nowMs();
+    let dx = 0, dy = 0, click = false;
+    if(tNow - this.lastActionMs >= cooldown){
+      if(l > thr.leftUpper) dx += move;
+      else if(l < thr.leftLower) dx -= move;
+
+      if(r > thr.rightUpper) dy += move;
+      else if(r < thr.rightLower) dy -= move;
+
+      if(c > thr.centerUpper || c < thr.centerLower) click = true;
+
+      if(dx !== 0 || dy !== 0 || click){
+        this.lastActionMs = tNow;
+      }
+    }
+
+    return {dx, dy, click};
+  }
+}
+
+// -----------------------------
+// App Modules
+// -----------------------------
+class NotepadApp{
+  constructor(){
+    this.name = "notepad";
+    this.text = state.settings.notepad.docs[state.settings.notepad.lastDoc] ?? "";
+    this.docName = state.settings.notepad.lastDoc || "default";
+  }
+  open(){
+    setMode("app:notepad");
+    panelTitle.textContent = "NOTEPAD";
+    panelSub.textContent = "LocalStorage • On-Screen Keyboard";
+    renderPanel_Notepad();
+  }
+}
+
+class AudioApp{
+  constructor(){
+    this.rec = null;
+    this.chunks = [];
+    this.blob = null;
+    this.url = null;
+    this.stream = null;
+    this.recording = false;
+  }
+  open(){
+    setMode("app:audio");
+    panelTitle.textContent = "AUDIO";
+    panelSub.textContent = "MediaRecorder • Record/Play/Download";
+    renderPanel_Audio();
+  }
+  async ensureStream(){
+    if(this.stream) return;
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+    state.runtime.micReady = true;
+    dotMic.classList.add("ok"); dotMic.classList.remove("bad");
+  }
+  async start(){
+    await this.ensureStream();
+    this.chunks = [];
+    this.rec = new MediaRecorder(this.stream);
+    this.rec.ondataavailable = (e)=>{ if(e.data.size>0) this.chunks.push(e.data); };
+    this.rec.onstop = ()=>{
+      this.blob = new Blob(this.chunks, {type: this.rec.mimeType || "audio/webm"});
+      if(this.url) URL.revokeObjectURL(this.url);
+      this.url = URL.createObjectURL(this.blob);
+      $("#audioPlayback").src = this.url;
+      this.recording = false;
+      renderPanel_Audio();
+    };
+    this.rec.start();
+    this.recording = true;
+    renderPanel_Audio();
+  }
+  stop(){
+    if(this.rec && this.recording){
+      this.rec.stop();
+    }
+  }
+  download(){
+    if(this.blob) downloadBlob(this.blob, `omconsole_audio_${Date.now()}.webm`);
+  }
+}
+
+class VideoApp{
+  constructor(){
+    this.stream = null;
+    this.rec = null;
+    this.chunks = [];
+    this.blob = null;
+    this.url = null;
+    this.recording = false;
+    this.previewOn = false;
+  }
+  open(){
+    setMode("app:video");
+    panelTitle.textContent = "VIDEO";
+    panelSub.textContent = "MediaRecorder • Record/Preview/Download";
+    renderPanel_Video();
+  }
+  async ensureStream(){
+    if(this.stream) return;
+    this.stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"user" }, audio:true });
+    state.runtime.camReady = true;
+    dotCam.classList.add("ok"); dotCam.classList.remove("bad");
+    state.runtime.micReady = true;
+    dotMic.classList.add("ok"); dotMic.classList.remove("bad");
+  }
+  async start(){
+    await this.ensureStream();
+    this.chunks = [];
+    this.rec = new MediaRecorder(this.stream);
+    this.rec.ondataavailable = (e)=>{ if(e.data.size>0) this.chunks.push(e.data); };
+    this.rec.onstop = ()=>{
+      this.blob = new Blob(this.chunks, {type: this.rec.mimeType || "video/webm"});
+      if(this.url) URL.revokeObjectURL(this.url);
+      this.url = URL.createObjectURL(this.blob);
+      $("#videoPlayback").src = this.url;
+      this.recording = false;
+      renderPanel_Video();
+    };
+    this.rec.start();
+    this.recording = true;
+    // auto-stop after 10s like desktop app
+    setTimeout(()=>{ if(this.recording) this.stop(); }, 10000);
+    renderPanel_Video();
+  }
+  stop(){
+    if(this.rec && this.recording){
+      this.rec.stop();
+    }
+  }
+  togglePreview(){
+    this.previewOn = !this.previewOn;
+    if(this.previewOn){
+      this.ensureStream().then(()=>{
+        const v = $("#videoPreview");
+        v.srcObject = this.stream;
+        v.play();
+        renderPanel_Video();
+      });
+    }else{
+      const v = $("#videoPreview");
+      if(v) v.pause();
+      renderPanel_Video();
+    }
+  }
+  download(){
+    if(this.blob) downloadBlob(this.blob, `omconsole_video_${Date.now()}.webm`);
+  }
+}
+
+class CalendarApp{
+  constructor(){}
+  open(){
+    setMode("app:calendar");
+    panelTitle.textContent = "CALENDAR";
+    panelSub.textContent = "Bookings • Time Slots • LocalStorage";
+    renderPanel_Calendar();
+  }
+}
+
+class GamesApp{
+  constructor(){
+    // Back-compat for older localStorage payloads
+    if(!state.settings.games){
+      state.settings.games = {
+        last: "pong",
+        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null }
+      };
+      saveSettings();
+    }
+    if(!state.settings.games.highs){
+      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
+      saveSettings();
+    }
+
+    this.catalog = [
+      { key:"pong",     title:"Pong",          desc:"Cursor Y controls your paddle. AI on the right." },
+      { key:"breakout", title:"Breakout",      desc:"Cursor X controls paddle. Click/pinch to launch." },
+      { key:"bubbles",  title:"Bubble Pop",    desc:"Pop bubbles fast. Click/pinch to pop." },
+      { key:"catch",    title:"Star Catch",    desc:"Cursor X controls catcher. Catch the falling stars." },
+      { key:"reaction", title:"Reaction Test", desc:"Click/pinch as soon as it turns green." },
+      { key:"paint",    title:"Zen Paint",     desc:"Paint with particles. Click/pinch to clear." },
+    ];
+
+    this.games = {
+      pong: new PongGame(),
+      breakout: new BreakoutGame(),
+      bubbles: new BubblePopGame(),
+      catch: new StarCatchGame(),
+      reaction: new ReactionTestGame(),
+      paint: new ZenPaintGame()
+    };
+
+    this.current = state.settings.games.last || "pong";
+    this._wired = false;
+
+    // Don't run anything until the user opens the Games app.
+    this.stop();
+  }
+
+  open(){
+    setMode("app:games");
+    panelTitle.textContent = "GAMES";
+    this.ensureWired();
+    this.select(state.settings.games.last || this.current || "pong", {reset:true});
+    renderPanel_Games();
+  }
+
+  ensureWired(){
+    if(this._wired) return;
+    this._wired = true;
+
+    // Route canvas clicks to the active game.
+    // NOTE: programmatic clicks (from hover-click / pinch-click) don't carry clientX/Y.
+    viz.addEventListener("click", (e)=>{
+      if(state.ui.mode !== "app:games") return;
+
+      const rect = viz.getBoundingClientRect();
+      const cx = (e.isTrusted ? e.clientX : state.cursor.x) - rect.left;
+      const cy = (e.isTrusted ? e.clientY : state.cursor.y) - rect.top;
+
+      const nx = clamp(cx / rect.width, 0, 1);
+      const ny = clamp(cy / rect.height, 0, 1);
+
+      this.onClick(nx, ny);
+    });
+  }
+
+  meta(key){
+    return this.catalog.find(m=>m.key===key) || { key, title:key, desc:"" };
+  }
+
+  active(){
+    return this.games[this.current];
+  }
+
+  stop(){
+    for(const g of Object.values(this.games)){
+      g.active = false;
+    }
+  }
+
+  select(key, opts={reset:true}){
+    if(!this.games[key]) key = "pong";
+    this.stop();
+
+    this.current = key;
+    const g = this.games[key];
+    g.active = true;
+
+    state.settings.games.last = key;
+    saveSettings();
+
+    if(opts.reset) g.reset?.();
+
+    const m = this.meta(key);
+    panelSub.textContent = `${m.title} • Cursor + Click`;
+  }
+
+  resetActive(){
+    this.active()?.reset?.();
+  }
+
+  getCursorNorm(){
+    const rect = viz.getBoundingClientRect();
+    return {
+      x: clamp((state.cursor.x - rect.left) / rect.width, 0, 1),
+      y: clamp((state.cursor.y - rect.top) / rect.height, 0, 1)
+    };
+  }
+
+  update(dt){
+    const g = this.active();
+    if(!g || !g.active) return;
+    g.update?.(dt, this.getCursorNorm());
+  }
+
+  draw(ctx, w, h){
+    const g = this.active();
+    if(!g || !g.active) return;
+    g.draw?.(ctx, w, h, this.getCursorNorm());
+  }
+
+  onClick(nx, ny){
+    const g = this.active();
+    if(!g || !g.active) return;
+    g.onClick?.(nx, ny);
+  }
+
+  clearScores(){
+    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
+    saveSettings();
+    toast("Game scores cleared");
+  }
+}
+
+class PongGame{
+  constructor(){
+    this.active = false;
+    this.p1 = {y: 0.5};
+    this.p2 = {y: 0.5};
+    this.score = {a:0,b:0};
+    this.resetBall();
+  }
+  helpText(){
+    return "Move cursor up/down to control the left paddle. Click/pinch to restart the match.";
+  }
+  resetBall(){
+    this.ball = {x: 0.5, y: 0.5, vx: (Math.random()>0.5?1:-1)*0.42, vy: (Math.random()>0.5?1:-1)*0.25};
+  }
+  reset(){
+    this.score = {a:0,b:0};
+    this.p1.y = 0.5; this.p2.y = 0.5;
+    this.resetBall();
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+
+    this.ball.x += this.ball.vx * t;
+    this.ball.y += this.ball.vy * t;
+
+    // cursor controls left paddle (normalized to viewport)
+    this.p1.y = clamp(cur?.y ?? 0.5, 0, 1);
+
+    // AI right paddle
+    this.p2.y = lerp(this.p2.y, this.ball.y, 0.07);
+
+    // bounds
+    if(this.ball.y < 0.02){ this.ball.y = 0.02; this.ball.vy *= -1; }
+    if(this.ball.y > 0.98){ this.ball.y = 0.98; this.ball.vy *= -1; }
+
+    // paddle collisions
+    const paddleH = 0.18;
+    const p1x = 0.07, p2x = 0.93;
+    const collidePaddle = (px, py) => {
+      const bx = this.ball.x, by = this.ball.y;
+      const dx = Math.abs(bx - px);
+      const dy = Math.abs(by - py);
+      if(dx < 0.02 && dy < paddleH/2){
+        const angle = (by - py) * 3.2;
+        this.ball.vy = clamp(this.ball.vy + angle*0.25, -0.7, 0.7);
+        this.ball.vx *= -1;
+        // speed up slightly
+        this.ball.vx *= 1.03;
+        this.ball.vy *= 1.02;
+      }
+    };
+    collidePaddle(p1x, this.p1.y);
+    collidePaddle(p2x, this.p2.y);
+
+    // scoring
+    if(this.ball.x < -0.02){ this.score.b++; this.resetBall(); }
+    if(this.ball.x > 1.02){ this.score.a++; this.resetBall(); }
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    // field
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.strokeStyle = "rgba(242,213,122,.45)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8,8]);
+    ctx.beginPath();
+    ctx.moveTo(w/2, 20);
+    ctx.lineTo(w/2, h-20);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // paddles
+    const paddleH = h*0.18;
+    const paddleW = 14;
+    ctx.fillStyle = "rgba(234,242,255,.82)";
+    ctx.fillRect(w*0.07 - paddleW/2, h*this.p1.y - paddleH/2, paddleW, paddleH);
+    ctx.fillRect(w*0.93 - paddleW/2, h*this.p2.y - paddleH/2, paddleW, paddleH);
+
+    // ball
+    ctx.fillStyle = "rgba(212,175,55,.95)";
+    ctx.beginPath();
+    ctx.arc(w*this.ball.x, h*this.ball.y, 10, 0, Math.PI*2);
+    ctx.fill();
+
+    // score
+    ctx.fillStyle = "rgba(234,242,255,.85)";
+    ctx.font = "800 26px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`${this.score.a}  :  ${this.score.b}`, w/2, 52);
+
+    // hint
+    ctx.fillStyle = "rgba(242,213,122,.58)";
+    ctx.font = "800 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.fillText("CURSOR = MOVE • CLICK/PINCH = RESTART", w/2, h - 28);
+
+    ctx.restore();
+  }
+}
+
+class BreakoutGame{
+  constructor(){
+    this.active = false;
+    this.reset();
+  }
+  helpText(){
+    return "Cursor left/right moves the paddle. Click/pinch to launch. Clear all bricks for a new rack.";
+  }
+  reset(){
+    this.score = 0;
+    this.lives = 3;
+    this.level = 1;
+    this.paddleX = 0.5;
+    this.running = true;
+    this.ball = {x:0.5, y:0.86, vx:0, vy:0, stuck:true};
+    this.bricks = [];
+    this.makeBricks();
+  }
+  makeBricks(){
+    this.bricks = [];
+    const rows = 5, cols = 10;
+    const pad = 0.06;
+    const top = 0.12;
+    const gap = 0.008;
+    const bw = (1 - 2*pad - gap*(cols-1)) / cols;
+    const bh = 0.048;
+    for(let r=0; r<rows; r++){
+      for(let c=0; c<cols; c++){
+        const x = pad + c*(bw+gap) + bw/2;
+        const y = top + r*(bh+gap) + bh/2;
+        this.bricks.push({x, y, w:bw, h:bh, alive:true, row:r});
+      }
+    }
+  }
+  launch(){
+    if(!this.running) return;
+    if(!this.ball.stuck) return;
+    this.ball.stuck = false;
+    const dir = (Math.random()<0.5 ? -1 : 1);
+    this.ball.vx = dir * (0.32 + Math.random()*0.18);
+    this.ball.vy = -0.58;
+  }
+  setBestIfNeeded(){
+    const highs = state.settings.games.highs;
+    const prev = highs.breakout || 0;
+    if(this.score > prev){
+      highs.breakout = this.score;
+      saveSettings();
+      toast(`New Breakout best: ${this.score}`);
+    }
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+
+    // paddle follows cursor X
+    this.paddleX = clamp(cur?.x ?? 0.5, 0.08, 0.92);
+
+    if(!this.running){
+      return;
+    }
+
+    const r = 0.016;
+
+    if(this.ball.stuck){
+      this.ball.x = this.paddleX;
+      this.ball.y = 0.86;
+      return;
+    }
+
+    // integrate
+    this.ball.x += this.ball.vx * t;
+    this.ball.y += this.ball.vy * t;
+
+    // walls
+    if(this.ball.x < r){ this.ball.x = r; this.ball.vx = Math.abs(this.ball.vx); }
+    if(this.ball.x > 1-r){ this.ball.x = 1-r; this.ball.vx = -Math.abs(this.ball.vx); }
+    if(this.ball.y < r){ this.ball.y = r; this.ball.vy = Math.abs(this.ball.vy); }
+
+    // bottom (lose a life)
+    if(this.ball.y > 1.06){
+      this.lives -= 1;
+      this.ball.stuck = true;
+      this.ball.vx = 0; this.ball.vy = 0;
+      if(this.lives <= 0){
+        this.running = false;
+        this.setBestIfNeeded();
+      }
+      return;
+    }
+
+    // paddle collision
+    const paddleY = 0.93;
+    const paddleW = 0.22;
+    const paddleH = 0.035;
+    if(this.ball.vy > 0){
+      const withinX = Math.abs(this.ball.x - this.paddleX) < (paddleW/2 + r);
+      const withinY = (this.ball.y + r) > (paddleY - paddleH/2) && (this.ball.y - r) < (paddleY + paddleH/2);
+      if(withinX && withinY){
+        this.ball.y = paddleY - paddleH/2 - r;
+        const rel = clamp((this.ball.x - this.paddleX)/(paddleW/2), -1, 1);
+        const speed = clamp(Math.hypot(this.ball.vx, this.ball.vy) * 1.03 + 0.03, 0.45, 0.95);
+        const ang = rel * 0.9; // -0.9..0.9 rad-ish
+        this.ball.vx = speed * Math.sin(ang);
+        this.ball.vy = -Math.abs(speed * Math.cos(ang));
+      }
+    }
+
+    // brick collisions
+    for(const b of this.bricks){
+      if(!b.alive) continue;
+      const dx = this.ball.x - b.x;
+      const dy = this.ball.y - b.y;
+      const ox = Math.abs(dx) - (b.w/2 + r);
+      const oy = Math.abs(dy) - (b.h/2 + r);
+      if(ox < 0 && oy < 0){
+        b.alive = false;
+        this.score += 10 + (4 - b.row)*2;
+
+        // choose bounce axis by penetration
+        if(Math.abs(ox) < Math.abs(oy)) this.ball.vx *= -1;
+        else this.ball.vy *= -1;
+
+        break;
+      }
+    }
+
+    // win
+    if(this.bricks.every(b=>!b.alive)){
+      this.level += 1;
+      this.setBestIfNeeded();
+      this.makeBricks();
+      this.ball.stuck = true;
+      this.ball.vx = 0; this.ball.vy = 0;
+    }
+  }
+  onClick(){
+    if(!this.active) return;
+    if(!this.running){
+      this.reset();
+      return;
+    }
+    if(this.ball.stuck) this.launch();
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+
+    // bricks
+    for(const b of this.bricks){
+      if(!b.alive) continue;
+      const x = (b.x - b.w/2) * w;
+      const y = (b.y - b.h/2) * h;
+      const bw = b.w * w;
+      const bh = b.h * h;
+      const a = 0.22 + (4-b.row)*0.08;
+      ctx.fillStyle = `rgba(140,180,255,${a})`;
+      roundRect(ctx, x, y, bw, bh, 12);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(242,213,122,.20)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // paddle
+    const paddleY = 0.93;
+    const paddleW = 0.22;
+    const paddleH = 0.035;
+    ctx.fillStyle = "rgba(234,242,255,.86)";
+    roundRect(ctx, (this.paddleX - paddleW/2)*w, (paddleY - paddleH/2)*h, paddleW*w, paddleH*h, 12);
+    ctx.fill();
+
+    // ball
+    ctx.fillStyle = "rgba(212,175,55,.95)";
+    ctx.beginPath();
+    ctx.arc(this.ball.x*w, this.ball.y*h, 10, 0, Math.PI*2);
+    ctx.fill();
+
+    // HUD
+    const best = state.settings.games.highs.breakout || 0;
+    ctx.fillStyle = "rgba(234,242,255,.86)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`SCORE ${this.score}   LIVES ${this.lives}   LVL ${this.level}   BEST ${best}`, 18, 30);
+
+    ctx.textAlign = "center";
+    if(this.ball.stuck && this.running){
+      ctx.fillStyle = "rgba(242,213,122,.78)";
+      ctx.font = "900 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("CLICK / PINCH TO LAUNCH", w/2, h*0.70);
+    }
+    if(!this.running){
+      ctx.fillStyle = "rgba(255,77,77,.84)";
+      ctx.font = "900 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("GAME OVER — CLICK TO RESTART", w/2, h*0.62);
+    }
+
+    ctx.restore();
+  }
+}
+
+class BubblePopGame{
+  constructor(){
+    this.active = false;
+    this.reset();
+  }
+  helpText(){
+    return "Pop bubbles before they fade. Click/pinch on a bubble to score. Click/pinch to start a new round.";
+  }
+  reset(){
+    this.bubbles = [];
+    this.score = 0;
+    this.missed = 0;
+    this.running = false;
+    this.startMs = 0;
+    this.durationMs = 45000;
+    this.spawnCd = 0;
+  }
+  start(){
+    this.bubbles = [];
+    this.score = 0;
+    this.missed = 0;
+    this.running = true;
+    this.startMs = nowMs();
+    this.spawnCd = 0;
+  }
+  setBestIfNeeded(){
+    const highs = state.settings.games.highs;
+    const prev = highs.bubbles || 0;
+    if(this.score > prev){
+      highs.bubbles = this.score;
+      saveSettings();
+      toast(`New Bubble Pop best: ${this.score}`);
+    }
+  }
+  update(dt){
+    if(!this.active) return;
+    if(!this.running) return;
+
+    const tNow = nowMs();
+    const elapsed = tNow - this.startMs;
+    if(elapsed >= this.durationMs){
+      this.running = false;
+      this.setBestIfNeeded();
+      return;
+    }
+
+    this.spawnCd -= dt;
+    if(this.spawnCd <= 0){
+      if(this.bubbles.length < 18){
+        const r = 0.035 + Math.random()*0.055;
+        const x = clamp(Math.random(), r, 1-r);
+        const y = clamp(Math.random(), r + 0.08, 1-r - 0.10);
+        const ttl = 1100 + Math.random()*1700;
+        this.bubbles.push({x,y,r,life:0,ttl});
+      }
+      this.spawnCd = 260 + Math.random()*420;
+    }
+
+    // age bubbles
+    for(let i=this.bubbles.length-1; i>=0; i--){
+      const b = this.bubbles[i];
+      b.life += dt;
+      if(b.life >= b.ttl){
+        this.bubbles.splice(i,1);
+        this.missed += 1;
+      }
+    }
+  }
+  onClick(nx, ny){
+    if(!this.active) return;
+    if(!this.running){
+      this.start();
+      return;
+    }
+
+    for(let i=this.bubbles.length-1; i>=0; i--){
+      const b = this.bubbles[i];
+      const dx = nx - b.x, dy = ny - b.y;
+      if(dx*dx + dy*dy <= b.r*b.r){
+        this.bubbles.splice(i,1);
+        const pts = Math.round(20 + 120*(0.09 / b.r));
+        this.score += pts;
+        return;
+      }
+    }
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+
+    // HUD
+    const best = state.settings.games.highs.bubbles || 0;
+    ctx.fillStyle = "rgba(234,242,255,.88)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.textAlign = "left";
+
+    if(this.running){
+      const remaining = Math.max(0, this.durationMs - (nowMs() - this.startMs));
+      ctx.fillText(`SCORE ${this.score}   MISSED ${this.missed}   TIME ${(remaining/1000).toFixed(1)}s   BEST ${best}`, 18, 30);
+    }else{
+      ctx.fillText(`BEST ${best}`, 18, 30);
+    }
+
+    // bubbles
+    for(const b of this.bubbles){
+      const lifeT = clamp(b.life / b.ttl, 0, 1);
+      const a = 0.65 * (1 - lifeT) + 0.08;
+      ctx.fillStyle = `rgba(140,180,255,${a})`;
+      ctx.beginPath();
+      ctx.arc(b.x*w, b.y*h, b.r*Math.min(w,h), 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(242,213,122,.22)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // start / end overlay
+    ctx.textAlign = "center";
+    if(!this.running){
+      ctx.fillStyle = "rgba(242,213,122,.82)";
+      ctx.font = "900 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("BUBBLE POP", w/2, h*0.46);
+      ctx.fillStyle = "rgba(234,242,255,.78)";
+      ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("CLICK / PINCH TO START", w/2, h*0.52);
+      ctx.fillStyle = "rgba(234,242,255,.60)";
+      ctx.font = "800 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("Pop bubbles before they fade. Smaller bubbles score more.", w/2, h*0.58);
+    }
+
+    ctx.restore();
+  }
+}
+
+class StarCatchGame{
+  constructor(){
+    this.active = false;
+    this.reset();
+  }
+  helpText(){
+    return "Move cursor left/right to catch falling stars. Miss 3 and it's over. Click/pinch to restart.";
+  }
+  reset(){
+    this.items = [];
+    this.score = 0;
+    this.lives = 3;
+    this.running = true;
+    this.spawnCd = 0;
+    this.catcherX = 0.5;
+  }
+  setBestIfNeeded(){
+    const highs = state.settings.games.highs;
+    const prev = highs.catch || 0;
+    if(this.score > prev){
+      highs.catch = this.score;
+      saveSettings();
+      toast(`New Star Catch best: ${this.score}`);
+    }
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+
+    this.catcherX = clamp(cur?.x ?? 0.5, 0.08, 0.92);
+
+    if(!this.running) return;
+
+    // spawn
+    this.spawnCd -= dt;
+    if(this.spawnCd <= 0){
+      const x = 0.06 + Math.random()*0.88;
+      const vy = 0.30 + Math.random()*0.28 + Math.min(0.35, this.score*0.006);
+      const r = 0.010 + Math.random()*0.012;
+      this.items.push({x, y:-0.04, vy, r});
+      this.spawnCd = Math.max(170, 820 - this.score*18) + Math.random()*160;
+    }
+
+    const catcherY = 0.93;
+    const catcherW = 0.20;
+    const catcherH = 0.05;
+
+    for(let i=this.items.length-1; i>=0; i--){
+      const it = this.items[i];
+      it.y += it.vy * t;
+
+      // caught?
+      const withinX = Math.abs(it.x - this.catcherX) < (catcherW/2 + it.r);
+      const withinY = it.y > (catcherY - catcherH/2 - it.r) && it.y < (catcherY + catcherH/2 + it.r);
+      if(withinX && withinY){
+        this.items.splice(i,1);
+        this.score += 1;
+        continue;
+      }
+
+      // missed?
+      if(it.y > 1.08){
+        this.items.splice(i,1);
+        this.lives -= 1;
+        if(this.lives <= 0){
+          this.running = false;
+          this.setBestIfNeeded();
+          break;
+        }
+      }
+    }
+  }
+  onClick(){
+    if(!this.active) return;
+    if(!this.running) this.reset();
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+
+    // catcher
+    const catcherY = 0.93;
+    const catcherW = 0.20;
+    const catcherH = 0.05;
+    ctx.fillStyle = "rgba(234,242,255,.86)";
+    roundRect(ctx, (this.catcherX - catcherW/2)*w, (catcherY - catcherH/2)*h, catcherW*w, catcherH*h, 14);
+    ctx.fill();
+
+    // stars
+    for(const it of this.items){
+      const x = it.x*w, y = it.y*h;
+      const r = it.r*Math.min(w,h);
+      ctx.fillStyle = "rgba(212,175,55,.92)";
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(242,213,122,.20)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // HUD
+    const best = state.settings.games.highs.catch || 0;
+    ctx.fillStyle = "rgba(234,242,255,.88)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`SCORE ${this.score}   LIVES ${this.lives}   BEST ${best}`, 18, 30);
+
+    // overlay
+    ctx.textAlign = "center";
+    if(!this.running){
+      ctx.fillStyle = "rgba(255,77,77,.84)";
+      ctx.font = "900 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("GAME OVER — CLICK TO RESTART", w/2, h*0.56);
+    }
+
+    ctx.restore();
+  }
+}
+
+class ReactionTestGame{
+  constructor(){
+    this.active = false;
+    this.reset();
+  }
+  helpText(){
+    return "Click/pinch to begin. When it turns green, click/pinch as fast as you can. Lower is better.";
+  }
+  reset(){
+    this.phase = "idle"; // idle | waiting | go | tooSoon | result
+    this.goAtMs = 0;
+    this.goStartMs = 0;
+    this.lastMs = null;
+  }
+  bestMs(){
+    return state.settings.games.highs.reactionBestMs;
+  }
+  setBestIfNeeded(ms){
+    const prev = state.settings.games.highs.reactionBestMs;
+    if(prev === null || ms < prev){
+      state.settings.games.highs.reactionBestMs = ms;
+      saveSettings();
+      toast(`New Reaction best: ${ms} ms`);
+    }
+  }
+  start(){
+    this.phase = "waiting";
+    this.lastMs = null;
+    this.goAtMs = nowMs() + (800 + Math.random()*1900);
+  }
+  update(){
+    if(!this.active) return;
+    if(this.phase === "waiting" && nowMs() >= this.goAtMs){
+      this.phase = "go";
+      this.goStartMs = nowMs();
+    }
+  }
+  onClick(){
+    if(!this.active) return;
+
+    if(this.phase === "idle" || this.phase === "result" || this.phase === "tooSoon"){
+      this.start();
+      return;
+    }
+    if(this.phase === "waiting"){
+      this.phase = "tooSoon";
+      return;
+    }
+    if(this.phase === "go"){
+      const ms = Math.max(0, Math.round(nowMs() - this.goStartMs));
+      this.lastMs = ms;
+      this.phase = "result";
+      this.setBestIfNeeded(ms);
+      return;
+    }
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+
+    const pad = 44;
+    const boxX = pad, boxY = pad + 30;
+    const boxW = w - pad*2, boxH = h - pad*2 - 40;
+
+    // background by phase
+    let fill = "rgba(7,20,40,.35)";
+    if(this.phase === "waiting") fill = "rgba(212,175,55,.14)";
+    if(this.phase === "go") fill = "rgba(40,190,120,.18)";
+    if(this.phase === "tooSoon") fill = "rgba(255,77,77,.16)";
+    if(this.phase === "result") fill = "rgba(140,180,255,.14)";
+
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = fill;
+    roundRect(ctx, boxX, boxY, boxW, boxH, 22);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(242,213,122,.22)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // text
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(234,242,255,.92)";
+    ctx.font = "900 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.fillText("REACTION TEST", w/2, boxY + 44);
+
+    ctx.fillStyle = "rgba(234,242,255,.80)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+
+    let msg = "CLICK / PINCH TO START";
+    if(this.phase === "waiting") msg = "WAIT… DON'T CLICK YET";
+    if(this.phase === "go") msg = "GO! CLICK NOW!";
+    if(this.phase === "tooSoon") msg = "TOO SOON — CLICK TO TRY AGAIN";
+    if(this.phase === "result") msg = "CLICK TO TRY AGAIN";
+    ctx.fillText(msg, w/2, boxY + 86);
+
+    ctx.fillStyle = "rgba(242,213,122,.82)";
+    ctx.font = "900 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    if(this.phase === "result" && this.lastMs !== null){
+      ctx.fillText(`${this.lastMs} ms`, w/2, boxY + boxH*0.58);
+    }else if(this.phase === "go"){
+      ctx.fillText("•••", w/2, boxY + boxH*0.58);
+    }else{
+      ctx.fillText("--", w/2, boxY + boxH*0.58);
+    }
+
+    const best = this.bestMs();
+    ctx.fillStyle = "rgba(234,242,255,.72)";
+    ctx.font = "900 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.fillText(`BEST: ${best === null ? "--" : (best + " ms")}`, w/2, boxY + boxH - 34);
+
+    ctx.restore();
+  }
+}
+
+class ZenPaintGame{
+  constructor(){
+    this.active = false;
+    this.reset();
+  }
+  helpText(){
+    return "Move your cursor to paint. Click/pinch anywhere to clear the canvas.";
+  }
+  reset(){
+    this.particles = [];
+    this.hue = Math.random()*360;
+  }
+  onClick(){
+    if(!this.active) return;
+    this.reset();
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+
+    // Add a few particles at cursor
+    const x = cur?.x ?? 0.5;
+    const y = cur?.y ?? 0.5;
+    const n = 2;
+    for(let i=0; i<n; i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 0.06 + Math.random()*0.16;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a)*sp,
+        vy: Math.sin(a)*sp,
+        r: 0.004 + Math.random()*0.010,
+        life: 0,
+        ttl: 1200 + Math.random()*900,
+        hue: (this.hue + Math.random()*50) % 360
+      });
+    }
+    this.hue = (this.hue + 0.6) % 360;
+
+    // Integrate + decay
+    for(let i=this.particles.length-1; i>=0; i--){
+      const p = this.particles[i];
+      p.life += dt;
+      p.x += p.vx * t;
+      p.y += p.vy * t;
+      p.vx *= 0.985; p.vy *= 0.985;
+      if(p.life >= p.ttl || p.x < -0.1 || p.x > 1.1 || p.y < -0.1 || p.y > 1.1){
+        this.particles.splice(i,1);
+      }
+    }
+
+    // keep bounded
+    if(this.particles.length > 2200) this.particles.splice(0, this.particles.length-2200);
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+
+    // particles
+    for(const p of this.particles){
+      const t = clamp(1 - (p.life/p.ttl), 0, 1);
+      ctx.fillStyle = `hsla(${p.hue}, 92%, 64%, ${0.55*t})`;
+      ctx.beginPath();
+      ctx.arc(p.x*w, p.y*h, p.r*Math.min(w,h), 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // HUD
+    ctx.fillStyle = "rgba(234,242,255,.82)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`PARTICLES ${this.particles.length}`, 18, 30);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(242,213,122,.58)";
+    ctx.font = "800 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.fillText("MOVE = PAINT • CLICK/PINCH = CLEAR", w/2, h - 28);
+
+    ctx.restore();
+  }
+}
+
+// -----------------------------
+// Tuners: open in modal
+// -----------------------------
+function openModal(title, bodyLeft, bodyRight, onSave, modalKey=null){
+  state.ui.modalKey = modalKey || null;
+
+  modalTitle.textContent = title;
+  modalBody.innerHTML = "";
+  const left = el("div", {class:"left"}, bodyLeft);
+  const right = el("div", {class:"right"}, bodyRight);
+  modalBody.append(left, right);
+
+  modal.classList.add("show");
+  state.ui.modalOpen = true;
+
+  modalBack.onclick = ()=>closeModal();
+  modalSave.onclick = async ()=>{
+    await onSave?.();
+    closeModal();
+  };
+}
+function closeModal(){
+  modal.classList.remove("show");
+  state.ui.modalOpen = false;
+  state.ui.modalKey = null;
+  uiHooks.routingSummaryRefreshers = {};
+  setMode("dashboard");
+}
+
+function tuner_Gesture(){
+  uiHooks.routingSummaryRefreshers = {};
+  const s = state.settings.gesture;
+  const left = [
+    makeCard("Hand Tracking", [
+      el("div",{class:"hint"},[
+        "Gesture control uses MediaPipe Hands. Cursor is driven by index fingertip; click uses a pinch (thumb+index). ",
+        "You can run SIM mode to test without camera."
+      ]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn", id:"gesStart"},["Start / Resume"]),
+        el("button",{class:"smallbtn ghost", id:"gesToggleSim"},[s.simMode ? "SIM: ON":"SIM: OFF"]),
+      ])
+    ]),
+    makeCard("Parameters", [
+      slider("Pinch Threshold", 0.02, 0.12, 0.001, s.pinchThreshold, (v)=>{ s.pinchThreshold = v; saveSettings(); uiHooks.routingSummaryRefreshers["Gesture"]?.();}),
+      slider("Smoothing", 1, 20, 1, s.smoothing, (v)=>{ s.smoothing = v|0; controllers.Gesture.xf.setWindowSize(s.smoothing); controllers.Gesture.yf.setWindowSize(s.smoothing); saveSettings(); uiHooks.routingSummaryRefreshers["Gesture"]?.();}),
+    ])
+  ];
+
+  const right = [
+    makeRoutingCard("Gesture"),
+    makeCard("Live", [
+      el("div",{class:"hint", id:"gesLive"},["Waiting…"]),
+      el("div",{class:"kv2"},[el("span",{},["Pinch"]), el("b",{id:"gesPinch"},["--"])]),
+      el("div",{class:"kv2"},[el("span",{},["Cursor"]), el("b",{id:"gesPos"},["--"])]),
+      el("div",{class:"kv2"},[el("span",{},["Camera"]), el("b",{id:"gesCam"},["--"])]),
+    ]),
+    makeCard("Notes", [
+      el("div",{class:"hint"},[
+        "If tracking feels jittery, increase smoothing.\n",
+        "If clicks trigger too easily, lower pinch threshold."
+      ])
+    ])
+  ];
+
+  openModal("Gesture Tuner", left, right, async ()=>{
+    await activateTunerByRoute("Gesture");
+    controlManager.enable("Gesture", true);
+    state.settings.gesture.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Gesture"]?.();});
+
+  $("#gesStart").onclick = async ()=>{
+    await controlManager.ensure("Gesture");
+    state.settings.gesture.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Gesture"]?.();};
+  $("#gesToggleSim").onclick = ()=>{
+    s.simMode = !s.simMode; saveSettings(); uiHooks.routingSummaryRefreshers["Gesture"]?.();$("#gesToggleSim").textContent = s.simMode ? "SIM: ON":"SIM: OFF";
+    if(s.simMode){
+      // allow immediate without camera
+      controllers.Gesture.ready = true;
+    }else{
+      controllers.Gesture.ready = false;
+      state.telemetry.gesture.pinch = false;
+    }
+  };
+}
+
+function tuner_Retina(){
+  uiHooks.routingSummaryRefreshers = {};
+  const s = state.settings.retina;
+  const left = [
+    makeCard("Retina Tracking", [
+      el("div",{class:"hint"},[
+        "Uses MediaPipe FaceMesh + Iris landmarks to estimate gaze point. ",
+        "Tune sensitivity/offset/smoothing, then Save & Activate."
+      ]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn", id:"retinaStart"},["Start / Resume"]),
+        el("button",{class:"smallbtn ghost", id:"retinaToggleSim"},[s.simMode ? "SIM: ON":"SIM: OFF"]),
+        el("button",{class:"smallbtn ghost", id:"retinaToggleGrid"},[s.showGrid ? "Grid: ON":"Grid: OFF"]),
+        el("button",{class:"smallbtn ghost", id:"retinaInvertX"},[s.invertX ? "Invert X: ON":"Invert X: OFF"]),
+        el("button",{class:"smallbtn ghost", id:"retinaInvertY"},[s.invertY ? "Invert Y: ON":"Invert Y: OFF"]),
+      ])
+    ]),
+    makeCard("Calibration", [
+      slider("Sensitivity", 0.6, 3.0, 0.01, s.sensitivity, (v)=>{ s.sensitivity = v; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();}),
+      slider("Offset X", -600, 600, 1, s.offsetX, (v)=>{ s.offsetX = v; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();}),
+      slider("Offset Y", -400, 400, 1, s.offsetY, (v)=>{ s.offsetY = v; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();}),
+      slider("Smoothing", 1, 20, 1, s.smoothing, (v)=>{ s.smoothing = v; controllers.Retina.xf.setWindowSize(v); controllers.Retina.yf.setWindowSize(v); saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();}),
+      slider("Grid Size", 18, 120, 1, s.gridSize, (v)=>{ s.gridSize = v|0; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();}),
+    ])
+  ];
+
+  const right = [
+    makeRoutingCard("Retina"),
+    makeCard("Live", [
+      el("div",{class:"hint", id:"retinaLive"},["Waiting for camera…"]),
+      el("div",{class:"kv2"},[
+        el("span",{},["Has Face"]),
+        el("b",{id:"retinaHas"},["--"])
+      ]),
+      el("div",{class:"kv2"},[
+        el("span",{},["X"]),
+        el("b",{id:"retinaX"},["--"])
+      ]),
+      el("div",{class:"kv2"},[
+        el("span",{},["Y"]),
+        el("b",{id:"retinaY"},["--"])
+      ]),
+    ]),
+    makeCard("Cursor", [
+      el("div",{class:"hint"},["Retina is a direct cursor source. Use Control Selector to assign it to Cursor, then Save here to activate settings."])
+    ])
+  ];
+
+  openModal("Retina Tuner", left, right, async ()=>{
+    // Activate retina as cursor
+    await activateTunerByRoute("Retina");
+    controlManager.enable("Retina", true);
+    state.settings.retina.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();});
+
+  // wire buttons
+  $("#retinaStart").onclick = async ()=>{
+    await controlManager.ensure("Retina");
+    state.settings.retina.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();};
+  $("#retinaToggleSim").onclick = ()=>{
+    s.simMode = !s.simMode;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();$("#retinaToggleSim").textContent = s.simMode ? "SIM: ON":"SIM: OFF";
+    if(s.simMode){
+      controllers.Retina.ready = true;
+      state.telemetry.retina.has = true;
+    }else{
+      controllers.Retina.ready = false;
+      state.telemetry.retina.has = false;
+    }
+  };
+  $("#retinaToggleGrid").onclick = ()=>{
+    s.showGrid = !s.showGrid; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();$("#retinaToggleGrid").textContent = s.showGrid ? "Grid: ON":"Grid: OFF";
+  };
+  $("#retinaInvertX").onclick = ()=>{
+    s.invertX = !s.invertX; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();$("#retinaInvertX").textContent = s.invertX ? "Invert X: ON":"Invert X: OFF";
+  };
+  $("#retinaInvertY").onclick = ()=>{
+    s.invertY = !s.invertY; saveSettings(); uiHooks.routingSummaryRefreshers["Retina"]?.();$("#retinaInvertY").textContent = s.invertY ? "Invert Y: ON":"Invert Y: OFF";
+  };
+}
+
+function tuner_EMG(){
+  uiHooks.routingSummaryRefreshers = {};
+  const s = state.settings.emg;
+  const left = [
+    makeCard("EMG Input", [
+      el("div",{class:"hint"},[
+        "EMG has 3 channels: sensor1 (X), sensor2 (Y), sensor3 (Click). ",
+        "SIM mode generates signals if no hardware connected."
+      ]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn", id:"emgStart"},["Start (SIM)"]),
+        el("button",{class:"smallbtn ghost", id:"emgToggleSim"},[s.simMode ? "SIM: ON":"SIM: OFF"]),
+        el("button",{class:"smallbtn ghost", id:"emgConnect"},["Connect WebSerial"]),
+        el("button",{class:"smallbtn danger", id:"emgDisconnect"},["Disconnect"])
+      ]),
+    ]),
+    makeCard("Controls", [
+      slider("Sensitivity", 0, 100, 1, s.sensitivity, (v)=>{ s.sensitivity = v; saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();}),
+      slider("Click Threshold", 0, 100, 1, s.clickThreshold, (v)=>{ s.clickThreshold = v; saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();}),
+      slider("WebSerial Baud", 9600, 230400, 1, s.serial.baudRate, (v)=>{ s.serial.baudRate = v|0; saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();})
+    ])
+  ];
+  const right = [
+    makeRoutingCard("EMG"),
+    makeCard("Live Channels", [
+      el("div",{class:"hint", id:"emgLive"},["SIM running."]),
+      sparkline("Sensor1 (X)", "emgSpark1"),
+      sparkline("Sensor2 (Y)", "emgSpark2"),
+      sparkline("Sensor3 (Click)", "emgSpark3"),
+      el("div",{class:"kv2"},[el("span",{},["Connected"]), el("b",{id:"emgConn"},["--"])]),
+    ]),
+    makeCard("Data Format", [
+      el("div",{class:"hint"},[
+        "WebSerial accepts:\n",
+        "\n• CSV: s1,s2,s3\n• JSON: {\"s1\":52,\"s2\":61,\"s3\":88}\n",
+        "\nValues should be 0..100"
+      ])
+    ])
+  ];
+
+  openModal("EMG Tuner", left, right, async ()=>{
+    await activateTunerByRoute("EMG");
+    controlManager.enable("EMG", true);
+    state.settings.emg.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();});
+
+  $("#emgStart").onclick = ()=>{
+    s.simMode = true;
+    state.settings.emg.enabled = true;
+    controlManager.enable("EMG", true);
+    saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();$("#emgToggleSim").textContent = "SIM: ON";
+  };
+  $("#emgToggleSim").onclick = ()=>{
+    s.simMode = !s.simMode; saveSettings(); uiHooks.routingSummaryRefreshers["EMG"]?.();$("#emgToggleSim").textContent = s.simMode ? "SIM: ON":"SIM: OFF";
+  };
+  $("#emgConnect").onclick = async ()=>{
+    await controllers.EMG.connectSerial();
+    renderPanelTelemetry();
+  };
+  $("#emgDisconnect").onclick = async ()=>{
+    await controllers.EMG.disconnectSerial();
+    renderPanelTelemetry();
+  };
+}
+
+function tuner_EEG(){
+  uiHooks.routingSummaryRefreshers = {};
+  const s = state.settings.eeg;
+  const thr = s.thr;
+  const left = [
+    makeCard("EEG Input", [
+      el("div",{class:"hint"},[
+        "EEG uses 3 signals in [-1,1]: left (horizontal), right (vertical), center (click). ",
+        "SIM mode generates signals if no hardware connected."
+      ]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn", id:"eegStart"},["Start (SIM)"]),
+        el("button",{class:"smallbtn ghost", id:"eegToggleSim"},[s.simMode ? "SIM: ON":"SIM: OFF"]),
+        el("button",{class:"smallbtn ghost", id:"eegConnect"},["Connect WebSerial"]),
+        el("button",{class:"smallbtn danger", id:"eegDisconnect"},["Disconnect"])
+      ]),
+    ]),
+    makeCard("Thresholds", [
+      slider("Left Upper", -1, 1, 0.01, thr.leftUpper, (v)=>{ thr.leftUpper=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Left Lower", -1, 1, 0.01, thr.leftLower, (v)=>{ thr.leftLower=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Right Upper", -1, 1, 0.01, thr.rightUpper, (v)=>{ thr.rightUpper=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Right Lower", -1, 1, 0.01, thr.rightLower, (v)=>{ thr.rightLower=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Center Upper", -1, 1, 0.01, thr.centerUpper, (v)=>{ thr.centerUpper=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Center Lower", -1, 1, 0.01, thr.centerLower, (v)=>{ thr.centerLower=v; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+    ]),
+  ];
+
+  const right = [
+    makeRoutingCard("EEG"),
+    makeCard("Action", [
+      slider("Move Distance (px)", 2, 60, 1, s.moveDistance, (v)=>{ s.moveDistance=v|0; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("Cooldown (ms)", 0, 2000, 10, s.cooldownMs, (v)=>{ s.cooldownMs=v|0; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();}),
+      slider("WebSerial Baud", 9600, 230400, 1, s.serial.baudRate, (v)=>{ s.serial.baudRate=v|0; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();})
+    ]),
+    makeCard("Live", [
+      sparkline("Left", "eegSparkL", -1, 1),
+      sparkline("Right", "eegSparkR", -1, 1),
+      sparkline("Center", "eegSparkC", -1, 1),
+      el("div",{class:"kv2"},[el("span",{},["Connected"]), el("b",{id:"eegConn"},["--"])]),
+      el("div",{class:"hint"},[
+        "WebSerial accepts:\n",
+        "\n• CSV: l,r,c\n• JSON: {\"l\":0.22,\"r\":-0.10,\"c\":0.35}\n",
+        "\nValues should be in [-1,1]"
+      ])
+    ]),
+  ];
+
+  openModal("EEG Tuner", left, right, async ()=>{
+    await activateTunerByRoute("EEG");
+    controlManager.enable("EEG", true);
+    state.settings.eeg.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();});
+
+  $("#eegStart").onclick = ()=>{
+    s.simMode = true;
+    state.settings.eeg.enabled = true;
+    controlManager.enable("EEG", true);
+    saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();$("#eegToggleSim").textContent = "SIM: ON";
+  };
+  $("#eegToggleSim").onclick = ()=>{
+    s.simMode = !s.simMode; saveSettings(); uiHooks.routingSummaryRefreshers["EEG"]?.();$("#eegToggleSim").textContent = s.simMode ? "SIM: ON":"SIM: OFF";
+  };
+  $("#eegConnect").onclick = async ()=>{
+    await controllers.EEG.connectSerial();
+    renderPanelTelemetry();
+  };
+  $("#eegDisconnect").onclick = async ()=>{
+    await controllers.EEG.disconnectSerial();
+    renderPanelTelemetry();
+  };
+}
+
+function tuner_Tone(){
+  uiHooks.routingSummaryRefreshers = {};
+  const s = state.settings.tone;
+  const tuned = s.tuned;
+  const left = [
+    makeCard("Tone Control", [
+      el("div",{class:"hint"},[
+        "Tone control maps pitch to movement using 4 tuned tones (Up/Down/Left/Right). ",
+        "Use mic, or enable SIM mode for demonstration."
+      ]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn", id:"toneStart"},["Start Mic"]),
+        el("button",{class:"smallbtn ghost", id:"toneToggleSim"},[s.simMode ? "SIM: ON":"SIM: OFF"]),
+        el("button",{class:"smallbtn gold", id:"toneStartTune"},["Start Tuning"]),
+        el("button",{class:"smallbtn", id:"toneAccept"},["Accept Tone"]),
+      ]),
+    ]),
+    makeCard("Settings", [
+      slider("Tolerance (Hz)", 5, 180, 1, s.toleranceHz, (v)=>{ s.toleranceHz=v|0; saveSettings(); uiHooks.routingSummaryRefreshers["Tone"]?.();}),
+      slider("Speed (px/s)", 100, 2200, 10, s.speed, (v)=>{ s.speed=v|0; saveSettings(); uiHooks.routingSummaryRefreshers["Tone"]?.();}),
+      kvPair("Up Tone", "toneUp", tuned.up),
+      kvPair("Down Tone", "toneDown", tuned.down),
+      kvPair("Left Tone", "toneLeft", tuned.left),
+      kvPair("Right Tone", "toneRight", tuned.right),
+    ]),
+  ];
+  const right = [
+    makeRoutingCard("Tone"),
+    makeCard("Live Pitch", [
+      el("div",{class:"hint", id:"toneLive"},["Idle"]),
+      el("div",{class:"kv2"},[el("span",{},["Pitch"]), el("b",{id:"toneHz"},["--"]) ]),
+      el("div",{class:"kv2"},[el("span",{},["Tuning"]), el("b",{id:"toneTuneState"},["--"]) ]),
+      el("div",{style:"height:160px; border-radius:16px; border:1px solid rgba(140,180,255,.14); background:rgba(7,20,40,.35); overflow:hidden"},[
+        el("canvas",{id:"toneBar", width:"320", height:"160", style:"width:100%;height:160px;display:block"})
+      ])
+    ]),
+    makeCard("Tips", [
+      el("div",{class:"hint"},[
+        "For best results:\n",
+        "• Use sustained vowels (\"ooo\", \"eee\")\n",
+        "• Tune in a quiet room\n",
+        "• Keep tones separated by 100Hz+\n"
+      ])
+    ])
+  ];
+
+  openModal("Tone Tuner", left, right, async ()=>{
+    await activateTunerByRoute("Tone");
+    controlManager.enable("Tone", true);
+    state.settings.tone.enabled = true;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Tone"]?.();});
+
+  $("#toneStart").onclick = async ()=>{
+    await controlManager.ensure("Tone");
+    // try resume audio context if suspended
+    if(controllers.Tone.audioCtx && controllers.Tone.audioCtx.state === "suspended"){
+      await controllers.Tone.audioCtx.resume();
+    }
+    state.settings.tone.simMode = false;
+    saveSettings(); uiHooks.routingSummaryRefreshers["Tone"]?.();$("#toneToggleSim").textContent = "SIM: OFF";
+  };
+  $("#toneToggleSim").onclick = ()=>{
+    s.simMode = !s.simMode; saveSettings(); uiHooks.routingSummaryRefreshers["Tone"]?.();$("#toneToggleSim").textContent = s.simMode ? "SIM: ON":"SIM: OFF";
+  };
+  $("#toneStartTune").onclick = async ()=>{
+    await controlManager.ensure("Tone");
+    controllers.Tone.startTuning();
+  };
+  $("#toneAccept").onclick = ()=>{
+    controllers.Tone.acceptTone();
+    // refresh displayed tuned values
+    $("#toneUp").textContent = `${state.settings.tone.tuned.up} Hz`;
+    $("#toneDown").textContent = `${state.settings.tone.tuned.down} Hz`;
+    $("#toneLeft").textContent = `${state.settings.tone.tuned.left} Hz`;
+    $("#toneRight").textContent = `${state.settings.tone.tuned.right} Hz`;
+  };
+}
+
+// Control Selector: assigns which controller drives cursor
+function controlSelector(){
+  uiHooks.routingSummaryRefreshers = {};
+  const makeTunerRoutingCard = (name, openFn) => {
+    const targetSel = makeControlTargetSelect(getTunerTarget(name), async (v)=>{
+      setTunerTarget(name, v);
+      if(v === "cursor_ui"){
+        try{ await controlManager.activateAsCursor(name); }catch(e){}
+      }
+      uiHooks.routingSummaryRefreshers[name]?.();
+    });
+
+    const summaryWrap = el("div", { id:`csSum_${name}` }, []);
+    const rebuild = ()=>{
+      summaryWrap.innerHTML = "";
+      for(const p of getTunerSummaryPairs(name)){
+        summaryWrap.append(el("div",{class:"kv2"},[el("span",{},[p.k]), el("b",{},[p.v])]));
+      }
+      const tag = $("#csActiveTag_"+name);
+      if(tag){
+        tag.textContent = (resolveCursorDriver() === name && getTunerTarget(name) === "cursor_ui") ? "ACTIVE CURSOR" : "";
+      }
+    };
+    uiHooks.routingSummaryRefreshers[name] = rebuild;
+    rebuild();
+
+    const openBtn = el("button", { class:"smallbtn ghost" }, ["Open Tuner"]);
+    openBtn.onclick = ()=>openFn();
+
+    const enabledKey = getTunerKey(name);
+    const togBtn = el("button", { class:"smallbtn ghost" }, [ state.settings[enabledKey]?.enabled ? `${name}: ON` : `${name}: OFF` ]);
+    togBtn.onclick = ()=>{
+      const next = !state.settings[enabledKey].enabled;
+      state.settings[enabledKey].enabled = next;
+      saveSettings();
+      controlManager.enable(name, next);
+      togBtn.textContent = next ? `${name}: ON` : `${name}: OFF`;
+    };
+
+    return makeCard(`${name} Routing`, [
+      el("div",{class:"hint"},["Target"]),
+      targetSel,
+      el("div",{style:"height:8px"}),
+      el("div",{class:"hint"},["Key Settings"]),
+      summaryWrap,
+      el("div",{style:"height:8px"}),
+      el("div",{class:"row"},[openBtn, togBtn]),
+      el("div",{class:"hint", id:`csActiveTag_${name}`},[""])
+    ]);
+  };
+
+  const left = [
+    makeCard("Control Routing", [
+      el("div",{class:"hint"},[
+        "Each tuner can be routed to a Control Target. ",
+        "Cursor (UI) drives the in-app pointer; all other targets publish to the Sim Bus."
+      ]),
+      el("div",{class:"hint"},[
+        "Selecting Cursor (UI) will automatically set that tuner as the active cursor controller."
+      ])
+    ]),
+    makeTunerRoutingCard("Gesture", tuner_Gesture),
+    makeTunerRoutingCard("Retina", tuner_Retina),
+    makeTunerRoutingCard("Tone", tuner_Tone),
+    makeTunerRoutingCard("EMG", tuner_EMG),
+    makeTunerRoutingCard("EEG", tuner_EEG),
+  ];
+
+  const right = [
+    makeCard("Routed Values (Sim Bus)", [
+      el("div",{class:"hint", id:"simBusTime"},["No routed values yet"]),
+      el("div",{id:"simBusPanel"},[
+        el("div",{class:"hint"},["Enable a tuner and move / click to see values stream here."])
+      ])
+    ]),
+    makeCard("Status", [
+      el("div",{class:"kv2"},[el("span",{},["Active Cursor"]), el("b",{id:"csActive"},[resolveCursorDriver()])]),
+      el("div",{class:"kv2"},[el("span",{},["Camera"]), el("b",{id:"csCam"},[state.runtime.camReady?"READY":"OFF"])]),
+      el("div",{class:"kv2"},[el("span",{},["Mic"]), el("b",{id:"csMic"},[state.runtime.micReady?"READY":"OFF"])]),
+      el("div",{class:"hint"},[
+        "Camera-based controls (Gesture/Retina) require camera permission. Tone requires mic permission."
+      ])
+    ])
+  ];
+
+  openModal("Control Selector", left, right, async ()=>{ /* Save noop */ }, "controlSelector");
+  updateControlSelectorLive();
+}
+
+// -----------------------------
+// UI Builders (cards, sliders, etc.)
+// -----------------------------
+function makeCard(title, children=[]){
+  return el("div",{class:"card"},[
+    el("div",{class:"ct"},[el("span",{},[title]), el("span",{class:"badge"},["LIVE"])]),
+    ...children
+  ]);
+}
+function kvPair(label, id, valueText){
+  return el("div",{class:"kv2"},[
+    el("span",{},[label]),
+    el("b",{id},[`${valueText} Hz`])
+  ]);
+}
+function slider(labelText, min, max, step, value, onInput){
+  const id = "sl_"+Math.random().toString(16).slice(2);
+  const out = el("b",{id: id+"_v"},[String(value)]);
+  const r = el("input",{type:"range", min:String(min), max:String(max), step:String(step), value:String(value)});
+  r.addEventListener("input", ()=>{
+    const v = Number(r.value);
+    out.textContent = (step < 1 ? v.toFixed(2) : String(v));
+    onInput?.(v);
+  });
+  return el("div",{},[
+    el("label",{},[labelText]),
+    r,
+    el("div",{class:"kv2"},[el("span",{},[`${min}`]), out])
+  ]);
+}
+function sparkline(title, id, minV=0, maxV=100){
+  return el("div",{},[
+    el("div",{class:"kv2"},[el("span",{},[title]), el("b",{id:id+"_val"},["--"])]),
+    el("canvas",{id, width:"320", height:"70", style:"width:100%;height:70px;border-radius:14px;border:1px solid rgba(140,180,255,.12);background:rgba(7,20,40,.25)"})
+  ]);
+}
+
+// -----------------------------
+// Panel Rendering (right side telemetry + apps)
+// -----------------------------
+function setMode(mode){
+  const prev = state.ui.mode;
+  state.ui.mode = mode;
+  badgeMode.textContent = mode.toUpperCase();
+  // update active nav button styling
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.remove("active"));
+  const map = {
+    "app:notepad":"btnNotepad",
+    "app:audio":"btnAudio",
+    "app:video":"btnVideo",
+    "app:calendar":"btnCalendar",
+    "app:games":"btnGames",
+    "dashboard": null
+  };
+  const id = map[mode];
+  if(id) $("#"+id).classList.add("active");
+
+  // Ensure games don't keep drawing/updating after you switch apps.
+  if(prev === "app:games" && mode !== "app:games"){
+    apps.games.stop();
+  }
+}
+
+function renderPanelTelemetry(){
+  panelContent.innerHTML = "";
+  const c = state.cursor;
+  panelContent.append(
+    makeCard("Cursor", [
+      el("div",{class:"kv2"},[el("span",{},["X / Y"]), el("b",{id:"tCur"},[`${Math.round(c.x)} , ${Math.round(c.y)}`])]),
+      el("div",{class:"kv2"},[el("span",{},["Click"]), el("b",{id:"tClk"},[c.click ? "YES":"NO"])]),
+      el("div",{class:"kv2"},[el("span",{},["Hover Target"]), el("b",{id:"tHov"},[(c.hoverTarget?.id || c.hoverTarget?.dataset?.open || c.hoverTarget?.textContent?.slice(0,18) || "--").toString()])]),
+    ]),
+    makeCard("Active Control", [
+      el("div",{class:"kv2"},[el("span",{},["Cursor Source"]), el("b",{id:"tCtl"},[state.settings.active.cursorControl])]),
+      el("div",{class:"kv2"},[el("span",{},["Hover Click"]), el("b",{id:"tHover"},[state.runtime.hoverEnabled ? "ON":"OFF"])]),
+      el("div",{class:"kv2"},[el("span",{},["OS*"]), el("b",{id:"tOS"},[state.runtime.osEnabled ? "ON":"OFF"])]),
+      el("div",{class:"hint"},["OS* means 'in-app automation' only."]),
+    ]),
+    makeCard("Gesture", [
+      el("div",{class:"kv2"},[el("span",{},["Pinch"]), el("b",{id:"tPinch"},[state.telemetry.gesture.pinch ? "YES":"NO"])]),
+      el("div",{class:"kv2"},[el("span",{},["Camera"]), el("b",{},[state.runtime.camReady ? "READY":"OFF"])]),
+    ]),
+    makeCard("Retina", [
+      el("div",{class:"kv2"},[el("span",{},["Has"]), el("b",{id:"tRetHas"},[state.telemetry.retina.has ? "YES":"NO"])]),
+      el("div",{class:"kv2"},[el("span",{},["X / Y"]), el("b",{id:"tRet"},[state.telemetry.retina.has ? `${Math.round(state.telemetry.retina.x)} , ${Math.round(state.telemetry.retina.y)}` : "--"])]),
+    ]),
+    makeCard("Tone", [
+      el("div",{class:"kv2"},[el("span",{},["Pitch"]), el("b",{id:"tTone"},[state.telemetry.tone.hz ? `${Math.round(state.telemetry.tone.hz)} Hz` : "--"])]),
+      el("div",{class:"kv2"},[el("span",{},["Mic"]), el("b",{},[state.runtime.micReady ? "READY":"OFF"])]),
+      el("div",{class:"kv2"},[el("span",{},["SIM"]), el("b",{},[state.settings.tone.simMode ? "ON":"OFF"])]),
+    ]),
+    makeCard("EMG", [
+      el("div",{class:"kv2"},[el("span",{},["S1/S2/S3"]), el("b",{id:"tEmg"},[`${Math.round(state.telemetry.emg.s1)} / ${Math.round(state.telemetry.emg.s2)} / ${Math.round(state.telemetry.emg.s3)}`])]),
+      el("div",{class:"kv2"},[el("span",{},["Connected"]), el("b",{id:"tEmgConn"},[state.telemetry.emg.connected ? "YES":"NO"])]),
+    ]),
+    makeCard("EEG", [
+      el("div",{class:"kv2"},[el("span",{},["L/R/C"]), el("b",{id:"tEeg"},[`${fmt(state.telemetry.eeg.l,2)} / ${fmt(state.telemetry.eeg.r,2)} / ${fmt(state.telemetry.eeg.c,2)}`])]),
+      el("div",{class:"kv2"},[el("span",{},["Connected"]), el("b",{id:"tEegConn"},[state.telemetry.eeg.connected ? "YES":"NO"])]),
+    ])
+  );
+}
+
+function renderPanel_Notepad(){
+  panelContent.innerHTML = "";
+  const np = apps.notepad;
+  panelContent.append(
+    makeCard("Editor", [
+      el("div",{class:"hint"},["Type with physical keyboard or the on-screen keyboard. Saved in localStorage."]),
+      el("textarea",{
+        id:"npText",
+        style:"width:100%;height:240px;border-radius:16px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.32);color:var(--text);padding:12px;resize:vertical;outline:none;font-family:var(--mono);font-size:12px;line-height:1.35;",
+      },[np.text]),
+      el("div",{class:"row"},[
+        el("input",{id:"npDocName", placeholder:"Doc name", value: np.docName, style:"flex:1;padding:10px 12px;border-radius:14px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.30);color:var(--text);outline:none;font-weight:800;"}),
+        el("button",{class:"smallbtn gold", id:"npSave"},["Save"]),
+        el("button",{class:"smallbtn", id:"npLoad"},["Load"]),
+        el("button",{class:"smallbtn danger", id:"npClear"},["Clear"]),
+        el("button",{class:"smallbtn ghost", id:"npBack"},["Back"]),
+      ]),
+    ]),
+    makeCard("On-Screen Keyboard", [
+      buildKeyboard((k)=>handleNotepadKey(k))
+    ])
+  );
+
+  $("#npSave").onclick = ()=>{
+    const name = ($("#npDocName").value || "default").trim();
+    const text = $("#npText").value;
+    state.settings.notepad.docs[name] = text;
+    state.settings.notepad.lastDoc = name;
+    saveSettings();
+    np.docName = name; np.text = text;
+    toast(`Saved "${name}"`);
+  };
+  $("#npLoad").onclick = ()=>{
+    const name = ($("#npDocName").value || "default").trim();
+    const text = state.settings.notepad.docs[name] ?? "";
+    $("#npText").value = text;
+    np.docName = name; np.text = text;
+    toast(`Loaded "${name}"`);
+  };
+  $("#npClear").onclick = ()=>{
+    $("#npText").value = "";
+    np.text = "";
+  };
+  $("#npBack").onclick = ()=>{
+    setMode("dashboard");
+    panelTitle.textContent = "LIVE TELEMETRY";
+    panelSub.textContent = "Cursor • Click • Signals";
+    renderPanelTelemetry();
+  };
+  $("#npText").addEventListener("input", ()=>{
+    np.text = $("#npText").value;
+  });
+}
+
+function handleNotepadKey(key){
+  const ta = $("#npText");
+  if(!ta) return;
+  if(key === "Backspace"){
+    ta.value = ta.value.slice(0, -1);
+  }else if(key === "Enter"){
+    ta.value += "\n";
+  }else if(key === "Space"){
+    ta.value += " ";
+  }else{
+    ta.value += key;
+  }
+  ta.dispatchEvent(new Event("input"));
+}
+
+function buildKeyboard(onKey){
+  const rows = [
+    ["1","2","3","4","5","6","7","8","9","0"],
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L","Enter"],
+    ["Z","X","C","V","B","N","M",",",".","/"],
+    ["Space","Backspace"]
+  ];
+  const k = el("div",{class:"kbd"});
+  for(const row of rows){
+    for(const key of row){
+      let cls = "key";
+      if(key === "Space") cls += " wider";
+      if(key === "Backspace") cls += " wide danger";
+      if(key === "Enter") cls += " wide gold";
+      k.append(el("div",{class:cls, onclick:()=>onKey(key)},[key]));
+    }
+  }
+  return k;
+}
+
+function renderPanel_Audio(){
+  panelContent.innerHTML = "";
+  const a = apps.audio;
+  panelContent.append(
+    makeCard("Recorder", [
+      el("div",{class:"hint"},["Use Record/Stop. Playback will appear below."]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn gold", id:"auRec"},[a.recording ? "Recording…" : "Record"]),
+        el("button",{class:"smallbtn danger", id:"auStop"},["Stop"]),
+        el("button",{class:"smallbtn", id:"auDl"},["Download"]),
+        el("button",{class:"smallbtn ghost", id:"auBack"},["Back"]),
+      ]),
+      el("audio",{id:"audioPlayback", controls:"", style:"width:100%;margin-top:10px;"})
+    ]),
+    makeCard("Notes", [
+      el("div",{class:"hint"},[
+        "Audio is recorded as WebM/Opus in most browsers.\n",
+        "For WAV export, add a server-side transcoder."
+      ])
+    ])
+  );
+
+  $("#auRec").onclick = ()=>a.start();
+  $("#auStop").onclick = ()=>a.stop();
+  $("#auDl").onclick = ()=>a.download();
+  $("#auBack").onclick = ()=>{
+    setMode("dashboard");
+    panelTitle.textContent = "LIVE TELEMETRY";
+    panelSub.textContent = "Cursor • Click • Signals";
+    renderPanelTelemetry();
+  };
+}
+
+function renderPanel_Video(){
+  panelContent.innerHTML = "";
+  const v = apps.video;
+  panelContent.append(
+    makeCard("Recorder", [
+      el("div",{class:"hint"},["Record is capped at 10 seconds (like desktop). You can preview camera feed."]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn gold", id:"viRec"},[v.recording ? "Recording…" : "Record 10s"]),
+        el("button",{class:"smallbtn danger", id:"viStop"},["Stop"]),
+        el("button",{class:"smallbtn", id:"viPrev"},[v.previewOn ? "Preview: ON" : "Preview: OFF"]),
+        el("button",{class:"smallbtn", id:"viDl"},["Download"]),
+        el("button",{class:"smallbtn ghost", id:"viBack"},["Back"]),
+      ]),
+      el("video",{id:"videoPreview", controls:"", muted:"", playsinline:"", class: v.previewOn ? "" : "hidden", style:"width:100%;margin-top:10px;border-radius:16px;border:1px solid rgba(140,180,255,.12);background:rgba(0,0,0,.2)"}),
+      el("video",{id:"videoPlayback", controls:"", playsinline:"", style:"width:100%;margin-top:10px;border-radius:16px;border:1px solid rgba(140,180,255,.12);background:rgba(0,0,0,.2)"})
+    ]),
+    makeCard("Tips", [
+      el("div",{class:"hint"},[
+        "Video is recorded as WebM in most browsers.\n",
+        "On iOS Safari, MediaRecorder may be limited."
+      ])
+    ])
+  );
+
+  $("#viRec").onclick = ()=>v.start();
+  $("#viStop").onclick = ()=>v.stop();
+  $("#viPrev").onclick = ()=>v.togglePreview();
+  $("#viDl").onclick = ()=>v.download();
+  $("#viBack").onclick = ()=>{
+    setMode("dashboard");
+    panelTitle.textContent = "LIVE TELEMETRY";
+    panelSub.textContent = "Cursor • Click • Signals";
+    renderPanelTelemetry();
+  };
+}
+
+function renderPanel_Calendar(){
+  panelContent.innerHTML = "";
+  const cal = new CalendarUI();
+  panelContent.append(cal.render());
+}
+class CalendarUI{
+  constructor(){
+    const d = new Date();
+    this.year = d.getFullYear();
+    this.month = d.getMonth(); // 0-based
+    this.selected = null; // yyyy-mm-dd
+  }
+  key(y,m,day){
+    const mm = String(m+1).padStart(2,"0");
+    const dd = String(day).padStart(2,"0");
+    return `${y}-${mm}-${dd}`;
+  }
+  render(){
+    const wrap = el("div",{});
+    const header = el("div",{class:"row"},[
+      el("button",{class:"smallbtn", onclick:()=>{this.prev();}},["◀"]),
+      el("div",{class:"card", style:"flex:1;padding:10px 12px;text-align:center"},[
+        el("div",{style:"font-weight:950;letter-spacing:.3px;color:rgba(242,213,122,.92)"},[
+          new Date(this.year, this.month, 1).toLocaleString(undefined, {month:"long", year:"numeric"})
+        ])
+      ]),
+      el("button",{class:"smallbtn", onclick:()=>{this.next();}},["▶"]),
+      el("button",{class:"smallbtn ghost", onclick:()=>{ setMode("dashboard"); panelTitle.textContent="LIVE TELEMETRY"; panelSub.textContent="Cursor • Click • Signals"; renderPanelTelemetry(); }},["Back"]),
+    ]);
+    wrap.append(header);
+
+    const grid = el("div",{class:"card", style:"padding:12px"});
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const top = el("div",{class:"grid7", style:"display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:10px"});
+    for(const d of days){
+      top.append(el("div",{style:"text-align:center;font-weight:900;color:rgba(234,242,255,.85);font-size:12px"},[d]));
+    }
+    grid.append(top);
+
+    const body = el("div",{style:"display:grid;grid-template-columns:repeat(7,1fr);gap:8px"});
+    const first = new Date(this.year, this.month, 1);
+    // compute Monday-based offset
+    let start = (first.getDay()+6)%7; // 0=Mon
+    const daysInMonth = new Date(this.year, this.month+1, 0).getDate();
+    for(let i=0;i<start;i++){
+      body.append(el("div",{style:"height:44px;opacity:.2"}));
+    }
+    for(let day=1; day<=daysInMonth; day++){
+      const key = this.key(this.year,this.month,day);
+      const booking = state.settings.calendar.bookings[key];
+      const cell = el("button",{
+        class:"navbtn",
+        style:"height:44px; padding:8px 10px; border-radius:14px; justify-content:center; text-align:center; font-weight:950; position:relative;",
+        onclick:()=>this.openBooking(key)
+      },[String(day)]);
+      if(booking){
+        cell.style.borderColor = "rgba(212,175,55,.45)";
+        cell.style.background = "linear-gradient(180deg, rgba(212,175,55,.18), rgba(7,20,40,.55))";
+        const dot = el("div",{style:"position:absolute;right:10px;top:10px;width:10px;height:10px;border-radius:999px;background:rgba(50,213,131,.95);box-shadow:0 0 18px rgba(50,213,131,.35)"});
+        cell.append(dot);
+      }
+      body.append(cell);
+    }
+    grid.append(body);
+    wrap.append(grid);
+
+    // booking details panel
+    const detail = el("div",{class:"card", style:"padding:12px"},[
+      el("div",{class:"ct"},[el("span",{},["Booking"]), el("span",{class:"badge"},["LOCAL"])]),
+      el("div",{class:"hint"},["Select a day to add or edit a booking. Stored locally."]),
+      el("div",{id:"calDetail"})
+    ]);
+    wrap.append(detail);
+
+    // If selection exists show it
+    if(this.selected) this.renderDetail(this.selected);
+
+    return wrap;
+  }
+  prev(){
+    this.month--;
+    if(this.month<0){ this.month=11; this.year--; }
+    renderPanel_Calendar();
+  }
+  next(){
+    this.month++;
+    if(this.month>11){ this.month=0; this.year++; }
+    renderPanel_Calendar();
+  }
+  openBooking(key){
+    this.selected = key;
+    this.renderDetail(key);
+  }
+  renderDetail(key){
+    const target = $("#calDetail");
+    if(!target) return;
+    target.innerHTML = "";
+    const booking = state.settings.calendar.bookings[key] || {time:"", text:""};
+
+    const times = Array.from({length:24}).map((_,h)=>String(h).padStart(2,"0")+":00");
+    const timeSel = el("select",{id:"calTime", style:"width:100%;padding:10px 12px;border-radius:14px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.30);color:var(--text);outline:none;font-weight:800;"});
+    timeSel.append(el("option",{value:""},["Select time…"]));
+    for(const t of times){
+      timeSel.append(el("option",{value:t, selected: booking.time===t ? "selected":null},[t]));
+    }
+    const text = el("textarea",{id:"calText", style:"width:100%;height:110px;border-radius:16px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.32);color:var(--text);padding:12px;resize:vertical;outline:none;font-family:var(--mono);font-size:12px;line-height:1.35;"},[booking.text||""]);
+    const row = el("div",{class:"row"},[
+      el("button",{class:"smallbtn gold", onclick:()=>this.saveBooking(key)},["Save"]),
+      el("button",{class:"smallbtn danger", onclick:()=>this.deleteBooking(key)},["Delete"]),
+    ]);
+
+    target.append(
+      el("div",{class:"kv2"},[el("span",{},["Date"]), el("b",{},[key])]),
+      el("div",{style:"height:8px"}),
+      el("label",{},["Time"]),
+      timeSel,
+      el("div",{style:"height:8px"}),
+      el("label",{},["Details"]),
+      text,
+      el("div",{style:"height:10px"}),
+      row
+    );
+  }
+  saveBooking(key){
+    const time = $("#calTime").value;
+    const text = $("#calText").value;
+    state.settings.calendar.bookings[key] = {time, text};
+    saveSettings();
+    toast("Booking saved");
+    renderPanel_Calendar();
+  }
+  deleteBooking(key){
+    delete state.settings.calendar.bookings[key];
+    saveSettings();
+    toast("Booking deleted");
+    renderPanel_Calendar();
+  }
+}
+
+function renderPanel_Games(){
+  panelContent.innerHTML = "";
+  const g = apps.games;
+
+  // Ensure a game is selected/active
+  if(!g.games[g.current]) g.select("pong", {reset:true});
+
+  const mNow = g.meta(g.current);
+  panelSub.textContent = `${mNow.title} • Cursor + Click`;
+
+  const makeTag = (title) => title.split(/\s+/).map(s=>s[0]||"").join("").slice(0,2).toUpperCase();
+
+  const stack = el("div",{style:"display:flex;flex-direction:column;gap:8px;margin-top:10px"},[
+    ...g.catalog.map(m=>{
+      const playing = (m.key === g.current);
+      return el("button",{
+        class: "navbtn " + (playing ? "active" : ""),
+        onclick: ()=>{
+          g.select(m.key, {reset:true});
+          renderPanel_Games();
+        }
+      },[
+        el("div",{class:"left"},[
+          el("div",{class:"icon"},[
+            el("div",{style:"font-family:var(--mono);font-weight:1000;font-size:11px;letter-spacing:.4px;opacity:.92;"},[makeTag(m.title)])
+          ]),
+          el("div",{},[
+            el("div",{class:"label"},[m.title]),
+            el("div",{class:"sublabel"},[m.desc])
+          ])
+        ]),
+        el("div",{class:"right"},[
+          el("span",{},[playing ? "PLAYING" : "PLAY"]),
+          el("span",{},[playing ? "●" : ""])
+        ])
+      ]);
+    })
+  ]);
+
+  const active = g.active();
+  const help = (active && typeof active.helpText === "function") ? active.helpText() : mNow.desc;
+
+  const hs = state.settings.games?.highs || {};
+  const reactionBest = (hs.reactionBestMs === null || hs.reactionBestMs === undefined) ? "--" : `${hs.reactionBestMs} ms`;
+
+  panelContent.append(
+    makeCard("Game Library", [
+      el("div",{class:"hint"},[
+        "Pick a game below, then play in the main viewport.\n",
+        "Cursor moves your paddle/target; click/pinch interacts.\n",
+        "Tip: if you want fewer accidental clicks, toggle Hover Click (top bar)."
+      ]),
+      stack
+    ]),
+    makeCard(`Now Playing: ${mNow.title}`, [
+      el("div",{class:"hint"},[help]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn gold", onclick:()=>g.resetActive()},["Restart"]),
+        el("button",{class:"smallbtn ghost", onclick:()=>{ g.stop(); setMode('dashboard'); panelTitle.textContent='LIVE TELEMETRY'; panelSub.textContent='Cursor • Click • Signals'; renderPanelTelemetry(); }},["Back"])
+      ])
+    ]),
+    makeCard("High Scores", [
+      el("div",{class:"kv2"},[el("span",{},["Breakout"]), el("b",{},[String(hs.breakout || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Bubble Pop"]), el("b",{},[String(hs.bubbles || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Star Catch"]), el("b",{},[String(hs.catch || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Reaction Best"]), el("b",{},[reactionBest])]),
+      el("div",{class:"row"},[
+        el("button",{class:"smallbtn ghost", onclick:()=>{ g.clearScores(); renderPanel_Games(); }},["Clear Scores"])
+      ])
+    ])
+  );
+}
+
+function toast(msg){
+  // Lightweight toast using panelSub, restoring the previous subtitle after a moment.
+  const prev = panelSub.textContent;
+  panelSub.textContent = msg;
+  setTimeout(()=>{
+    if(panelSub.textContent === msg) panelSub.textContent = prev;
+  }, 1800);
+}
+
+// -----------------------------
+// Controllers registry
+// -----------------------------
+const controllers = {
+  Gesture: new GestureController(),
+  Retina: new RetinaController(),
+  Tone: new ToneController(),
+  EMG: new EMGController(),
+  EEG: new EEGController()
+};
+const apps = {
+  notepad: new NotepadApp(),
+  audio: new AudioApp(),
+  video: new VideoApp(),
+  calendar: new CalendarApp(),
+  games: new GamesApp()
+};
+
+// -----------------------------
+// Wait for global constructor (MediaPipe load)
+// -----------------------------
+function waitForGlobal(name, timeoutMs=12000){
+  return new Promise((resolve, reject)=>{
+    const start = nowMs();
+    const tick = ()=>{
+      if(window[name]) return resolve(window[name]);
+      if(nowMs() - start > timeoutMs) return reject(new Error(`Timeout waiting for ${name}`));
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
+// -----------------------------
+// Input Routing + Hover Click
+// -----------------------------
+function updateCursorUI(){
+  cursorEl.style.transform = `translate(${state.cursor.x - 12}px, ${state.cursor.y - 12}px)`;
+  cursorEl.classList.toggle("click", state.cursor.click);
+}
+
+function performClickAtCursor(){
+  if(!state.runtime.osEnabled) return;
+  const elAt = document.elementFromPoint(state.cursor.x, state.cursor.y);
+  if(!elAt) return;
+
+  // avoid clicking the cursor itself
+  if(elAt.id === "cursor") return;
+
+  // attempt click
+  try{
+    elAt.click();
+  }catch(e){}
+}
+
+function updateHoverClick(){
+  if(!state.runtime.hoverEnabled || !state.runtime.osEnabled) {
+    state.cursor.hoverTarget = null;
+    state.cursor.hoverStartMs = 0;
+    return;
+  }
+  const t = nowMs();
+  const elAt = document.elementFromPoint(state.cursor.x, state.cursor.y);
+  if(!elAt || elAt.id === "cursor"){
+    state.cursor.hoverTarget = null;
+    state.cursor.hoverStartMs = 0;
+    return;
+  }
+
+  // Determine if element is "clickable"
+  const clickable = elAt.closest("button, a, [role='button'], .key, .navbtn, .btn, .smallbtn") || elAt;
+  const target = clickable;
+
+  if(state.cursor.hoverTarget !== target){
+    state.cursor.hoverTarget = target;
+    state.cursor.hoverStartMs = t;
+  }else{
+    const dwell = t - state.cursor.hoverStartMs;
+    if(dwell >= state.settings.ui.hoverTime){
+      // Trigger click and reset
+      performClickAtCursor();
+      state.cursor.hoverStartMs = t + 999999; // block until cursor moves
+    }
+  }
+}
+
+// -----------------------------
+// Dashboard / Nav actions
+// -----------------------------
+function wireNav(){
+  const openMap = {
+    internet: ()=>window.open("https://www.google.com", "_blank", "noopener"),
+    games: ()=>apps.games.open(),
+    notepad: ()=>apps.notepad.open(),
+    audio: ()=>apps.audio.open(),
+    video: ()=>apps.video.open(),
+    calendar: ()=>apps.calendar.open(),
+    controlSelector: ()=>controlSelector(),
+    retinaTuner: ()=>tuner_Retina(),
+    emgTuner: ()=>tuner_EMG(),
+    eegTuner: ()=>tuner_EEG(),
+    toneTuner: ()=>tuner_Tone(),
+    gestureTuner: ()=>tuner_Gesture()
+  };
+
+  document.querySelectorAll("[data-open]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const key = btn.dataset.open;
+      openMap[key]?.();
+    });
+  });
+
+  $("#btnToggleHover").onclick = ()=>{
+    state.runtime.hoverEnabled = !state.runtime.hoverEnabled;
+    state.settings.ui.hoverClick = state.runtime.hoverEnabled;
+    saveSettings();
+    $("#btnToggleHover").textContent = state.runtime.hoverEnabled ? "Hover Click" : "Hover OFF";
+    kvHover.textContent = state.runtime.hoverEnabled ? "ON" : "OFF";
+  };
+  $("#btnToggleOS").onclick = ()=>{
+    // cannot do OS-level. toggles in-app automation
+    state.runtime.osEnabled = !state.runtime.osEnabled;
+    kvOS.textContent = state.runtime.osEnabled ? "IN-APP" : "OFF";
+    dotCtl.classList.toggle("ok", state.runtime.osEnabled);
+    dotCtl.classList.toggle("bad", !state.runtime.osEnabled);
+  };
+
+  // hotkeys
+  window.addEventListener("keydown", (e)=>{
+    if(e.key === "F11"){
+      e.preventDefault();
+      $("#btnToggleHover").click();
+    }
+    if(e.key === "F12"){
+      e.preventDefault();
+      $("#btnToggleOS").click();
+    }
+    if(e.altKey){
+      const k = e.key.toLowerCase();
+      if(k === "i") $("#btnInternet").click();
+      if(k === "g") $("#btnGames").click();
+      if(k === "n") $("#btnNotepad").click();
+      if(k === "a") $("#btnAudio").click();
+      if(k === "v") $("#btnVideo").click();
+      if(k === "c") $("#btnCalendar").click();
+      if(k === "s") $("#btnControlSelector").click();
+      if(k === "r") $("#btnRetinaTuner").click();
+      if(k === "e") $("#btnEmgTuner").click();
+      if(k === "q") $("#btnEegTuner").click();
+      if(k === "t") $("#btnToneTuner").click();
+      if(k === "h") $("#btnGestureTuner").click();
+    }
+    if(e.key === "Escape"){
+      if(state.ui.modalOpen) closeModal();
+      else {
+        // back to dashboard
+        setMode("dashboard");
+        panelTitle.textContent = "LIVE TELEMETRY";
+        panelSub.textContent = "Cursor • Click • Signals";
+        renderPanelTelemetry();
+      }
+    }
+  });
+}
+
+// -----------------------------
+// Visualization: background grid + graphs
+// -----------------------------
+function draw(ctx, dt){
+  const rect = viz.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+
+  // Clear
+  ctx.clearRect(0,0,w,h);
+
+  // Soft grid in viewport (for visual alignment)
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = "rgba(140,180,255,.10)";
+  const gs = clamp(state.settings.retina.gridSize || 48, 16, 120);
+  if(state.settings.retina.showGrid){
+    ctx.beginPath();
+    for(let x=0; x<w; x+=gs){
+      ctx.moveTo(x,0); ctx.lineTo(x,h);
+    }
+    for(let y=0; y<h; y+=gs){
+      ctx.moveTo(0,y); ctx.lineTo(w,y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Draw mini pitch bar inside viewport corner
+  drawToneBarInViewport(ctx, w, h);
+
+  // Draw EMG/EEG sparklines inside modal if present
+  if(state.ui.modalOpen){
+    drawModalSparklines();
+    drawToneModalBar();
+    updateModalLiveLabels();
+  }
+
+  // Games overlay
+  apps.games.draw(ctx, w, h);
+
+  // Draw status watermark
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "rgba(242,213,122,.55)";
+  ctx.font = "800 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  ctx.fillText(`MODE: ${state.ui.mode.toUpperCase()} • CURSOR: ${state.settings.active.cursorControl.toUpperCase()} • FPS: ${Math.round(state.runtime.fps)}`, 18, h - 18);
+  ctx.restore();
+}
+
+function drawToneBarInViewport(ctx, w, h){
+  const hz = state.telemetry.tone.hz || 0;
+  const minHz = 50, maxHz = 2000;
+  const t = clamp((hz - minHz)/(maxHz-minHz), 0, 1);
+
+  const barW = 22;
+  const barH = 210;
+  const x = w - 34;
+  const y = 18;
+
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = "rgba(7,20,40,.45)";
+  roundRect(ctx, x-6, y-6, barW+12, barH+12, 14);
+  ctx.fill();
+
+  // border
+  ctx.strokeStyle = "rgba(212,175,55,.22)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, x-6, y-6, barW+12, barH+12, 14);
+  ctx.stroke();
+
+  // fill
+  ctx.fillStyle = "rgba(212,175,55,.85)";
+  const fillH = barH * t;
+  ctx.fillRect(x, y + (barH-fillH), barW, fillH);
+
+  ctx.fillStyle = "rgba(234,242,255,.78)";
+  ctx.font = "800 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  ctx.textAlign = "right";
+  ctx.fillText(hz ? `${Math.round(hz)}Hz` : "--", x-10, y + 10);
+
+  ctx.restore();
+}
+
+function roundRect(ctx, x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// -----------------------------
+// Modal Live Updates
+// -----------------------------
+function updateModalLiveLabels(){
+  // Gesture modal
+  const gesPin = $("#gesPinch");
+  if(gesPin){
+    gesPin.textContent = state.telemetry.gesture.pinch ? "YES" : "NO";
+    const p = state.cursor;
+    $("#gesPos").textContent = `${Math.round(p.x)} , ${Math.round(p.y)}`;
+    $("#gesCam").textContent = state.settings.gesture.simMode ? "SIM" : (state.runtime.camReady ? "READY" : "OFF");
+    $("#gesLive").textContent = state.settings.gesture.simMode
+      ? "SIM running."
+      : (state.runtime.camReady ? "Camera ready. Show one hand." : "Waiting for camera permission…");
+  }
+
+  // Retina modal
+  const rHas = $("#retinaHas");
+  if(rHas){
+    rHas.textContent = state.telemetry.retina.has ? "YES" : "NO";
+    $("#retinaX").textContent = state.telemetry.retina.has ? String(Math.round(state.telemetry.retina.x)) : "--";
+    $("#retinaY").textContent = state.telemetry.retina.has ? String(Math.round(state.telemetry.retina.y)) : "--";
+    $("#retinaLive").textContent = state.settings.retina.simMode
+      ? "SIM running."
+      : (state.runtime.camReady ? "Camera ready. Track your face." : "Waiting for camera permission…");
+  }
+
+  // EMG
+  const emgConn = $("#emgConn");
+  if(emgConn){
+    emgConn.textContent = controllers.EMG.connected ? "YES" : "NO";
+    $("#emgLive").textContent = state.settings.emg.simMode
+      ? "SIM running"
+      : (controllers.EMG.connected ? "Serial streaming" : "Disconnected");
+  }
+
+  // EEG
+  const eegConn = $("#eegConn");
+  if(eegConn){
+    eegConn.textContent = controllers.EEG.connected ? "YES" : "NO";
+  }
+
+  // Tone
+  const toneHz = $("#toneHz");
+  if(toneHz){
+    toneHz.textContent = state.telemetry.tone.hz ? `${Math.round(state.telemetry.tone.hz)} Hz` : "--";
+    const tc = controllers.Tone;
+    const dir = tc.tuning.directions[tc.tuning.directionIndex] || "--";
+    $("#toneTuneState").textContent = tc.tuning.active ? `TUNING: ${dir.toUpperCase()}` : "OFF";
+    $("#toneLive").textContent = state.settings.tone.simMode
+      ? "SIM mode"
+      : (state.runtime.micReady ? "Mic active" : "Mic idle / blocked");
+  }
+}
+
+function drawModalSparklines(){
+  // EMG
+  drawSpark("emgSpark1", controllers.EMG.hist1.toArray(), 0, 100);
+  drawSpark("emgSpark2", controllers.EMG.hist2.toArray(), 0, 100);
+  drawSpark("emgSpark3", controllers.EMG.hist3.toArray(), 0, 100);
+  const e1 = $("#emgSpark1_val");
+  if(e1){
+    e1.textContent = String(Math.round(state.telemetry.emg.s1));
+    $("#emgSpark2_val").textContent = String(Math.round(state.telemetry.emg.s2));
+    $("#emgSpark3_val").textContent = String(Math.round(state.telemetry.emg.s3));
+  }
+
+  // EEG
+  drawSpark("eegSparkL", controllers.EEG.histL.toArray(), -1, 1);
+  drawSpark("eegSparkR", controllers.EEG.histR.toArray(), -1, 1);
+  drawSpark("eegSparkC", controllers.EEG.histC.toArray(), -1, 1);
+  const l = $("#eegSparkL_val");
+  if(l){
+    l.textContent = fmt(state.telemetry.eeg.l,2);
+    $("#eegSparkR_val").textContent = fmt(state.telemetry.eeg.r,2);
+    $("#eegSparkC_val").textContent = fmt(state.telemetry.eeg.c,2);
+  }
+}
+
+function drawSpark(canvasId, data, minV, maxV){
+  const c = document.getElementById(canvasId);
+  if(!c) return;
+  const ctx = c.getContext("2d");
+  const w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h);
+
+  // background
+  ctx.fillStyle = "rgba(7,20,40,.32)";
+  ctx.fillRect(0,0,w,h);
+
+  if(data.length < 2) return;
+
+  ctx.strokeStyle = "rgba(242,213,122,.70)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(let i=0;i<data.length;i++){
+    const x = (i/(data.length-1))*w;
+    const t = (data[i]-minV)/(maxV-minV);
+    const y = h - clamp(t,0,1)*h;
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // baseline
+  ctx.strokeStyle = "rgba(140,180,255,.14)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+}
+
+function drawToneModalBar(){
+  const c = $("#toneBar");
+  if(!c) return;
+  const ctx = c.getContext("2d");
+  const w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "rgba(7,20,40,.32)";
+  ctx.fillRect(0,0,w,h);
+
+  const hz = state.telemetry.tone.hz || 0;
+  const minHz = 50, maxHz = 2000;
+  const t = clamp((hz - minHz)/(maxHz-minHz), 0, 1);
+
+  // bar
+  const barW = 26;
+  const barH = h - 24;
+  const x = 18;
+  const y = 12;
+
+  ctx.fillStyle = "rgba(140,180,255,.12)";
+  roundRectPx(ctx, x-6, y-6, barW+12, barH+12, 12);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(212,175,55,.22)";
+  ctx.lineWidth = 1;
+  roundRectPx(ctx, x-6, y-6, barW+12, barH+12, 12);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(212,175,55,.85)";
+  const fillH = barH * t;
+  ctx.fillRect(x, y + (barH - fillH), barW, fillH);
+
+  // tuned markers
+  const tuned = state.settings.tone.tuned;
+  const dirs = [["UP", tuned.up],["DOWN", tuned.down],["LEFT", tuned.left],["RIGHT", tuned.right]];
+  ctx.fillStyle = "rgba(234,242,255,.82)";
+  ctx.font = "800 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  ctx.textAlign = "left";
+  let yy = 20;
+  for(const [name,val] of dirs){
+    ctx.fillText(`${name}: ${val}Hz`, 70, yy);
+    yy += 22;
+  }
+
+  ctx.fillStyle = "rgba(234,242,255,.92)";
+  ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  ctx.fillText(hz ? `LIVE: ${Math.round(hz)}Hz` : "LIVE: --", 70, h - 14);
+}
+
+function roundRectPx(ctx, x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// -----------------------------
+// Main Loop
+// -----------------------------
+function tick(){
+  const t = nowMs();
+  const dt = clamp(t - state.runtime.lastFrameMs, 4, 60); // clamp dt
+  state.runtime.lastFrameMs = t;
+
+  // FPS
+  const fps = 1000 / dt;
+  state.runtime.fps = lerp(state.runtime.fps, fps, 0.08);
+
+  // Update controls
+  const out = controlManager.update(dt);
+
+  // Apply cursor movement
+  if(out.setPos){
+    state.cursor.x = out.setPos[0];
+    state.cursor.y = out.setPos[1];
+  }else{
+    state.cursor.x += out.dx || 0;
+    state.cursor.y += out.dy || 0;
+  }
+  state.cursor.x = clamp(state.cursor.x, 0, window.innerWidth);
+  state.cursor.y = clamp(state.cursor.y, 0, window.innerHeight);
+
+  // Click edge detection
+  state.cursor.lastClick = state.cursor.click;
+  state.cursor.click = !!out.click;
+  state.cursor.clickEdge = state.cursor.click && !state.cursor.lastClick;
+  if(state.cursor.clickEdge){
+    performClickAtCursor();
+  }
+
+  // Hover click
+  updateHoverClick();
+
+  // Games update
+  apps.games.update(dt);
+
+  // Update cursor overlay
+  updateCursorUI();
+
+  // If the Control Selector modal is open, keep its Sim Bus panel live
+  updateControlSelectorLive();
+
+  // Telemetry panel refresh periodically if on dashboard
+  if(state.ui.mode === "dashboard"){
+    // update lightweight live values in place
+    const tCur = $("#tCur");
+    if(tCur) tCur.textContent = `${Math.round(state.cursor.x)} , ${Math.round(state.cursor.y)}`;
+    const tClk = $("#tClk");
+    if(tClk) tClk.textContent = state.cursor.click ? "YES" : "NO";
+    const tPinch = $("#tPinch");
+    if(tPinch) tPinch.textContent = state.telemetry.gesture.pinch ? "YES":"NO";
+    const tRet = $("#tRet");
+    if(tRet) tRet.textContent = state.telemetry.retina.has ? `${Math.round(state.telemetry.retina.x)} , ${Math.round(state.telemetry.retina.y)}` : "--";
+    const tRetHas = $("#tRetHas");
+    if(tRetHas) tRetHas.textContent = state.telemetry.retina.has ? "YES":"NO";
+    const tTone = $("#tTone");
+    if(tTone) tTone.textContent = state.telemetry.tone.hz ? `${Math.round(state.telemetry.tone.hz)} Hz` : "--";
+    const tEmg = $("#tEmg");
+    if(tEmg) tEmg.textContent = `${Math.round(state.telemetry.emg.s1)} / ${Math.round(state.telemetry.emg.s2)} / ${Math.round(state.telemetry.emg.s3)}`;
+    const tEeg = $("#tEeg");
+    if(tEeg) tEeg.textContent = `${fmt(state.telemetry.eeg.l,2)} / ${fmt(state.telemetry.eeg.r,2)} / ${fmt(state.telemetry.eeg.c,2)}`;
+    const tEmgConn = $("#tEmgConn");
+    if(tEmgConn) tEmgConn.textContent = state.telemetry.emg.connected ? "YES":"NO";
+    const tEegConn = $("#tEegConn");
+    if(tEegConn) tEegConn.textContent = state.telemetry.eeg.connected ? "YES":"NO";
+  }
+
+  // Draw viewport
+  const ctx = viz.getContext("2d");
+  draw(ctx, dt);
+
+  requestAnimationFrame(tick);
+}
+
+// -----------------------------
+// Boot
+// -----------------------------
+function boot(){
+  resizeCanvas();
+  wireNav();
+
+  // initialize top toggles from settings
+  state.runtime.hoverEnabled = !!state.settings.ui.hoverClick;
+  state.runtime.osEnabled = true;
+  kvHover.textContent = state.runtime.hoverEnabled ? "ON":"OFF";
+  kvOS.textContent = "IN-APP";
+  badgeControl.textContent = state.settings.active.cursorControl.toUpperCase();
+  kvCursor.textContent = state.settings.active.cursorControl.toUpperCase();
+
+  // Enable controllers according to settings
+  controlManager.enable("Gesture", state.settings.gesture.enabled);
+  controlManager.enable("Retina", state.settings.retina.enabled);
+  controlManager.enable("Tone", state.settings.tone.enabled);
+  controlManager.enable("EMG", state.settings.emg.enabled);
+  controlManager.enable("EEG", state.settings.eeg.enabled);
+
+  // Start with dashboard telemetry
+  setMode("dashboard");
+  renderPanelTelemetry();
+
+  // Clock
+  setInterval(()=>{
+    const d = new Date();
+    clockEl.textContent = d.toLocaleTimeString(undefined, {hour12:false});
+  }, 250);
+
+  // Dots
+  dotCam.classList.add("bad");
+  dotMic.classList.add("bad");
+
+  // Prime permissions on first user gesture (recommended by browsers).
+  // This makes the active cursor controller start immediately after the first click/tap.
+  window.addEventListener("pointerdown", async () => {
+    try{
+      await controlManager.ensure(state.settings.active.cursorControl);
+      // For camera-based controls, set the dots if permission granted.
+    }catch(e){}
+  }, { once:true });
+
+  // Run loop
+  requestAnimationFrame(tick);
+}
+
+boot();
+
+</script>
+</body>
+</html>
