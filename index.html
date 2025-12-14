@@ -412,8 +412,8 @@
     .composer-actions .send { width:56px; height:56px; }
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
-            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn { cursor:pointer; }
+            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -990,6 +990,7 @@
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
+          <a id="omconsole-btn" class="chip" href="omconsole_render_single_games_ROUTING.html" title="Open OMConsole">OMConsole</a>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
         </div>
       <div class="const-buttons" hidden>
