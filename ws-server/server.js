@@ -214,6 +214,9 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
+app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
+  res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
+);
 app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
 app.post("/push/subscribe", (req, res) => {
   const { username, subscription } = req.body || {};
