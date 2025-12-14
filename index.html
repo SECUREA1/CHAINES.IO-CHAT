@@ -648,6 +648,14 @@
     .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
     .popup-actions button img { width:24px; height:24px; display:block; }
 
+    .omconsole-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); z-index:20; padding:16px; }
+    .omconsole-modal__dialog { width:min(1200px, 96vw); height:min(800px, 92vh); background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
+    .omconsole-modal__header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 10%); }
+    .omconsole-modal__title { margin:0; font-size:16px; }
+    .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
+    .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
+    .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
+
     .live-btn {
       display:inline-flex;
       align-items:center;
@@ -990,7 +998,7 @@
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
-          <a id="omconsole-btn" class="chip" href="omconsole_render_single_games_ROUTING.html" title="Open OMConsole">OMConsole</a>
+          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
         </div>
       <div class="const-buttons" hidden>
@@ -1062,6 +1070,16 @@
     <div class="popup-content">
       <p id="popup-text"></p>
       <div id="popup-actions" class="popup-actions"></div>
+    </div>
+  </div>
+
+  <div id="omconsole-modal" class="omconsole-modal" hidden>
+    <div class="omconsole-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="omconsole-title">
+      <div class="omconsole-modal__header">
+        <h2 id="omconsole-title" class="omconsole-modal__title">OMConsole</h2>
+        <button id="omconsole-close" class="omconsole-close" type="button" aria-label="Close OMConsole">Close</button>
+      </div>
+      <iframe id="omconsole-frame" class="omconsole-modal__frame" src="omconsole_render_single_games_ROUTING.html" title="OMConsole" loading="lazy" allow="camera; microphone; display-capture"></iframe>
     </div>
   </div>
 
@@ -1238,6 +1256,10 @@
     const listenerCountSpan = el('#listener-count-number');
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
+    const omconsoleBtn = el('#omconsole-btn');
+    const omconsoleModal = el('#omconsole-modal');
+    const omconsoleFrame = el('#omconsole-frame');
+    const omconsoleClose = el('#omconsole-close');
     const streamsEl = el('#streams');
     const streams = {};
     const guestMap = {};
@@ -1310,6 +1332,41 @@
 
     chatToggle.addEventListener('click', () => {
       document.body.classList.toggle('chat-open');
+    });
+
+    const showOmconsole = () => {
+      if(!omconsoleModal) return;
+      omconsoleModal.hidden = false;
+      omconsoleFrame?.focus?.();
+    };
+
+    const hideOmconsole = () => {
+      if(!omconsoleModal) return;
+      omconsoleModal.hidden = true;
+      omconsoleBtn?.focus?.();
+    };
+
+    if(omconsoleBtn){
+      omconsoleBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        showOmconsole();
+      });
+    }
+
+    if(omconsoleClose){
+      omconsoleClose.addEventListener('click', hideOmconsole);
+    }
+
+    if(omconsoleModal){
+      omconsoleModal.addEventListener('click', (event) => {
+        if(event.target === omconsoleModal) hideOmconsole();
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if(event.key === 'Escape' && omconsoleModal && !omconsoleModal.hidden){
+        hideOmconsole();
+      }
     });
 
     if(cameraBtn){
