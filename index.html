@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-  <script type="module" src="static/wallet.js"></script>
   <style>
       :root {
         --bg: #0b1024;
@@ -63,44 +62,41 @@
       user-select: none;
     }
 
-    .token-gate {
-      position: fixed;
-      inset: 0;
-      display: flex;
+    .auth-hero {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      border-radius: 16px;
+      background: radial-gradient(140% 120% at 80% 10%, color-mix(in oklab, var(--accent-2), transparent 30%), transparent 60%),
+        linear-gradient(135deg, color-mix(in oklab, var(--accent-2), transparent 0%), color-mix(in oklab, #0e1b3b, transparent 0%));
+      border: 1px solid color-mix(in oklab, var(--gold), transparent 45%);
+      box-shadow: inset 0 0 50px rgba(16, 42, 92, 0.35), 0 10px 40px rgba(0, 0, 0, 0.35);
+      color: var(--fg);
+    }
+
+    .auth-hero__eyebrow {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: color-mix(in oklab, var(--gold), #ffffff 40%);
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      padding: clamp(18px, 4vw, 48px);
-      background: radial-gradient(1200px 900px at 20% -5%, color-mix(in oklab, var(--accent-2), transparent 65%), transparent 68%),
-        radial-gradient(1200px 900px at 90% 10%, color-mix(in oklab, var(--accent), transparent 70%), transparent 68%),
-        radial-gradient(800px 700px at 50% 50%, color-mix(in oklab, var(--gold), transparent 92%), transparent 70%),
-        rgba(3, 8, 26, 0.94);
-      backdrop-filter: blur(16px) saturate(110%);
-      z-index: 9999;
-      overflow: hidden;
+      gap: 6px;
     }
 
-    .token-gate::before,
-    .token-gate::after {
-      content: "";
-      position: absolute;
-      inset: 12%;
-      border-radius: 999px;
-      background: radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--gold), transparent 70%), transparent 70%);
-      opacity: 0.18;
-      filter: blur(42px);
-      transform: rotate(8deg);
-      pointer-events: none;
+    .auth-hero__title {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.2px;
     }
 
-    .token-gate::after {
-      inset: 20%;
-      opacity: 0.12;
-      transform: rotate(-6deg);
-    }
-
-    .token-gate[aria-hidden="true"],
-    .token-gate.token-gate--hidden {
-      display: none;
+    .auth-hero__lede {
+      margin: 0;
+      font-size: 14px;
+      color: color-mix(in oklab, var(--fg), var(--muted) 35%);
+      line-height: 1.6;
     }
 
     .token-gate__panel {
@@ -938,48 +934,6 @@
   </style>
 </head>
 <body class="auth-lock">
-  <div id="token-gate" class="token-gate" role="dialog" aria-modal="true" aria-labelledby="token-gate-title" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553">
-    <div class="token-gate__panel">
-      <div class="token-gate__art" aria-hidden="true">
-        <p class="token-gate__eyebrow">CHAINeS access couture</p>
-        <h2 class="token-gate__headline">Gilded gateway to CHAINeS POST</h2>
-        <p class="token-gate__lede">Step through a navy-and-gold vault that keeps the signal clean. Your CHAINeS token is the shimmering pass to the experience.</p>
-        <div class="token-gate__tags">
-          <span class="token-gate__tag">Blue-chip verification</span>
-          <span class="token-gate__tag">Cardano native</span>
-          <span class="token-gate__tag">Fashionably secure</span>
-        </div>
-      </div>
-      <div class="token-gate__content">
-        <p class="token-gate__eyebrow">Access verification</p>
-        <h2 id="token-gate-title" class="token-gate__title">Verify your token to continue</h2>
-        <p class="token-gate__copy">Connect a supported Cardano wallet holding the <strong>CHAINeS</strong> access token to glide into the lounge. We’ll flash your balance, validate on-chain, and unlock the feed.</p>
-        <div class="token-gate__wallets">
-          <label for="token-gate-wallet">Select a wallet</label>
-          <select id="token-gate-wallet"></select>
-        </div>
-        <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
-        <button id="token-gate-connect" class="token-gate__button" type="button" data-action="connect">
-          <img src="static/wallet.svg" alt="" width="24" height="24" aria-hidden="true" />
-          Enter with wallet
-          <span class="token-gate__button-note">Golden validation in seconds</span>
-        </button>
-        <div class="token-gate__actions">
-          <p class="token-gate__hint">No token yet? Secure a CHAINeS pass and keep your login as chic as your signal.</p>
-          <a class="token-gate__button token-gate__button--ghost" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">
-            Shop the access token
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
-    <img src="static/hologhost.svg" alt="" aria-hidden="true" />
-    <div class="ghost-ticker__text">
-      <span class="ghost-ticker__message" data-role="message"></span>
-      <span class="ghost-ticker__total" data-role="total" hidden></span>
-    </div>
-  </div>
   <div class="wrap">
     <header>
         <div class="bar">
@@ -1086,15 +1040,17 @@
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
-      <h2>Welcome to CHAINeS POST</h2>
-      <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
+      <div class="auth-hero">
+        <p class="auth-hero__eyebrow">CHAINeS lounge</p>
+        <h2 class="auth-hero__title">Step into the feed</h2>
+        <p class="auth-hero__lede">Sign in to drop messages, stream, and vibe with the crew. Not ready to log in? Slide in as a guest—no token required.</p>
+      </div>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
-        <a class="btn primary" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">Buy Now</a>
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
