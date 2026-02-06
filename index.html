@@ -437,15 +437,7 @@
     .stream .thumb { width:100%; border-radius:8px; }
     .stream.open .thumb { display:none; }
     .stream .video { display:none; }
-    .stream.open .video {
-      display:grid;
-      gap:8px;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      align-items:stretch;
-    }
-    .stream.open .video.call-layout {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    .stream.open .video { display:block; }
     .stream .tune-btn { margin-top:6px; width:100%; }
     .stream .join-btns {
       position:absolute;
@@ -465,7 +457,24 @@
       aspect-ratio:16/9;
       object-fit:cover;
     }
-    .stream.open .video.has-guest { display:grid; }
+    .stream.open .video.has-guest { display:flex; }
+    .stream.open .video.has-guest video {
+      width:50%;
+      height:100%;
+      max-width:50%;
+      max-height:100%;
+      border-radius:0;
+      object-fit:contain;
+    }
+    @media (orientation: portrait) {
+      .stream.open .video.has-guest { flex-direction:column; }
+      .stream.open .video.has-guest video {
+        width:100%;
+        height:50%;
+        max-width:100%;
+        max-height:50%;
+      }
+    }
     .stream.open .video.pip { position:relative; display:block; }
     .stream.open .video.pip video {
       width:100%;
@@ -489,12 +498,28 @@
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
     #video-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       padding: 10px;
     }
+    #video-container.has-guest {
+      flex-wrap: nowrap;
+    }
+    #video-container.has-guest video {
+      flex: 1 1 50%;
+      max-width: 50%;
+    }
+    @media (orientation: portrait) {
+      #video-container.has-guest {
+        flex-direction: column;
+      }
+      #video-container.has-guest video {
+        max-width: 100%;
+      }
+    }
     #video-container video {
+      max-width: 240px;
       border-radius: 12px;
       border: 1px solid var(--lining);
       width: 100%;
@@ -1410,8 +1435,7 @@
             camIcon.title = 'Camera';
             li.appendChild(camIcon);
             liveIds.add(id);
-            const tileId = guestMap[id] || id;
-            if(tileId === id) ensureStreamThumb(id, name, id === clientId);
+            ensureStreamThumb(id, name, id === clientId);
           }
           if(u.mic){
             li.classList.add('mic-user');
@@ -1464,10 +1488,8 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
-        div.dataset.streamId = id;
         div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
-        videoBox.dataset.streamId = id;
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
         const feed = div.querySelector('.stream-feed');
@@ -2087,8 +2109,6 @@
             tileEl.setAttribute('playsinline','');
             tileEl.controls = true;
             selfStream.video.innerHTML = '';
-            tileEl.dataset.peer = clientId;
-            tileEl.dataset.role = 'host';
             selfStream.video.appendChild(tileEl);
             if(!audioOnly){
               attachCaptions(tileEl);
@@ -2367,119 +2387,206 @@
       function updateVideoLayout(target){
         const box = target || videoContainer;
         if(!box) return;
-        const videos = box.querySelectorAll('video');
-        const count = videos.length;
-        const ownerId = box.dataset && box.dataset.streamId;
-        if(ownerId && count > 1){
-          const hostVid = box.querySelector(`video[data-peer="${ownerId}"]`) || box.querySelector('video[data-role="host"]');
-          if(hostVid) box.appendChild(hostVid);
-        }
+        const count = box.querySelectorAll('video').length;
         box.classList.toggle('has-guest', count > 1);
-        box.classList.toggle('call-layout', !!ownerId && count > 1);
-      }
-
-      function resetMediaPanels(){
-        updateVideoLayout();
-        for(const id in streams){
-          const tile = streams[id];
-          if(!tile || !tile.video) continue;
-          const hasMedia = tile.video.querySelector('video, audio');
-          tile.container.classList.toggle('open', !!hasMedia || tile.self || tile.started);
-          updateVideoLayout(tile.video);
-        }
-      }
-
-      function mountRemoteVideo(box, peerId, stream){
-        if(!box || !stream) return null;
-        let vid = box.querySelector(`video[data-peer="${peerId}"]`);
-        if(!vid){
-          vid = document.createElement('video');
-          vid.dataset.peer = peerId;
-          vid.autoplay = true;
-          vid.setAttribute('autoplay','');
-          vid.playsInline = true;
-          vid.setAttribute('playsinline','');
-          vid.controls = true;
-          attachCaptions(vid);
-          box.appendChild(vid);
-        }
-        const ownerId = box.dataset && box.dataset.streamId;
-        vid.dataset.role = ownerId && ownerId === peerId ? 'host' : 'guest';
-        if(vid.srcObject !== stream) vid.srcObject = stream;
-        vid.muted = false;
-        vid.removeAttribute('muted');
-        tryPlay(vid);
-        return vid;
-      }
-
-      function mountRemoteAudio(box, peerId, stream){
-        if(!box || !stream) return null;
-        let aud = box.querySelector(`audio[data-peer="${peerId}"]`);
-        if(!aud){
-          aud = document.createElement('audio');
-          aud.dataset.peer = peerId;
-          aud.autoplay = true;
-          aud.controls = true;
-          aud.muted = false;
-          aud.removeAttribute('muted');
-          box.appendChild(aud);
-        }
-        if(aud.srcObject !== stream) aud.srcObject = stream;
-        tryPlay(aud);
-        return aud;
       }
 
     function swapVideos(){}
-function handleOffer(msg){
+
+      function startWatching(id){
+        activeRooms.add(id);
+        currentHost = id;
+        if(!broadcasting){
+          showStream();
+        }
+        sendSignal({ type: 'watcher', id });
+      }
+
+      function endWatching(id){
+        activeRooms.delete(id);
+        if(activeRooms.size === 0){
+          showChat();
+          currentHost = null;
+        } else if(currentHost === id){
+          currentHost = [...activeRooms][0];
+        }
+        sendSignal({ type: 'unwatcher', id });
+      }
+
+    function handleWatcher(id){
+      const pc = new RTCPeerConnection();
+      peerConnections[id] = pc;
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
+      pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
+        sendSignal({ type:'offer', id, sdp: pc.localDescription });
+      });
+    }
+      function handleOffer(msg){
         let pc = peerConnections[msg.id];
         if(!pc){
           pc = new RTCPeerConnection();
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
             const stream = ev.streams[0];
-            const peerId = msg.id;
-            if(!stream) return;
-
-            const mappedHostId = guestMap[peerId] || null;
-            const tileId = mappedHostId || peerId;
-            const tile = streams[tileId] && streams[tileId].video;
-
-            if(ev.track.kind === 'video'){
-              if(tile) mountRemoteVideo(tile, peerId, stream);
-              if(broadcasting) mountRemoteVideo(videoContainer, peerId, stream);
-
-              if(streams[tileId]){
-                streams[tileId].container.classList.add('open');
-                streams[tileId].started = true;
-                if(!streams[tileId].vid) streams[tileId].vid = tile && tile.querySelector(`video[data-peer="${peerId}"]`);
-              }
-
-              if(broadcasting && !joinApproved){
+            if(broadcasting && !joinApproved){
+              if(ev.track.kind === 'video'){
+                const vid = document.createElement('video');
+                vid.srcObject = stream;
+                vid.autoplay = true;
+                vid.setAttribute('autoplay','');
+                vid.playsInline = true;
+                vid.setAttribute('playsinline','');
+                vid.controls = true;
+                attachCaptions(vid);
+                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                liveTrack.mode = 'showing';
+                videoContainer.appendChild(vid);
+                updateVideoLayout();
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
                 for(const id in peerConnections){
-                  if(id === peerId) continue;
+                  if(id === msg.id) continue;
                   try{
                     const pc2 = peerConnections[id];
                     pc2.addTrack(ev.track, stream);
                     pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
                       sendSignal({ type:'offer', id, sdp: pc2.localDescription });
                     });
-                  } catch {}
+                  }catch{}
+                }
+                vid.muted = false;                 // remote video: let audio be heard
+                vid.removeAttribute('muted');
+                tryPlay(vid);                      // will queue for unlock if blocked
+                pc._videos = pc._videos || [];
+                pc._videos.push(vid);
+              } else if(ev.track.kind === 'audio'){
+                try{ localStream && localStream.addTrack(ev.track); }catch{}
+                // Prefer a single <audio> sink in the stage during broadcast
+                if(broadcasting){
+                  let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
+                  if(!stageAud){
+                    stageAud = document.createElement('audio');
+                    stageAud.autoplay = true;
+                    stageAud.controls = false;
+                    stageAud.muted = false;
+                    stageAud.removeAttribute('muted');
+                    stageAud.dataset.guest = msg.id;
+                    videoContainer.appendChild(stageAud);
+                  }
+                  stageAud.srcObject = ev.streams[0];
+                  tryPlay(stageAud);
+                }
+
+                // Keep tile audio for viewers too (as you already had)
+                let target = streams[msg.id];
+                let box = target && target.video;
+                if(!box && guestMap[msg.id]){
+                  target = streams[guestMap[msg.id]];
+                  box = target && target.video;
+                }
+                if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                  const aud = document.createElement('audio');
+                  aud.srcObject = ev.streams[0];
+                  aud.autoplay = true;
+                  aud.controls = true;
+                  aud.muted = false;                 // remote audio should be audible
+                  aud.removeAttribute('muted');
+                  aud.dataset.guest = msg.id;
+                  box.appendChild(aud);
+                  tryPlay(aud);
                 }
               }
-            } else if(ev.track.kind === 'audio'){
-              if(tile) mountRemoteAudio(tile, peerId, stream);
-              if(broadcasting) mountRemoteAudio(videoContainer, peerId, stream);
-
-              if(broadcasting && !joinApproved){
-                try{ localStream && localStream.addTrack(ev.track); }catch{}
-              }
+            } else {
+              if(ev.track.kind === 'video'){
+                if(guestMap[msg.id]){
+                  const hostTarget = streams[guestMap[msg.id]];
+                  const guestTarget = streams[msg.id];
+                  if(hostTarget && hostTarget.video){
+                    const hostVid = document.createElement('video');
+                    hostVid.srcObject = stream;
+                    hostVid.autoplay = true;
+                    hostVid.setAttribute('autoplay','');
+                    hostVid.playsInline = true;
+                    hostVid.setAttribute('playsinline','');
+                    hostVid.controls = true;
+                    attachCaptions(hostVid);
+                    hostTarget.video.appendChild(hostVid);
+                    updateVideoLayout(hostTarget.video);
+                    hostTarget.guestVid = hostVid;
+                    hostVid.muted = false;
+                    hostVid.removeAttribute('muted');
+                    tryPlay(hostVid);
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(hostVid);
+                  }
+                  if(guestTarget && guestTarget.video){
+                    const guestVid = document.createElement('video');
+                    guestVid.srcObject = stream;
+                    guestVid.autoplay = true;
+                    guestVid.setAttribute('autoplay','');
+                    guestVid.playsInline = true;
+                    guestVid.setAttribute('playsinline','');
+                    guestVid.controls = true;
+                    attachCaptions(guestVid);
+                    const liveTrack = guestVid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                    liveTrack.mode = 'showing';
+                    guestTarget.video.appendChild(guestVid);
+                    updateVideoLayout(guestTarget.video);
+                    if(!guestTarget.vid) guestTarget.vid = guestVid;
+                    guestTarget.captionTrack = liveTrack;
+                    guestVid.muted = false;
+                    guestVid.removeAttribute('muted');
+                    tryPlay(guestVid);
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(guestVid);
+                  }
+                } else {
+                  const vid = document.createElement('video');
+                  vid.srcObject = stream;
+                  vid.autoplay = true;
+                  vid.setAttribute('autoplay','');
+                  vid.playsInline = true;
+                  vid.setAttribute('playsinline','');
+                  vid.controls = true;
+                  attachCaptions(vid);
+                  const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                  liveTrack.mode = 'showing';
+                  const target = streams[msg.id];
+                  const box = target && target.video;
+                  if(box){
+                    box.appendChild(vid);
+                    updateVideoLayout(box);
+                  }
+                  vid.muted = false;
+                  vid.removeAttribute('muted');
+                  tryPlay(vid);
+                  if(streams[msg.id]){
+                    if(!streams[msg.id].vid) streams[msg.id].vid = vid;
+                    streams[msg.id].captionTrack = liveTrack;
+                  }
+                  pc._videos = pc._videos || [];
+                  pc._videos.push(vid);
+                }
+                } else if(ev.track.kind === 'audio'){
+                  let target = streams[msg.id];
+                  let box = target && target.video;
+                  if(!box && guestMap[msg.id]){
+                    target = streams[guestMap[msg.id]];
+                    box = target && target.video;
+                  }
+                  if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                    const aud = document.createElement('audio');
+                    aud.srcObject = stream;
+                    aud.autoplay = true;
+                    aud.controls = true;
+                    aud.muted = false;                 // remote audio should be audible
+                    aud.removeAttribute('muted');
+                    aud.dataset.guest = msg.id;
+                    box.appendChild(aud);
+                    tryPlay(aud);
+                  }
+                }
             }
-
-            pc._videos = pc._videos || [];
-            const staged = videoContainer.querySelector(`video[data-peer="${peerId}"]`);
-            if(staged && !pc._videos.includes(staged)) pc._videos.push(staged);
-            resetMediaPanels();
           };
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
         }
@@ -2506,7 +2613,7 @@ function handleOffer(msg){
           pc.close();
           delete peerConnections[msg.id];
         }
-        const stageAud = videoContainer.querySelector(`audio[data-peer="${msg.id}"]`);
+        const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
         for(const id in peerConnections){
           const senders = peerConnections[id].getSenders();
@@ -2572,8 +2679,7 @@ function handleOffer(msg){
       }
       startBroadcast();
       showStream();
-      ensureStageVideo(pendingJoinHost);
-      resetMediaPanels();
+      updateVideoLayout();
       if(stream) updateVideoLayout(stream.video);
       // Keep pendingJoinHost so chat stays in host room
     }
@@ -2599,33 +2705,15 @@ function handleOffer(msg){
 
     function handleMicApproved(){
       micApproved = true;
-      ensureStageVideo(pendingMicHost);
-      resetMediaPanels();
+      const stream = streams[pendingMicHost];
+      const hostVid = stream && stream.video.querySelector('video');
+      if(hostVid){
+        videoContainer.appendChild(hostVid);
+      }
+      updateVideoLayout();
       startBroadcast(null, true);
       // Clear pending mic host to ensure the broadcast persists
       pendingMicHost = null;
-    }
-
-    function ensureStageVideo(id){
-      if(!id) return;
-      if(videoContainer.querySelector(`video[data-stage-peer="${id}"]`)) return;
-      const stream = streams[id];
-      const sourceVid = stream && stream.video && stream.video.querySelector('video');
-      if(!sourceVid || !sourceVid.srcObject) return;
-      const stageVid = document.createElement('video');
-      stageVid.srcObject = sourceVid.srcObject;
-      stageVid.dataset.stagePeer = id;
-      stageVid.autoplay = true;
-      stageVid.setAttribute('autoplay','');
-      stageVid.playsInline = true;
-      stageVid.setAttribute('playsinline','');
-      stageVid.controls = true;
-      stageVid.muted = false;
-      stageVid.removeAttribute('muted');
-      attachCaptions(stageVid);
-      videoContainer.appendChild(stageVid);
-      tryPlay(stageVid);
-      updateVideoLayout();
     }
 
     function handleMicDenied(){
@@ -2647,16 +2735,23 @@ function handleOffer(msg){
         // Other viewers watch the guest separately so their video can be merged
         if(id !== clientId) startWatching(id);
       }
-      if(streams[id] && !streams[id].self){
-        streams[id].container.remove();
-        delete streams[id];
+      if(!streams[id]){
+        const u = userCache && userCache.find(u => (typeof u === 'string' ? u : u.id) === id);
+        const name = typeof u === 'string' ? u : (u && u.name) || id;
+        ensureStreamThumb(id, name, id === clientId);
+      }
+      if(streams[id]){
+        streams[id].container.classList.add('open');
+        streams[id].started = true;
       }
       const hostBox = hostStream && hostStream.video;
-      if(hostBox){
-        hostStream.container.classList.add('open');
+      const guestBox = streams[id] && streams[id].video;
+      if(hostBox && guestBox){
+        const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
+        if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
       }
       showStream();
-      resetMediaPanels();
+      updateVideoLayout();
     }
 
     function handleInvite({ id, mode, user }) {
