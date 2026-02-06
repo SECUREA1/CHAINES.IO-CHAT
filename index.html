@@ -2679,6 +2679,7 @@
       }
       startBroadcast();
       showStream();
+      ensureStageVideo(pendingJoinHost);
       updateVideoLayout();
       if(stream) updateVideoLayout(stream.video);
       // Keep pendingJoinHost so chat stays in host room
@@ -2705,15 +2706,33 @@
 
     function handleMicApproved(){
       micApproved = true;
-      const stream = streams[pendingMicHost];
-      const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid){
-        videoContainer.appendChild(hostVid);
-      }
+      ensureStageVideo(pendingMicHost);
       updateVideoLayout();
       startBroadcast(null, true);
       // Clear pending mic host to ensure the broadcast persists
       pendingMicHost = null;
+    }
+
+    function ensureStageVideo(id){
+      if(!id) return;
+      if(videoContainer.querySelector(`video[data-stage-peer="${id}"]`)) return;
+      const stream = streams[id];
+      const sourceVid = stream && stream.video && stream.video.querySelector('video');
+      if(!sourceVid || !sourceVid.srcObject) return;
+      const stageVid = document.createElement('video');
+      stageVid.srcObject = sourceVid.srcObject;
+      stageVid.dataset.stagePeer = id;
+      stageVid.autoplay = true;
+      stageVid.setAttribute('autoplay','');
+      stageVid.playsInline = true;
+      stageVid.setAttribute('playsinline','');
+      stageVid.controls = true;
+      stageVid.muted = false;
+      stageVid.removeAttribute('muted');
+      attachCaptions(stageVid);
+      videoContainer.appendChild(stageVid);
+      tryPlay(stageVid);
+      updateVideoLayout();
     }
 
     function handleMicDenied(){
