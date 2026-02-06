@@ -2433,6 +2433,7 @@
               if(ev.track.kind === 'video'){
                 const vid = document.createElement('video');
                 vid.srcObject = stream;
+                vid.dataset.guest = msg.id;
                 vid.autoplay = true;
                 vid.setAttribute('autoplay','');
                 vid.playsInline = true;
@@ -2459,6 +2460,27 @@
                 tryPlay(vid);                      // will queue for unlock if blocked
                 pc._videos = pc._videos || [];
                 pc._videos.push(vid);
+
+                // Auto-populate the co-host camera in the host's original broadcast channel tile.
+                const hostTile = streams[clientId];
+                const hostBox = hostTile && hostTile.video;
+                if(hostBox && !hostBox.querySelector(`video[data-guest="${msg.id}"]`)){
+                  const hostVid = document.createElement('video');
+                  hostVid.srcObject = stream;
+                  hostVid.dataset.guest = msg.id;
+                  hostVid.autoplay = true;
+                  hostVid.setAttribute('autoplay','');
+                  hostVid.playsInline = true;
+                  hostVid.setAttribute('playsinline','');
+                  hostVid.controls = true;
+                  attachCaptions(hostVid);
+                  hostBox.appendChild(hostVid);
+                  updateVideoLayout(hostBox);
+                  hostVid.muted = false;
+                  hostVid.removeAttribute('muted');
+                  tryPlay(hostVid);
+                  pc._videos.push(hostVid);
+                }
               } else if(ev.track.kind === 'audio'){
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
                 // Prefer a single <audio> sink in the stage during broadcast
