@@ -443,6 +443,9 @@
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       align-items:stretch;
     }
+    .stream.open .video.call-layout {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     .stream .tune-btn { margin-top:6px; width:100%; }
     .stream .join-btns {
       position:absolute;
@@ -1407,7 +1410,8 @@
             camIcon.title = 'Camera';
             li.appendChild(camIcon);
             liveIds.add(id);
-            ensureStreamThumb(id, name, id === clientId);
+            const tileId = guestMap[id] || id;
+            if(tileId === id) ensureStreamThumb(id, name, id === clientId);
           }
           if(u.mic){
             li.classList.add('mic-user');
@@ -1460,8 +1464,10 @@
         if(streams[id]) return;
         const div = document.createElement('div');
         div.className = 'stream';
+        div.dataset.streamId = id;
         div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
+        videoBox.dataset.streamId = id;
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
         const feed = div.querySelector('.stream-feed');
@@ -2081,6 +2087,8 @@
             tileEl.setAttribute('playsinline','');
             tileEl.controls = true;
             selfStream.video.innerHTML = '';
+            tileEl.dataset.peer = clientId;
+            tileEl.dataset.role = 'host';
             selfStream.video.appendChild(tileEl);
             if(!audioOnly){
               attachCaptions(tileEl);
@@ -2359,8 +2367,15 @@
       function updateVideoLayout(target){
         const box = target || videoContainer;
         if(!box) return;
-        const count = box.querySelectorAll('video').length;
+        const videos = box.querySelectorAll('video');
+        const count = videos.length;
+        const ownerId = box.dataset && box.dataset.streamId;
+        if(ownerId && count > 1){
+          const hostVid = box.querySelector(`video[data-peer="${ownerId}"]`) || box.querySelector('video[data-role="host"]');
+          if(hostVid) box.appendChild(hostVid);
+        }
         box.classList.toggle('has-guest', count > 1);
+        box.classList.toggle('call-layout', !!ownerId && count > 1);
       }
 
       function resetMediaPanels(){
@@ -2388,6 +2403,8 @@
           attachCaptions(vid);
           box.appendChild(vid);
         }
+        const ownerId = box.dataset && box.dataset.streamId;
+        vid.dataset.role = ownerId && ownerId === peerId ? 'host' : 'guest';
         if(vid.srcObject !== stream) vid.srcObject = stream;
         vid.muted = false;
         vid.removeAttribute('muted');
@@ -2423,19 +2440,18 @@ function handleOffer(msg){
             const peerId = msg.id;
             if(!stream) return;
 
-            const peerTile = streams[peerId] && streams[peerId].video;
-            const hostId = guestMap[peerId] || (broadcasting ? clientId : null);
-            const hostTile = hostId && streams[hostId] && streams[hostId].video;
+            const mappedHostId = guestMap[peerId] || null;
+            const tileId = mappedHostId || peerId;
+            const tile = streams[tileId] && streams[tileId].video;
 
             if(ev.track.kind === 'video'){
-              if(peerTile) mountRemoteVideo(peerTile, peerId, stream);
-              if(hostTile && hostTile !== peerTile) mountRemoteVideo(hostTile, peerId, stream);
+              if(tile) mountRemoteVideo(tile, peerId, stream);
               if(broadcasting) mountRemoteVideo(videoContainer, peerId, stream);
 
-              if(streams[peerId]){
-                streams[peerId].container.classList.add('open');
-                streams[peerId].started = true;
-                if(!streams[peerId].vid) streams[peerId].vid = peerTile && peerTile.querySelector(`video[data-peer="${peerId}"]`);
+              if(streams[tileId]){
+                streams[tileId].container.classList.add('open');
+                streams[tileId].started = true;
+                if(!streams[tileId].vid) streams[tileId].vid = tile && tile.querySelector(`video[data-peer="${peerId}"]`);
               }
 
               if(broadcasting && !joinApproved){
@@ -2452,8 +2468,7 @@ function handleOffer(msg){
                 }
               }
             } else if(ev.track.kind === 'audio'){
-              if(peerTile) mountRemoteAudio(peerTile, peerId, stream);
-              if(hostTile && hostTile !== peerTile) mountRemoteAudio(hostTile, peerId, stream);
+              if(tile) mountRemoteAudio(tile, peerId, stream);
               if(broadcasting) mountRemoteAudio(videoContainer, peerId, stream);
 
               if(broadcasting && !joinApproved){
@@ -2632,20 +2647,13 @@ function handleOffer(msg){
         // Other viewers watch the guest separately so their video can be merged
         if(id !== clientId) startWatching(id);
       }
-      if(!streams[id]){
-        const u = userCache && userCache.find(u => (typeof u === 'string' ? u : u.id) === id);
-        const name = typeof u === 'string' ? u : (u && u.name) || id;
-        ensureStreamThumb(id, name, id === clientId);
-      }
-      if(streams[id]){
-        streams[id].container.classList.add('open');
-        streams[id].started = true;
+      if(streams[id] && !streams[id].self){
+        streams[id].container.remove();
+        delete streams[id];
       }
       const hostBox = hostStream && hostStream.video;
-      const guestBox = streams[id] && streams[id].video;
-      if(hostBox && guestBox){
-        const aud = hostBox.querySelector(`audio[data-peer="${id}"]`);
-        if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
+      if(hostBox){
+        hostStream.container.classList.add('open');
       }
       showStream();
       resetMediaPanels();
