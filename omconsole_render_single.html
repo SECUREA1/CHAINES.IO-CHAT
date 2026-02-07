@@ -1131,19 +1131,53 @@ const controlManager = new ControlManager();
 // Media: Camera Access
 // -----------------------------
 let cameraStream = null;
-async function ensureCamera(){
-  if(cameraStream) return cameraStream;
+const CAMERA_CONSTRAINT_FALLBACKS = [
+  { video: { facingMode: "user" }, audio: false },
+  { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+  { video: true, audio: false }
+];
+
+async function requestCameraStream(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    throw new Error("Camera API unavailable in this browser/context");
+  }
+  let lastErr = null;
+  for(const constraints of CAMERA_CONSTRAINT_FALLBACKS){
+    try{
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    }catch(err){
+      lastErr = err;
+      const code = err?.name || "UnknownError";
+      console.warn("Camera getUserMedia failed for constraints", constraints, code);
+    }
+  }
+  throw lastErr || new Error("Unable to initialize camera stream");
+}
+
+function isCameraStreamAlive(stream){
+  const track = stream?.getVideoTracks?.()[0];
+  return !!track && track.readyState === "live";
+}
+
+async function ensureCamera(force = false){
+  if(!force && isCameraStreamAlive(cameraStream)) return cameraStream;
+  if(force && cameraStream){
+    try{ cameraStream.getTracks().forEach(t => t.stop()); }catch(e){}
+    cameraStream = null;
+  }
   try{
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+    cameraStream = await requestCameraStream();
     camVideo.srcObject = cameraStream;
     await camVideo.play();
     state.runtime.camReady = true;
     dotCam.classList.add("ok"); dotCam.classList.remove("bad");
     return cameraStream;
   }catch(e){
+    const iframeHint = window.self !== window.top ? " If this is embedded, allow camera permissions for the frame/site." : "";
     console.warn("Camera permission denied / failed:", e);
     state.runtime.camReady = false;
     dotCam.classList.add("bad"); dotCam.classList.remove("ok");
+    toast(`Camera unavailable: ${e?.name || "Error"}.${iframeHint}`);
     throw e;
   }
 }
@@ -3450,6 +3484,15 @@ function boot(){
       // For camera-based controls, set the dots if permission granted.
     }catch(e){}
   }, { once:true });
+
+  // Parent host can nudge activation when opened in a modal iframe.
+  window.addEventListener("message", async (ev) => {
+    if(ev?.data?.type !== "omconsole:activate") return;
+    const active = state.settings.active.cursorControl;
+    if(["Gesture","Retina"].includes(active)){
+      try{ await ensureCamera(); }catch(e){}
+    }
+  });
 
   // Run loop
   requestAnimationFrame(tick);
