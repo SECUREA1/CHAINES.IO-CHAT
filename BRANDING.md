@@ -3,7 +3,7 @@
 ## Identity
 - **Name**: CHAINeS Composer
 - **Tagline**: Linking conversations across the chain.
-- **Logo**: Neon Ioncore wolf badge (see `static/logo.svg`).
+- **Logo**: Blue-to-cobalt gradient chain-link badge in white (see `static/logo.svg`).
 - **Mascot**: Ioncore Sentinel — the blue wolf wearing the Ioncore cap and chain (`static/mascot.svg`).
 
 ## Color Palette
@@ -22,7 +22,7 @@
 - Weights 400 and 600 for body and headings, respectively.
 
 ## Usage Notes
-- The logo should appear at 32×32px in the header and as a favicon. Use the `static/logo.svg` asset in all cases to avoid binary formats.
+- The logo should appear at 32×32px in the header and as a favicon. Use the blue-and-white `static/logo.svg` asset in all cases to avoid binary formats.
 - Use the Ioncore Sentinel art (`static/mascot.svg`) for hero/login moments and wallet windows to keep the experience cohesive.
 - Accent colors should be used for call-to-action buttons and links.
 - Maintain generous whitespace and rounded corners (16px radius) for a friendly, modern feel.
