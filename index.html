@@ -63,6 +63,79 @@
       user-select: none;
     }
 
+    .token-gate {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(18px, 4vw, 48px);
+      background: radial-gradient(1200px 900px at 20% -5%, color-mix(in oklab, var(--accent-2), transparent 65%), transparent 68%),
+        radial-gradient(1200px 900px at 90% 10%, color-mix(in oklab, var(--accent), transparent 70%), transparent 68%),
+        radial-gradient(800px 700px at 50% 50%, color-mix(in oklab, var(--gold), transparent 92%), transparent 70%),
+        rgba(3, 8, 26, 0.94);
+      backdrop-filter: blur(16px) saturate(110%);
+      z-index: 9999;
+      overflow: hidden;
+    }
+    .token-gate[aria-hidden="true"],
+    .token-gate.token-gate--hidden { display:none; }
+    .token-gate__panel {
+      position: relative;
+      width: min(1100px, 100%);
+      padding: clamp(22px, 4vw, 38px);
+      border-radius: 22px;
+      background: linear-gradient(150deg, color-mix(in oklab, #0b1435 80%, transparent 0%), color-mix(in oklab, #0f214a 92%, transparent 0%));
+      border: 1px solid color-mix(in oklab, var(--gold), transparent 45%);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(17, 58, 122, 0.45);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: clamp(16px, 3vw, 28px);
+      max-height: calc(100vh - clamp(36px, 8vw, 96px));
+      overflow: auto;
+    }
+    .token-gate__art {
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      padding: clamp(18px, 3vw, 26px);
+      border-radius: 18px;
+      background: radial-gradient(140% 120% at 80% 10%, color-mix(in oklab, var(--gold), transparent 30%), transparent 55%),
+        linear-gradient(135deg, color-mix(in oklab, var(--accent-2), transparent 0%), color-mix(in oklab, #0e1b3b, transparent 0%));
+      border: 1px solid color-mix(in oklab, var(--gold), transparent 55%);
+    }
+    .token-gate__content { display:grid; gap:14px; }
+    .token-gate__eyebrow { margin:0; font-size:12px; letter-spacing:.6px; text-transform:uppercase; color: color-mix(in oklab, var(--gold), #fff 40%); }
+    .token-gate__headline, .token-gate__title { margin:0; font-weight:700; }
+    .token-gate__headline { font-size:clamp(24px, 3vw, 32px); }
+    .token-gate__title { font-size:clamp(22px, 3vw, 30px); }
+    .token-gate__lede, .token-gate__copy { margin:0; color: color-mix(in oklab, var(--fg), var(--muted) 35%); }
+    .token-gate__tags { display:flex; flex-wrap:wrap; gap:10px; }
+    .token-gate__tag { padding:6px 10px; border-radius:999px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%); font-size:12px; font-weight:600; }
+    .token-gate__wallets { display:grid; gap:6px; }
+    .token-gate__wallets select {
+      width:100%; border-radius:14px; padding:12px 14px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%);
+      background: color-mix(in oklab, var(--panel), transparent 8%); color:var(--fg); font:inherit;
+    }
+    .token-gate__status { min-height:1.4em; font-size:14px; color:var(--muted); }
+    .token-gate__status[data-tone="error"] { color: var(--danger); }
+    .token-gate__status[data-tone="success"] { color: #4ade80; }
+    .token-gate__actions { display:grid; gap:10px; justify-items:center; background: color-mix(in oklab, var(--panel), transparent 18%); border-radius:18px; padding:12px; }
+    .token-gate__hint { margin:0; font-size:12px; color:var(--muted); }
+    .token-gate__button {
+      border:0; border-radius:999px; padding:14px 20px; text-decoration:none; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:10px; font-weight:700;
+      background: linear-gradient(115deg, color-mix(in oklab, var(--accent-2), #0c1c3b 30%), color-mix(in oklab, var(--gold), transparent 0%), color-mix(in oklab, var(--accent), #0e2248 10%));
+      color:#0a0d18;
+    }
+    .token-gate__button-note { display:block; font-size:12px; }
+    .token-gate__button--ghost {
+      background: transparent;
+      border: 1px solid color-mix(in oklab, var(--gold), transparent 55%);
+      color: color-mix(in oklab, var(--fg), var(--gold) 30%);
+      display: inline-flex;
+    }
+
     @keyframes shimmer {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
@@ -645,6 +718,39 @@
   </style>
 </head>
 <body class="auth-lock">
+  <div id="token-gate" class="token-gate" role="dialog" aria-modal="true" aria-labelledby="token-gate-title" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553">
+    <div class="token-gate__panel">
+      <div class="token-gate__art" aria-hidden="true">
+        <p class="token-gate__eyebrow">CHAINeS access couture</p>
+        <h2 class="token-gate__headline">Gilded gateway to CHAINeS POST</h2>
+        <p class="token-gate__lede">Step through a navy-and-gold vault that keeps the signal clean. Your CHAINeS token is the shimmering pass to the experience.</p>
+        <div class="token-gate__tags">
+          <span class="token-gate__tag">Blue-chip verification</span>
+          <span class="token-gate__tag">Cardano native</span>
+          <span class="token-gate__tag">Fashionably secure</span>
+        </div>
+      </div>
+      <div class="token-gate__content">
+        <p class="token-gate__eyebrow">Access verification</p>
+        <h2 id="token-gate-title" class="token-gate__title">Verify your token to continue</h2>
+        <p class="token-gate__copy">Connect a supported Cardano wallet holding the <strong>CHAINeS</strong> access token to glide into the lounge.</p>
+        <div class="token-gate__wallets">
+          <label for="token-gate-wallet">Select a wallet</label>
+          <select id="token-gate-wallet"></select>
+        </div>
+        <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
+        <button id="token-gate-connect" class="token-gate__button" type="button" data-action="connect">
+          <img src="static/wallet.svg" alt="" width="24" height="24" aria-hidden="true" />
+          Enter with wallet
+          <span class="token-gate__button-note">Golden validation in seconds</span>
+        </button>
+        <div class="token-gate__actions">
+          <p class="token-gate__hint">No token yet? Secure a CHAINeS pass and keep your login as chic as your signal.</p>
+          <a class="token-gate__button token-gate__button--ghost" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">Buy CHAINeS token</a>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
     <img src="static/hologhost.svg" alt="" aria-hidden="true" />
     <div class="ghost-ticker__text">
@@ -759,13 +865,14 @@
   <section id="auth" class="auth" hidden>
     <div class="card">
       <h2>Welcome to CHAINeS POST</h2>
-      <p>Jump into the feed your way—sign in, create an account, or breeze in as a guest. No token required.</p>
+      <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
+        <a class="btn primary" href="https://minswap.org/tokens/d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816434841494e6553" target="_blank" rel="noopener noreferrer">Buy Now</a>
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
