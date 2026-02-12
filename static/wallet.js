@@ -498,7 +498,17 @@
 
   function describeRequiredToken(){
     if(!state.hintEl || !state.config || !state.config.valid) return;
-    state.hintEl.textContent = 'Need access? Buy the CHAINeS token to unlock CHAINeS Composer.';
+    state.hintEl.textContent = 'Access is validated through your connected wallet.';
+  }
+
+  function chooseWallet(wallets){
+    if(!wallets.length) return null;
+    const laceWallet = wallets.find(wallet => {
+      const key = (wallet.key || '').toLowerCase();
+      const name = (wallet.name || '').toLowerCase();
+      return key.includes('lace') || name.includes('lace');
+    });
+    return laceWallet || wallets[0];
   }
 
   function getAvailableWallets(){
@@ -518,40 +528,49 @@
   }
 
   function updateWalletSelect(){
-    if(!state.walletSelect) return;
     const wallets = getAvailableWallets();
-    const previous = state.walletSelect.value;
-    state.walletSelect.innerHTML = '';
+    const previous = state.walletSelect ? state.walletSelect.value : '';
     state.availableWallets = wallets;
 
+    if(state.walletSelect){
+      state.walletSelect.innerHTML = '';
+    }
+
     if(wallets.length === 0){
-      const option = document.createElement('option');
-      option.value = '';
-      option.textContent = 'No CIP-30 wallets detected';
-      option.disabled = true;
-      option.selected = true;
-      state.walletSelect.appendChild(option);
-      setStatus('Install or enable a Cardano CIP-30 wallet extension to continue.', 'info', { skipIfError: true });
+      setStatus('Install or enable Lace wallet to continue.', 'info', { skipIfError: true });
       if(state.connectBtn && !state.accessGranted){
         state.connectBtn.disabled = true;
+      }
+      if(state.walletSelect){
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No CIP-30 wallets detected';
+        option.disabled = true;
+        option.selected = true;
+        state.walletSelect.appendChild(option);
       }
       return;
     }
 
-    wallets.forEach(wallet => {
-      const option = document.createElement('option');
-      option.value = wallet.key;
-      option.textContent = wallet.name;
-      option.dataset.version = wallet.apiVersion;
-      state.walletSelect.appendChild(option);
-    });
+    if(state.walletSelect){
+      wallets.forEach(wallet => {
+        const option = document.createElement('option');
+        option.value = wallet.key;
+        option.textContent = wallet.name;
+        option.dataset.version = wallet.apiVersion;
+        state.walletSelect.appendChild(option);
+      });
 
-    if(previous && wallets.some(w => w.key === previous)){
-      state.walletSelect.value = previous;
-    }
+      if(previous && wallets.some(w => w.key === previous)){
+        state.walletSelect.value = previous;
+      }
 
-    if(!state.walletSelect.value && wallets[0]){
-      state.walletSelect.value = wallets[0].key;
+      if(!state.walletSelect.value){
+        const preferred = chooseWallet(wallets);
+        if(preferred){
+          state.walletSelect.value = preferred.key;
+        }
+      }
     }
 
     if(state.connectBtn && !state.accessGranted){
@@ -559,13 +578,13 @@
     }
 
     if(state.config && state.config.valid && !state.accessGranted){
-      setStatus('Wallet detected. Connect to verify token ownership.', 'info', { skipIfError: true });
+      setStatus('Wallet detected. Press Access to validate entry.', 'info', { skipIfError: true });
     }
   }
 
   async function verifyToken(api){
     if(!state.config || !state.config.valid){
-      throw new Error('Token gate is not configured.');
+      throw new Error('Access validation is not configured.');
     }
     const balanceHex = await api.getBalance();
     return balanceHasAsset(balanceHex, state.config.policyBytes, state.config.assetBytes);
@@ -686,17 +705,18 @@
   async function connectAndValidate(){
     if(state.accessGranted) return;
     if(!state.config || !state.config.valid){
-      setStatus(state.config ? state.config.error : 'Token gate is not configured.', 'error');
+      setStatus(state.config ? state.config.error : 'Access validation is not configured.', 'error');
       return;
     }
     const wallets = state.availableWallets.length ? state.availableWallets : getAvailableWallets();
     if(wallets.length === 0){
-      setStatus('No compatible wallets available. Install or enable a Cardano wallet.', 'error');
+      setStatus('No compatible wallets available. Install or enable Lace wallet.', 'error');
       updateWalletSelect();
       return;
     }
-    const walletKey = (state.walletSelect && state.walletSelect.value) || wallets[0].key;
-    const walletInfo = wallets.find(w => w.key === walletKey) || wallets[0];
+    const preferredWallet = chooseWallet(wallets);
+    const walletKey = (state.walletSelect && state.walletSelect.value) || (preferredWallet && preferredWallet.key);
+    const walletInfo = wallets.find(w => w.key === walletKey) || preferredWallet;
     if(!walletInfo){
       setStatus('Select a wallet to continue.', 'error');
       return;
@@ -712,10 +732,10 @@
       const api = await wallet.enable();
       state.connectedApi = api;
       resetWalletAddressCache();
-      setStatus('Checking token balance…');
+      setStatus('Validating access…');
       const hasToken = await verifyToken(api);
       if(!hasToken){
-        setStatus('Wallet connected but required token was not found.', 'error');
+        setStatus('Access denied: your wallet did not pass contract validation.', 'error');
         state.connectedApi = null;
         resetWalletAddressCache();
         state.pendingDispense = false;
