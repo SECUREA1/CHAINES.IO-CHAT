@@ -571,35 +571,29 @@
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
     #video-container {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-auto-rows: minmax(140px, 1fr);
       gap: 10px;
       padding: 10px;
-    }
-    #video-container.has-guest {
-      flex-wrap: nowrap;
-    }
-    #video-container.has-guest video {
-      flex: 1 1 50%;
-      max-width: 50%;
-    }
-    @media (orientation: portrait) {
-      #video-container.has-guest {
-        flex-direction: column;
-      }
-      #video-container.has-guest video {
-        max-width: 100%;
-      }
+      align-items: stretch;
     }
     #video-container video {
-      max-width: 240px;
       border-radius: 12px;
       border: 1px solid var(--lining);
       width: 100%;
-      height: auto;
-      object-fit: contain;
+      height: 100%;
+      min-height: 140px;
+      object-fit: cover;
       background: #000;
       display: block;
+    }
+    #video-container audio {
+      width: 100%;
+      border: 1px solid var(--lining);
+      border-radius: 12px;
+      background: color-mix(in oklab, var(--panel), black 8%);
+      padding: 8px;
     }
 
     #overlay-chat {
@@ -1027,6 +1021,15 @@
     const streamsEl = el('#streams');
     const streams = {};
     const guestMap = {};
+    const approvedGuests = new Map();
+    const MAX_CAMERA_PARTICIPANTS = 5;
+    const MAX_SPEAKER_PARTICIPANTS = 13;
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
     function showStream(){
@@ -2481,6 +2484,7 @@
         selfStream.container.remove();
         delete streams[clientId];
       }
+      approvedGuests.clear();
       broadcastThumb = null;
     }
 
@@ -2489,6 +2493,23 @@
         if(!box) return;
         const count = box.querySelectorAll('video').length;
         box.classList.toggle('has-guest', count > 1);
+      }
+
+      function guestCounts(){
+        let cameras = 1;
+        let speakers = 1;
+        approvedGuests.forEach(mode => {
+          if(mode === 'cam') cameras += 1;
+          if(mode === 'cam' || mode === 'mic') speakers += 1;
+        });
+        return { cameras, speakers };
+      }
+
+      function canApproveGuest(mode){
+        const { cameras, speakers } = guestCounts();
+        if(mode === 'cam' && cameras >= MAX_CAMERA_PARTICIPANTS) return { ok: false, reason: `Camera limit reached (${MAX_CAMERA_PARTICIPANTS}).` };
+        if((mode === 'cam' || mode === 'mic') && speakers >= MAX_SPEAKER_PARTICIPANTS) return { ok: false, reason: `Speaker limit reached (${MAX_SPEAKER_PARTICIPANTS}).` };
+        return { ok: true, reason: '' };
       }
 
     function swapVideos(){}
@@ -2514,7 +2535,7 @@
       }
 
     function handleWatcher(id){
-      const pc = new RTCPeerConnection();
+      const pc = new RTCPeerConnection(RTC_CONFIG);
       peerConnections[id] = pc;
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
@@ -2525,7 +2546,7 @@
       function handleOffer(msg){
         let pc = peerConnections[msg.id];
         if(!pc){
-          pc = new RTCPeerConnection();
+          pc = new RTCPeerConnection(RTC_CONFIG);
           peerConnections[msg.id] = pc;
           pc.ontrack = ev => {
             const stream = ev.streams[0];
@@ -2723,6 +2744,7 @@
           localStream.getTracks().forEach(t => { if(t.readyState === 'ended') try{ localStream.removeTrack(t); }catch{} });
         }
         activeRooms.delete(msg.id);
+        approvedGuests.delete(msg.id);
         if(activeRooms.size === 0) showChat();
         const host = guestMap[msg.id];
         if(host && streams[host]){
@@ -2763,8 +2785,14 @@
 
     function handleJoinRequest(id, user){
       if(!broadcasting) return;
+      const check = canApproveGuest('cam');
+      if(!check.ok){
+        sendSignal({ type: 'deny-join', id, reason: check.reason });
+        systemNote(`Join denied: ${check.reason}`);
+        return;
+      }
       showPopup(`@${user || 'user'} wants to join.`, [
-        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
+        { label: 'Accept', onClick: () => { approvedGuests.set(id, 'cam'); sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
         { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-join', id }); hidePopup(); } }
       ]);
     }
@@ -2797,8 +2825,14 @@
 
     function handleMicRequest(id, user){
       if(!broadcasting) return;
+      const check = canApproveGuest('mic');
+      if(!check.ok){
+        sendSignal({ type: 'deny-mic', id, reason: check.reason });
+        systemNote(`Mic denied: ${check.reason}`);
+        return;
+      }
       showPopup(`@${user || 'user'} wants to speak.`, [
-        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
+        { label: 'Accept', onClick: () => { approvedGuests.set(id, 'mic'); sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
         { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
       ]);
     }
@@ -2823,8 +2857,9 @@
       alert('Mic request denied.');
     }
 
-    function handleGuestStart({ id, host }){
+    function handleGuestStart({ id, host, mode }){
       guestMap[id] = host;
+      if(mode && !approvedGuests.has(id)) approvedGuests.set(id, mode);
       const hostStream = streams[host];
       if(hostStream){
         hostStream.container.classList.add('open');
