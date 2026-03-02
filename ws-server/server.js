@@ -214,6 +214,15 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
+app.get(["/live-channel", "/live-channel.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "live-channel.html"))
+);
+app.get(["/live-channels", "/live-channels.html"], (req, res) => {
+  const query = req.originalUrl.includes("?")
+    ? req.originalUrl.slice(req.originalUrl.indexOf("?"))
+    : "";
+  res.redirect(301, `/live-channel.html${query}`);
+});
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
 );
