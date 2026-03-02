@@ -832,7 +832,7 @@
       <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-        <input id="password" type="password" placeholder="Password" />
+        <input id="password" type="password" placeholder="Password (optional)" />
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
@@ -1892,11 +1892,11 @@
     async function doLogin(){
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
+      if(!name){ alert('Username required'); return; }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass })
+        body: JSON.stringify({ username: name, password: pass || '' })
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
@@ -1912,10 +1912,10 @@
       e.preventDefault();
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
+      if(!name){ alert('Username required'); return; }
       const fd = new FormData();
       fd.append('username', name);
-      fd.append('password', pass);
+      fd.append('password', pass || '');
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){ await doLogin(); }
