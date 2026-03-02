@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirecting to Live Channel</title>
+  <script>
+    (() => {
+      const target = new URL('/live-channel.html', location.origin);
+      target.search = location.search || '';
+      location.replace(target.toString());
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting to <a id="target-link" href="/live-channel.html">Live Channel</a>…</p>
+  <script>
+    const link = document.getElementById('target-link');
+    if (link) link.href = `/live-channel.html${location.search || ''}`;
+  </script>
+</body>
+</html>
