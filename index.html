@@ -1349,7 +1349,7 @@
     });
     function openLiveChannelWindow(roomId = '') {
       const targetRoom = (roomId || '').trim();
-      const url = new URL('/live-channel.html', location.origin);
+      const url = new URL('/live-channels.html', location.origin);
       if (targetRoom) {
         url.searchParams.set('room', targetRoom);
         url.searchParams.set('join', '1');

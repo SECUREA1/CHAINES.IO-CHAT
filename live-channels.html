@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Channels</title>
+  <meta http-equiv="refresh" content="0; url=/live-channel.html" />
+  <script>
+    const redirect = new URL('/live-channel.html', window.location.origin);
+    for (const [key, value] of new URLSearchParams(window.location.search).entries()) {
+      redirect.searchParams.set(key, value);
+    }
+    window.location.replace(redirect.toString());
+  </script>
+</head>
+<body>
+  Redirecting to <a href="/live-channel.html">Live Channel</a>…
+</body>
+</html>
