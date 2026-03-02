@@ -479,37 +479,33 @@
 
 /* Stream tiles */
 #streams {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
   padding: 10px;
-  scroll-snap-type: x mandatory;
+  align-items: start;
 }
 
 /* Stream cards */
 .stream {
   position: relative;
-  width: 150px;
-  flex: 0 0 auto;
+  width: 100%;
   border: 1px solid var(--lining);
   border-radius: 12px;
   padding: 8px;
   background: var(--panel);
   cursor: pointer;
-  scroll-snap-align: start;
 }
 
 /* Expanded stream state */
 .stream.open {
-  width: 300px;
-  flex: 0 0 auto;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
     .stream .title { font-weight:700; margin-bottom:6px; }
     .stream .thumb { width:100%; border-radius:8px; }
     .stream.open .thumb { display:none; }
-    .stream .video { display:none; }
+    .stream .video { display:block; aspect-ratio:16/9; overflow:hidden; border-radius:8px; background:#020617; }
     .stream.open .video { display:block; }
     .stream .tune-btn { margin-top:6px; width:100%; }
     .stream .join-btns {
@@ -526,9 +522,11 @@
     }
     .stream .video video {
       width:100%;
+      height:100%;
       border-radius:8px;
       aspect-ratio:16/9;
       object-fit:cover;
+      background:#020617;
     }
     .stream.open .video.has-guest { display:flex; }
     .stream.open .video.has-guest video {
@@ -537,7 +535,7 @@
       max-width:50%;
       max-height:100%;
       border-radius:0;
-      object-fit:contain;
+      object-fit:cover;
     }
     @media (orientation: portrait) {
       .stream.open .video.has-guest { flex-direction:column; }
@@ -555,7 +553,7 @@
       max-width:100%;
       max-height:100%;
       border-radius:0;
-      object-fit:contain;
+      object-fit:cover;
     }
     .stream.open .video.pip video:nth-child(2) {
       position:absolute;
@@ -567,6 +565,13 @@
       border-radius:8px;
       max-width:none;
       max-height:none;
+    }
+    @media (max-width: 900px) {
+      #streams { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+    }
+    @media (max-width: 640px) {
+      #streams { grid-template-columns: 1fr; padding: 8px 0; }
+      .stream .join-btns { top:6px; right:6px; }
     }
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
@@ -832,7 +837,7 @@
       <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-        <input id="password" type="password" placeholder="Password" />
+        <input id="password" type="password" placeholder="Password (optional)" />
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
@@ -1892,11 +1897,11 @@
     async function doLogin(){
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
+      if(!name){ alert('Username required'); return; }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass })
+        body: JSON.stringify({ username: name, password: pass || '' })
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
@@ -1912,10 +1917,10 @@
       e.preventDefault();
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
+      if(!name){ alert('Username required'); return; }
       const fd = new FormData();
       fd.append('username', name);
-      fd.append('password', pass);
+      fd.append('password', pass || '');
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){ await doLogin(); }

@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Channels</title>
-  <meta http-equiv="refresh" content="0; url=/live-channel.html" />
+  <title>Redirecting to Live Channel</title>
   <script>
-    const redirect = new URL('/live-channel.html', window.location.origin);
-    for (const [key, value] of new URLSearchParams(window.location.search).entries()) {
-      redirect.searchParams.set(key, value);
-    }
-    window.location.replace(redirect.toString());
+    (() => {
+      const target = new URL('/live-channel.html', location.origin);
+      target.search = location.search || '';
+      location.replace(target.toString());
+    })();
   </script>
 </head>
 <body>
-  Redirecting to <a href="/live-channel.html">Live Channel</a>…
+  <p>Redirecting to <a id="target-link" href="/live-channel.html">Live Channel</a>…</p>
+  <script>
+    const link = document.getElementById('target-link');
+    if (link) link.href = `/live-channel.html${location.search || ''}`;
+  </script>
 </body>
 </html>
