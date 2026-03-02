@@ -1,3406 +1,731 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>CHAINeS POST</title>
-  <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/static/logo.svg" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <meta name="color-scheme" content="dark light" />
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-  <script type="module" src="static/wallet.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHAINeS Room Broadcast</title>
   <style>
-      :root {
-        --bg: #0b1024;
-        --panel: #111a36;
-        --muted: #9fb3d4;
-        --fg: #f7f9ff;
-        --accent: #102a5c;
-        --accent-2: #153a7a;
-        --gold: #e5b35c;
-        --gold-2: #c28a2a;
-        --danger: #ef4444;
-        --shadow: 0 0 12px rgba(0,114,255,.35);
-        --radius: 16px;
-        --lining: #334155;
-        --caption-font: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        --caption-color: #ffffff;
-        --caption-bg: rgba(0,0,0,0.6);
-        --header-height: 0px;
-        --footer-height: 0px;
-      }
-      :root[data-theme='light']{
-        --bg:#f1f5f9;
-        --panel:#e2e8f0;
-        --fg:#0f172a;
-        --muted:#475569;
-        --accent:#1e40af;
-        --accent-2:#1e3a8a;
-        --gold:#f5d48b;
-        --gold-2:#c28a2a;
-        --shadow:0 0 20px rgba(0,114,255,.4);
-        --lining:#94a3b8;
-        --caption-color:#0f172a;
-      }
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2f;
+      --panel-2: #1a2440;
+      --text: #e9eefb;
+      --muted: #9aa8ca;
+      --ok: #34d399;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --accent: #3b82f6;
+      --speaker: #10b981;
+      --tile-min: 220px;
+    }
     * { box-sizing: border-box; }
-      html, body { height: 100%; width:100%; overflow-x:hidden; }
     body {
-        margin:0;
-      background:
-        radial-gradient(1200px 1200px at 20% -10%, color-mix(in oklab, var(--accent-2), transparent 85%), transparent 60%),
-        radial-gradient(1000px 1000px at 120% 20%, color-mix(in oklab, var(--accent), transparent 88%), transparent 60%),
-        var(--bg);
-      color:var(--fg);
-      font: 15px/1.45 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      background: radial-gradient(1200px 700px at 10% -10%, #1e3a8a44, transparent), var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     }
-
-    body.auth-lock { overflow:hidden; }
-
-    body.auth-lock .wrap {
-      filter: blur(6px);
-      pointer-events: none;
-      user-select: none;
+    .app { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+    .panel {
+      background: color-mix(in oklab, var(--panel), black 5%);
+      border: 1px solid #2a3656;
+      border-radius: 12px;
+      padding: 12px;
     }
-
-    .token-gate {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: clamp(18px, 4vw, 48px);
-      background: radial-gradient(1200px 900px at 20% -5%, color-mix(in oklab, var(--accent-2), transparent 65%), transparent 68%),
-        radial-gradient(1200px 900px at 90% 10%, color-mix(in oklab, var(--accent), transparent 70%), transparent 68%),
-        radial-gradient(800px 700px at 50% 50%, color-mix(in oklab, var(--gold), transparent 92%), transparent 70%),
-        rgba(3, 8, 26, 0.94);
-      backdrop-filter: blur(16px) saturate(110%);
-      z-index: 9999;
+    .controls { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
+    .controls input, .controls button, .host-actions button {
+      width: 100%; border-radius: 10px; border: 1px solid #33426c; background: var(--panel-2); color: var(--text);
+      padding: 9px 10px; font-size: 14px;
+    }
+    .controls button, .host-actions button { cursor: pointer; }
+    .controls button:hover, .host-actions button:hover { border-color: var(--accent); }
+    .stats { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+    .stats b { color: var(--text); }
+    .layout { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    .video-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(min(var(--tile-min), 100%), 1fr));
+      align-items: stretch;
+    }
+    .tile {
+      background: #0a1226;
+      border: 1px solid #2c3a5c;
+      border-radius: 12px;
       overflow: hidden;
-    }
-    .token-gate[aria-hidden="true"],
-    .token-gate.token-gate--hidden { display:none; }
-    .token-gate__panel {
+      min-height: 160px;
+      display: grid;
+      grid-template-rows: 1fr auto;
       position: relative;
-      width: min(1100px, 100%);
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: 22px;
-      background: linear-gradient(150deg, color-mix(in oklab, #0b1435 80%, transparent 0%), color-mix(in oklab, #0f214a 92%, transparent 0%));
-      border: 1px solid color-mix(in oklab, var(--gold), transparent 45%);
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(17, 58, 122, 0.45);
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: clamp(16px, 3vw, 28px);
-      max-height: calc(100vh - clamp(36px, 8vw, 96px));
-      overflow: auto;
     }
-    .token-gate__art {
-      display: grid;
-      align-content: center;
-      gap: 12px;
-      padding: clamp(18px, 3vw, 26px);
-      border-radius: 18px;
-      background: radial-gradient(140% 120% at 80% 10%, color-mix(in oklab, var(--gold), transparent 30%), transparent 55%),
-        linear-gradient(135deg, color-mix(in oklab, var(--accent-2), transparent 0%), color-mix(in oklab, #0e1b3b, transparent 0%));
-      border: 1px solid color-mix(in oklab, var(--gold), transparent 55%);
-    }
-    .token-gate__content { display:grid; gap:14px; }
-    .token-gate__eyebrow { margin:0; font-size:12px; letter-spacing:.6px; text-transform:uppercase; color: color-mix(in oklab, var(--gold), #fff 40%); }
-    .token-gate__headline, .token-gate__title { margin:0; font-weight:700; }
-    .token-gate__headline { font-size:clamp(24px, 3vw, 32px); }
-    .token-gate__title { font-size:clamp(22px, 3vw, 30px); }
-    .token-gate__lede, .token-gate__copy { margin:0; color: color-mix(in oklab, var(--fg), var(--muted) 35%); }
-    .token-gate__tags { display:flex; flex-wrap:wrap; gap:10px; }
-    .token-gate__tag { padding:6px 10px; border-radius:999px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%); font-size:12px; font-weight:600; }
-    .token-gate__wallets { display:grid; gap:6px; }
-    .token-gate__wallets select {
-      width:100%; border-radius:14px; padding:12px 14px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%);
-      background: color-mix(in oklab, var(--panel), transparent 8%); color:var(--fg); font:inherit;
-    }
-    .token-gate__status { min-height:1.4em; font-size:14px; color:var(--muted); }
-    .token-gate__status[data-tone="error"] { color: var(--danger); }
-    .token-gate__status[data-tone="success"] { color: #4ade80; }
-    .token-gate__actions { display:grid; gap:10px; justify-items:center; background: color-mix(in oklab, var(--panel), transparent 18%); border-radius:18px; padding:12px; }
-    .token-gate__hint { margin:0; font-size:12px; color:var(--muted); }
-    .token-gate__button {
-      border:0; border-radius:999px; padding:14px 20px; text-decoration:none; cursor:pointer;
-      display:inline-flex; align-items:center; justify-content:center; gap:10px; font-weight:700;
-      background: linear-gradient(115deg, color-mix(in oklab, var(--accent-2), #0c1c3b 30%), color-mix(in oklab, var(--gold), transparent 0%), color-mix(in oklab, var(--accent), #0e2248 10%));
-      color:#0a0d18;
-    }
-    .token-gate__button-note { display:block; font-size:12px; }
-    .token-gate__button--ghost {
-      background: transparent;
-      border: 1px solid color-mix(in oklab, var(--gold), transparent 55%);
-      color: color-mix(in oklab, var(--fg), var(--gold) 30%);
-      display: inline-flex;
-    }
-
-    @keyframes shimmer {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-      .wrap {
-        display:flex;
-        flex-direction:column;
-        min-height:100vh;
-        height:100vh;
-        max-height:100vh;
-        width:100%;
-        max-width:100%;
-        margin:0 auto;
-        padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
-        overflow:hidden;
-      }
-
-    header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
-    .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:nowrap; width:100%; }
-    .brand { display:flex; align-items:center; gap:10px; }
-    .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
-    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
-    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { justify-content:space-between; flex-wrap:nowrap; }
-    .toolbar > * { flex:1; }
-    .toolbar .chip { justify-content:center; }
-    .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
-    .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
-    .self-destruct input { accent-color: var(--accent-2); }
-    .status { display:flex; align-items:center; gap:8px; width:100%; }
-    .status.top, .status.user { justify-content:space-between; }
-    header .chip { padding:4px 8px; }
-    footer {
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:14px;
-      padding:18px;
-      position: sticky;
-      bottom:0;
-      z-index:5;
-      background: color-mix(in oklab, var(--panel), transparent 25%);
-      backdrop-filter: blur(8px);
-      box-shadow: var(--shadow);
-      border:1px solid var(--lining);
-    }
-    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; justify-content:space-evenly; }
-    footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { display:flex; align-items:center; gap:4px; }
-    footer .legal { font-size:12px; color:var(--muted); text-align:center; }
-    .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
-    .composer-actions .send { width:56px; height:56px; }
-    .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
-    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
-            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
-      width:36px;
-      height:36px;
-      padding:0;
-      justify-content:center;
-      border-radius:12px;
-    }
-      #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #feed-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
-      #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
-      #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img {
-        width:24px;
-        height:24px;
-        display:block;
-      }
-#cmd-list {
-  width: auto;
-  padding: 0 10px;
-}
-
-#theme-toggle img,
-#logout-btn img {
-  width: 28px;
-  height: 28px;
-  display: block;
-}
-
-      /* layout toggle button is hidden by default and revealed when multiple videos are present */
-
-      #camera-btn.off img { opacity:0.5; }
-      #screen-btn.on img { opacity:0.5; }
-      #invite-cc {
-        display:flex;
-        padding:0;
-        border-radius:12px;
-        overflow:hidden;
-        height:36px;
-      }
-    #invite-cc button {
-      flex:1;
-      border:0;
-      padding:0 10px;
-      background: color-mix(in oklab, var(--panel), transparent 25%);
-      color: var(--fg);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      height:100%;
-      backdrop-filter: blur(8px);
-    }
-    #invite-cc button img {
-      width:24px;
-      height:24px;
-    }
-    #invite-cc button + button { border-left:1px solid var(--lining); }
-    #profile-link { display:inline-flex; align-items:center; gap:4px; }
-    #profile-link img { width:24px; height:24px; border-radius:50%; }
-    #live-chip { display:inline-flex; align-items:center; gap:4px; }
-    #end-btn {
-      background: var(--danger);
-      border-color: var(--danger);
-      color: #fff;
-      animation: live-pulse 1s infinite;
-    }
-    #listener-count {
-      cursor: pointer;
-      gap:4px;
-    }
-    #ghost-btn {
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      border:0;
-    }
-    #ghost-btn img { width:24px; height:24px; }
-    #ghost-btn,
-    #wallet-btn { position: relative; }
-    #ghost-btn[data-ghost-count]::after,
-    #wallet-btn[data-ghost-count]::after {
-      content: attr(data-ghost-count);
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 4px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--shadow);
-    }
-    .ghost-ticker {
-      position: fixed;
-      top: 20px;
-      right: 20px;
+    .tile.speaking { box-shadow: 0 0 0 2px var(--speaker), 0 0 20px #10b98155; }
+    .tile video { width: 100%; height: 100%; object-fit: cover; background: #030712; }
+    .tile-meta {
+      padding: 8px 10px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 16px;
-      background: linear-gradient(120deg, color-mix(in oklab, var(--accent), transparent 40%), color-mix(in oklab, var(--accent-2), transparent 35%));
-      border: 1px solid color-mix(in oklab, var(--lining), transparent 35%);
-      box-shadow: var(--shadow);
-      color: var(--fg);
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(-16px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      z-index: 1100;
-    }
-    .ghost-ticker.is-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .ghost-ticker img {
-      width: 28px;
-      height: 28px;
-      filter: drop-shadow(0 0 8px rgba(148, 163, 255, 0.45));
-    }
-    .ghost-ticker__text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      line-height: 1.2;
-    }
-    .ghost-ticker__message {
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .ghost-ticker__total {
+      background: #111a31;
       font-size: 12px;
       color: var(--muted);
     }
-    #conn-chip { display:inline-flex; align-items:center; gap:4px; }
-    .usr { font-weight:600; color: var(--fg); }
-
-    #cmd-panel {
-      margin-top:8px;
-      background: var(--panel);
-      border: 1px solid var(--lining);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
+    .speaker-list { display: grid; gap: 6px; }
+    .speaker-row {
+      background: #0a1226;
+      border: 1px solid #2c3a5c;
+      border-radius: 8px;
       padding: 8px;
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
+      justify-content: space-between;
+      font-size: 13px;
     }
-    #cmd-panel .chip { width:36px; height:36px; padding:0; justify-content:center; }
-
-    main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
-
-    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; min-height:0; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; }
-    .msg.mine { flex-direction: row-reverse; }
-    .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
-    .msg.mine .avatar { background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
-
-    .bubble { flex:1; position:relative; padding:10px 14px 10px; border-radius: 16px; background: color-mix(in oklab, var(--panel), transparent 10%); border:1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 75%); border-color: var(--lining); }
-
-    .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
-    .who { font-weight:700; color: var(--fg); }
-
-    .msg.mine .meta { justify-content:flex-end; }
-    .msg.mine .msg-text { text-align:right; }
-
-    .msg-text { white-space: pre-wrap; word-wrap: break-word; }
-
-    video::cue {
-      font-family: var(--caption-font);
-      color: var(--caption-color);
-      background-color: var(--caption-bg);
-    }
-
-    .actions { margin-top:6px; display:flex; gap:10px; }
-    .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
-    .comments { margin-top:6px; }
-    .comments-list { margin-bottom:6px; }
-    .comment { font-size:13px; margin-bottom:4px; }
-    .comment-form input { width:100%; padding:4px; border-radius:8px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); }
-
-    .msg.collapsed .msg-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-height: 3.3em; }
-    .min-btn { position:absolute; top:8px; right:8px; border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:8px; }
-    .min-btn:hover { color:var(--fg); background: rgba(255,255,255,.06); }
-
-    .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
-
-    .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
-    .composer .input { flex:1; min-width:0; }
-    .composer .send { flex:0 0 56px; }
-    .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .input input,
-    .input textarea { flex:1; width:100%; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; resize:none; overflow-y:auto; }
-    .input input::placeholder,
-    .input textarea::placeholder { color: color-mix(in oklab, var(--muted), transparent 10%); }
-    .send { display:flex; align-items:center; justify-content:center; height:100%; font-size:0; border-radius:12px; border:2px solid var(--accent-2); cursor:pointer; color:#05130e; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
-    .send:disabled { opacity:.6; cursor:not-allowed; }
-
-    /* Auth screen */
-    .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow:auto; }
-    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .card h2 { margin:0 0 8px; font-size: 22px; }
-    .card p { margin: 0 0 14px; color: var(--muted); }
-    .fields { display:grid; gap:10px; }
-    .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
-    .actions { display:flex; gap:10px; margin-top:12px; }
-    .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
-    .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
-    .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
-
-    .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
-
-    footer { padding: 0 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
-    a { color: var(--accent-2); }
-
-    .users-panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:14px; border-radius:var(--radius); background:var(--panel); border:1px solid var(--lining); box-shadow:var(--shadow); max-width:200px; max-height:60vh; overflow-y:auto; }
-    .users-panel h3 { margin:0 0 8px; font-size:14px; }
-    .users-panel ul { list-style:none; margin:0; padding:0; }
-    .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); display:flex; align-items:center; gap:4px; }
-    .users-panel li:last-child { border-bottom:0; }
-    .users-panel li.mic-user { color:#22c55e; }
-    .users-panel li button { background:transparent; border:0; cursor:pointer; padding:0 2px; }
-    .users-panel li button img { width:16px; height:16px; }
-
-    .popup { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); }
-    .popup-content { background:var(--panel); color:var(--fg); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow); min-width:200px; text-align:center; }
-    .popup-actions { margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-    .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
-    .popup-actions button img { width:24px; height:24px; display:block; }
-
-    .omconsole-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); z-index:20; padding:16px; }
-    .omconsole-modal__dialog { width:min(1200px, 96vw); height:min(800px, 92vh); background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
-    .omconsole-modal__header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 10%); }
-    .omconsole-modal__title { margin:0; font-size:16px; }
-    .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
-    .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
-    .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
-
-    .live-btn {
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 12px;
-      border:0;
-      border-radius:12px;
-      background:linear-gradient(180deg, var(--accent), var(--accent-2));
-      cursor:pointer;
-      color:#05130e;
-      font-weight:700;
-      box-shadow: var(--shadow);
-    }
-
-    @media (max-width: 640px) {
-      .card { width: 100%; margin: 16px; padding: 18px; }
-      .fields { gap: 12px; }
-      .fields input { font-size: 15px; }
-      .actions { flex-direction: column; align-items: stretch; }
-      .actions .btn { width: 100%; }
-    }
-    .live-dot {
-      display:inline-block;
-      width:8px;
-      height:8px;
-      border-radius:50%;
-      background:var(--danger);
-      animation: live-pulse 1s infinite;
-    }
-    @keyframes live-pulse {
-      0%, 100% { opacity:1; }
-      50% { opacity:0.2; }
-    }
-
-    #broadcast-btn.live {
-      background: var(--danger);
-      color:#fff;
-      border:0;
-      animation: live-pulse 1s infinite;
-    }
-
-/* Stream tiles */
-#streams {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 10px;
-  padding: 10px;
-  scroll-snap-type: x mandatory;
-}
-
-/* Stream cards */
-.stream {
-  position: relative;
-  width: 150px;
-  flex: 0 0 auto;
-  border: 1px solid var(--lining);
-  border-radius: 12px;
-  padding: 8px;
-  background: var(--panel);
-  cursor: pointer;
-  scroll-snap-align: start;
-}
-
-/* Expanded stream state */
-.stream.open {
-  width: 300px;
-  flex: 0 0 auto;
-}
-
-    .stream .title { font-weight:700; margin-bottom:6px; }
-    .stream .thumb { width:100%; border-radius:8px; }
-    .stream.open .thumb { display:none; }
-    .stream .video { display:none; }
-    .stream.open .video { display:block; }
-    .stream .tune-btn { margin-top:6px; width:100%; }
-    .stream .join-btns {
-      position:absolute;
-      top:8px;
-      right:8px;
-      display:flex;
-      gap:4px;
-    }
-    .stream .join-btns .chip {
-      width:32px;
-      height:32px;
-      padding:0;
-    }
-    .stream .video video {
-      width:100%;
-      border-radius:8px;
-      aspect-ratio:16/9;
-      object-fit:cover;
-    }
-    .stream.open .video.has-guest { display:flex; }
-    .stream.open .video.has-guest video {
-      width:50%;
-      height:100%;
-      max-width:50%;
-      max-height:100%;
-      border-radius:0;
-      object-fit:contain;
-    }
-    @media (orientation: portrait) {
-      .stream.open .video.has-guest { flex-direction:column; }
-      .stream.open .video.has-guest video {
-        width:100%;
-        height:50%;
-        max-width:100%;
-        max-height:50%;
-      }
-    }
-    .stream.open .video.pip { position:relative; display:block; }
-    .stream.open .video.pip video {
-      width:100%;
-      height:100%;
-      max-width:100%;
-      max-height:100%;
-      border-radius:0;
-      object-fit:contain;
-    }
-    .stream.open .video.pip video:nth-child(2) {
-      position:absolute;
-      width:30%;
-      height:30%;
-      bottom:10px;
-      right:10px;
-      border:2px solid #fff;
-      border-radius:8px;
-      max-width:none;
-      max-height:none;
-    }
-    .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
-    .stream.open .stream-feed { display:block; }
-    #video-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding: 10px;
-    }
-    #video-container.has-guest {
-      flex-wrap: nowrap;
-    }
-    #video-container.has-guest video {
-      flex: 1 1 50%;
-      max-width: 50%;
-    }
-    @media (orientation: portrait) {
-      #video-container.has-guest {
-        flex-direction: column;
-      }
-      #video-container.has-guest video {
-        max-width: 100%;
-      }
-    }
-    #video-container video {
-      max-width: 240px;
-      border-radius: 12px;
-      border: 1px solid var(--lining);
-      width: 100%;
-      height: auto;
-      object-fit: contain;
-      background: #000;
-      display: block;
-    }
-
-    #overlay-chat {
-      position: fixed;
-      bottom: calc(var(--footer-height) + 80px);
-      left: 0;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 10px;
-      z-index: 1002;
-      pointer-events: none;
-    }
-    .overlay-msg {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--caption-bg);
-      color: var(--caption-color);
-      border-radius: 12px;
-      padding: 4px 8px;
-      font-weight: bold;
-      box-shadow: var(--shadow);
-      animation: fade-out 5s forwards;
-    }
-    .overlay-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--muted);
-      color: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      flex-shrink: 0;
-      background-size: cover;
-      background-position: center;
-    }
-    @keyframes fade-out {
-      0%,80% { opacity: 1; }
-      100% { opacity: 0; }
-    }
-
-    .broadcast-controls { display:none; gap:8px; width:100%; justify-content:space-evenly; }
-    .broadcast-controls .chip { flex:0 0 auto; }
-    body.broadcast-mode .broadcast-controls { display:flex; }
-    #broadcast-composer { display:none; }
-    body.broadcast-mode #broadcast-composer { display:flex; }
-    #thumb-chooser {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: color-mix(in oklab, var(--panel), transparent 20%);
-      z-index: 1002;
-    }
-    #thumb-chooser .thumb-explain {
-      margin-bottom: 16px;
-      font-size: 1.2rem;
-      text-align: center;
-    }
-    #thumb-chooser .thumb-options {
-      display: flex;
-      gap: 20px;
-    }
-    #thumb-chooser .thumb-options button {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      font-size: 2rem;
-      background: var(--panel);
-      border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    #thumb-chooser .thumb-options .label {
-      font-size: 1rem;
-    }
-
-    .download-btn{
-      display:inline-block;
-      margin-top:4px;
-      padding:4px 8px;
-      border:1px solid var(--lining);
-      border-radius:8px;
-      background: color-mix(in oklab, var(--panel), transparent 25%);
-      color: var(--fg);
-      text-decoration:none;
-      font-size:12px;
-      box-shadow: var(--shadow);
-    }
-
-    /* ✅ make hidden actually hide, even with .auth display rules */
-    [hidden] { display: none !important; }
-    .auth.is-hidden { display: none !important; }
-    @media (max-width: 600px) {
-      header { padding:12px; gap:8px; }
-      footer { padding:0 12px 12px; gap:8px; }
-      .feed { padding:12px; }
-      .composer { margin:0; }
-      .ghost-ticker {
-        left: 50%;
-        right: auto;
-        top: 12px;
-        transform: translate(-50%, -16px);
-      }
-      .ghost-ticker.is-visible {
-        transform: translate(-50%, 0);
-      }
+    .pending-list { display: grid; gap: 8px; }
+    .pending-item { border: 1px solid #33426c; border-radius: 8px; padding: 8px; display: grid; gap: 6px; }
+    .host-actions { display: flex; gap: 8px; }
+    .status { font-size: 12px; color: var(--muted); min-height: 16px; }
+    .good { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--danger); }
+    @media (min-width: 980px) {
+      .layout { grid-template-columns: 1fr 320px; }
     }
   </style>
 </head>
-<body class="auth-lock">
-  <div id="token-gate" class="token-gate" role="dialog" aria-modal="true" aria-labelledby="token-gate-title" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553">
-    <div class="token-gate__panel">
-      <div class="token-gate__art" aria-hidden="true">
-        <p class="token-gate__eyebrow">CHAINeS access</p>
-        <h2 class="token-gate__headline">Secure gateway to CHAINeS POST</h2>
-        <p class="token-gate__lede">Connect your wallet to validate access and enter the platform.</p>
-      </div>
-      <div class="token-gate__content">
-        <p class="token-gate__eyebrow">Access verification</p>
-        <h2 id="token-gate-title" class="token-gate__title">Validate access to continue</h2>
-        <p class="token-gate__copy">Use Lace wallet to verify access and continue.</p>
-        <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
-        <button id="token-gate-connect" class="token-gate__button" type="button" data-action="connect">
-          <img src="static/wallet.svg" alt="" width="24" height="24" aria-hidden="true" />
-          Access
-          <span class="token-gate__button-note">Wallet validation</span>
-        </button>
-      </div>
-    </div>
-  </div>
-  <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
-    <img src="static/hologhost.svg" alt="" aria-hidden="true" />
-    <div class="ghost-ticker__text">
-      <span class="ghost-ticker__message" data-role="message"></span>
-      <span class="ghost-ticker__total" data-role="total" hidden></span>
-    </div>
-  </div>
-  <div class="wrap">
-    <header>
-        <div class="bar">
-          <div class="brand">
-            <div class="logo" aria-hidden="true"></div>
-            <h1>CHAINeS POST</h1>
-          </div>
-          <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
-            <input type="checkbox" id="auto-delete" />
-            Self-destruct in 5m
-          </label>
-          <button id="logout-btn" class="chip" type="button" title="Exit" aria-label="Exit"><img src="static/logout.svg" alt="Exit" /></button>
-        </div>
-        <div class="toolbar">
-          <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
-          <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
-          <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
-          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
-          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
-        </div>
-      <div class="const-buttons" hidden>
-        <button class="chip" id="camera-btn" type="button" title="Turn camera off">
-          <img src="static/camera.svg" alt="Toggle camera" />
-        </button>
-        <button class="chip" id="screen-btn" type="button" title="Share screen">
-          <img src="static/screen.svg" alt="Share screen" />
-        </button>
-        <button id="stream-code-btn" class="chip" type="button" title="Copy stream code" aria-label="Copy stream code" hidden><img src="static/key.svg" alt="Stream code" /></button>
-        <button id="camera-flip-btn" class="chip" type="button" title="Switch camera" aria-label="Switch camera" hidden><img src="static/flip.svg" alt="Flip camera" /></button>
-        <button id="invite-btn" class="chip" type="button" title="Invite listeners" aria-label="Invite listeners" hidden><img src="static/invite.svg" alt="Invite" /></button>
-        <div class="chip" id="invite-cc" hidden>
-          <button id="end-btn" type="button" title="End broadcast" aria-label="End broadcast"><img src="static/stop.svg" alt="End" /></button>
-          <button id="listener-count" type="button" title="Active listeners" aria-label="Active listeners"><img src="static/listeners.svg" alt="Listeners" /><span id="listener-count-number">0</span></button>
-        </div>
-      </div>
-    </header>
-
-      <main>
-        <div id="streams" class="streams"></div>
-        <div id="video-container" hidden></div>
-        <div id="overlay-chat" hidden></div>
-        <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
-      </main>
-
-    <footer>
-      <form id="composer" class="composer" autocomplete="off" hidden>
-        <label class="input" for="text">
-          <textarea id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" rows="1"></textarea>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="controls">
+        <label>Room ID
+          <input id="roomIdInput" placeholder="host-id or generated room id" />
         </label>
-        <div class="composer-actions">
-          <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
-          <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
-          <button class="send" id="command-btn" type="button" aria-label="Show commands"><img src="static/whitehat.svg" alt="Command" /></button>
-          <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
-          <div class="copywriter">CHAINeS POST Copywriter</div>
-        </div>
-      </form>
-      <input id="file" type="file" hidden />
-      <div class="broadcast-controls" id="broadcast-controls" hidden>
-        <button class="chip" id="chat-toggle" type="button" title="Toggle chat" aria-label="Toggle chat"><img src="static/chat.svg" alt="Chat" /></button>
-        <button class="chip" id="exit-broadcast" type="button" title="Exit broadcast" aria-label="Exit broadcast"><img src="static/logout.svg" alt="Exit" /></button>
+        <button id="goLiveBtn">Go Live (Host)</button>
+        <button id="joinViewerBtn">Join as Viewer</button>
+        <button id="requestSpeakBtn">Request to Speak</button>
+        <button id="requestCameraBtn">Request Camera</button>
+        <button id="toggleMuteBtn" disabled>Mute / Unmute</button>
+        <button id="toggleCameraBtn" disabled>Camera On / Off</button>
       </div>
-      <form id="broadcast-composer" class="composer" autocomplete="off" hidden>
-        <label class="input" for="broadcast-text">
-          <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
-        </label>
-        <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
-      </form>
-      <div class="status bottom">
-        <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
-        <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
-        </button>
-        <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
-        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
-        <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
-      </div>
-    </footer>
-  </div>
+      <div class="stats" id="counterBar"></div>
+      <div class="status" id="status"></div>
+    </section>
 
-  <div id="user-list" class="users-panel" hidden>
-    <h3>Online now</h3>
-    <ul id="users"></ul>
-  </div>
+    <section class="layout">
+      <section class="panel">
+        <h3 style="margin:0 0 8px;">Live Room</h3>
+        <div class="video-grid" id="videoGrid"></div>
+      </section>
 
-  <div id="popup" class="popup" hidden>
-    <div class="popup-content">
-      <p id="popup-text"></p>
-      <div id="popup-actions" class="popup-actions"></div>
-    </div>
-  </div>
+      <aside class="panel">
+        <h3 style="margin:0 0 8px;">Host Panel</h3>
+        <div class="pending-list" id="pendingList"></div>
+        <hr style="border-color:#2b3858; margin:12px 0;" />
+        <h4 style="margin:0 0 8px;">Audio-only Speakers</h4>
+        <div class="speaker-list" id="speakerList"></div>
+      </aside>
+    </section>
+  </main>
 
-  <div id="omconsole-modal" class="omconsole-modal" hidden>
-    <div class="omconsole-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="omconsole-title">
-      <div class="omconsole-modal__header">
-        <h2 id="omconsole-title" class="omconsole-modal__title">OMConsole</h2>
-        <button id="omconsole-close" class="omconsole-close" type="button" aria-label="Close OMConsole">Close</button>
-      </div>
-      <iframe id="omconsole-frame" class="omconsole-modal__frame" src="omconsole_render_single_games_ROUTING.html" title="OMConsole" loading="lazy" allow="camera *; microphone *; display-capture *; autoplay *" allowusermedia></iframe>
-    </div>
-  </div>
-
-  <!-- Auth overlay -->
-  <section id="auth" class="auth" hidden>
-    <div class="card">
-      <h2>Welcome to CHAINeS POST</h2>
-      <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
-      <div class="fields">
-        <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-        <input id="password" type="password" placeholder="Password" />
-        <input id="profile" type="file" accept="image/*" />
-      </div>
-      <div class="actions">
-        <button class="btn primary" id="login" type="button">Login</button>
-        <button class="btn ghost" id="register" type="button">Register</button>
-        <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
-      </div>
-      <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
-      <div id="ws-config" class="fields" style="display:none; margin-top:8px">
-        <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
-        <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Thumbnail chooser overlay -->
-  <div id="thumb-chooser" hidden>
-    <p class="thumb-explain">Choose a thumbnail for your broadcast</p>
-    <div class="thumb-options">
-      <button id="thumb-upload" title="Upload image">
-        <span class="icon">🖼️</span>
-        <span class="label">Upload</span>
-      </button>
-      <button id="thumb-camera" title="Take photo">
-        <span class="icon">📷</span>
-        <span class="label">Snap</span>
-      </button>
-      <button id="thumb-skip" title="No photo">
-        <span class="icon">🚫</span>
-        <span class="label">Skip</span>
-      </button>
-    </div>
-  </div>
-
-  <script src="static/copywriter.js"></script>
   <script>
-  ;(() => {
-    const el = (q, parent=document) => parent.querySelector(q);
-    const feed = el('#feed');
-    const form = el('#composer');
-    const input = el('#text');
-    const attachBtn = el('#attach');
-    const fileInput = el('#file');
-    const sendBtn = el('#send');
-    const cmdListBtn = el('#cmd-list');
-    const cmdBtn = el('#command-btn');
-    const messageBtn = el('#message-btn');
-    const autoDeleteToggle = el('#auto-delete');
-    const defaultPlaceholder = input.placeholder;
-    const footer = el('footer');
+    // ===== Editable room constants =====
+    const MAX_CAMERAS = 5; // Includes host video tile when HOST_VIDEO_COUNTS_AS_TILE is true.
+    const MAX_SPEAKERS = 13; // Includes camera users if they are sending audio.
+    const HOST_VIDEO_COUNTS_AS_TILE = true;
+    const ICE_SERVERS = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      // TURN placeholders for production
+      { urls: 'turn:YOUR_TURN_HOST:3478', username: 'YOUR_USER', credential: 'YOUR_PASS' }
+    ];
 
-    function createDownloadLink(content, filename, mime, user){
-      const link = Copywriter.createDownloadLink(content, filename, mime, user);
-      link.className = 'download-btn';
-      return link;
-    }
+    // ===== Role model =====
+    const Roles = Object.freeze({ VIEWER: 'viewer', SPEAKER: 'speaker', CAMERA: 'camera', HOST: 'host' });
 
-    function autoResize(el){
-      el.style.height = 'auto';
-      el.style.height = el.scrollHeight + 'px';
-    }
-    input.addEventListener('input', () => autoResize(input));
-
-    messageBtn.addEventListener('click', () => {
-      form.hidden = !form.hidden;
-      if(!form.hidden){
-        autoResize(input);
-        input.focus();
-      }
-    });
-    const actionCommands = {
-      wave:      { text: 'waves \u{1F44B}', icon: '👋' },
-      shrug:     { text: 'shrugs \u{1F937}', icon: '🤷' },
-      smile:     { text: 'smiles \u{1F642}', icon: '😊' },
-      laugh:     { text: 'laughs \u{1F602}', icon: '😂' },
-      dance:     { text: 'dances \u{1F483}', icon: '💃' },
-      cry:       { text: 'cries a river \u{1F622}', icon: '😢' },
-      sob:       { text: 'sobs like a soap opera star \u{1F62D}', icon: '😭' },
-      joke:      { text: 'tells a dad joke so bad it hurts \u{1F923}', icon: '🤪' },
-      facepalm:  { text: 'facepalms in disbelief \u{1F926}', icon: '🤦' },
-      sing:      { text: 'sings off-key karaoke \u{1F3A4}', icon: '🎤' },
-      clap:      { text: 'claps wildly \u{1F44F}', icon: '👏' },
-      thumbsup:  { text: 'gives a thumbs up \u{1F44D}', icon: '👍' },
-      party:     { text: 'throws a party \u{1F389}', icon: '🎉' }
-    };
-    const cmdPanel = document.createElement('div');
-    cmdPanel.id = 'cmd-panel';
-    cmdPanel.hidden = true;
-    footer.insertBefore(cmdPanel, footer.querySelector('#broadcast-controls'));
-
-    function renderCmdPanel(){
-      cmdPanel.innerHTML = '';
-      Object.entries(actionCommands).forEach(([cmd, info]) => {
-        const b = document.createElement('button');
-        b.className = 'chip';
-        b.type = 'button';
-        b.textContent = info.icon;
-        b.title = '/' + cmd;
-        b.addEventListener('click', () => {
-          input.value = `/${cmd} `;
-          input.focus();
-          cmdPanel.hidden = true;
-        });
-        cmdPanel.appendChild(b);
-      });
-    }
-    renderCmdPanel();
-    let pendingFile = null;
-    let fileLoading = false;
-    let dropperStatus = null;
-    let dropperStatusError = null;
-    const auth = el('#auth');
-    const usernameInput = el('#username');
-    const passwordInput = el('#password');
-    const profileInput = el('#profile');
-    const loginBtn = el('#login');
-    const registerBtn = el('#register');
-    const skipBtn = el('#skip');
-    const profileLink = el('#profile-link');
-    const profilePicEl = el('#profile-pic');
-    const profileNameEl = el('#profile-name');
-    const logoutBtn = el('#logout-btn');
-    const connChip = el('#conn-chip');
-    const connIcon = el('#conn-icon');
-    const connLabel = el('#conn-label');
-    const liveCount = el('#live-count');
-    const wsEdit = el('#ws-edit');
-    const wsCfg = el('#ws-config');
-    const wsUrlInput = el('#ws-url');
-    const liveChip = el('#live-chip');
-    const themeToggle = el('#theme-toggle');
-    const themeToggleIcon = themeToggle.querySelector('img');
-    const userList = el('#user-list');
-    const usersEl = el('#users');
-    const popup = el('#popup');
-    const popupText = el('#popup-text');
-    const popupActions = el('#popup-actions');
-    let userCache = [];
-    const broadcastBtn = el('#broadcast-btn');
-    const broadcastIcon = broadcastBtn.querySelector('img');
-    const broadcastLabel = broadcastBtn.querySelector('.label');
-    const streamCodeBtn = el('#stream-code-btn');
-    const cameraFlipBtn = el('#camera-flip-btn');
-    const inviteBtn = el('#invite-btn');
-    const inviteCC = el('#invite-cc');
-    const constButtons = el('.const-buttons');
-    const endBtn = el('#end-btn');
-    const exitBroadcast = el('#exit-broadcast');
-    const broadcastControls = el('#broadcast-controls');
-    const chatToggle = el('#chat-toggle');
-    const cameraBtn = el('#camera-btn');
-    const screenBtn = el('#screen-btn');
-    const broadcastComposer = el('#broadcast-composer');
-    const broadcastInput = el('#broadcast-text');
-    const headerBar = el('header');
-    const footerBar = el('footer');
-    const thumbChooser = el('#thumb-chooser');
-    const thumbUpload = el('#thumb-upload');
-    const thumbCamera = el('#thumb-camera');
-    const thumbSkip = el('#thumb-skip');
-    const listenerCountBtn = el('#listener-count');
-    const listenerCountSpan = el('#listener-count-number');
-    const videoContainer = el('#video-container');
-    const overlayChat = el('#overlay-chat');
-    const omconsoleBtn = el('#omconsole-btn');
-    const omconsoleModal = el('#omconsole-modal');
-    const omconsoleFrame = el('#omconsole-frame');
-    const omconsoleClose = el('#omconsole-close');
-    const streamsEl = el('#streams');
-    const streams = {};
-    const guestMap = {};
-    const pendingThumbs = {};
-    const videoToggle = el('#video-toggle');
-    function showStream(){
-      videoContainer.removeAttribute('hidden');
-      feed.setAttribute('hidden','');
-      if(form) form.setAttribute('hidden','');
-      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
-      if(videoToggle) videoToggle.textContent = 'Show Chat';
-    }
-    function showChat(){
-      videoContainer.setAttribute('hidden','');
-      feed.removeAttribute('hidden');
-      if(form) form.removeAttribute('hidden');
-      if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
-      if(videoToggle) videoToggle.textContent = 'Show Feed';
-    }
-    let currentHost = null;
-    let broadcastThumb = null;
-    let pendingJoinHost = null;
-    let joinApproved = false;
-    let pendingMicHost = null;
-    let micApproved = false;
-    let cameraOff = false;
-    let blankTrack = null;
-    let screenStream = null;
-    let screenTrack = null;
-    let screenSharing = false;
-
-    let audioUnlocked = false;
-    const pendingPlayables = new Set();
-
-    function tryPlay(el){
-      const p = el.play?.();
-      if(p && p.catch){
-        p.catch(() => pendingPlayables.add(el));
-      }
-    }
-
-    function unlockAudio(){
-      if(audioUnlocked) return;
-      audioUnlocked = true;
-      pendingPlayables.forEach(el => {
-        try { el.muted = false; el.removeAttribute('muted'); el.play?.(); } catch {}
-      });
-      pendingPlayables.clear();
-      document.removeEventListener('click', unlockAudio);
-      document.removeEventListener('touchend', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    }
-    document.addEventListener('click', unlockAudio, { once: true });
-    document.addEventListener('touchend', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-
-    // ensure header and footer remain visible
-    const keepVisible = el => {
-      if(!el) return;
-      el.style.opacity = '1';
-      el.style.visibility = 'visible';
-      el.removeAttribute('hidden');
-    };
-    [headerBar, footerBar].forEach(el => {
-      keepVisible(el);
-      new MutationObserver(() => keepVisible(el)).observe(el, { attributes: true });
-    });
-
-    el('#year').textContent = new Date().getFullYear();
-
-    chatToggle.addEventListener('click', () => {
-      document.body.classList.toggle('chat-open');
-    });
-
-    let omconsoleBootstrapped = false;
-    const showOmconsole = () => {
-      if(!omconsoleModal) return;
-      omconsoleModal.hidden = false;
-      if(omconsoleFrame && !omconsoleBootstrapped){
-        // Force a user-initiated frame load for stricter mobile permission policies.
-        omconsoleFrame.src = omconsoleFrame.src;
-        omconsoleBootstrapped = true;
-      }
-      try{ omconsoleFrame?.contentWindow?.postMessage({ type: 'omconsole:activate' }, '*'); }catch{}
-      omconsoleFrame?.focus?.();
+    const state = {
+      ws: null,
+      selfId: null,
+      roomId: null,
+      hostId: null,
+      role: Roles.VIEWER,
+      isHost: false,
+      localStream: null,
+      pendingRequests: new Map(), // fromId -> { role, name }
+      participants: new Map(), // peerId -> { role, hasAudio, hasVideo, name }
+      // Host topology: one upstream pc per sender, one downstream pc per viewer
+      pcsUpstream: new Map(), // senderId -> RTCPeerConnection
+      pcsDownstream: new Map(), // viewerId -> RTCPeerConnection
+      // Non-host: one pc to host
+      hostPC: null,
+      outboundTracks: { audio: null, video: null },
+      inboundStreams: new Map(), // participantId -> MediaStream
+      forwardedSenders: new Map(), // viewerId -> Map(trackKey, RTCRtpSender)
+      audioAnalyzers: new Map(),
+      userLabel: `user-${Math.random().toString(36).slice(2, 6)}`,
+      activeSpeaker: null,
     };
 
-    const hideOmconsole = () => {
-      if(!omconsoleModal) return;
-      omconsoleModal.hidden = true;
-      omconsoleBtn?.focus?.();
+    const el = (id) => document.getElementById(id);
+    const ui = {
+      roomInput: el('roomIdInput'), status: el('status'), grid: el('videoGrid'), pending: el('pendingList'),
+      speakers: el('speakerList'), counter: el('counterBar'), goLive: el('goLiveBtn'), joinViewer: el('joinViewerBtn'),
+      requestSpeak: el('requestSpeakBtn'), requestCamera: el('requestCameraBtn'), toggleMute: el('toggleMuteBtn'),
+      toggleCamera: el('toggleCameraBtn')
     };
 
-    if(omconsoleBtn){
-      omconsoleBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        showOmconsole();
-      });
+    function setStatus(text, tone = '') {
+      ui.status.className = `status ${tone}`.trim();
+      ui.status.textContent = text;
     }
 
-    if(omconsoleClose){
-      omconsoleClose.addEventListener('click', hideOmconsole);
+    function wsUrl() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      return `${proto}://${location.host}/ws`;
     }
 
-    if(omconsoleModal){
-      omconsoleModal.addEventListener('click', (event) => {
-        if(event.target === omconsoleModal) hideOmconsole();
-      });
+    function send(msg) {
+      if (!state.ws || state.ws.readyState !== 1) return;
+      state.ws.send(JSON.stringify(msg));
     }
 
-    document.addEventListener('keydown', (event) => {
-      if(event.key === 'Escape' && omconsoleModal && !omconsoleModal.hidden){
-        hideOmconsole();
-      }
-    });
-
-    if(cameraBtn){
-      cameraBtn.addEventListener('click', toggleCamera);
-    }
-    if(screenBtn){
-      screenBtn.addEventListener('click', () => {
-        if(screenSharing){
-          stopScreenShare();
-        } else {
-          showPopup('Share screen via…', [
-            { label: 'Window', onClick: () => { hidePopup(); shareScreen('window'); } },
-            { label: 'Full Screen', onClick: () => { hidePopup(); shareScreen('screen'); } },
-            { label: 'Cancel', onClick: () => hidePopup() }
-          ]);
-        }
-      });
-    }
-    if(cameraFlipBtn){
-      cameraFlipBtn.addEventListener('click', switchCamera);
-    }
-    if(videoToggle){
-      videoToggle.addEventListener('click', () => {
-        if(videoContainer.hasAttribute('hidden')){
-          showStream();
-        } else {
-          showChat();
-        }
-      });
-    }
-
-    // --- Basic state ---
-    const store = {
-      get user() {
-        try { return localStorage.getItem('chaines_username') || ''; }
-        catch { return ''; }
-      },
-      set user(v) {
-        try { v ? localStorage.setItem('chaines_username', v) : localStorage.removeItem('chaines_username'); }
-        catch {}
-      },
-      get profilePic() {
-        try { return localStorage.getItem('chaines_profile_pic') || ''; }
-        catch { return ''; }
-      },
-      set profilePic(v) {
-        try { v ? localStorage.setItem('chaines_profile_pic', v) : localStorage.removeItem('chaines_profile_pic'); }
-        catch {}
-      },
-      get wsURL() {
-        try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
-        catch { return defaultWS(); }
-      },
-      set wsURL(v) {
-        try { v ? localStorage.setItem('chaines_ws_url', v) : localStorage.removeItem('chaines_ws_url'); }
-        catch {}
-      },
-      get theme() {
-        try { return localStorage.getItem('chaines_theme') || ''; }
-        catch { return ''; }
-      },
-      set theme(v) {
-        try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
-        catch {}
-      },
-      get autoDelete(){
-        try { return localStorage.getItem('chaines_autodelete') === '1'; }
-        catch { return false; }
-      },
-      set autoDelete(v){
-        try { v ? localStorage.setItem('chaines_autodelete','1') : localStorage.removeItem('chaines_autodelete'); }
-        catch {}
-      },
-      get obsRPC() {
-        try { return localStorage.getItem('chaines_obs_rpc') || ''; }
-        catch { return ''; }
-      },
-      set obsRPC(v) {
-        try { v ? localStorage.setItem('chaines_obs_rpc', v) : localStorage.removeItem('chaines_obs_rpc'); }
-        catch {}
-      },
-      get obsKey() {
-        try { return localStorage.getItem('chaines_obs_key') || ''; }
-        catch { return ''; }
-      },
-      set obsKey(v) {
-        try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
-        catch {}
-      },
-      pushMsg(m) {
-        try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          items.push(m); while (items.length > 200) items.shift();
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
-        } catch {}
-      },
-      removeMsg(id){
-        try{
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => x.id !== id);
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
-        } catch{}
-      },
-      loadMsgs() {
-        try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          const now = Date.now();
-          const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          localStorage.setItem('chaines_messages', JSON.stringify(valid));
-          return valid;
-        } catch { return []; }
-      },
-      clearMsgs() {
-        try { localStorage.removeItem('chaines_messages'); } catch {}
-      }
-    };
-
-    async function fetchDropperStatus(force){
-      if(dropperStatus && !force) return dropperStatus;
-      try{
-        const res = await fetch('/api/nft-dropper/info');
-        if(!res.ok) throw new Error('Unable to reach NFT dropper.');
-        const data = await res.json();
-        dropperStatus = data;
-        dropperStatusError = null;
-        return data;
-      }catch(err){
-        dropperStatus = null;
-        dropperStatusError = err?.message || 'Unable to reach NFT dropper.';
-        return null;
-      }
-    }
-
-    function describeDropperStatus(info){
-      if(!info) return '';
-      const parts = [];
-      if(info.dropper?.address){
-        parts.push(`Mint address: ${info.dropper.address}`);
-      }
-      if(typeof info.dropper?.tokensLeft === 'number' && Number.isFinite(info.dropper.tokensLeft)){
-        parts.push(`${info.dropper.tokensLeft} tokens left`);
-      }
-      return parts.join(' · ');
-    }
-
-    async function mintPendingFile(file, info){
-      if(!file) return;
-      const defaultName = (file.name || '').replace(/\.[^.]+$/, '') || 'New NFT';
-      let nftName = defaultName;
-      let nftDescription = '';
-      try { nftName = prompt('NFT name', defaultName) || defaultName; } catch{}
-      try { nftDescription = prompt('NFT description (optional)', '') || ''; } catch{}
-
-      try{
-        const res = await fetch('/api/nft-dropper/mint', {
-          method:'POST',
-          headers:{ 'content-type': 'application/json' },
-          body: JSON.stringify({
-            fileDataUrl: file.dataUrl,
-            fileName: file.name,
-            fileType: file.type,
-            metadata: { name: nftName, description: nftDescription || undefined }
-          })
-        });
-        const data = await res.json();
-        if(!res.ok || !data?.success){
-          throw new Error(data?.error || 'Minting failed.');
-        }
-        const summary = describeDropperStatus({ dropper: data.dropper });
-        const noteParts = [`Mint staged for ${data.fileName}.`];
-        if(summary) noteParts.push(summary);
-        systemNote(noteParts.join(' '));
-        postMessage({
-          text: `Mint staged for ${data.fileName}${summary ? ` — ${summary}` : ''}`,
-          file: file.dataUrl,
-          fileName: file.name,
-          fileType: file.type,
-        });
-        pendingFile = null;
-        input.placeholder = defaultPlaceholder;
-      }catch(err){
-        alert(err?.message || 'Minting failed.');
-      }
-    }
-
-    async function maybeOfferMint(){
-      if(!pendingFile) return;
-      const status = await fetchDropperStatus();
-      const dropperReady = Boolean(status && (status.sourceDir || status.sourceDirReady));
-      const actions = [
-        { label: 'Send normally', onClick: () => hidePopup() },
-        { label: 'Remove attachment', onClick: () => { pendingFile=null; input.placeholder=defaultPlaceholder; hidePopup(); } }
-      ];
-      if(dropperReady){
-        actions.unshift({ label: 'Mint & share', onClick: () => { hidePopup(); mintPendingFile(pendingFile, status); } });
-      }
-      const desc = dropperReady
-        ? describeDropperStatus(status)
-        : (dropperStatusError || 'Configure NFT_DROPPER_SOURCE_DIR to enable minting.');
-      const message = dropperReady
-        ? `Mint or send ${pendingFile.name}. ${desc}`
-        : `Send ${pendingFile.name}. ${desc}`;
-      showPopup(message.trim(), actions);
-    }
-
-    autoDeleteToggle.checked = store.autoDelete;
-    autoDeleteToggle.addEventListener('change', () => {
-      store.autoDelete = autoDeleteToggle.checked;
-    });
-
-    function applyTheme(t){
-      document.documentElement.dataset.theme = t;
-      themeToggleIcon.src = t === 'light' ? 'static/moon.svg' : 'static/sun.svg';
-    }
-    const initialTheme = store.theme || 'light';
-    applyTheme(initialTheme);
-    themeToggle.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-      store.theme = next;
-      applyTheme(next);
-    });
-    liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
-    connChip.addEventListener('click', () => {
-      if (onlineMode === 'cloud') {
-        try { socket && socket.close(); } catch {}
-        socket = null;
-        if(!bc) setupLocal();
-        setStatus(bc ? 'local' : 'off');
-      } else {
-        if(!bc) setupLocal();
-        connectWS();
-      }
-    });
-    broadcastBtn.addEventListener('click', async () => {
-      if (broadcasting) { endBroadcast(); return; }
-      const others = Object.keys(streams).filter(id => id !== clientId);
-      if (others.length > 0 && !joinApproved) {
-        const hostId = others[0];
-        pendingJoinHost = hostId;
-        sendSignal({ type: 'join-request', id: hostId, user: store.user });
-        broadcastBtn.disabled = true;
-        broadcastLabel.textContent = 'Pending';
-      } else {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-            audio: true
-          });
-        } catch (err) {
-          console.warn('Primary media access failed, trying default devices', err);
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          } catch (err2) {
-            console.error('Unable to access camera/microphone', err2);
-            alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
-            return;
-          }
-        }
-        broadcastThumb = await chooseThumbnail();
-        if (broadcastThumb) {
-          ensureStreamThumb(clientId, store.user, true);
-          handleThumbnail(clientId, broadcastThumb);
-          sendSignal({ type: 'thumb', thumb: broadcastThumb });
-        }
-        startBroadcast(stream);
-      }
-    });
-    streamCodeBtn.addEventListener('click', () => {
-      const code = `stream-${clientId || store.user}`;
-      const rpc = prompt('Enter OBS RPC URL', store.obsRPC || '');
-      if (rpc !== null) store.obsRPC = rpc.trim();
-      const key = prompt('Enter OBS stream key', store.obsKey || '');
-      if (key !== null) store.obsKey = key.trim();
-
-      if (store.obsKey) {
-        const feedUrl = store.obsRPC
-          ? `${store.obsRPC.replace(/\/?$/, '')}/${encodeURIComponent(store.obsKey)}`
-          : store.obsKey;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard
-            .writeText(feedUrl)
-            .then(() => alert('OBS feed URL copied'));
-        } else {
-          prompt('OBS feed URL:', feedUrl);
-        }
-      }
-
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(code).then(() => alert('Stream code copied'));
-      } else {
-        prompt('Your stream code:', code);
-      }
-    });
-    inviteBtn.addEventListener('click', () => {
-      if(!userCache.length){ alert('No users online'); return; }
-      showPopup('Invite who?', userCache.map(u => {
-        const name = typeof u === 'string' ? u : u.name;
-        const id = typeof u === 'string' ? u : u.id;
-        return {
-          label: '@' + name,
-          onClick: () => {
-            showPopup(`Invite @${name} to join via…`, [
-              { label: 'Camera', onClick: () => { sendSignal({ type: 'invite', mode: 'join', target: id }); hidePopup(); } },
-              { label: 'Mic', onClick: () => { sendSignal({ type: 'invite', mode: 'mic', target: id }); hidePopup(); } },
-              { label: 'Cancel', onClick: () => hidePopup() }
-            ]);
-          }
-        };
-      }));
-    });
-    endBtn.addEventListener('click', () => { endBroadcast(); });
-    exitBroadcast.addEventListener('click', () => { endBroadcast(); });
-    window.addEventListener('beforeunload', () => {
-      endBroadcast(true);
-      for(const id in streams){
-        if(streams[id].started && !streams[id].self){ endWatching(id); }
-      }
-    });
-
-    // --- Connection setup (optional WebSocket + local BroadcastChannel fallback) ---
-    let socket = null;
-    let bc = null;
-    let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
-    const seen = new Set();
-    const seenComments = new Set();
-
-    // --- WebRTC state ---
-      const peerConnections = {};
-      let localStream = null;
-      let clientId = null;
-      const activeRooms = new Set();
-    let broadcasting = false;
-    let broadcastTimer = null;
-    let broadcastVideo = null;
-    let captionTrack = null;
-    let speechRec = null;
-    let usingFrontCamera = true;
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let recordCanvas = null;
-    let recordCtx = null;
-    let drawHandle = null;
-    let recordMime = 'video/webm';
-    let overlayMessages = [];
-
-    function showOverlayMessage({ user, text, profilePic }){
-      if(!overlayChat) return;
-      overlayChat.innerHTML = '';
-      const wrap = document.createElement('div');
-      wrap.className = 'overlay-msg';
-      const av = document.createElement('div');
-      av.className = 'overlay-avatar';
-      if(profilePic){
-        av.style.backgroundImage = `url(${profilePic})`;
-      } else {
-        av.textContent = initials(user);
-      }
-      const span = document.createElement('div');
-      span.innerHTML = `<span class="who">@${escapeHTML(user)}</span>: ${renderText(text)}`;
-      wrap.appendChild(av);
-      wrap.appendChild(span);
-      overlayChat.appendChild(wrap);
-      setTimeout(() => wrap.remove(), 5000);
-    }
-
-      function updateHeaderButtons(){
-        const show = broadcasting;
-        [streamCodeBtn, cameraFlipBtn, inviteBtn, inviteCC, listenerCountBtn, endBtn].forEach(btn => {
-          if(btn) btn.hidden = !show;
-        });
-        document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
-        document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
-      }
-    updateHeaderButtons();
-    window.addEventListener('resize', () => {
-      document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
-      document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
-    });
-
-    function updateUsers(list){
-        userCache = list;
-        liveCount.textContent = list.length;
-        usersEl.innerHTML = '';
-        const liveIds = new Set();
-        list.forEach(u => {
-          const li = document.createElement('li');
-          const name = typeof u === 'string' ? u : u.name;
-          const id = typeof u === 'string' ? u : u.id;
-          if(u.live){
-            const dot = document.createElement('span');
-            dot.className = 'live-dot';
-            li.appendChild(dot);
-            const camIcon = document.createElement('span');
-            camIcon.textContent = '🎥';
-            camIcon.title = 'Camera';
-            li.appendChild(camIcon);
-            liveIds.add(id);
-            ensureStreamThumb(id, name, id === clientId);
-          }
-          if(u.mic){
-            li.classList.add('mic-user');
-            const micIcon = document.createElement('span');
-            micIcon.textContent = '🎤';
-            micIcon.title = 'Mic';
-            li.appendChild(micIcon);
-          }
-          const nameSpan = document.createElement('span');
-          nameSpan.textContent = '@' + name;
-          li.appendChild(nameSpan);
-          if(u.live){
-            li.addEventListener('click', () => watchLive(guestMap[id] || id, name));
-          }
-          if(u.live && id !== clientId){
-            const camBtn = document.createElement('button');
-            camBtn.title = 'Request to join with camera';
-            camBtn.innerHTML = '<img src="static/camera.svg" alt="Join with camera" />';
-            camBtn.addEventListener('click', e => {
-              e.stopPropagation();
-              currentHost = id;
-              pendingJoinHost = id;
-              sendSignal({ type: 'join-request', id, user: store.user });
-              systemNote('Join request sent');
-            });
-            li.appendChild(camBtn);
-            const micBtn = document.createElement('button');
-            micBtn.title = 'Request to join with mic';
-            micBtn.innerHTML = '<img src="static/mic.svg" alt="Request mic" />';
-            micBtn.addEventListener('click', e => {
-              e.stopPropagation();
-              currentHost = id;
-              pendingMicHost = id;
-              sendSignal({ type: 'mic-request', id, user: store.user });
-              systemNote('Mic request sent');
-            });
-            li.appendChild(micBtn);
-          }
-          usersEl.appendChild(li);
-        });
-        for(const id in streams){
-          if(!liveIds.has(id)){
-            streams[id].container.remove();
-            delete streams[id];
-          }
-        }
-      }
-
-      function ensureStreamThumb(id, name, isSelf=false){
-        if(streams[id]) return;
-        const div = document.createElement('div');
-        div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
-        const videoBox = div.querySelector('.video');
-        const thumbEl = div.querySelector('.thumb');
-        thumbEl.setAttribute('hidden','');
-        const feed = div.querySelector('.stream-feed');
-        const count = div.querySelector('.listener-count');
-        const tuneBtn = div.querySelector('.tune-btn');
-        const camBtn = div.querySelector('.cam-btn');
-        const micBtn = div.querySelector('.mic-btn');
-        const joinBtns = div.querySelector('.join-btns');
-        if(!isSelf){
-          camBtn.addEventListener('click', () => {
-            sendSignal({ type: 'join-request', id, user: store.user });
-          });
-          micBtn.addEventListener('click', () => {
-            sendSignal({ type: 'mic-request', id, user: store.user });
-          });
-          camBtn.hidden = true;
-          micBtn.hidden = true;
-          if(joinBtns) joinBtns.hidden = true;
-          tuneBtn.addEventListener('click', () => {
-            if(streams[id].started){
-              endWatching(id);
-              streams[id].started = false;
-              div.classList.remove('open');
-              tuneBtn.textContent = 'Tune In';
-              camBtn.hidden = true;
-              micBtn.hidden = true;
-              if(joinBtns) joinBtns.hidden = true;
-            } else {
-              startWatching(id);
-              streams[id].started = true;
-              div.classList.add('open');
-              tuneBtn.textContent = 'Leave';
-              camBtn.hidden = false;
-              micBtn.hidden = false;
-              if(joinBtns) joinBtns.hidden = false;
-              div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }
-          });
-        } else {
-          tuneBtn.style.display = 'none';
-          camBtn.style.display = 'none';
-          micBtn.style.display = 'none';
-          if(joinBtns) joinBtns.style.display = 'none';
-        }
-        if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
-        streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, vid: null, captionTrack: null, thumbEl };
-        if(isSelf){
-          div.classList.add('open');
-          streams[id].started = true;
-        }
-      }
-      function chooseThumbnail(){
-        return new Promise(resolve => {
-          thumbChooser.hidden = false;
-
-          function cleanup(){
-            thumbChooser.hidden = true;
-            thumbUpload.removeEventListener('click', onUpload);
-            thumbCamera.removeEventListener('click', onCamera);
-            thumbSkip.removeEventListener('click', onSkip);
-          }
-
-          function pick(capture){
-            thumbChooser.hidden = true;
-            const inp = document.createElement('input');
-            inp.type = 'file';
-            inp.accept = 'image/*';
-            if(capture) inp.capture = 'environment';
-            inp.onchange = () => {
-              const file = inp.files[0];
-              cleanup();
-              if(!file){ resolve(null); return; }
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.readAsDataURL(file);
-            };
-            inp.click();
-          }
-
-          function onUpload(){ pick(false); }
-          function onCamera(){ pick(true); }
-          function onSkip(){ cleanup(); resolve(null); }
-
-          thumbUpload.addEventListener('click', onUpload, { once: true });
-          thumbCamera.addEventListener('click', onCamera, { once: true });
-          thumbSkip.addEventListener('click', onSkip, { once: true });
-        });
-      }
-
-      function handleThumbnail(id, thumb){
-        if(streams[id]){
-          streams[id].thumbEl.src = thumb;
-          streams[id].thumbEl.removeAttribute('hidden');
-        } else {
-          pendingThumbs[id] = thumb;
-        }
-      }
-
-      // open stream bubble programmatically if needed
-      function watchLive(id, name){
-        ensureStreamThumb(id, name, id === clientId);
-        streams[id].container.classList.add('open');
-        if(!streams[id].started && !streams[id].self){
-          startWatching(id);
-          streams[id].started = true;
-        }
-      }
-
-      function updateListenerCount(id, n){
-        if(streams[id]) streams[id].count.textContent = n;
-        if(id === clientId && listenerCountSpan) listenerCountSpan.textContent = n;
-      }
-    function sendJoin(){
-      try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
-    }
-
-    function defaultWS(){
-      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
-        ? 'chaines-io-chat.onrender.com'
-        : location.host;
-      const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host + '/ws';
-    }
-
-    function setStatus(mode){
-      onlineMode = mode;
-      if(mode === 'cloud'){
-        connLabel.textContent = 'Cloud';
-        connIcon.src = 'static/cloud.svg';
-      } else if(mode === 'local'){
-        connLabel.textContent = 'Local';
-        connIcon.src = 'static/home.svg';
-        updateUsers([]);
-      } else {
-        connLabel.textContent = 'Offline';
-        connIcon.src = 'static/home.svg';
-        updateUsers([]);
-      }
-      if(mode !== 'cloud') renderHistory();
-    }
-
-    function connectWS(){
-      const url = store.wsURL;
-      if(!('WebSocket' in window)) return setStatus('off');
-      try {
-        socket = new WebSocket(url);
-      } catch { setStatus('off'); return; }
-
-      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
-      socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
-      socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
-      socket.addEventListener('message', ev => {
-        try {
-          const data = JSON.parse(ev.data);
-          if(data && data.type === 'chat') receive(data);
-          if(data && data.type === 'comment') handleComment(data);
-          if(data && data.type === 'like') handleLike(data);
-          if(data && data.type === 'caption') handleCaption(data);
-          if(data && data.type === 'system') systemNote(data.text);
-          if(data && data.type === 'users') updateUsers(data.users || []);
-          if(data && data.type === 'count') liveCount.textContent = data.count;
-          if(data && data.type === 'history') {
-            const msgs = data.messages || [];
-            if(msgs.some(m => m.room)){
-              msgs.forEach(m => receive(m));
-            } else {
-              feed.innerHTML = '';
-              msgs.forEach(m => receive(m));
-            }
-          }
-          if(data && data.type === 'id') clientId = data.id;
-          if(data && data.type === 'listeners') updateListenerCount(data.id, data.count);
-          if(data && data.type === 'watcher') handleWatcher(data.id);
-          if(data && data.type === 'offer') handleOffer(data);
-          if(data && data.type === 'answer') handleAnswer(data);
-          if(data && data.type === 'candidate') handleCandidate(data);
-          if(data && data.type === 'bye') handleBye(data);
-          if(data && data.type === 'join-request') handleJoinRequest(data.id, data.user);
-          if(data && data.type === 'join-approved') handleJoinApproved();
-          if(data && data.type === 'join-denied') handleJoinDenied();
-          if(data && data.type === 'mic-request') handleMicRequest(data.id, data.user);
-          if(data && data.type === 'mic-approved') handleMicApproved();
-          if(data && data.type === 'mic-denied') handleMicDenied();
-          if(data && data.type === 'invite') handleInvite(data);
-          if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
-          if(data && data.type === 'guest-start') handleGuestStart(data);
-          if(data && data.type === 'delete') {
-            const el = feed.querySelector(`li[data-id="${data.id}"]`);
-            if(el) el.remove();
-            store.removeMsg(data.id);
-          }
-          if(data && data.type === 'self-destruct') {
-            systemNote(`Your post #${data.messageId} self-destructed`);
-          }
-        } catch {}
-      });
-    }
-
-    function setupLocal(){
-      if(!('BroadcastChannel' in window)) { setStatus('off'); return; }
-      bc = new BroadcastChannel('chaines_chat');
-      bc.onmessage = (ev) => {
-        const m = ev.data; if(m && m.type === 'chat') receive(m);
+    function envelope(type, payload = {}) {
+      return {
+        type,
+        roomId: state.roomId,
+        fromId: state.selfId,
+        role: state.role,
+        ...payload,
       };
-      if(onlineMode !== 'cloud') setStatus('local');
     }
 
-    // --- Auth flow ---
-    function requireAuth(){
-      if (store.user) {
-        enterChat(store.user, store.profilePic);
-      } else {
-        auth.hidden = false;
-        auth.classList.remove('is-hidden');
-        auth.style.display = 'flex';
-        const top = headerBar.offsetHeight;
-        const bottom = footerBar.offsetHeight;
-        auth.style.top = top + 'px';
-        auth.style.bottom = bottom + 'px';
-        document.body.classList.add('auth-lock');
-        setTimeout(() => usernameInput && usernameInput.focus(), 50);
-      }
-    }
-
-    function enterChat(name, profilePic){
-      const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
-      store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
-      if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
-      if(profileLink){
-        profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
-        profileNameEl.textContent = '@' + store.user;
-        if(store.profilePic){
-          profilePicEl.src = store.profilePic;
-          profilePicEl.hidden = false;
-        } else {
-          profilePicEl.hidden = true;
-        }
-      }
-
-      document.body.classList.remove('auth-lock');
-      document.documentElement.style.zoom = '1';
-      window.scrollTo(0,0);
-
-      // decisively hide overlay
-      auth.classList.add('is-hidden');
-      auth.setAttribute('hidden','');
-      auth.style.display = 'none';
-
-      renderHistory();
-      if (!socket || socket.readyState > 1) connectWS();
-      else sendJoin();
-      if (!bc) setupLocal();
-      input && input.focus();
-      systemNote(`You are signed in as @${store.user}.`);
-      setupPush();
-    }
-
-    async function setupPush(){
-      if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-      try {
-        const prefRes = await fetch('/notification-settings/' + encodeURIComponent(store.user));
-        const pref = await prefRes.json().catch(()=>({}));
-        if(!pref.push) return;
-        const perm = await Notification.requestPermission();
-        if(perm !== 'granted') return;
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        const res = await fetch('/push/key');
-        const data = await res.json().catch(()=>({}));
-        if(!data.key) return;
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(data.key)
-        });
-        await fetch('/push/subscribe', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ username: store.user, subscription: sub })
-        });
-      } catch{}
-    }
-
-    function urlBase64ToUint8Array(base64String){
-      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-      const rawData = atob(base64);
-      const outputArray = new Uint8Array(rawData.length);
-      for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-      }
-      return outputArray;
-    }
-
-    async function doLogin(){
-      const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
-      const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
-      const res = await fetch('/login', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass })
-      });
-      const data = await res.json().catch(()=>null);
-      if(res.ok && data && data.success){
-        enterChat(data.username, data.profilePic);
-      } else {
-        alert(data?.error || 'Login failed');
-      }
-    }
-
-    loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
-
-    registerBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
-      const pass = passwordInput.value;
-      if(!name || !pass){ alert('Username and password required'); return; }
-      const fd = new FormData();
-      fd.append('username', name);
-      fd.append('password', pass);
-      if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
-      const res = await fetch('/register', { method:'POST', body: fd });
-      if(res.ok){ await doLogin(); }
-      else {
-        const data = await res.json().catch(()=>({}));
-        alert(data.error || 'Registration failed');
-      }
-    });
-
-    skipBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      store.profilePic='';
-      enterChat('guest-' + Math.floor(Math.random()*9999));
-    });
-
-    // Enter key on fields
-    [usernameInput, passwordInput].forEach(inp => inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
-    }));
-
-    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
-
-    wsEdit.addEventListener('click', () => {
-      wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
-      wsUrlInput.value = store.wsURL;
-    });
-    el('#save-ws').addEventListener('click', (e) => {
-      e.preventDefault();
-      store.wsURL = wsUrlInput.value.trim();
-      alert('Saved WebSocket URL.');
-    });
-
-    // --- Messaging ---
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if(fileLoading) return;
-      const raw = (input.value || '').trim();
-      if(!raw && !pendingFile) return;
-
-      if(raw){
-        // Commands
-        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
-        if(/^\s*\/me\s+/.test(raw)){
-          const act = raw.replace(/^\s*\/me\s+/, '');
-          postMessage({ text: `*${act}*`, isAction:true });
-          input.value='';
-          autoResize(input);
-          input.placeholder = defaultPlaceholder;
-          pendingFile = null;
-          return;
-        }
-        const simpleCmd = raw.match(/^\/([a-z]+)$/i);
-        if(simpleCmd){
-          const entry = actionCommands[simpleCmd[1].toLowerCase()];
-          if(entry){
-            postMessage({ text: `*${entry.text}*`, isAction:true });
-            input.value='';
-            autoResize(input);
-            input.placeholder = defaultPlaceholder;
-            pendingFile = null;
-            return;
+    // For server compatibility: offer/answer/candidate must use {type, id, sdp|candidate}
+    function relayWebRTC(type, toId, pcKey, body) {
+      if (type === 'offer' || type === 'answer') {
+        send({
+          type,
+          id: toId,
+          sdp: {
+            description: body,
+            roomId: state.roomId,
+            fromId: state.selfId,
+            toId,
+            role: state.role,
+            pcKey,
           }
-        }
+        });
       }
-
-      // append user signature for copyright
-      const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
-      const msgText = raw ? raw + signature : signature;
-      const msg = { text: msgText, broadcast: broadcasting };
-      if(pendingFile){
-        msg.file = pendingFile.dataUrl;
-        msg.fileName = pendingFile.name;
-        msg.fileType = pendingFile.type;
-        if(pendingFile.type.startsWith('image/')){
-          msg.image = pendingFile.dataUrl;
-          msg.name = pendingFile.name;
-        }
+      if (type === 'candidate') {
+        send({
+          type,
+          id: toId,
+          candidate: {
+            candidate: body,
+            roomId: state.roomId,
+            fromId: state.selfId,
+            toId,
+            role: state.role,
+            pcKey,
+          }
+        });
       }
-      postMessage(msg);
-      input.value = '';
-      autoResize(input);
-      input.placeholder = defaultPlaceholder;
-      pendingFile = null;
-    });
+    }
 
-    broadcastComposer.addEventListener('submit', ev => {
-      ev.preventDefault();
-      const raw = (broadcastInput.value || '').trim();
-      if(!raw) return;
-      const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
-      const msgText = raw + signature;
-      postMessage({ text: msgText, broadcast: true });
-      broadcastInput.value = '';
-    });
+    function createPC({ remoteId, pcKey, direction, onTrack }) {
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pc.__meta = { remoteId, pcKey, direction };
 
-    cmdListBtn.addEventListener('click', () => {
-      cmdPanel.hidden = !cmdPanel.hidden;
-    });
-    cmdBtn.addEventListener('click', () => {
-      cmdPanel.hidden = !cmdPanel.hidden;
-    });
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      fileLoading = true;
-      sendBtn.disabled = true;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        let dataUrl = reader.result;
-        if(file.type.startsWith('image/')){
-          let wmText = `© ${store.user}`;
-          let wmFile;
-          try{ wmText = prompt('Watermark text', wmText) || wmText; }catch{}
-          try{
-            if(confirm('Use an image file as watermark instead of text?')){
-              wmFile = await selectWatermarkFile();
-            }
-            dataUrl = await addWatermark(dataUrl, wmText, wmFile);
-          }catch{}
-        }
-        pendingFile = { dataUrl, name: file.name, type: file.type };
-        input.placeholder = `Comment on ${file.name}`;
-        input.focus();
-        fileLoading = false;
-        sendBtn.disabled = false;
-        maybeOfferMint();
+      pc.onicecandidate = (ev) => {
+        if (!ev.candidate) return;
+        relayWebRTC('candidate', remoteId, pcKey, ev.candidate);
       };
-      reader.onerror = () => {
-        fileLoading = false;
-        sendBtn.disabled = false;
+      pc.onconnectionstatechange = () => {
+        const st = pc.connectionState;
+        console.log('[pc]', pcKey, direction, state.selfId, '=>', remoteId, st);
+        if (['failed', 'closed', 'disconnected'].includes(st)) {
+          handlePeerDisconnect(remoteId, pcKey, direction);
+        }
       };
-      reader.readAsDataURL(file);
-      fileInput.value = '';
-    });
-
-      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room }){
-      if(broadcast){
-        room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
-      }
-      const msg = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-        type: 'chat',
-        user: store.user,
-        profilePic: store.profilePic,
-          text: text,
-          room: room,
-        image: image,
-        file: file,
-        fileName: fileName || name,
-        fileType: fileType,
-        name: fileName || name,
-        isAction,
-        broadcast,
-        video,
-        ts: Date.now(),
-        likes: 0,
-        comments: []
-      };
-      if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
-
-      // Push to UI + storage immediately
-        receive(msg, true);
-        if(!room) store.pushMsg(msg);
-
-      // Broadcast locally
-      try { bc && bc.postMessage(msg); } catch {}
-
-      // Send to server if available
-        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
-      }
-
-    // --- WebRTC helpers ---
-      function startBroadcast(stream, audioOnly=false){
-        if(broadcasting) return;
-        overlayMessages = [];
-        cameraOff = false;
-        blankTrack = null;
-        broadcasting = true;
-        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
-        getStream.then(stream => {
-          localStream = stream;
-          recordedChunks = [];
-          if(!audioOnly){
-            recordCanvas = document.createElement('canvas');
-            recordCtx = recordCanvas.getContext('2d');
-            const draw = () => {
-              const vids = videoContainer.querySelectorAll('video');
-              let w = 0, h = 0;
-              vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
-              if(w && h){
-                recordCanvas.width = w;
-                recordCanvas.height = h;
-                let x = 0;
-                vids.forEach(v => {
-                  try { recordCtx.drawImage(v, x, 0, v.videoWidth || 0, h); } catch{}
-                  x += v.videoWidth || 0;
-                });
-                const now = Date.now();
-                overlayMessages = overlayMessages.filter(m => now - m.ts < 5000);
-                if(overlayMessages.length){
-                  recordCtx.font = '20px Poppins, sans-serif';
-                  recordCtx.textBaseline = 'bottom';
-                  let y = recordCanvas.height - 10;
-                  overlayMessages.forEach(msg => {
-                    const padding = 8;
-                    const metrics = recordCtx.measureText(msg.text);
-                    const height = 24;
-                    const width = metrics.width + padding * 2;
-                    const xPos = 10;
-                    const yPos = y;
-                    recordCtx.fillStyle = 'rgba(0,0,0,0.6)';
-                    recordCtx.fillRect(xPos, yPos - height, width, height);
-                    recordCtx.fillStyle = '#fff';
-                    recordCtx.fillText(msg.text, xPos + padding, yPos - 6);
-                    y -= height + 4;
-                  });
-                }
-              }
-              drawHandle = requestAnimationFrame(draw);
-            };
-            draw();
-            try {
-              const canvasStream = recordCanvas.captureStream(30);
-              stream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
-              const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
-              mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
-              recordMime = mime;
-              mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
-              mediaRecorder.start();
-            } catch {}
-          }
-      updateListenerCount(clientId, 0);
-      activeRooms.add(clientId);
-      showStream();
-      document.body.classList.remove('chat-open');
-      if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
-      if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
-      broadcastLabel.textContent = 'End';
-      broadcastIcon.src = 'static/stop.svg';
-      broadcastIcon.alt = 'End';
-      broadcastBtn.title = 'End live broadcast';
-      broadcastBtn.classList.add('live');
-      updateHeaderButtons();
-      if(!audioOnly) document.body.classList.add('broadcast-mode');
-      broadcastControls.removeAttribute('hidden');
-      if(constButtons) constButtons.removeAttribute('hidden');
-      if(cameraBtn){
-        cameraBtn.hidden = audioOnly;
-        cameraBtn.classList.remove('off');
-        cameraBtn.title = 'Turn camera off';
-      }
-      if(overlayChat) overlayChat.removeAttribute('hidden');
-      const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      mediaEl.srcObject = stream;
-      mediaEl.muted = true;
-          mediaEl.setAttribute('muted','');
-          mediaEl.autoplay = true;
-          mediaEl.setAttribute('autoplay','');
-          mediaEl.playsInline = true;
-          mediaEl.setAttribute('playsinline','');
-          mediaEl.controls = true;
-          if(!audioOnly){
-            attachCaptions(mediaEl);
-            captionTrack = mediaEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-            captionTrack.mode = 'showing';
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(SpeechRecognition){
-              speechRec = new SpeechRecognition();
-              speechRec.lang = document.documentElement.lang || 'en-US';
-              speechRec.continuous = true;
-              speechRec.interimResults = false;
-              speechRec.addEventListener('result', e => {
-                const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
-                if(transcript && captionTrack){
-                  const Cue = window.VTTCue || window.TextTrackCue;
-                  try{ captionTrack.addCue(new Cue(mediaEl.currentTime, mediaEl.currentTime+5, transcript)); }
-                  catch(err){ console.error('cue error', err); }
-                  try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
-                }
-              });
-              speechRec.addEventListener('error', err => console.error('speech error', err));
-              try{ speechRec.start(); }catch{}
-            }
-          }
-          videoContainer.appendChild(mediaEl);
-          // also show our local stream in the self tile so it appears in the tiles list
-          const selfStream = streams[clientId];
-          if(selfStream){
-            const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
-            tileEl.srcObject = stream;
-            tileEl.muted = true;
-            tileEl.setAttribute('muted','');
-            tileEl.autoplay = true;
-            tileEl.setAttribute('autoplay','');
-            tileEl.playsInline = true;
-            tileEl.setAttribute('playsinline','');
-            tileEl.controls = true;
-            selfStream.video.innerHTML = '';
-            selfStream.video.appendChild(tileEl);
-            if(!audioOnly){
-              attachCaptions(tileEl);
-              selfStream.captionTrack = tileEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-              selfStream.captionTrack.mode = 'showing';
-            }
-            selfStream.vid = tileEl;
-            selfStream.started = true;
-            updateVideoLayout(selfStream.video);
-          }
-          updateVideoLayout();
-          const start = mediaEl.play();
-          if(start && start.catch){ start.catch(() => {}); }
-          broadcastVideo = mediaEl;
-          sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
-          if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
-        }).catch(() => {
-          broadcasting = false;
-          alert('Unable to access camera/microphone');
-        });
-      }
-
-      function switchCamera(){
-        if(!localStream) return;
-        usingFrontCamera = !usingFrontCamera;
-        const videoTrack = localStream.getVideoTracks()[0];
-        const audioTracks = localStream.getAudioTracks();
-        if(videoTrack) videoTrack.stop();
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
-          .then(stream => {
-            const newVideoTrack = stream.getVideoTracks()[0];
-            localStream = new MediaStream([...audioTracks, newVideoTrack]);
-            if(broadcastVideo) broadcastVideo.srcObject = localStream;
-            for(const id in peerConnections){
-              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-              if(sender) sender.replaceTrack(newVideoTrack);
-            }
-          }).catch(() => alert('Unable to switch camera'));
-      }
-
-      function toggleCamera(){
-        if(!localStream) return;
-        const videoTrack = localStream.getVideoTracks()[0];
-        if(!cameraOff){
-          if(!videoTrack) return;
-          const settings = videoTrack.getSettings();
-          const canvas = document.createElement('canvas');
-          canvas.width = settings.width || 640;
-          canvas.height = settings.height || 480;
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle = 'black';
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          blankTrack = canvas.captureStream().getVideoTracks()[0];
-          videoTrack.stop();
-          localStream.removeTrack(videoTrack);
-          localStream.addTrack(blankTrack);
-          for(const id in peerConnections){
-            const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-            if(sender) sender.replaceTrack(blankTrack);
-          }
-          if(broadcastVideo) broadcastVideo.srcObject = localStream;
-          cameraOff = true;
-          if(cameraBtn){ cameraBtn.classList.add('off'); cameraBtn.title = 'Turn camera on'; }
-        } else {
-          navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
-            .then(stream => {
-              const newVideoTrack = stream.getVideoTracks()[0];
-              if(blankTrack){
-                localStream.removeTrack(blankTrack);
-                blankTrack.stop();
-                blankTrack = null;
-              }
-              localStream.addTrack(newVideoTrack);
-              for(const id in peerConnections){
-                const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-                if(sender) sender.replaceTrack(newVideoTrack);
-              }
-              if(broadcastVideo) broadcastVideo.srcObject = localStream;
-              cameraOff = false;
-              if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
-            })
-            .catch(() => alert('Unable to access camera'));
-        }
-      }
-
-      function stopScreenShare(){
-        if(!screenSharing) return;
-        screenSharing = false;
-        if(screenStream){
-          screenStream.getTracks().forEach(t => t.stop());
-          screenStream = null;
-        }
-        if(screenTrack){
-          localStream.removeTrack(screenTrack);
-          screenTrack.stop();
-          screenTrack = null;
-        }
-        localStream.getTracks().forEach(t => { if(t.readyState === 'ended') localStream.removeTrack(t); });
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
-          .then(stream => {
-            const camTrack = stream.getVideoTracks()[0];
-            if(camTrack){
-              localStream.addTrack(camTrack);
-              for(const id in peerConnections){
-                const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-                if(sender) sender.replaceTrack(camTrack);
-              }
-              if(broadcastVideo) broadcastVideo.srcObject = localStream;
-            } else {
-              endBroadcast(true);
-            }
-          })
-          .catch(() => endBroadcast(true));
-        if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
-      }
-
-      async function shareScreen(surface){
-        try{
-          const opts = { video: true, audio: true };
-          if(surface === 'window') opts.video = { displaySurface: 'window' };
-          if(surface === 'screen') opts.video = { displaySurface: 'monitor' };
-          screenStream = await navigator.mediaDevices.getDisplayMedia(opts);
-          const [track] = screenStream.getVideoTracks();
-          const thumb = await captureStreamThumb(screenStream);
-          if(thumb){
-            broadcastThumb = thumb;
-            ensureStreamThumb(clientId, store.user, true);
-            handleThumbnail(clientId, broadcastThumb);
-            sendSignal({ type: 'thumb', thumb: broadcastThumb });
-          }
-          if(!track) return;
-          if(!broadcasting){
-            startBroadcast(screenStream);
-          } else {
-            screenStream.getAudioTracks().forEach(t => t.stop());
-            const oldTrack = localStream.getVideoTracks()[0];
-            if(oldTrack){
-              localStream.removeTrack(oldTrack);
-              oldTrack.stop();
-            }
-            localStream.addTrack(track);
-            if(broadcastVideo) broadcastVideo.srcObject = localStream;
-            for(const id in peerConnections){
-              const sender = peerConnections[id].getSenders().find(s => s.track && s.track.kind === 'video');
-              if(sender) sender.replaceTrack(track);
-            }
-          }
-          screenTrack = track;
-          screenSharing = true;
-          if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
-          track.addEventListener('ended', stopScreenShare, { once: true });
-        } catch(err){
-          console.error('Screen share failed', err);
-        }
-      }
-
-      function captureStreamThumb(stream){
-        return new Promise(resolve => {
-          try {
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.muted = true;
-            video.play().catch(() => {});
-            video.addEventListener('loadeddata', () => {
-              try{
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/png'));
-              } catch{
-                resolve(null);
-              }
-              video.pause();
-              video.srcObject = null;
-            }, { once: true });
-            setTimeout(() => resolve(null), 1000);
-          } catch {
-            resolve(null);
-          }
-        });
-      }
-
-      function endBroadcast(forced=false){
-        if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
-        if(!broadcasting) return;
-        broadcasting = false;
-        if(cameraBtn){
-          cameraBtn.hidden = true;
-          cameraBtn.classList.remove('off');
-          cameraBtn.title = 'Turn camera off';
-        }
-        cameraOff = false;
-        if(blankTrack){ blankTrack.stop(); blankTrack = null; }
-      overlayMessages = [];
-      activeRooms.delete(clientId);
-      if(activeRooms.size === 0) showChat();
-      updateHeaderButtons();
-      joinApproved = false;
-      micApproved = false;
-      pendingJoinHost = null;
-      pendingMicHost = null;
-      broadcastBtn.disabled = false;
-      broadcastLabel.textContent = 'Go Live';
-      broadcastIcon.src = 'static/go-live.svg';
-      broadcastIcon.alt = 'Go Live';
-      broadcastBtn.title = 'Go live';
-        broadcastBtn.classList.remove('live');
-        broadcastVideo = null;
-        const share = forced ? true :
-          confirm('Post to chat?\nPress OK to post or Cancel to delete.');
-        const note = forced ? new Date().toLocaleString() : (share ?
-          (prompt('Broadcast end comment?') || '').trim() : '');
-
-      const vidCount = videoContainer.querySelectorAll('video').length;
-      const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
-      const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
-      const hadRecorder = !!mediaRecorder;
-      if(mediaRecorder){
-          mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: recordMime });
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result;
-            if(share){
-              postMessage({
-                text: msgText,
-                video: dataUrl,
-                file: dataUrl,
-                fileName: `broadcast-${Date.now()}.${recordMime === 'video/mp4' ? 'mp4' : 'webm'}`,
-                fileType: recordMime,
-                image: broadcastThumb
-              });
-            }
-          };
-          reader.readAsDataURL(blob);
-        };
-        try { mediaRecorder.stop(); } catch {}
-        mediaRecorder = null;
-      }
-      if(drawHandle) cancelAnimationFrame(drawHandle);
-      drawHandle = null;
-      if(localStream){
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-      }
-      for(const id in peerConnections){
-        try{ peerConnections[id].close(); }catch{}
-        delete peerConnections[id];
-      }
-      sendSignal({ type: 'end-broadcast' });
-      videoContainer.innerHTML = '';
-      updateVideoLayout();
-      if(activeRooms.size === 0) showChat();
-      document.body.classList.remove('broadcast-mode');
-      document.body.classList.remove('chat-open');
-      broadcastControls.setAttribute('hidden','');
-      if(constButtons) constButtons.setAttribute('hidden','');
-      if(overlayChat){ overlayChat.innerHTML = ''; overlayChat.setAttribute('hidden',''); }
-      if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
-      if(speechRec){ try{ speechRec.stop(); }catch{} speechRec = null; }
-      captionTrack = null;
-      if(!hadRecorder && share){
-        postMessage({ text: msgText, image: broadcastThumb });
-      }
-      const selfStream = streams[clientId];
-      if(selfStream){
-        selfStream.feed.innerHTML = '';
-        selfStream.container.remove();
-        delete streams[clientId];
-      }
-      broadcastThumb = null;
+      if (onTrack) pc.ontrack = onTrack;
+      return pc;
     }
 
-      function updateVideoLayout(target){
-        const box = target || videoContainer;
-        if(!box) return;
-        const count = box.querySelectorAll('video').length;
-        box.classList.toggle('has-guest', count > 1);
-      }
-
-    function swapVideos(){}
-
-      function startWatching(id){
-        activeRooms.add(id);
-        currentHost = id;
-        if(!broadcasting){
-          showStream();
-        }
-        sendSignal({ type: 'watcher', id });
-      }
-
-      function endWatching(id){
-        activeRooms.delete(id);
-        if(activeRooms.size === 0){
-          showChat();
-          currentHost = null;
-        } else if(currentHost === id){
-          currentHost = [...activeRooms][0];
-        }
-        sendSignal({ type: 'unwatcher', id });
-      }
-
-    function handleWatcher(id){
-      const pc = new RTCPeerConnection();
-      peerConnections[id] = pc;
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
-      pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
-        sendSignal({ type:'offer', id, sdp: pc.localDescription });
-      });
-    }
-      function handleOffer(msg){
-        let pc = peerConnections[msg.id];
-        if(!pc){
-          pc = new RTCPeerConnection();
-          peerConnections[msg.id] = pc;
-          pc.ontrack = ev => {
-            const stream = ev.streams[0];
-            if(broadcasting && !joinApproved){
-              if(ev.track.kind === 'video'){
-                const vid = document.createElement('video');
-                vid.srcObject = stream;
-                vid.autoplay = true;
-                vid.setAttribute('autoplay','');
-                vid.playsInline = true;
-                vid.setAttribute('playsinline','');
-                vid.controls = true;
-                attachCaptions(vid);
-                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-                liveTrack.mode = 'showing';
-                videoContainer.appendChild(vid);
-                updateVideoLayout();
-                try{ localStream && localStream.addTrack(ev.track); }catch{}
-                for(const id in peerConnections){
-                  if(id === msg.id) continue;
-                  try{
-                    const pc2 = peerConnections[id];
-                    pc2.addTrack(ev.track, stream);
-                    pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
-                      sendSignal({ type:'offer', id, sdp: pc2.localDescription });
-                    });
-                  }catch{}
-                }
-                vid.muted = false;                 // remote video: let audio be heard
-                vid.removeAttribute('muted');
-                tryPlay(vid);                      // will queue for unlock if blocked
-                pc._videos = pc._videos || [];
-                pc._videos.push(vid);
-              } else if(ev.track.kind === 'audio'){
-                try{ localStream && localStream.addTrack(ev.track); }catch{}
-                // Prefer a single <audio> sink in the stage during broadcast
-                if(broadcasting){
-                  let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
-                  if(!stageAud){
-                    stageAud = document.createElement('audio');
-                    stageAud.autoplay = true;
-                    stageAud.controls = false;
-                    stageAud.muted = false;
-                    stageAud.removeAttribute('muted');
-                    stageAud.dataset.guest = msg.id;
-                    videoContainer.appendChild(stageAud);
-                  }
-                  stageAud.srcObject = ev.streams[0];
-                  tryPlay(stageAud);
-                }
-
-                // Keep tile audio for viewers too (as you already had)
-                let target = streams[msg.id];
-                let box = target && target.video;
-                if(!box && guestMap[msg.id]){
-                  target = streams[guestMap[msg.id]];
-                  box = target && target.video;
-                }
-                if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
-                  const aud = document.createElement('audio');
-                  aud.srcObject = ev.streams[0];
-                  aud.autoplay = true;
-                  aud.controls = true;
-                  aud.muted = false;                 // remote audio should be audible
-                  aud.removeAttribute('muted');
-                  aud.dataset.guest = msg.id;
-                  box.appendChild(aud);
-                  tryPlay(aud);
-                }
-              }
-            } else {
-              if(ev.track.kind === 'video'){
-                if(guestMap[msg.id]){
-                  const hostTarget = streams[guestMap[msg.id]];
-                  const guestTarget = streams[msg.id];
-                  if(hostTarget && hostTarget.video){
-                    const hostVid = document.createElement('video');
-                    hostVid.srcObject = stream;
-                    hostVid.autoplay = true;
-                    hostVid.setAttribute('autoplay','');
-                    hostVid.playsInline = true;
-                    hostVid.setAttribute('playsinline','');
-                    hostVid.controls = true;
-                    attachCaptions(hostVid);
-                    hostTarget.video.appendChild(hostVid);
-                    updateVideoLayout(hostTarget.video);
-                    hostTarget.guestVid = hostVid;
-                    hostVid.muted = false;
-                    hostVid.removeAttribute('muted');
-                    tryPlay(hostVid);
-                    pc._videos = pc._videos || [];
-                    pc._videos.push(hostVid);
-                  }
-                  if(guestTarget && guestTarget.video){
-                    const guestVid = document.createElement('video');
-                    guestVid.srcObject = stream;
-                    guestVid.autoplay = true;
-                    guestVid.setAttribute('autoplay','');
-                    guestVid.playsInline = true;
-                    guestVid.setAttribute('playsinline','');
-                    guestVid.controls = true;
-                    attachCaptions(guestVid);
-                    const liveTrack = guestVid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-                    liveTrack.mode = 'showing';
-                    guestTarget.video.appendChild(guestVid);
-                    updateVideoLayout(guestTarget.video);
-                    if(!guestTarget.vid) guestTarget.vid = guestVid;
-                    guestTarget.captionTrack = liveTrack;
-                    guestVid.muted = false;
-                    guestVid.removeAttribute('muted');
-                    tryPlay(guestVid);
-                    pc._videos = pc._videos || [];
-                    pc._videos.push(guestVid);
-                  }
-                } else {
-                  const vid = document.createElement('video');
-                  vid.srcObject = stream;
-                  vid.autoplay = true;
-                  vid.setAttribute('autoplay','');
-                  vid.playsInline = true;
-                  vid.setAttribute('playsinline','');
-                  vid.controls = true;
-                  attachCaptions(vid);
-                  const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
-                  liveTrack.mode = 'showing';
-                  const target = streams[msg.id];
-                  const box = target && target.video;
-                  if(box){
-                    box.appendChild(vid);
-                    updateVideoLayout(box);
-                  }
-                  vid.muted = false;
-                  vid.removeAttribute('muted');
-                  tryPlay(vid);
-                  if(streams[msg.id]){
-                    if(!streams[msg.id].vid) streams[msg.id].vid = vid;
-                    streams[msg.id].captionTrack = liveTrack;
-                  }
-                  pc._videos = pc._videos || [];
-                  pc._videos.push(vid);
-                }
-                } else if(ev.track.kind === 'audio'){
-                  let target = streams[msg.id];
-                  let box = target && target.video;
-                  if(!box && guestMap[msg.id]){
-                    target = streams[guestMap[msg.id]];
-                    box = target && target.video;
-                  }
-                  if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
-                    const aud = document.createElement('audio');
-                    aud.srcObject = stream;
-                    aud.autoplay = true;
-                    aud.controls = true;
-                    aud.muted = false;                 // remote audio should be audible
-                    aud.removeAttribute('muted');
-                    aud.dataset.guest = msg.id;
-                    box.appendChild(aud);
-                    tryPlay(aud);
-                  }
-                }
-            }
-          };
-          pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
-        }
-        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-          .then(() => pc.createAnswer())
-          .then(ans => pc.setLocalDescription(ans))
-          .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
-      }
-
-    function handleAnswer(msg){
-      const pc = peerConnections[msg.id];
-      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+    async function ensureLocalAudio() {
+      if (state.outboundTracks.audio) return state.outboundTracks.audio;
+      const ms = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const audio = ms.getAudioTracks()[0];
+      state.outboundTracks.audio = audio;
+      return audio;
     }
 
-    function handleCandidate(msg){
-      const pc = peerConnections[msg.id];
-      if(pc && msg.candidate) pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+    async function ensureLocalVideo() {
+      if (state.outboundTracks.video) return state.outboundTracks.video;
+      const ms = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const video = ms.getVideoTracks()[0];
+      state.outboundTracks.video = video;
+      return video;
     }
 
-      function handleBye(msg){
-        const pc = peerConnections[msg.id];
-        if(pc){
-          if(pc._videos) pc._videos.forEach(v => v.remove());
-          pc.close();
-          delete peerConnections[msg.id];
-        }
-        const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
-        if(stageAud) stageAud.remove();
-        for(const id in peerConnections){
-          const senders = peerConnections[id].getSenders();
-          senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
-        }
-        if(localStream){
-          localStream.getTracks().forEach(t => { if(t.readyState === 'ended') try{ localStream.removeTrack(t); }catch{} });
-        }
-        activeRooms.delete(msg.id);
-        if(activeRooms.size === 0) showChat();
-        const host = guestMap[msg.id];
-        if(host && streams[host]){
-          streams[host].guestVid = null;
-          updateVideoLayout(streams[host].video);
-          if(streams[msg.id]){
-            streams[msg.id].started = false;
-            streams[msg.id].video.innerHTML = '';
-            streams[msg.id].container.classList.remove('open');
-            const t = streams[msg.id].container.querySelector('.tune-btn');
-            if(t) t.textContent = 'Tune In';
-            streams[msg.id].vid = null;
-            streams[msg.id].captionTrack = null;
-            updateVideoLayout(streams[msg.id].video);
-          }
-          delete guestMap[msg.id];
-        } else {
-          updateVideoLayout();
-          if(streams[msg.id]){
-            streams[msg.id].started = false;
-            streams[msg.id].video.innerHTML = '';
-            streams[msg.id].container.classList.remove('open');
-            const t = streams[msg.id].container.querySelector('.tune-btn');
-            if(t) t.textContent = 'Tune In';
-            streams[msg.id].vid = null;
-            streams[msg.id].captionTrack = null;
-            updateVideoLayout(streams[msg.id].video);
-          }
-        }
-        if((joinApproved && pendingJoinHost === msg.id) || (micApproved && pendingMicHost === msg.id)){
-          endBroadcast(true);
-          pendingJoinHost = null;
-          pendingMicHost = null;
-          joinApproved = false;
-          micApproved = false;
-        }
-      }
-
-    function handleJoinRequest(id, user){
-      if(!broadcasting) return;
-      showPopup(`@${user || 'user'} wants to join.`, [
-        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-join', id }); startWatching(id); hidePopup(); } },
-        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-join', id }); hidePopup(); } }
-      ]);
+    function currentCameraCount() {
+      let count = 0;
+      for (const p of state.participants.values()) if (p.hasVideo) count += 1;
+      if (HOST_VIDEO_COUNTS_AS_TILE && state.isHost && state.outboundTracks.video && state.outboundTracks.video.enabled) count += 1;
+      return count;
     }
 
-    function handleJoinApproved(){
-      joinApproved = true;
-      const stream = streams[pendingJoinHost];
-      broadcastBtn.disabled = false;
-      if(stream && !stream.started){
-        startWatching(pendingJoinHost);
-        stream.started = true;
-      }
-      startBroadcast();
-      showStream();
-      updateVideoLayout();
-      if(stream) updateVideoLayout(stream.video);
-      // Keep pendingJoinHost so chat stays in host room
+    function currentSpeakerCount() {
+      let count = 0;
+      for (const p of state.participants.values()) if (p.hasAudio) count += 1;
+      if (state.outboundTracks.audio && state.outboundTracks.audio.enabled) count += 1;
+      return count;
     }
 
-    function handleJoinDenied(){
-      joinApproved = false;
-      const stream = streams[pendingJoinHost];
-      pendingJoinHost = null;
-      broadcastBtn.disabled = false;
-      broadcastLabel.textContent = 'Go Live';
-      broadcastIcon.src = 'static/go-live.svg';
-      broadcastIcon.alt = 'Go Live';
-      alert('Join request denied or busy.');
+    function updateCounters() {
+      ui.counter.innerHTML = `<span>Cameras: <b>${currentCameraCount()}/${MAX_CAMERAS}</b></span><span>Speakers: <b>${currentSpeakerCount()}/${MAX_SPEAKERS}</b></span><span>Role: <b>${state.role}</b></span><span>Room: <b>${state.roomId || '-'}</b></span>`;
     }
 
-    function handleMicRequest(id, user){
-      if(!broadcasting) return;
-      showPopup(`@${user || 'user'} wants to speak.`, [
-        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
-        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
-      ]);
+    function upsertTile(peerId, stream, meta = {}) {
+      let tile = ui.grid.querySelector(`[data-peer="${peerId}"]`);
+      if (!tile) {
+        tile = document.createElement('article');
+        tile.className = 'tile';
+        tile.dataset.peer = peerId;
+        tile.innerHTML = `<video autoplay playsinline></video><div class="tile-meta"><span class="name"></span><span class="flags"></span></div>`;
+        ui.grid.appendChild(tile);
+      }
+      const v = tile.querySelector('video');
+      if (v.srcObject !== stream) v.srcObject = stream;
+      v.muted = peerId === state.selfId;
+      tile.querySelector('.name').textContent = `${meta.name || peerId} (${meta.role || 'unknown'})`;
+      tile.querySelector('.flags').textContent = `${meta.muted ? '🔇' : '🔊'} ${meta.hasVideo ? '📷' : '🎤'}`;
     }
 
-    function handleMicApproved(){
-      micApproved = true;
-      const stream = streams[pendingMicHost];
-      const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid){
-        videoContainer.appendChild(hostVid);
-      }
-      updateVideoLayout();
-      startBroadcast(null, true);
-      // Clear pending mic host to ensure the broadcast persists
-      pendingMicHost = null;
+    function removeTile(peerId) {
+      ui.grid.querySelector(`[data-peer="${peerId}"]`)?.remove();
     }
 
-    function handleMicDenied(){
-      micApproved = false;
-      const stream = streams[pendingMicHost];
-      pendingMicHost = null;
-      alert('Mic request denied.');
+    function renderSpeakerList() {
+      ui.speakers.innerHTML = '';
+      for (const [id, p] of state.participants.entries()) {
+        if (!p.hasAudio || p.hasVideo) continue;
+        const row = document.createElement('div');
+        row.className = 'speaker-row';
+        row.innerHTML = `<span>${p.name || id}</span><span>${p.role}</span>`;
+        ui.speakers.appendChild(row);
+      }
     }
 
-    function handleGuestStart({ id, host }){
-      guestMap[id] = host;
-      const hostStream = streams[host];
-      if(hostStream){
-        hostStream.container.classList.add('open');
-        if(!hostStream.started){
-          startWatching(host);
-          hostStream.started = true;
-        }
-        // Other viewers watch the guest separately so their video can be merged
-        if(id !== clientId) startWatching(id);
+    function renderPending() {
+      ui.pending.innerHTML = '';
+      if (!state.isHost) {
+        ui.pending.innerHTML = '<small class="warn">Only host can approve/deny requests.</small>';
+        return;
       }
-      if(!streams[id]){
-        const u = userCache && userCache.find(u => (typeof u === 'string' ? u : u.id) === id);
-        const name = typeof u === 'string' ? u : (u && u.name) || id;
-        ensureStreamThumb(id, name, id === clientId);
-      }
-      if(streams[id]){
-        streams[id].container.classList.add('open');
-        streams[id].started = true;
-      }
-      const hostBox = hostStream && hostStream.video;
-      const guestBox = streams[id] && streams[id].video;
-      if(hostBox && guestBox){
-        const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
-        if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
-      }
-      showStream();
-      updateVideoLayout();
-    }
-
-    function handleInvite({ id, mode, user }) {
-      const verb = mode === 'mic' ? 'join via mic' : 'join the broadcast';
-      const msg = { id: `invite-${Date.now()}`, user: user || 'host', text: `invites you to ${verb}.` };
-      const stream = streams[id];
-      if (stream && stream.feed) {
-        appendMessage(msg, false, stream.feed);
-      } else {
-        appendMessage(msg);
-      }
-      showPopup(`@${user || 'host'} invites you to ${verb}.`, [
-        {
-          label: 'Accept',
-          onClick: () => {
-            sendSignal({ type: mode === 'mic' ? 'mic-request' : 'join-request', id, user: store.user });
-            hidePopup();
-          }
-        },
-        { label: 'Deny', onClick: () => hidePopup() }
-      ]);
-    }
-
-    function sendSignal(data){
-      try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
-    }
-
-      function receive(m, isLocal=false){
-        if(!m || seen.has(m.id)) return;
-        seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
-        if(m.room){
-          if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-          if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
-        } else {
-          appendMessage(m);
-          if(!isLocal) store.pushMsg(m);
-        }
-      }
-
-      function renderHistory(){
-      feed.innerHTML = '';
-      const items = store.loadMsgs();
-      items.slice().reverse().forEach(m => appendMessage(m, true));
-      scrollToTop();
-    }
-
-      function appendMessage(m, skipScroll=false, container=feed){
-        const mine = m.user === store.user;
-        const li = document.createElement('li');
-      li.className = 'msg' + (mine ? ' mine' : '');
-      li.dataset.id = m.id;
-
-      const av = document.createElement('div');
-      av.className = 'avatar';
-      if(m.profilePic){
-        av.style.backgroundImage = `url(${m.profilePic})`;
-        av.style.backgroundSize = 'cover';
-        av.style.backgroundPosition = 'center';
-      } else {
-        av.textContent = initials(m.user);
-      }
-      av.style.cursor = 'pointer';
-      av.addEventListener('click', () => {
-        location.href = '/profile.html?user=' + encodeURIComponent(m.user);
-      });
-
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble' + (m.collapsed? ' collapsed' : '');
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
-
-      const text = document.createElement('div');
-      text.className = 'msg-text';
-      text.innerHTML = renderText(m.text || '', !!m.isAction);
-
-      if(mine){
-        const btn = document.createElement('button');
-        btn.className = 'min-btn';
-        btn.title = 'Minimize / expand';
-        btn.setAttribute('aria-label','Minimize message');
-        btn.textContent = m.collapsed? '⤢' : '⤡';
-        btn.addEventListener('click', () => {
-          li.classList.toggle('collapsed');
-          btn.textContent = li.classList.contains('collapsed') ? '⤢' : '⤡';
-        });
-        bubble.appendChild(btn);
-      }
-
-        bubble.appendChild(meta);
-      bubble.appendChild(text);
-      const plain = text.textContent.trim();
-      if (broadcasting && plain) {
-        const isMyRoom = (m.room === clientId);
-        const isHostRoomWhileGuest = (pendingJoinHost && m.room === pendingJoinHost);
-        if (isMyRoom || isHostRoomWhileGuest) {
-          const overlayText = `@${m.user}: ${plain}`;
-          overlayMessages.push({ text: overlayText, ts: Date.now() });
-          showOverlayMessage({ user: m.user, text: plain, profilePic: m.profilePic });
-        }
-      }
-      if(plain){
-        bubble.appendChild(createDownloadLink(plain, 'message', 'text/plain', m.user));
-      }
-      const fileData = m.file || m.image;
-      if(fileData){
-        const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
-        const filename = m.fileName || m.name || '';
-        const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
-        if(mime.startsWith('video/')){
-          const vid = document.createElement('video');
-          vid.src = fileData;
-          vid.controls = true;
-          vid.playsInline = true;
-          vid.setAttribute('playsinline','');
-          vid.style.maxWidth = '100%';
-          vid.style.borderRadius = '8px';
-          attachCaptions(vid);
-          if(m.image) vid.poster = m.image;
-          bubble.appendChild(vid);
-          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
-        } else if(mime.startsWith('audio/')){
-          const aud = document.createElement('audio');
-          aud.src = fileData;
-          aud.controls = true;
-          aud.style.width = '100%';
-          bubble.appendChild(aud);
-          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
-        } else if(isModel){
-          const model = document.createElement('model-viewer');
-          model.src = fileData;
-          model.alt = filename || '3D model';
-          model.style.width = '100%';
-          model.style.height = '300px';
-          model.style.borderRadius = '8px';
-          model.setAttribute('camera-controls','');
-          model.setAttribute('auto-rotate','');
-          bubble.appendChild(model);
-          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
-        } else if(mime.startsWith('image/')){
-          const img = document.createElement('img');
-          img.src = fileData;
-          img.alt = filename || 'image';
-          img.style.maxWidth = '100%';
-          img.style.borderRadius = '8px';
-          img.loading = 'lazy';
-          bubble.appendChild(img);
-          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
-        } else {
-          bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
-        }
-      }
-
-      if(container === feed){
+      for (const [fromId, req] of state.pendingRequests.entries()) {
+        const node = document.createElement('div');
+        node.className = 'pending-item';
+        node.innerHTML = `<div><b>${req.name || fromId}</b> requested <b>${req.role}</b></div>`;
         const actions = document.createElement('div');
-        actions.className = 'actions';
-        const likeBtn = document.createElement('button');
-        likeBtn.className = 'like-btn';
-        likeBtn.textContent = `❤️ ${m.likes || 0}`;
-        likeBtn.addEventListener('click', () => {
-          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
-        });
-        actions.appendChild(likeBtn);
-
-        const commentsBox = document.createElement('div');
-        commentsBox.className = 'comments';
-        const commentsList = document.createElement('div');
-        commentsList.className = 'comments-list';
-        (m.comments || []).forEach(c => appendCommentElement(commentsList, c));
-        const commentForm = document.createElement('form');
-        commentForm.className = 'comment-form';
-        const commentInput = document.createElement('input');
-        commentInput.placeholder = 'Add comment...';
-        commentForm.appendChild(commentInput);
-        commentForm.addEventListener('submit', ev => {
-          ev.preventDefault();
-          const txt = commentInput.value.trim();
-          if(!txt) return;
-          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: txt, user: store.user })); } catch {}
-          commentInput.value = '';
-        });
-        commentsBox.appendChild(commentsList);
-        commentsBox.appendChild(commentForm);
-
-        bubble.appendChild(actions);
-        bubble.appendChild(commentsBox);
+        actions.className = 'host-actions';
+        const ok = document.createElement('button');
+        ok.textContent = 'Approve';
+        ok.onclick = () => approveRequest(fromId, req.role);
+        const no = document.createElement('button');
+        no.textContent = 'Deny';
+        no.onclick = () => denyRequest(fromId, req.role);
+        actions.append(ok, no);
+        node.appendChild(actions);
+        ui.pending.appendChild(node);
       }
+    }
 
-      if(mine){
-        li.appendChild(bubble);
-        li.appendChild(av);
-      } else {
-        li.appendChild(av);
-        li.appendChild(bubble);
+    function enforceLimits(role) {
+      if (role === Roles.CAMERA && currentCameraCount() >= MAX_CAMERAS) return { ok: false, reason: 'Camera slots full' };
+      if ((role === Roles.CAMERA || role === Roles.SPEAKER) && currentSpeakerCount() >= MAX_SPEAKERS) return { ok: false, reason: 'Speaker slots full' };
+      return { ok: true };
+    }
+
+    function approveRequest(fromId, role) {
+      const limit = enforceLimits(role);
+      if (!limit.ok) {
+        send(envelope('deny-mic', { id: fromId, toId: fromId, reason: limit.reason }));
+        state.pendingRequests.delete(fromId);
+        renderPending();
+        setStatus(limit.reason, 'warn');
+        return;
       }
+      const type = role === Roles.CAMERA ? 'approve-join' : 'approve-mic';
+      send(envelope(type, { id: fromId, toId: fromId }));
+      send(envelope('role-approved', { id: fromId, toId: fromId, approvedRole: role }));
+      state.pendingRequests.delete(fromId);
+      renderPending();
+    }
 
-      if(container === feed){
-        container.insertBefore(li, container.firstChild);
-        if(m.selfDestruct){
-          const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
-          setTimeout(() => {
-            const el = feed.querySelector(`li[data-id="${m.id}"]`);
-            if(el) el.remove();
-            store.removeMsg(m.id);
-          }, delay);
+    function denyRequest(fromId, role) {
+      const type = role === Roles.CAMERA ? 'deny-join' : 'deny-mic';
+      send(envelope(type, { id: fromId, toId: fromId }));
+      send(envelope('role-denied', { id: fromId, toId: fromId, deniedRole: role }));
+      state.pendingRequests.delete(fromId);
+      renderPending();
+    }
+
+    async function makeOffer(pc, toId, pcKey) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      relayWebRTC('offer', toId, pcKey, pc.localDescription);
+    }
+
+    async function setupParticipantPC() {
+      if (!state.hostId) return;
+      const pcKey = `participant-${state.selfId}->${state.hostId}`;
+      state.hostPC?.close();
+      state.hostPC = createPC({
+        remoteId: state.hostId,
+        pcKey,
+        direction: 'participant-upstream-downstream',
+        onTrack: (ev) => {
+          const stream = ev.streams[0];
+          if (!stream) return;
+          const srcId = ev.track.id.split(':')[0] || state.hostId;
+          state.inboundStreams.set(srcId, stream);
+          upsertTile(srcId, stream, { name: srcId, role: 'remote', hasVideo: stream.getVideoTracks().length > 0, muted: false });
+          attachAnalyzer(srcId, stream);
         }
-        if(!skipScroll) scrollToTop();
-      } else {
-        container.appendChild(li);
-        if(!skipScroll) container.scrollTop = container.scrollHeight;
-      }
-      }
-
-      function appendCommentElement(list, c){
-        const div = document.createElement('div');
-        div.className = 'comment';
-        div.innerHTML = `<span class="who">@${escapeHTML(c.user)}</span>: ${renderText(c.text)}`;
-        list.appendChild(div);
-      }
-
-      function handleComment(c){
-        if(!c || seenComments.has(c.id)) return;
-        seenComments.add(c.id);
-        const msgEl = feed.querySelector(`li[data-id="${c.messageId}"]`);
-        const list = msgEl && msgEl.querySelector('.comments-list');
-        if(list) appendCommentElement(list, c);
-      }
-
-      function handleLike(l){
-        const msgEl = feed.querySelector(`li[data-id="${l.messageId}"]`);
-        const btn = msgEl && msgEl.querySelector('.like-btn');
-        if(btn) btn.textContent = `❤️ ${l.count}`;
-      }
-
-      function handleCaption(c){
-        const s = streams[c.id];
-        if(!s || !s.captionTrack || !s.vid) return;
-        const Cue = window.VTTCue || window.TextTrackCue;
-        try{ s.captionTrack.addCue(new Cue(s.vid.currentTime, s.vid.currentTime+5, c.text)); }catch{}
-      }
-
-      function showPopup(message, actions){
-        popupText.textContent = message;
-        popupActions.innerHTML = '';
-        actions.forEach(a => {
-          const btn = document.createElement('button');
-          btn.textContent = a.label;
-          btn.addEventListener('click', () => {
-            if(a.onClick) a.onClick();
-          }, { once: true });
-          popupActions.appendChild(btn);
-        });
-        popup.hidden = false;
-      }
-
-      function hidePopup(){ popup.hidden = true; }
-
-      function systemNote(t){
-        const div = document.createElement('div');
-        div.className = 'system';
-      div.textContent = t;
-      feed.insertBefore(div, feed.firstChild);
-      scrollToTop();
-    }
-
-    function scrollToTop(){
-      feed.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function attachCaptions(vid){
-      if(!vid) return;
-      const tracks = [
-        { src: 'static/captions/en.vtt', srclang: 'en', label: 'English', def: true },
-        { src: 'static/captions/pt-en.vtt', srclang: 'pt', label: 'Portuguese/English' },
-        { src: 'static/captions/ko.vtt', srclang: 'ko', label: 'Korean' },
-        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic/English' }
-      ];
-      tracks.forEach(t => {
-        const track = document.createElement('track');
-        track.kind = 'captions';
-        track.src = t.src;
-        track.srclang = t.srclang;
-        track.label = t.label;
-        if(t.def) track.default = true;
-        vid.appendChild(track);
       });
+
+      // Receive downstream tracks from host.
+      state.hostPC.addTransceiver('audio', { direction: 'recvonly' });
+      state.hostPC.addTransceiver('video', { direction: 'recvonly' });
+
+      // Send own tracks based on role.
+      if (state.role === Roles.SPEAKER || state.role === Roles.CAMERA) {
+        const audioTrack = await ensureLocalAudio();
+        state.hostPC.addTrack(audioTrack, new MediaStream([audioTrack]));
+      }
+      if (state.role === Roles.CAMERA) {
+        const videoTrack = await ensureLocalVideo();
+        state.hostPC.addTrack(videoTrack, new MediaStream([videoTrack]));
+        upsertTile(state.selfId, new MediaStream([videoTrack]), { name: 'You', role: state.role, hasVideo: true, muted: true });
+      }
+
+      await makeOffer(state.hostPC, state.hostId, pcKey);
+      ui.toggleMute.disabled = !(state.role === Roles.SPEAKER || state.role === Roles.CAMERA);
+      ui.toggleCamera.disabled = state.role !== Roles.CAMERA;
     }
 
-    // --- Helpers ---
-    function fmtTime(ts){
-      const d = new Date(ts || Date.now());
-      const h = d.getHours().toString().padStart(2,'0');
-      const m = d.getMinutes().toString().padStart(2,'0');
-      return `${h}:${m}`;
+    async function hostAcceptViewer(viewerId) {
+      const pcKey = `host-down-${state.selfId}->${viewerId}`;
+      if (state.pcsDownstream.has(viewerId)) return;
+      const pc = createPC({ remoteId: viewerId, pcKey, direction: 'host-downstream' });
+      state.pcsDownstream.set(viewerId, pc);
+      pc.addTransceiver('audio', { direction: 'sendonly' });
+      pc.addTransceiver('video', { direction: 'sendonly' });
+      await forwardAllTracksToViewer(viewerId);
+      await makeOffer(pc, viewerId, pcKey);
     }
-    function initials(name){
-      const parts = name.replace(/[^a-zA-Z0-9_\-.]/g,' ').trim().split(/\s+|[_.-]/).filter(Boolean);
-      const a = (parts[0]||'?')[0]||'?';
-      const b = (parts[1]||'')[0]||'';
-      return (a + b).toUpperCase();
-    }
-    function escapeHTML(s){
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-    }
-    function linkify(s){
-      const url = /((https?:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/[\w%./#?=&-]*)?)/gi;
-      return s.replace(url, (u) => {
-        const href = /^(https?:)?\/\//i.test(u) ? u : 'https://' + u;
-        return `<a href="${href}" target="_blank" rel="noopener">${escapeHTML(u)}</a>`;
+
+    async function ensureHostUpstream(senderId) {
+      if (state.pcsUpstream.has(senderId)) return state.pcsUpstream.get(senderId);
+      const pcKey = `host-up-${senderId}->${state.selfId}`;
+      const pc = createPC({
+        remoteId: senderId,
+        pcKey,
+        direction: 'host-upstream',
+        onTrack: (ev) => {
+          const stream = ev.streams[0];
+          if (!stream) return;
+          const hasVideo = stream.getVideoTracks().length > 0;
+          const hasAudio = stream.getAudioTracks().length > 0;
+          state.participants.set(senderId, { role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasAudio, hasVideo, name: senderId });
+          if (hasVideo) upsertTile(senderId, stream, { name: senderId, role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasVideo, muted: false });
+          renderSpeakerList();
+          updateCounters();
+          attachAnalyzer(senderId, stream);
+          forwardTrackToViewers(senderId, stream);
+        }
       });
-    }
-    function renderText(s, isAction=false){
-      const safe = escapeHTML(s);
-      const withLinks = linkify(safe);
-      return isAction ? `<em>${withLinks}</em>` : withLinks;
+      state.pcsUpstream.set(senderId, pc);
+      return pc;
     }
 
-    async function addWatermark(dataUrl, text, wmDataUrl){
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const padding = 10;
-          if(wmDataUrl){
-            const wmImg = new Image();
-            wmImg.onload = () => {
-              const scale = Math.min(canvas.width / (wmImg.width * 5), canvas.height / (wmImg.height * 5));
-              const wmWidth = wmImg.width * scale;
-              const wmHeight = wmImg.height * scale;
-              const x = canvas.width - wmWidth - padding;
-              const y = canvas.height - wmHeight - padding;
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(x + wmWidth / 2, y + wmHeight / 2, Math.min(wmWidth, wmHeight) / 2, 0, Math.PI * 2);
-              ctx.closePath();
-              ctx.clip();
-              ctx.globalAlpha = 0.3;
-              ctx.drawImage(wmImg, x, y, wmWidth, wmHeight);
-              ctx.restore();
-              ctx.globalAlpha = 0.3;
-              const size = Math.floor(wmWidth / 4);
-              ctx.font = `${size}px Poppins, sans-serif`;
-              ctx.fillStyle = '#fff';
-              ctx.textBaseline = 'bottom';
-              const width = ctx.measureText(text).width;
-              ctx.fillText(text, x + wmWidth - width - 5, y + wmHeight - 5);
-              ctx.globalAlpha = 1;
-              resolve(canvas.toDataURL());
-            };
-            wmImg.onerror = () => resolve(canvas.toDataURL());
-            wmImg.src = wmDataUrl;
-          } else {
-            const size = Math.floor(canvas.width / 20);
-            ctx.font = `${size}px Poppins, sans-serif`;
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.textBaseline = 'bottom';
-            const width = ctx.measureText(text).width;
-            ctx.fillText(text, canvas.width - width - padding, canvas.height - padding);
-            resolve(canvas.toDataURL());
+    async function forwardTrackToViewers(peerId, stream) {
+      for (const viewerId of state.pcsDownstream.keys()) {
+        await forwardStreamToViewer(viewerId, peerId, stream);
+      }
+    }
+
+    async function forwardAllTracksToViewer(viewerId) {
+      if (state.outboundTracks.audio) {
+        await forwardStreamToViewer(viewerId, state.selfId, new MediaStream([state.outboundTracks.audio]));
+      }
+      if (state.outboundTracks.video) {
+        await forwardStreamToViewer(viewerId, state.selfId, new MediaStream([state.outboundTracks.video]));
+      }
+      for (const [peerId, stream] of state.inboundStreams.entries()) {
+        await forwardStreamToViewer(viewerId, peerId, stream);
+      }
+    }
+
+    async function forwardStreamToViewer(viewerId, peerId, stream) {
+      const pc = state.pcsDownstream.get(viewerId);
+      if (!pc) return;
+      if (!state.forwardedSenders.has(viewerId)) state.forwardedSenders.set(viewerId, new Map());
+      const senderMap = state.forwardedSenders.get(viewerId);
+      for (const track of stream.getTracks()) {
+        const k = `${peerId}:${track.kind}:${track.id}`;
+        if (senderMap.has(k)) continue;
+        const sender = pc.addTrack(track, stream);
+        senderMap.set(k, sender);
+      }
+      // Renegotiate so viewer receives newly forwarded tracks.
+      if (pc.signalingState === 'stable') await makeOffer(pc, viewerId, pc.__meta.pcKey);
+    }
+
+    function handlePeerDisconnect(peerId, pcKey, direction) {
+      console.log('[disconnect]', { peerId, pcKey, direction });
+      if (direction.includes('upstream')) state.pcsUpstream.delete(peerId);
+      if (direction.includes('downstream')) {
+        state.pcsDownstream.get(peerId)?.close();
+        state.pcsDownstream.delete(peerId);
+        state.forwardedSenders.delete(peerId);
+      }
+      if (state.hostId === peerId && !state.isHost) {
+        setStatus('Host disconnected.', 'warn');
+      }
+      state.participants.delete(peerId);
+      state.inboundStreams.delete(peerId);
+      removeTile(peerId);
+      renderSpeakerList();
+      updateCounters();
+    }
+
+    async function handleOffer(msg) {
+      const descWrap = msg.sdp || {};
+      const description = descWrap.description || msg.sdp;
+      const pcKey = descWrap.pcKey || `legacy-${msg.id}`;
+      const fromId = descWrap.fromId || msg.id;
+      const toId = descWrap.toId || state.selfId;
+      console.log('[offer]', { fromId, toId, pcKey, rawId: msg.id });
+
+      if (state.isHost && toId === state.selfId) {
+        if (pcKey.startsWith('host-up-')) {
+          const pc = await ensureHostUpstream(fromId);
+          await pc.setRemoteDescription(description);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          relayWebRTC('answer', fromId, pc.__meta.pcKey, pc.localDescription);
+          return;
+        }
+        if (pcKey.startsWith('host-down-')) {
+          const pc = state.pcsDownstream.get(fromId) || createPC({ remoteId: fromId, pcKey, direction: 'host-downstream' });
+          state.pcsDownstream.set(fromId, pc);
+          await pc.setRemoteDescription(description);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          relayWebRTC('answer', fromId, pcKey, pc.localDescription);
+          return;
+        }
+      }
+
+      if (!state.isHost && fromId === state.hostId) {
+        if (!state.hostPC) {
+          state.hostPC = createPC({
+            remoteId: fromId,
+            pcKey,
+            direction: 'participant-upstream-downstream',
+            onTrack: (ev) => {
+              const stream = ev.streams[0];
+              if (!stream) return;
+              const pseudoId = `${fromId}-${ev.track.kind}-${ev.track.id.slice(0, 6)}`;
+              state.inboundStreams.set(pseudoId, stream);
+              upsertTile(pseudoId, stream, { name: 'Forwarded', role: 'room', hasVideo: stream.getVideoTracks().length > 0, muted: false });
+              attachAnalyzer(pseudoId, stream);
+            }
+          });
+        }
+        await state.hostPC.setRemoteDescription(description);
+        const answer = await state.hostPC.createAnswer();
+        await state.hostPC.setLocalDescription(answer);
+        relayWebRTC('answer', state.hostId, pcKey, state.hostPC.localDescription);
+      }
+    }
+
+    async function handleAnswer(msg) {
+      const a = msg.sdp || {};
+      const description = a.description || msg.sdp;
+      const pcKey = a.pcKey || `legacy-${msg.id}`;
+      const fromId = a.fromId || msg.id;
+      console.log('[answer]', { fromId, pcKey });
+      if (state.isHost) {
+        const pc = state.pcsDownstream.get(fromId) || state.pcsUpstream.get(fromId);
+        if (pc) await pc.setRemoteDescription(description);
+        return;
+      }
+      if (state.hostPC && fromId === state.hostId) await state.hostPC.setRemoteDescription(description);
+    }
+
+    async function handleCandidate(msg) {
+      const wrap = msg.candidate || {};
+      const candidate = wrap.candidate || msg.candidate;
+      const fromId = wrap.fromId || msg.id;
+      let pc = null;
+      if (state.isHost) pc = state.pcsUpstream.get(fromId) || state.pcsDownstream.get(fromId);
+      else pc = state.hostPC;
+      if (pc && candidate) {
+        try { await pc.addIceCandidate(candidate); } catch (e) { console.warn('addIceCandidate failed', e); }
+      }
+    }
+
+    function attachAnalyzer(peerId, stream) {
+      const at = stream.getAudioTracks()[0];
+      if (!at) return;
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(new MediaStream([at]));
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      src.connect(analyser);
+      state.audioAnalyzers.set(peerId, { analyser, data: new Uint8Array(analyser.frequencyBinCount), ctx });
+    }
+
+    function tickSpeaker() {
+      let best = null;
+      let bestLevel = 0;
+      for (const [id, obj] of state.audioAnalyzers.entries()) {
+        obj.analyser.getByteFrequencyData(obj.data);
+        const level = obj.data.reduce((a, b) => a + b, 0) / obj.data.length;
+        if (level > bestLevel) { bestLevel = level; best = id; }
+      }
+      if (bestLevel > 22) state.activeSpeaker = best;
+      else state.activeSpeaker = null;
+      document.querySelectorAll('.tile').forEach((t) => t.classList.toggle('speaking', t.dataset.peer === state.activeSpeaker));
+      requestAnimationFrame(tickSpeaker);
+    }
+
+    function handleSignal(msg) {
+      switch (msg.type) {
+        case 'id':
+          state.selfId = msg.id;
+          if (!ui.roomInput.value) ui.roomInput.value = msg.id;
+          setStatus(`Connected as ${state.selfId}`, 'good');
+          break;
+        case 'watcher':
+          // ID-forwarding clarity: server sets msg.id=viewer true sender id, host is receiver.
+          if (state.isHost) hostAcceptViewer(msg.id);
+          break;
+        case 'join-request':
+          if (state.isHost) {
+            state.pendingRequests.set(msg.id, { role: Roles.CAMERA, name: msg.user || msg.id });
+            renderPending();
           }
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
-      });
+          break;
+        case 'mic-request':
+          if (state.isHost) {
+            state.pendingRequests.set(msg.id, { role: Roles.SPEAKER, name: msg.user || msg.id });
+            renderPending();
+          }
+          break;
+        case 'join-approved':
+          state.role = Roles.CAMERA;
+          setupParticipantPC();
+          break;
+        case 'mic-approved':
+          state.role = Roles.SPEAKER;
+          setupParticipantPC();
+          break;
+        case 'join-denied':
+        case 'mic-denied':
+          setStatus('Request denied by host.', 'warn');
+          break;
+        case 'offer': handleOffer(msg); break;
+        case 'answer': handleAnswer(msg); break;
+        case 'candidate': handleCandidate(msg); break;
+        case 'bye': handlePeerDisconnect(msg.id, 'bye', 'any'); break;
+        default:
+          // ignore unrelated server events (chat/history/users/system)
+          break;
+      }
+      updateCounters();
+      renderSpeakerList();
     }
 
-    async function selectWatermarkFile(){
-      return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = () => {
-          const file = input.files[0];
-          if(!file) return resolve(null);
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(file);
-        };
-        input.click();
-      });
-    }
-
-    // Make the hologhost button evade the cursor
-    const ghostBtn = document.getElementById('ghost-btn');
-    const ghostTicker = document.getElementById('ghost-ticker');
-    const ghostTickerMessage = ghostTicker ? ghostTicker.querySelector('[data-role="message"]') : null;
-    const ghostTickerTotal = ghostTicker ? ghostTicker.querySelector('[data-role="total"]') : null;
-    let ghostTickerTimer = null;
-    let ghostTickerHideTimer = null;
-    let ghostTokenCount = 0;
-
-    if(window.GhostWallet && typeof window.GhostWallet.getGhostTokenCount === 'function'){
-      const initialCount = Number(window.GhostWallet.getGhostTokenCount());
-      if(Number.isFinite(initialCount) && initialCount > 0){
-        ghostTokenCount = initialCount;
-      }
-    }
-
-    const showGhostTicker = ({ message, count } = {}) => {
-      if(!ghostTicker) return;
-
-      if(ghostTickerTimer){
-        clearTimeout(ghostTickerTimer);
-        ghostTickerTimer = null;
-      }
-
-      if(ghostTickerHideTimer){
-        clearTimeout(ghostTickerHideTimer);
-        ghostTickerHideTimer = null;
-      }
-
-      const displayMessage = message || 'The hologhost is on the move!';
-      if(ghostTickerMessage){
-        ghostTickerMessage.textContent = displayMessage;
-      }
-
-      let total = ghostTokenCount;
-      if(typeof count === 'number' && Number.isFinite(count)){
-        ghostTokenCount = count;
-        total = count;
-      }
-
-      if(ghostTickerTotal){
-        if(typeof total === 'number' && total > 0){
-          ghostTickerTotal.textContent = total === 1 ? '1 ghost token secured' : `${total} ghost tokens secured`;
-          ghostTickerTotal.hidden = false;
-        } else {
-          ghostTickerTotal.textContent = '';
-          ghostTickerTotal.hidden = true;
-        }
-      }
-
-      ghostTicker.hidden = false;
-      // Force layout to allow transition when toggling from hidden state
-      void ghostTicker.offsetWidth;
-      ghostTicker.classList.add('is-visible');
-
-      ghostTickerTimer = setTimeout(() => {
-        ghostTicker.classList.remove('is-visible');
-        ghostTickerHideTimer = setTimeout(() => {
-          ghostTicker.hidden = true;
-          ghostTickerHideTimer = null;
-        }, 300);
-      }, 4000);
-    };
-
-    if(ghostBtn){
-      const syncGhostBadge = (count) => {
-        if(typeof count !== 'number' || count <= 0){
-          ghostTokenCount = 0;
-          delete ghostBtn.dataset.ghostCount;
-          ghostBtn.setAttribute('title', 'Hologhost');
-          ghostBtn.setAttribute('aria-label', 'Hologhost');
-          return;
-        }
-        ghostBtn.dataset.ghostCount = String(count);
-        const label = count === 1 ? '1 ghost token' : `${count} ghost tokens`;
-        const described = `Hologhost · ${label}`;
-        ghostBtn.setAttribute('title', described);
-        ghostBtn.setAttribute('aria-label', described);
-        ghostTokenCount = count;
+    function wireSignaling() {
+      state.ws = new WebSocket(wsUrl());
+      state.ws.onopen = () => {
+        send({ type: 'join', user: state.userLabel });
+        setStatus('Signaling connected.', 'good');
       };
-
-      if(window.GhostWallet && typeof window.GhostWallet.getGhostTokenCount === 'function'){
-        syncGhostBadge(window.GhostWallet.getGhostTokenCount());
-      }
-
-      const attemptGhostTransfer = () => {
-        if(!window.GhostWallet || typeof window.GhostWallet.grantGhostToken !== 'function'){
-          showGhostTicker({ message: 'The ghost wallet counter is unavailable.' });
-          return;
-        }
-
-        const maybePromise = window.GhostWallet.grantGhostToken({ silent: true });
-        Promise.resolve(maybePromise)
-          .then((result) => {
-            if(result && !result.success && result.message){
-              showGhostTicker({ message: result.message, count: result.count });
-            }
-          })
-          .catch((err) => {
-            const message = err && err.message ? err.message : 'Ghost token transfer failed.';
-            showGhostTicker({ message });
-          });
+      state.ws.onmessage = (ev) => {
+        let msg = null;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        handleSignal(msg);
       };
-
-      const flee = () => {
-        const rect = ghostBtn.getBoundingClientRect();
-        const maxX = window.innerWidth - rect.width;
-        const maxY = window.innerHeight - rect.height;
-        const newX = Math.random() * maxX;
-        const newY = Math.random() * maxY;
-        ghostBtn.style.position = 'fixed';
-        ghostBtn.style.left = `${newX}px`;
-        ghostBtn.style.top = `${newY}px`;
-        attemptGhostTransfer();
-      };
-
-      ghostBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if(!window.GhostWallet || typeof window.GhostWallet.grantGhostToken !== 'function'){
-          const message = 'The ghost wallet counter is unavailable.';
-          systemNote(message);
-          showGhostTicker({ message });
-          return;
-        }
-        const maybePromise = window.GhostWallet.grantGhostToken();
-        Promise.resolve(maybePromise)
-          .then((result) => {
-            if(result && !result.success && result.message){
-              systemNote(result.message);
-              showGhostTicker({ message: result.message, count: result.count });
-            }
-          })
-          .catch((err) => {
-            const message = err && err.message ? err.message : 'Ghost token transfer failed.';
-            systemNote(message);
-            showGhostTicker({ message });
-          });
-      });
-
-      window.addEventListener('wallet:ghost-token', (event) => {
-        const detail = event.detail || {};
-        syncGhostBadge(detail.count);
-        if(detail.message){
-          systemNote(detail.message);
-        }
-        showGhostTicker({ message: detail.message, count: detail.count });
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        const rect = ghostBtn.getBoundingClientRect();
-        const dx = e.clientX - (rect.left + rect.width / 2);
-        const dy = e.clientY - (rect.top + rect.height / 2);
-        if(Math.hypot(dx, dy) < 80) flee();
-      });
+      state.ws.onclose = () => setStatus('Signaling disconnected.', 'bad');
     }
 
-    // Boot
-    requireAuth();
-  })();
+    async function goLive() {
+      state.isHost = true;
+      state.role = Roles.HOST;
+      state.roomId = state.selfId; // By default roomId maps to hostId for current relay server.
+      state.hostId = state.selfId;
+      ui.roomInput.value = state.roomId;
+      send(envelope('broadcaster'));
+      try {
+        await ensureLocalAudio();
+        await ensureLocalVideo();
+        const local = new MediaStream([state.outboundTracks.video, state.outboundTracks.audio]);
+        upsertTile(state.selfId, local, { name: 'Host (You)', role: Roles.HOST, hasVideo: true, muted: true });
+      } catch (e) {
+        console.warn('Host local media unavailable', e);
+      }
+      ui.toggleMute.disabled = false;
+      ui.toggleCamera.disabled = false;
+      setStatus(`Live as host. Room ID: ${state.roomId}`, 'good');
+      updateCounters();
+      renderPending();
+    }
+
+    async function joinViewer() {
+      state.isHost = false;
+      state.role = Roles.VIEWER;
+      state.hostId = ui.roomInput.value.trim();
+      state.roomId = state.hostId;
+      if (!state.hostId) return setStatus('Enter a Room ID (host ID).', 'warn');
+      send(envelope('watcher', { id: state.hostId, toId: state.hostId }));
+      await setupParticipantPC();
+      setStatus(`Joined room ${state.roomId} as viewer`, 'good');
+    }
+
+    function requestRoleUpgrade(role) {
+      state.hostId = ui.roomInput.value.trim() || state.hostId;
+      state.roomId = state.hostId;
+      if (!state.hostId) return setStatus('Enter a Room ID first.', 'warn');
+      if (role === Roles.CAMERA) send(envelope('join-request', { id: state.hostId, toId: state.hostId, requestedRole: role }));
+      else send(envelope('mic-request', { id: state.hostId, toId: state.hostId, requestedRole: role }));
+      setStatus(`Requested ${role} role from host.`, 'good');
+    }
+
+    function toggleMute() {
+      const at = state.outboundTracks.audio;
+      if (!at) return;
+      at.enabled = !at.enabled;
+      setStatus(`Microphone ${at.enabled ? 'unmuted' : 'muted'}.`, at.enabled ? 'good' : 'warn');
+      updateCounters();
+    }
+
+    function toggleCamera() {
+      const vt = state.outboundTracks.video;
+      if (!vt) return;
+      vt.enabled = !vt.enabled;
+      setStatus(`Camera ${vt.enabled ? 'enabled' : 'disabled'}.`, vt.enabled ? 'good' : 'warn');
+      updateCounters();
+    }
+
+    ui.goLive.onclick = goLive;
+    ui.joinViewer.onclick = joinViewer;
+    ui.requestSpeak.onclick = () => requestRoleUpgrade(Roles.SPEAKER);
+    ui.requestCamera.onclick = () => requestRoleUpgrade(Roles.CAMERA);
+    ui.toggleMute.onclick = toggleMute;
+    ui.toggleCamera.onclick = toggleCamera;
+
+    wireSignaling();
+    tickSpeaker();
+    updateCounters();
   </script>
 </body>
 </html>
