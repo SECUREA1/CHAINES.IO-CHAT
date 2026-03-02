@@ -711,27 +711,7 @@
     }
   </style>
 </head>
-<body class="auth-lock">
-  <div id="token-gate" class="token-gate" role="dialog" aria-modal="true" aria-labelledby="token-gate-title" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553">
-    <div class="token-gate__panel">
-      <div class="token-gate__art" aria-hidden="true">
-        <p class="token-gate__eyebrow">CHAINeS access</p>
-        <h2 class="token-gate__headline">Secure gateway to CHAINeS POST</h2>
-        <p class="token-gate__lede">Connect your wallet to validate access and enter the platform.</p>
-      </div>
-      <div class="token-gate__content">
-        <p class="token-gate__eyebrow">Access verification</p>
-        <h2 id="token-gate-title" class="token-gate__title">Validate access to continue</h2>
-        <p class="token-gate__copy">Use Lace wallet to verify access and continue.</p>
-        <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
-        <button id="token-gate-connect" class="token-gate__button" type="button" data-action="connect">
-          <img src="static/wallet.svg" alt="" width="24" height="24" aria-hidden="true" />
-          Access
-          <span class="token-gate__button-note">Wallet validation</span>
-        </button>
-      </div>
-    </div>
-  </div>
+<body>
   <div id="ghost-ticker" class="ghost-ticker" role="status" aria-live="polite" hidden>
     <img src="static/hologhost.svg" alt="" aria-hidden="true" />
     <div class="ghost-ticker__text">
@@ -809,6 +789,9 @@
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <div class="status bottom">
+        <input id="live-room-id" class="chip" type="text" placeholder="Live room ID" style="max-width:170px" />
+        <button class="chip" id="live-room-enter" type="button" title="Enter live room">Enter</button>
+        <button class="chip" id="live-channels-btn" type="button" title="Open live channels">Live Channels</button>
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
@@ -976,6 +959,9 @@
     const connIcon = el('#conn-icon');
     const connLabel = el('#conn-label');
     const liveCount = el('#live-count');
+    const liveRoomInput = el('#live-room-id');
+    const liveRoomEnterBtn = el('#live-room-enter');
+    const liveChannelsBtn = el('#live-channels-btn');
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
     const wsUrlInput = el('#ws-url');
@@ -1360,6 +1346,23 @@
       const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
       store.theme = next;
       applyTheme(next);
+    });
+    function openLiveChannelWindow(roomId = '') {
+      const targetRoom = (roomId || '').trim();
+      const url = new URL('/live-channel.html', location.origin);
+      if (targetRoom) {
+        url.searchParams.set('room', targetRoom);
+        url.searchParams.set('join', '1');
+      }
+      window.open(url.toString(), 'chaines-live-channel', 'width=1320,height=920,noopener,noreferrer');
+    }
+    liveChannelsBtn?.addEventListener('click', () => openLiveChannelWindow(liveRoomInput?.value || ''));
+    liveRoomEnterBtn?.addEventListener('click', () => openLiveChannelWindow(liveRoomInput?.value || ''));
+    liveRoomInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        openLiveChannelWindow(liveRoomInput.value || '');
+      }
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {

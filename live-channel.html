@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHAINeS Room Broadcast</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121a2f; --panel-2:#1a2440; --text:#e9eefb; --muted:#9aa8ca; --ok:#34d399; --warn:#f59e0b; --danger:#ef4444; --accent:#3b82f6; --speaker:#10b981; --tile-min:220px; }
+    * { box-sizing: border-box; }
+    body { margin:0; background: radial-gradient(1200px 700px at 10% -10%, #1e3a8a44, transparent), var(--bg); color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .app { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+    .panel { background: color-mix(in oklab, var(--panel), black 5%); border: 1px solid #2a3656; border-radius: 12px; padding: 12px; }
+    .controls { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
+    .controls input, .controls button, .host-actions button { width: 100%; border-radius: 10px; border: 1px solid #33426c; background: var(--panel-2); color: var(--text); padding: 9px 10px; font-size: 14px; }
+    .controls button, .host-actions button { cursor: pointer; }
+    .controls button:hover, .host-actions button:hover { border-color: var(--accent); }
+    .stats { display:flex; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+    .stats b { color: var(--text); }
+    .layout { display:grid; gap:12px; grid-template-columns: 1fr; }
+    .video-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(min(var(--tile-min), 100%), 1fr)); align-items: stretch; }
+    .tile { background:#0a1226; border:1px solid #2c3a5c; border-radius:12px; overflow:hidden; min-height:160px; display:grid; grid-template-rows:1fr auto; position:relative; }
+    .tile.speaking { box-shadow: 0 0 0 2px var(--speaker), 0 0 20px #10b98155; }
+    .tile video { width:100%; height:100%; object-fit:cover; background:#030712; }
+    .tile-meta { padding:8px 10px; display:flex; justify-content:space-between; align-items:center; background:#111a31; font-size:12px; color:var(--muted); }
+    .speaker-list { display:grid; gap:6px; }
+    .speaker-row { background:#0a1226; border:1px solid #2c3a5c; border-radius:8px; padding:8px; display:flex; justify-content:space-between; font-size:13px; }
+    .pending-list { display:grid; gap:8px; }
+    .pending-item { border:1px solid #33426c; border-radius:8px; padding:8px; display:grid; gap:6px; }
+    .host-actions { display:flex; gap:8px; }
+    .status { font-size:12px; color:var(--muted); min-height:16px; }
+    .good { color: var(--ok); } .warn { color:var(--warn);} .bad { color:var(--danger); }
+    @media (min-width: 980px) { .layout { grid-template-columns: 1fr 320px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="controls">
+        <label>Room ID
+          <input id="roomIdInput" placeholder="host-id or generated room id" />
+        </label>
+        <button id="goLiveBtn">Go Live (Host)</button>
+        <button id="joinViewerBtn">Join as Viewer</button>
+        <button id="enterRoomBtn">Enter Room</button>
+        <button id="requestSpeakBtn">Request to Speak</button>
+        <button id="requestCameraBtn">Request Camera</button>
+        <button id="toggleMuteBtn" disabled>Mute / Unmute</button>
+        <button id="toggleCameraBtn" disabled>Camera On / Off</button>
+      </div>
+      <div class="stats" id="counterBar"></div>
+      <div class="status" id="status"></div>
+    </section>
+
+    <section class="layout">
+      <section class="panel">
+        <h3 style="margin:0 0 8px;">Live Room</h3>
+        <div class="video-grid" id="videoGrid"></div>
+      </section>
+
+      <aside class="panel">
+        <h3 style="margin:0 0 8px;">Host Panel</h3>
+        <div class="pending-list" id="pendingList"></div>
+        <hr style="border-color:#2b3858; margin:12px 0;" />
+        <h4 style="margin:0 0 8px;">Audio-only Speakers</h4>
+        <div class="speaker-list" id="speakerList"></div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const MAX_CAMERAS = 5;
+    const MAX_SPEAKERS = 13;
+    const HOST_VIDEO_COUNTS_AS_TILE = true;
+    const ICE_SERVERS = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'turn:YOUR_TURN_HOST:3478', username: 'YOUR_USER', credential: 'YOUR_PASS' }
+    ];
+    const Roles = Object.freeze({ VIEWER: 'viewer', SPEAKER: 'speaker', CAMERA: 'camera', HOST: 'host' });
+    const state = { ws:null, selfId:null, roomId:null, hostId:null, role:Roles.VIEWER, isHost:false, localStream:null, pendingRequests:new Map(), participants:new Map(), pcsUpstream:new Map(), pcsDownstream:new Map(), hostPC:null, outboundTracks:{ audio:null, video:null }, inboundStreams:new Map(), forwardedSenders:new Map(), audioAnalyzers:new Map(), userLabel:`user-${Math.random().toString(36).slice(2,6)}`, activeSpeaker:null };
+    const el = (id) => document.getElementById(id);
+    const ui = { roomInput: el('roomIdInput'), status: el('status'), grid: el('videoGrid'), pending: el('pendingList'), speakers: el('speakerList'), counter: el('counterBar'), goLive: el('goLiveBtn'), joinViewer: el('joinViewerBtn'), enterRoom: el('enterRoomBtn'), requestSpeak: el('requestSpeakBtn'), requestCamera: el('requestCameraBtn'), toggleMute: el('toggleMuteBtn'), toggleCamera: el('toggleCameraBtn') };
+    function setStatus(text, tone=''){ ui.status.className = `status ${tone}`.trim(); ui.status.textContent = text; }
+    function wsUrl(){ const proto = location.protocol === 'https:' ? 'wss' : 'ws'; return `${proto}://${location.host}/ws`; }
+    function send(msg){ if (!state.ws || state.ws.readyState !== 1) return; state.ws.send(JSON.stringify(msg)); }
+    function envelope(type, payload = {}){ return { type, roomId: state.roomId, fromId: state.selfId, role: state.role, ...payload }; }
+    function relayWebRTC(type, toId, pcKey, body) { if (type === 'offer' || type === 'answer') send({ type, id: toId, sdp: { description: body, roomId: state.roomId, fromId: state.selfId, toId, role: state.role, pcKey } }); if (type === 'candidate') send({ type, id: toId, candidate: { candidate: body, roomId: state.roomId, fromId: state.selfId, toId, role: state.role, pcKey } }); }
+    function createPC({ remoteId, pcKey, direction, onTrack }) { const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS }); pc.__meta = { remoteId, pcKey, direction }; pc.onicecandidate = (ev) => { if (!ev.candidate) return; relayWebRTC('candidate', remoteId, pcKey, ev.candidate); }; pc.onconnectionstatechange = () => { const st = pc.connectionState; if (['failed', 'closed', 'disconnected'].includes(st)) handlePeerDisconnect(remoteId, pcKey, direction); }; if (onTrack) pc.ontrack = onTrack; return pc; }
+    async function ensureLocalAudio(){ if (state.outboundTracks.audio) return state.outboundTracks.audio; const ms = await navigator.mediaDevices.getUserMedia({ audio:true, video:false }); const audio = ms.getAudioTracks()[0]; state.outboundTracks.audio = audio; return audio; }
+    async function ensureLocalVideo(){ if (state.outboundTracks.video) return state.outboundTracks.video; const ms = await navigator.mediaDevices.getUserMedia({ video:true, audio:false }); const video = ms.getVideoTracks()[0]; state.outboundTracks.video = video; return video; }
+    function currentCameraCount(){ let count = 0; for (const p of state.participants.values()) if (p.hasVideo) count += 1; if (HOST_VIDEO_COUNTS_AS_TILE && state.isHost && state.outboundTracks.video && state.outboundTracks.video.enabled) count += 1; return count; }
+    function currentSpeakerCount(){ let count = 0; for (const p of state.participants.values()) if (p.hasAudio) count += 1; if (state.outboundTracks.audio && state.outboundTracks.audio.enabled) count += 1; return count; }
+    function updateCounters(){ ui.counter.innerHTML = `<span>Cameras: <b>${currentCameraCount()}/${MAX_CAMERAS}</b></span><span>Speakers: <b>${currentSpeakerCount()}/${MAX_SPEAKERS}</b></span><span>Role: <b>${state.role}</b></span><span>Room: <b>${state.roomId || '-'}</b></span>`; }
+    function upsertTile(peerId, stream, meta = {}) { let tile = ui.grid.querySelector(`[data-peer="${peerId}"]`); if (!tile) { tile = document.createElement('article'); tile.className = 'tile'; tile.dataset.peer = peerId; tile.innerHTML = `<video autoplay playsinline></video><div class="tile-meta"><span class="name"></span><span class="flags"></span></div>`; ui.grid.appendChild(tile); } const v = tile.querySelector('video'); if (v.srcObject !== stream) v.srcObject = stream; v.muted = peerId === state.selfId; tile.querySelector('.name').textContent = `${meta.name || peerId} (${meta.role || 'unknown'})`; tile.querySelector('.flags').textContent = `${meta.muted ? '🔇' : '🔊'} ${meta.hasVideo ? '📷' : '🎤'}`; }
+    function removeTile(peerId){ ui.grid.querySelector(`[data-peer="${peerId}"]`)?.remove(); }
+    function renderSpeakerList(){ ui.speakers.innerHTML = ''; for (const [id, p] of state.participants.entries()) { if (!p.hasAudio || p.hasVideo) continue; const row = document.createElement('div'); row.className = 'speaker-row'; row.innerHTML = `<span>${p.name || id}</span><span>${p.role}</span>`; ui.speakers.appendChild(row); } }
+    function renderPending(){ ui.pending.innerHTML = ''; if (!state.isHost) { ui.pending.innerHTML = '<small class="warn">Only host can approve/deny requests.</small>'; return; } for (const [fromId, req] of state.pendingRequests.entries()) { const node = document.createElement('div'); node.className = 'pending-item'; node.innerHTML = `<div><b>${req.name || fromId}</b> requested <b>${req.role}</b></div>`; const actions = document.createElement('div'); actions.className = 'host-actions'; const ok = document.createElement('button'); ok.textContent = 'Approve'; ok.onclick = () => approveRequest(fromId, req.role); const no = document.createElement('button'); no.textContent = 'Deny'; no.onclick = () => denyRequest(fromId, req.role); actions.append(ok, no); node.appendChild(actions); ui.pending.appendChild(node); } }
+    function enforceLimits(role){ if (role === Roles.CAMERA && currentCameraCount() >= MAX_CAMERAS) return { ok:false, reason:'Camera slots full' }; if ((role === Roles.CAMERA || role === Roles.SPEAKER) && currentSpeakerCount() >= MAX_SPEAKERS) return { ok:false, reason:'Speaker slots full' }; return { ok:true }; }
+    function approveRequest(fromId, role){ const limit = enforceLimits(role); if (!limit.ok) { send(envelope('deny-mic', { id: fromId, toId: fromId, reason: limit.reason })); state.pendingRequests.delete(fromId); renderPending(); setStatus(limit.reason, 'warn'); return; } const type = role === Roles.CAMERA ? 'approve-join' : 'approve-mic'; send(envelope(type, { id: fromId, toId: fromId })); send(envelope('role-approved', { id: fromId, toId: fromId, approvedRole: role })); state.pendingRequests.delete(fromId); renderPending(); }
+    function denyRequest(fromId, role){ const type = role === Roles.CAMERA ? 'deny-join' : 'deny-mic'; send(envelope(type, { id: fromId, toId: fromId })); send(envelope('role-denied', { id: fromId, toId: fromId, deniedRole: role })); state.pendingRequests.delete(fromId); renderPending(); }
+    async function makeOffer(pc, toId, pcKey){ const offer = await pc.createOffer(); await pc.setLocalDescription(offer); relayWebRTC('offer', toId, pcKey, pc.localDescription); }
+    async function setupParticipantPC(){ if (!state.hostId) return; const pcKey = `participant-${state.selfId}->${state.hostId}`; state.hostPC?.close(); state.hostPC = createPC({ remoteId: state.hostId, pcKey, direction: 'participant-upstream-downstream', onTrack: (ev) => { const stream = ev.streams[0]; if (!stream) return; const srcId = ev.track.id.split(':')[0] || state.hostId; state.inboundStreams.set(srcId, stream); upsertTile(srcId, stream, { name: srcId, role: 'remote', hasVideo: stream.getVideoTracks().length > 0, muted: false }); attachAnalyzer(srcId, stream); } }); state.hostPC.addTransceiver('audio', { direction: 'recvonly' }); state.hostPC.addTransceiver('video', { direction: 'recvonly' }); if (state.role === Roles.SPEAKER || state.role === Roles.CAMERA) { const audioTrack = await ensureLocalAudio(); state.hostPC.addTrack(audioTrack, new MediaStream([audioTrack])); } if (state.role === Roles.CAMERA) { const videoTrack = await ensureLocalVideo(); state.hostPC.addTrack(videoTrack, new MediaStream([videoTrack])); upsertTile(state.selfId, new MediaStream([videoTrack]), { name: 'You', role: state.role, hasVideo: true, muted: true }); } await makeOffer(state.hostPC, state.hostId, pcKey); ui.toggleMute.disabled = !(state.role === Roles.SPEAKER || state.role === Roles.CAMERA); ui.toggleCamera.disabled = state.role !== Roles.CAMERA; }
+    async function hostAcceptViewer(viewerId){ const pcKey = `host-down-${state.selfId}->${viewerId}`; if (state.pcsDownstream.has(viewerId)) return; const pc = createPC({ remoteId: viewerId, pcKey, direction:'host-downstream' }); state.pcsDownstream.set(viewerId, pc); pc.addTransceiver('audio', { direction: 'sendonly' }); pc.addTransceiver('video', { direction: 'sendonly' }); await forwardAllTracksToViewer(viewerId); await makeOffer(pc, viewerId, pcKey); }
+    async function ensureHostUpstream(senderId){ if (state.pcsUpstream.has(senderId)) return state.pcsUpstream.get(senderId); const pcKey = `host-up-${senderId}->${state.selfId}`; const pc = createPC({ remoteId: senderId, pcKey, direction:'host-upstream', onTrack: (ev) => { const stream = ev.streams[0]; if (!stream) return; const hasVideo = stream.getVideoTracks().length > 0; const hasAudio = stream.getAudioTracks().length > 0; state.participants.set(senderId, { role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasAudio, hasVideo, name: senderId }); if (hasVideo) upsertTile(senderId, stream, { name: senderId, role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasVideo, muted: false }); renderSpeakerList(); updateCounters(); attachAnalyzer(senderId, stream); forwardTrackToViewers(senderId, stream); } }); state.pcsUpstream.set(senderId, pc); return pc; }
+    async function forwardTrackToViewers(peerId, stream){ for (const viewerId of state.pcsDownstream.keys()) await forwardStreamToViewer(viewerId, peerId, stream); }
+    async function forwardAllTracksToViewer(viewerId){ if (state.outboundTracks.audio) await forwardStreamToViewer(viewerId, state.selfId, new MediaStream([state.outboundTracks.audio])); if (state.outboundTracks.video) await forwardStreamToViewer(viewerId, state.selfId, new MediaStream([state.outboundTracks.video])); for (const [peerId, stream] of state.inboundStreams.entries()) await forwardStreamToViewer(viewerId, peerId, stream); }
+    async function forwardStreamToViewer(viewerId, peerId, stream){ const pc = state.pcsDownstream.get(viewerId); if (!pc) return; if (!state.forwardedSenders.has(viewerId)) state.forwardedSenders.set(viewerId, new Map()); const senderMap = state.forwardedSenders.get(viewerId); for (const track of stream.getTracks()) { const k = `${peerId}:${track.kind}:${track.id}`; if (senderMap.has(k)) continue; const sender = pc.addTrack(track, stream); senderMap.set(k, sender); } if (pc.signalingState === 'stable') await makeOffer(pc, viewerId, pc.__meta.pcKey); }
+    function handlePeerDisconnect(peerId, pcKey, direction){ if (direction.includes('upstream')) state.pcsUpstream.delete(peerId); if (direction.includes('downstream')) { state.pcsDownstream.get(peerId)?.close(); state.pcsDownstream.delete(peerId); state.forwardedSenders.delete(peerId); } if (state.hostId === peerId && !state.isHost) setStatus('Host disconnected.', 'warn'); state.participants.delete(peerId); state.inboundStreams.delete(peerId); removeTile(peerId); renderSpeakerList(); updateCounters(); }
+    async function handleOffer(msg){ const descWrap = msg.sdp || {}; const description = descWrap.description || msg.sdp; const pcKey = descWrap.pcKey || `legacy-${msg.id}`; const fromId = descWrap.fromId || msg.id; const toId = descWrap.toId || state.selfId; if (state.isHost && toId === state.selfId) { if (pcKey.startsWith('host-up-')) { const pc = await ensureHostUpstream(fromId); await pc.setRemoteDescription(description); const answer = await pc.createAnswer(); await pc.setLocalDescription(answer); relayWebRTC('answer', fromId, pc.__meta.pcKey, pc.localDescription); return; } if (pcKey.startsWith('host-down-')) { const pc = state.pcsDownstream.get(fromId) || createPC({ remoteId: fromId, pcKey, direction: 'host-downstream' }); state.pcsDownstream.set(fromId, pc); await pc.setRemoteDescription(description); const answer = await pc.createAnswer(); await pc.setLocalDescription(answer); relayWebRTC('answer', fromId, pcKey, pc.localDescription); return; } }
+      if (!state.isHost && fromId === state.hostId) { if (!state.hostPC) { state.hostPC = createPC({ remoteId: fromId, pcKey, direction:'participant-upstream-downstream', onTrack: (ev) => { const stream = ev.streams[0]; if (!stream) return; const pseudoId = `${fromId}-${ev.track.kind}-${ev.track.id.slice(0, 6)}`; state.inboundStreams.set(pseudoId, stream); upsertTile(pseudoId, stream, { name:'Forwarded', role:'room', hasVideo: stream.getVideoTracks().length > 0, muted: false }); attachAnalyzer(pseudoId, stream); } }); } await state.hostPC.setRemoteDescription(description); const answer = await state.hostPC.createAnswer(); await state.hostPC.setLocalDescription(answer); relayWebRTC('answer', state.hostId, pcKey, state.hostPC.localDescription); } }
+    async function handleAnswer(msg){ const a = msg.sdp || {}; const description = a.description || msg.sdp; const fromId = a.fromId || msg.id; if (state.isHost) { const pc = state.pcsDownstream.get(fromId) || state.pcsUpstream.get(fromId); if (pc) await pc.setRemoteDescription(description); return; } if (state.hostPC && fromId === state.hostId) await state.hostPC.setRemoteDescription(description); }
+    async function handleCandidate(msg){ const wrap = msg.candidate || {}; const candidate = wrap.candidate || msg.candidate; const fromId = wrap.fromId || msg.id; let pc = null; if (state.isHost) pc = state.pcsUpstream.get(fromId) || state.pcsDownstream.get(fromId); else pc = state.hostPC; if (pc && candidate) { try { await pc.addIceCandidate(candidate); } catch {} } }
+    function attachAnalyzer(peerId, stream){ const at = stream.getAudioTracks()[0]; if (!at) return; const ctx = new (window.AudioContext || window.webkitAudioContext)(); const src = ctx.createMediaStreamSource(new MediaStream([at])); const analyser = ctx.createAnalyser(); analyser.fftSize = 256; src.connect(analyser); state.audioAnalyzers.set(peerId, { analyser, data: new Uint8Array(analyser.frequencyBinCount), ctx }); }
+    function tickSpeaker(){ let best = null; let bestLevel = 0; for (const [id, obj] of state.audioAnalyzers.entries()) { obj.analyser.getByteFrequencyData(obj.data); const level = obj.data.reduce((a,b) => a + b, 0) / obj.data.length; if (level > bestLevel) { bestLevel = level; best = id; } } state.activeSpeaker = bestLevel > 22 ? best : null; document.querySelectorAll('.tile').forEach((t) => t.classList.toggle('speaking', t.dataset.peer === state.activeSpeaker)); requestAnimationFrame(tickSpeaker); }
+    function handleSignal(msg){ switch (msg.type) { case 'id': state.selfId = msg.id; if (!ui.roomInput.value) ui.roomInput.value = msg.id; setStatus(`Connected as ${state.selfId}`, 'good'); break; case 'watcher': if (state.isHost) hostAcceptViewer(msg.id); break; case 'join-request': if (state.isHost) { state.pendingRequests.set(msg.id, { role: Roles.CAMERA, name: msg.user || msg.id }); renderPending(); } break; case 'mic-request': if (state.isHost) { state.pendingRequests.set(msg.id, { role: Roles.SPEAKER, name: msg.user || msg.id }); renderPending(); } break; case 'join-approved': state.role = Roles.CAMERA; setupParticipantPC(); break; case 'mic-approved': state.role = Roles.SPEAKER; setupParticipantPC(); break; case 'join-denied': case 'mic-denied': setStatus('Request denied by host.', 'warn'); break; case 'offer': handleOffer(msg); break; case 'answer': handleAnswer(msg); break; case 'candidate': handleCandidate(msg); break; case 'bye': handlePeerDisconnect(msg.id, 'bye', 'any'); break; default: break; } updateCounters(); renderSpeakerList(); }
+    function wireSignaling(){ state.ws = new WebSocket(wsUrl()); state.ws.onopen = () => { send({ type:'join', user: state.userLabel }); setStatus('Signaling connected.', 'good'); }; state.ws.onmessage = (ev) => { let msg = null; try { msg = JSON.parse(ev.data); } catch { return; } handleSignal(msg); }; state.ws.onclose = () => setStatus('Signaling disconnected.', 'bad'); }
+    async function goLive(){ state.isHost = true; state.role = Roles.HOST; state.roomId = state.selfId; state.hostId = state.selfId; ui.roomInput.value = state.roomId; send(envelope('broadcaster')); try { await ensureLocalAudio(); await ensureLocalVideo(); const local = new MediaStream([state.outboundTracks.video, state.outboundTracks.audio]); upsertTile(state.selfId, local, { name:'Host (You)', role: Roles.HOST, hasVideo:true, muted:true }); } catch (e) {} ui.toggleMute.disabled = false; ui.toggleCamera.disabled = false; setStatus(`Live as host. Room ID: ${state.roomId}`, 'good'); updateCounters(); renderPending(); }
+    async function joinViewer(){ state.isHost = false; state.role = Roles.VIEWER; state.hostId = ui.roomInput.value.trim(); state.roomId = state.hostId; if (!state.hostId) return setStatus('Enter a Room ID (host ID).', 'warn'); send(envelope('watcher', { id: state.hostId, toId: state.hostId })); await setupParticipantPC(); setStatus(`Joined room ${state.roomId} as viewer`, 'good'); }
+    function requestRoleUpgrade(role){ state.hostId = ui.roomInput.value.trim() || state.hostId; state.roomId = state.hostId; if (!state.hostId) return setStatus('Enter a Room ID first.', 'warn'); if (role === Roles.CAMERA) send(envelope('join-request', { id: state.hostId, toId: state.hostId, requestedRole: role })); else send(envelope('mic-request', { id: state.hostId, toId: state.hostId, requestedRole: role })); setStatus(`Requested ${role} role from host.`, 'good'); }
+    function toggleMute(){ const at = state.outboundTracks.audio; if (!at) return; at.enabled = !at.enabled; setStatus(`Microphone ${at.enabled ? 'unmuted' : 'muted'}.`, at.enabled ? 'good' : 'warn'); updateCounters(); }
+    function toggleCamera(){ const vt = state.outboundTracks.video; if (!vt) return; vt.enabled = !vt.enabled; setStatus(`Camera ${vt.enabled ? 'enabled' : 'disabled'}.`, vt.enabled ? 'good' : 'warn'); updateCounters(); }
+    ui.goLive.onclick = goLive;
+    ui.joinViewer.onclick = joinViewer;
+    ui.enterRoom.onclick = joinViewer;
+    ui.requestSpeak.onclick = () => requestRoleUpgrade(Roles.SPEAKER);
+    ui.requestCamera.onclick = () => requestRoleUpgrade(Roles.CAMERA);
+    ui.toggleMute.onclick = toggleMute;
+    ui.toggleCamera.onclick = toggleCamera;
+
+    const params = new URLSearchParams(location.search);
+    const startRoom = params.get('room') || '';
+    const autoJoin = params.get('join') === '1';
+    if (startRoom) ui.roomInput.value = startRoom;
+
+    wireSignaling();
+    tickSpeaker();
+    updateCounters();
+
+    if (startRoom && autoJoin) {
+      setTimeout(() => { joinViewer(); }, 350);
+    }
+  </script>
+</body>
+</html>
