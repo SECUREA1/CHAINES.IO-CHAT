@@ -998,6 +998,7 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const feedBtn = el('#feed-btn');
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -1031,11 +1032,15 @@
     const videoToggle = el('#video-toggle');
     function showStream(){
       videoContainer.removeAttribute('hidden');
+      feed.setAttribute('hidden','');
+      if(form) form.setAttribute('hidden','');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(videoToggle) videoToggle.textContent = 'Hide Feed Tile';
     }
     function showChat(){
       videoContainer.setAttribute('hidden','');
+      feed.removeAttribute('hidden');
+      if(form) form.removeAttribute('hidden');
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(videoToggle) videoToggle.textContent = 'Show Feed';
     }
@@ -1162,6 +1167,13 @@
         } else {
           showChat();
         }
+      });
+    }
+    if(feedBtn){
+      feedBtn.addEventListener('click', () => {
+        showChat();
+        feed?.scrollTo?.({ top: 0, behavior: 'smooth' });
+        input?.focus?.();
       });
     }
 
@@ -1705,11 +1717,23 @@
       // open stream bubble programmatically if needed
       function watchLive(id, name){
         ensureStreamThumb(id, name, id === clientId);
-        streams[id].container.classList.add('open');
-        if(!streams[id].started && !streams[id].self){
-          startWatching(id);
-          streams[id].started = true;
+        const streamTile = streams[id];
+        streamTile.container.classList.add('open');
+        const tuneBtn = streamTile.container.querySelector('.tune-btn');
+        const camBtn = streamTile.container.querySelector('.cam-btn');
+        const micBtn = streamTile.container.querySelector('.mic-btn');
+        const joinBtns = streamTile.container.querySelector('.join-btns');
+        if(!streamTile.self){
+          if(tuneBtn) tuneBtn.textContent = 'Leave';
+          if(camBtn) camBtn.hidden = false;
+          if(micBtn) micBtn.hidden = false;
+          if(joinBtns) joinBtns.hidden = false;
         }
+        if(!streamTile.started && !streamTile.self){
+          startWatching(id);
+          streamTile.started = true;
+        }
+        showStream();
       }
 
       function updateListenerCount(id, n){
