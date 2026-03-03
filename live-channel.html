@@ -159,7 +159,7 @@
       ws: null, selfId: null, roomId: null, hostId: null, role: Roles.VIEWER, isHost: false,
       pendingRequests: new Map(), participants: new Map(), pcsUpstream: new Map(), pcsDownstream: new Map(),
       hostPC: null, outboundTracks: { audio: null, video: null }, inboundStreams: new Map(),
-      forwardedSenders: new Map(), audioAnalyzers: new Map(), userLabel: `user-${Math.random().toString(36).slice(2, 6)}`,
+      forwardedSenders: new Map(), audioAnalyzers: new Map(), tileMeta: new Map(), userLabel: `user-${Math.random().toString(36).slice(2, 6)}`,
       activeSpeaker: null, screenStream: null, screenTrack: null, screenSharing: false
     };
 
@@ -226,6 +226,8 @@
     }
 
     function upsertTile(peerId, stream, meta = {}) {
+      const nextMeta = { ...(state.tileMeta.get(peerId) || {}), ...meta };
+      state.tileMeta.set(peerId, nextMeta);
       let tile = ui.grid.querySelector(`[data-peer="${peerId}"]`);
       if (!tile) {
         tile = document.createElement('article');
@@ -237,10 +239,10 @@
       const v = tile.querySelector('video');
       if (v.srcObject !== stream) v.srcObject = stream;
       v.muted = peerId === state.selfId;
-      tile.querySelector('.name').textContent = `${meta.name || peerId} (${meta.role || 'unknown'})`;
-      tile.querySelector('.flags').textContent = `${meta.muted ? '🔇' : '🔊'} ${meta.hasVideo ? '📷' : '🎤'}`;
+      tile.querySelector('.name').textContent = `${nextMeta.name || peerId} (${nextMeta.role || 'unknown'})`;
+      tile.querySelector('.flags').textContent = `${nextMeta.muted ? '🔇' : '🔊'} ${nextMeta.hasVideo ? '📷' : '🎤'}`;
     }
-    function removeTile(peerId) { ui.grid.querySelector(`[data-peer="${peerId}"]`)?.remove(); }
+    function removeTile(peerId) { ui.grid.querySelector(`[data-peer="${peerId}"]`)?.remove(); state.tileMeta.delete(peerId); }
 
     function renderSpeakerList() {
       ui.speakers.innerHTML = '';
@@ -248,9 +250,22 @@
         if (!p.hasAudio || p.hasVideo) continue;
         const row = document.createElement('div');
         row.className = 'speaker-row';
-        row.innerHTML = `<span>${p.name || id}</span><span>${p.role}</span>`;
+        row.innerHTML = `<span>${p.name || id}</span><span>${p.role} ${p.muted ? '🔇' : '🔊'}</span>`;
         ui.speakers.appendChild(row);
       }
+    }
+
+    function syncParticipantState(id, stream, fallbackRole = Roles.SPEAKER) {
+      const hasVideo = stream.getVideoTracks().length > 0;
+      const audioTrack = stream.getAudioTracks()[0] || null;
+      const hasAudio = !!audioTrack;
+      const muted = audioTrack ? !audioTrack.enabled : true;
+      const role = hasVideo ? Roles.CAMERA : fallbackRole;
+      const current = state.participants.get(id) || {};
+      state.participants.set(id, { ...current, role, hasAudio, hasVideo, muted, name: current.name || id });
+      upsertTile(id, stream, { name: current.name || id, role, hasVideo, muted });
+      renderSpeakerList();
+      updateCounters();
     }
 
     function renderPending() {
@@ -344,11 +359,9 @@
         remoteId: senderId, pcKey, direction: 'host-upstream',
         onTrack: (ev) => {
           const stream = ev.streams[0]; if (!stream) return;
-          const hasVideo = stream.getVideoTracks().length > 0;
-          const hasAudio = stream.getAudioTracks().length > 0;
-          state.participants.set(senderId, { role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasAudio, hasVideo, name: senderId });
-          if (hasVideo) upsertTile(senderId, stream, { name: senderId, role: hasVideo ? Roles.CAMERA : Roles.SPEAKER, hasVideo, muted: false });
-          renderSpeakerList(); updateCounters(); attachAnalyzer(senderId, stream); forwardTrackToViewers(senderId, stream);
+          syncParticipantState(senderId, stream);
+          attachAnalyzer(senderId, stream);
+          forwardTrackToViewers(senderId, stream);
         }
       });
       state.pcsUpstream.set(senderId, pc);
@@ -383,7 +396,16 @@
         state.forwardedSenders.delete(peerId);
       }
       if (state.hostId === peerId && !state.isHost) setStatus('Host disconnected.', 'warn');
-      state.participants.delete(peerId); state.inboundStreams.delete(peerId); removeTile(peerId); renderSpeakerList(); updateCounters();
+      state.participants.delete(peerId);
+      for (const [id, stream] of state.inboundStreams.entries()) {
+        if (id === peerId || id.startsWith(`${peerId}-`)) {
+          state.inboundStreams.delete(id);
+          removeTile(id);
+        }
+      }
+      removeTile(peerId);
+      renderSpeakerList();
+      updateCounters();
     }
 
     async function handleOffer(msg) {
@@ -453,18 +475,36 @@
     }
 
     function tickSpeaker() {
-      let best = null; let bestLevel = 0;
+      let best = null;
+      let bestLevel = 0;
       for (const [id, obj] of state.audioAnalyzers.entries()) {
-        obj.analyser.getByteFrequencyData(obj.data);
-        const level = obj.data.reduce((a, b) => a + b, 0) / obj.data.length;
+        obj.analyser.getByteTimeDomainData(obj.data);
+        let sumSq = 0;
+        for (let i = 0; i < obj.data.length; i += 1) {
+          const normalized = (obj.data[i] - 128) / 128;
+          sumSq += normalized * normalized;
+        }
+        const level = Math.sqrt(sumSq / obj.data.length);
         if (level > bestLevel) { bestLevel = level; best = id; }
       }
-      state.activeSpeaker = bestLevel > 22 ? best : null;
+      const enterThreshold = 0.05;
+      const holdThreshold = 0.035;
+      const threshold = state.activeSpeaker ? holdThreshold : enterThreshold;
+      state.activeSpeaker = bestLevel > threshold ? best : null;
       document.querySelectorAll('.tile').forEach((t) => t.classList.toggle('speaking', t.dataset.peer === state.activeSpeaker));
       requestAnimationFrame(tickSpeaker);
     }
 
+    function messageToSelf(msg) {
+      const wrapped = msg.sdp || msg.candidate || msg;
+      const toId = wrapped.toId || msg.toId || msg.id;
+      return !toId || toId === state.selfId;
+    }
+
     function handleSignal(msg) {
+      const messageRoom = msg.roomId || msg.sdp?.roomId || msg.candidate?.roomId;
+      if (state.roomId && messageRoom && messageRoom !== state.roomId) return;
+      if (['offer', 'answer', 'candidate'].includes(msg.type) && !messageToSelf(msg)) return;
       switch (msg.type) {
         case 'id':
           state.selfId = msg.id;
@@ -594,6 +634,8 @@
       const at = state.outboundTracks.audio;
       if (!at) return;
       at.enabled = !at.enabled;
+      const local = ui.grid.querySelector(`[data-peer="${state.selfId}"] video`)?.srcObject;
+      if (local) upsertTile(state.selfId, local, { muted: !at.enabled });
       setStatus(`Microphone ${at.enabled ? 'unmuted' : 'muted'}.`, at.enabled ? 'good' : 'warn');
       updateCounters();
     }
@@ -602,6 +644,8 @@
       const vt = state.outboundTracks.video;
       if (!vt) return;
       vt.enabled = !vt.enabled;
+      const local = ui.grid.querySelector(`[data-peer="${state.selfId}"] video`)?.srcObject;
+      if (local) upsertTile(state.selfId, local, { hasVideo: vt.enabled });
       setStatus(`Camera ${vt.enabled ? 'enabled' : 'disabled'}.`, vt.enabled ? 'good' : 'warn');
       updateCounters();
     }
