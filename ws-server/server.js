@@ -214,15 +214,6 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
-app.get(["/live-channel", "/live-channel.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "live-channel.html"))
-);
-app.get(["/live-channels", "/live-channels.html"], (req, res) => {
-  const query = req.originalUrl.includes("?")
-    ? req.originalUrl.slice(req.originalUrl.indexOf("?"))
-    : "";
-  res.redirect(301, `/live-channel.html${query}`);
-});
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
 );
@@ -661,8 +652,8 @@ app.post("/notification-settings/:username", (req, res) => {
 
 app.post("/register", upload.single("profile"), async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username) {
-    res.status(400).json({ error: "Missing username" });
+  if (!username || !password) {
+    res.status(400).json({ error: "Missing fields" });
     return;
   }
   if (profiles[username]) {
@@ -670,7 +661,7 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     return;
   }
   try {
-    const hash = password ? await bcrypt.hash(password, 10) : null;
+    const hash = await bcrypt.hash(password, 10);
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
     db.prepare(
@@ -686,8 +677,8 @@ app.post("/register", upload.single("profile"), async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username) {
-    res.status(400).json({ error: "Missing username" });
+  if (!username || !password) {
+    res.status(400).json({ error: "Missing fields" });
     return;
   }
   const dbUser = db
@@ -696,13 +687,10 @@ app.post("/login", async (req, res) => {
   const memUser = profiles[username];
   const hash = dbUser?.password || memUser?.password;
   if (!hash) {
-    const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-    profiles[username] = { ...(memUser || {}), password: null, profilePic };
-    saveProfiles();
-    res.json({ success: true, username, profilePic });
+    res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  const ok = password ? await bcrypt.compare(password, hash) : false;
+  const ok = await bcrypt.compare(password, hash);
   if (!ok) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -730,8 +718,7 @@ app.get("/profile/:username", (req, res) => {
     )
     .get(req.params.username);
   const memUser = profiles[req.params.username] || {};
-  const hasMemUser = Object.keys(memUser).length > 0;
-  if (!dbUser && !hasMemUser) {
+  if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
     return;
   }
