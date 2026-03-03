@@ -577,12 +577,18 @@
     .stream.open .stream-feed { display:block; }
     #video-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       grid-auto-rows: minmax(140px, 1fr);
       gap: 10px;
       padding: 10px;
       align-items: stretch;
+      border: 1px solid var(--lining);
+      border-radius: 12px;
+      background: color-mix(in oklab, var(--panel), transparent 8%);
+      box-shadow: var(--shadow);
+      margin: 10px 10px 0;
     }
+    #video-container[hidden] { display:none !important; }
     #video-container video {
       border-radius: 12px;
       border: 1px solid var(--lining);
@@ -1025,15 +1031,11 @@
     const videoToggle = el('#video-toggle');
     function showStream(){
       videoContainer.removeAttribute('hidden');
-      feed.setAttribute('hidden','');
-      if(form) form.setAttribute('hidden','');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
-      if(videoToggle) videoToggle.textContent = 'Show Chat';
+      if(videoToggle) videoToggle.textContent = 'Hide Feed Tile';
     }
     function showChat(){
       videoContainer.setAttribute('hidden','');
-      feed.removeAttribute('hidden');
-      if(form) form.removeAttribute('hidden');
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(videoToggle) videoToggle.textContent = 'Show Feed';
     }
