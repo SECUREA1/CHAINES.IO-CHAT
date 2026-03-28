@@ -558,6 +558,24 @@
     .key.danger{background: rgba(255,77,77,.18); border-color: rgba(255,77,77,.22)}
     .key.gold{background: linear-gradient(180deg, rgba(212,175,55,.90), rgba(165,129,25,.88)); color:#061022; border-color: rgba(255,255,255,.12)}
     .hidden{display:none !important}
+    .games-quicklist{
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 14px;
+      border:1px solid rgba(140,180,255,.16);
+      background: rgba(7,20,40,.30);
+    }
+    .games-quicklist .hint{
+      margin-bottom: 8px;
+    }
+    .games-quicklist__scroll{
+      display:flex;
+      flex-direction:column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y:auto;
+      padding-right: 4px;
+    }
 
     /* Responsive */
     @media (max-width: 1200px){
@@ -613,6 +631,10 @@
           </div>
           <div class="right"><span>⌘</span><span>ALT+G</span></div>
         </button>
+        <div class="games-quicklist hidden" id="gamesQuickList" aria-live="polite">
+          <div class="hint">Choose a game, then play in the main viewport.</div>
+          <div class="games-quicklist__scroll" id="gamesQuickListItems"></div>
+        </div>
 
         <button class="navbtn" data-open="notepad" id="btnNotepad">
           <div class="left">
@@ -3825,6 +3847,43 @@ function sparkline(title, id, minV=0, maxV=100){
   ]);
 }
 
+function renderGamesQuickList(){
+  const wrap = $("#gamesQuickList");
+  const items = $("#gamesQuickListItems");
+  const g = apps.games;
+  if(!wrap || !items || !g) return;
+
+  wrap.classList.toggle("hidden", state.ui.mode !== "app:games");
+  if(state.ui.mode !== "app:games") return;
+
+  items.innerHTML = "";
+  for(const meta of g.catalog){
+    const selected = meta.key === g.current;
+    const btn = el("button",{
+      class: "navbtn " + (selected ? "active" : ""),
+      onclick: ()=>{
+        g.select(meta.key, {reset:true, fullscreen:false});
+        renderPanel_Games();
+        renderGamesQuickList();
+      }
+    },[
+      el("div",{class:"left"},[
+        el("div",{class:"icon"},[
+          el("div",{style:"font-family:var(--mono);font-weight:1000;font-size:10px;letter-spacing:.4px;opacity:.92;"},[(meta.title || "").slice(0,2).toUpperCase()])
+        ]),
+        el("div",{},[
+          el("div",{class:"label"},[meta.title]),
+          el("div",{class:"sublabel"},[meta.desc])
+        ])
+      ]),
+      el("div",{class:"right"},[
+        el("span",{},[selected ? "ON" : "OPEN"])
+      ])
+    ]);
+    items.append(btn);
+  }
+}
+
 // -----------------------------
 // Panel Rendering (right side telemetry + apps)
 // -----------------------------
@@ -3845,6 +3904,7 @@ function setMode(mode){
   };
   const id = map[mode];
   if(id) $("#"+id).classList.add("active");
+  renderGamesQuickList();
 
   // Ensure games don't keep drawing/updating after you switch apps.
   if(prev === "app:games" && mode !== "app:games"){
@@ -3856,6 +3916,8 @@ function setMode(mode){
 
   if(mode === "app:games"){
     viewportEl?.scrollIntoView({ block:"start", behavior:"smooth" });
+    const list = $("#gamesQuickListItems");
+    if(list) list.scrollTop = 0;
     requestAnimationFrame(resizeCanvas);
   }
 }
@@ -4258,6 +4320,7 @@ class CalendarUI{
 function renderPanel_Games(){
   panelContent.innerHTML = "";
   const g = apps.games;
+  renderGamesQuickList();
 
   // Ensure a game is selected/active
   if(!g.games[g.current]) g.select("pong", {reset:true});
