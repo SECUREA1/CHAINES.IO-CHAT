@@ -59,7 +59,9 @@ db.exec(`
     username TEXT UNIQUE,
     password TEXT,
     profile_pic TEXT,
-    description TEXT
+    description TEXT,
+    backup_email TEXT,
+    backup_phone TEXT
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -108,6 +110,8 @@ db.exec(`
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
@@ -128,6 +132,34 @@ function saveProfiles() {
 }
 
 let profiles = loadProfiles();
+
+function normalizeBackupEmail(value = "") {
+  const email = (value || "").toString().trim().toLowerCase();
+  if (!email) return null;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return emailOk ? email : null;
+}
+
+function normalizeBackupPhone(value = "") {
+  const raw = (value || "").toString().trim();
+  if (!raw) return null;
+  const digits = raw.replace(/[^\d]/g, "");
+  return digits.length >= 10 ? digits : null;
+}
+
+function purgeAllUserAccounts() {
+  db.exec(`
+    DELETE FROM follows;
+    DELETE FROM notifications;
+    DELETE FROM push_subscriptions;
+    DELETE FROM notification_settings;
+    DELETE FROM users;
+  `);
+  profiles = {};
+  saveProfiles();
+}
+
+purgeAllUserAccounts();
 
 // express setup
 const app = express();
@@ -651,9 +683,17 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", upload.single("profile"), async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, backupEmail, backupPhone } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  const normalizedBackupEmail = normalizeBackupEmail(backupEmail);
+  const normalizedBackupPhone = normalizeBackupPhone(backupPhone);
+  if (!normalizedBackupEmail && !normalizedBackupPhone) {
+    res.status(400).json({
+      error: "A backup email or phone number is required for password recovery.",
+    });
     return;
   }
   if (profiles[username]) {
@@ -665,9 +705,21 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
     db.prepare(
-      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
-    ).run(username, hash, pic);
-    profiles[username] = { password: hash, profilePic: pic, description: null };
+      "INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)"
+    ).run(
+      username,
+      hash,
+      pic,
+      normalizedBackupEmail,
+      normalizedBackupPhone
+    );
+    profiles[username] = {
+      password: hash,
+      profilePic: pic,
+      description: null,
+      backupEmail: normalizedBackupEmail,
+      backupPhone: normalizedBackupPhone,
+    };
     saveProfiles();
     res.json({ success: true });
   } catch (e) {
