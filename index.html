@@ -856,6 +856,8 @@
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
+        <input id="backup-email" type="email" placeholder="Backup email (recommended)" />
+        <input id="backup-phone" type="tel" placeholder="Backup phone (optional if email provided)" />
         <input id="profile" type="file" accept="image/*" />
       </div>
       <div class="actions">
@@ -973,6 +975,8 @@
     const profileInput = el('#profile');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const backupEmailInput = el('#backup-email');
+    const backupPhoneInput = el('#backup-phone');
     const skipBtn = el('#skip');
     const profileLink = el('#profile-link');
     const profilePicEl = el('#profile-pic');
@@ -1906,10 +1910,18 @@
       e.preventDefault();
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
+      const backupEmail = (backupEmailInput.value || '').trim().toLowerCase();
+      const backupPhone = (backupPhoneInput.value || '').trim();
       if(!name || !pass){ alert('Username and password required'); return; }
+      if(!backupEmail && !backupPhone){
+        alert('Add a backup email or phone number for password recovery.');
+        return;
+      }
       const fd = new FormData();
       fd.append('username', name);
       fd.append('password', pass);
+      if(backupEmail) fd.append('backupEmail', backupEmail);
+      if(backupPhone) fd.append('backupPhone', backupPhone);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){ await doLogin(); }
