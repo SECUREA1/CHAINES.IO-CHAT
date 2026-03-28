@@ -3017,6 +3017,13 @@
       const meta = document.createElement('div');
       meta.className = 'meta';
       meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
+      const whoEl = meta.querySelector('.who');
+      if(whoEl){
+        whoEl.style.cursor = 'pointer';
+        whoEl.addEventListener('click', () => {
+          location.href = '/profile.html?user=' + encodeURIComponent(m.user) + '&openDm=1';
+        });
+      }
 
       const text = document.createElement('div');
       text.className = 'msg-text';

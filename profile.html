@@ -85,6 +85,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
 (() => {
   const params = new URLSearchParams(location.search);
   const user = params.get('user');
+  const openDmByDefault = params.get('openDm') === '1';
   const storeUser = localStorage.getItem('chaines_username') || '';
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
@@ -201,12 +202,15 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         });
         load();
       };
-      messageBtn.hidden = !data.canMessage;
+      messageBtn.hidden = false;
       messageBtn.onclick = () => {
         dmSection.hidden = false;
         loadDm(true);
       };
-      if(!data.canMessage){
+      if(openDmByDefault){
+        dmSection.hidden = false;
+        loadDm(true);
+      } else if(!data.canMessage){
         dmSection.hidden = true;
         stopDmPolling();
       }

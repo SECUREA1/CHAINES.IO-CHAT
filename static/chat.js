@@ -56,14 +56,36 @@
     socket.on('connect', () => {
       socket.emit('get_chat_history');
     });
+    function openUserProfile(username, openDm = false){
+      if(!username) return;
+      const target = `/profile.html?user=${encodeURIComponent(username)}${openDm ? '&openDm=1' : ''}`;
+      window.location.href = target;
+    }
     function appendMsg(data){
       const msg = document.createElement('div');
       msg.style.marginBottom = '6px';
       const header = document.createElement('div');
-      const text = data.message ? ` ${data.message}` : '';
-      header.textContent = `${data.user}:${text}`;
       header.style.color = '#00a0ff';
       header.style.textShadow = '0 0 6px gold';
+      const userBtn = document.createElement('button');
+      userBtn.type = 'button';
+      userBtn.textContent = `@${data.user}`;
+      Object.assign(userBtn.style, {
+        background: 'transparent',
+        border: '0',
+        color: '#00a0ff',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        padding: '0',
+        textShadow: '0 0 6px gold'
+      });
+      userBtn.addEventListener('click', () => openUserProfile(data.user, true));
+      header.appendChild(userBtn);
+      if(data.message){
+        const textNode = document.createElement('span');
+        textNode.textContent = `: ${data.message}`;
+        header.appendChild(textNode);
+      }
       msg.appendChild(header);
       if(data.message){
         msg.appendChild(createDownloadLink(data.message, 'message', 'text/plain', data.user));
@@ -111,7 +133,28 @@
       alert(msg);
     });
     socket.on('active_user_update', data => {
-      usersBox.textContent = `Active users (${data.count}): ${data.users.join(', ')}`;
+      usersBox.innerHTML = '';
+      const label = document.createElement('span');
+      label.textContent = `Active users (${data.count}): `;
+      usersBox.appendChild(label);
+      (data.users || []).forEach((name, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = `@${name}`;
+        Object.assign(btn.style, {
+          background: 'transparent',
+          border: '0',
+          color: '#ffd700',
+          cursor: 'pointer',
+          padding: '0 2px',
+          textDecoration: 'underline'
+        });
+        btn.addEventListener('click', () => openUserProfile(name, true));
+        usersBox.appendChild(btn);
+        if(idx < data.users.length - 1){
+          usersBox.appendChild(document.createTextNode(', '));
+        }
+      });
     });
     if(!sendAllowed){
       input.disabled = true;
