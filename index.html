@@ -862,6 +862,7 @@
       </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
+        <button class="btn ghost" id="forgot-password" type="button">Forgot Password</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
       </div>
@@ -974,6 +975,7 @@
     const passwordInput = el('#password');
     const profileInput = el('#profile');
     const loginBtn = el('#login');
+    const forgotPasswordBtn = el('#forgot-password');
     const registerBtn = el('#register');
     const backupEmailInput = el('#backup-email');
     const backupPhoneInput = el('#backup-phone');
@@ -1904,7 +1906,38 @@
       }
     }
 
+    async function doForgotPassword(){
+      const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
+      if(!name){
+        alert('Enter your username first.');
+        usernameInput.focus();
+        return;
+      }
+      const contact = prompt('Enter your backup email or phone number used during registration:');
+      if(contact === null) return;
+      const newPassword = prompt('Enter your new password:');
+      if(newPassword === null) return;
+      if(!newPassword){
+        alert('New password cannot be empty.');
+        return;
+      }
+
+      const res = await fetch('/forgot-password', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username: name, contact, newPassword })
+      });
+      const data = await res.json().catch(()=>null);
+      if(res.ok && data?.success){
+        alert(data.message || 'Password reset successful. Please log in.');
+      } else {
+        alert(data?.error || 'Unable to reset password.');
+      }
+    }
+
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+
+    forgotPasswordBtn.addEventListener('click', (e) => { e.preventDefault(); doForgotPassword(); });
 
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();

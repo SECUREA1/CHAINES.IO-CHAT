@@ -720,7 +720,7 @@ app.post("/login", async (req, res) => {
     return;
   }
   const dbUser = db
-    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
+    .prepare("SELECT username, password, profile_pic, backup_email, backup_phone FROM users WHERE username=?")
     .get(username);
   const memUser = profiles[username];
   const hash = dbUser?.password || memUser?.password;
@@ -734,14 +734,67 @@ app.post("/login", async (req, res) => {
     return;
   }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
+  const backupEmail = dbUser?.backup_email || memUser?.backupEmail || null;
+  const backupPhone = dbUser?.backup_phone || memUser?.backupPhone || null;
   if (!dbUser) {
     try {
-      db.prepare("INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)").run(username, hash, profilePic);
+      db.prepare("INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)").run(
+        username,
+        hash,
+        profilePic,
+        backupEmail,
+        backupPhone
+      );
     } catch {}
   }
-  profiles[username] = { ...(memUser || {}), password: hash, profilePic };
+  profiles[username] = { ...(memUser || {}), password: hash, profilePic, backupEmail, backupPhone };
   saveProfiles();
   res.json({ success: true, username, profilePic });
+});
+
+app.post("/forgot-password", async (req, res) => {
+  const { username, contact, newPassword } = req.body || {};
+  const cleanUsername = (username || "").toString().trim();
+  const cleanPassword = (newPassword || "").toString();
+  if (!cleanUsername || !cleanPassword) {
+    res.status(400).json({ error: "Username and new password are required." });
+    return;
+  }
+  const normalizedEmail = normalizeBackupEmail(contact);
+  const normalizedPhone = normalizeBackupPhone(contact);
+  if (!normalizedEmail && !normalizedPhone) {
+    res.status(400).json({ error: "Enter a valid backup email or phone number." });
+    return;
+  }
+
+  const dbUser = db
+    .prepare("SELECT username, backup_email, backup_phone, profile_pic FROM users WHERE username=?")
+    .get(cleanUsername);
+  const memUser = profiles[cleanUsername] || {};
+  const storedEmail = normalizeBackupEmail(dbUser?.backup_email || memUser?.backupEmail);
+  const storedPhone = normalizeBackupPhone(dbUser?.backup_phone || memUser?.backupPhone);
+  const emailMatch = normalizedEmail && storedEmail && normalizedEmail === storedEmail;
+  const phoneMatch = normalizedPhone && storedPhone && normalizedPhone === storedPhone;
+
+  if (!emailMatch && !phoneMatch) {
+    res.status(401).json({ error: "Backup contact did not match our records." });
+    return;
+  }
+
+  const hash = await bcrypt.hash(cleanPassword, 10);
+  const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
+
+  db.prepare("UPDATE users SET password=? WHERE username=?").run(hash, cleanUsername);
+  profiles[cleanUsername] = {
+    ...(memUser || {}),
+    password: hash,
+    profilePic,
+    backupEmail: storedEmail,
+    backupPhone: storedPhone,
+  };
+  saveProfiles();
+
+  res.json({ success: true, message: "Password reset successful. You can now log in." });
 });
 
 app.get(["/profile.html"], (req, res) =>
