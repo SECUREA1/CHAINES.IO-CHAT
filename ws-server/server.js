@@ -149,6 +149,91 @@ if (
   fs.copyFileSync(LEGACY_PROFILE_MEMORY_PATH, PROFILE_MEMORY_PATH);
 }
 
+const LEGACY_CHAT_MEMORY_PATH = path.join(
+  ROOT,
+  "profile_memory",
+  "chat_messages.json"
+);
+const CHAT_MEMORY_PATH =
+  process.env.CHAT_MEMORY_PATH ||
+  path.join(DURABLE_ROOT, "profile_memory", "chat_messages.json");
+if (
+  CHAT_MEMORY_PATH !== LEGACY_CHAT_MEMORY_PATH &&
+  !fs.existsSync(CHAT_MEMORY_PATH) &&
+  fs.existsSync(LEGACY_CHAT_MEMORY_PATH)
+) {
+  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
+  fs.copyFileSync(LEGACY_CHAT_MEMORY_PATH, CHAT_MEMORY_PATH);
+}
+
+function loadChatMemory() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveChatMemory(items = []) {
+  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
+  fs.writeFileSync(CHAT_MEMORY_PATH, JSON.stringify(items, null, 2));
+}
+
+function storeChatMemory(message = {}) {
+  const items = loadChatMemory();
+  const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
+  const entry = {
+    id: Number(message.id),
+    user: message.user || "",
+    room: message.room || null,
+    message: message.text ?? message.message ?? "",
+    image: message.image || null,
+    file: message.file || null,
+    file_name: message.file_name || message.fileName || null,
+    file_type: message.file_type || message.fileType || null,
+    ts: Number(message.ts) || Date.now(),
+  };
+  if (idx >= 0) {
+    items[idx] = entry;
+  } else {
+    items.push(entry);
+  }
+  saveChatMemory(items);
+}
+
+function removeFromChatMemory(messageId) {
+  const id = Number(messageId);
+  saveChatMemory(loadChatMemory().filter((item) => Number(item.id) !== id));
+}
+
+function hydrateChatMessagesFromMemory() {
+  const row = db.prepare("SELECT COUNT(*) as c FROM chat_messages").get();
+  if ((row?.c || 0) > 0) return;
+  const items = loadChatMemory();
+  if (!items.length) return;
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO chat_messages (id, user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
+  );
+  const tx = db.transaction((entries) => {
+    for (const item of entries) {
+      if (!Number.isFinite(Number(item.id))) continue;
+      insert.run(
+        Number(item.id),
+        item.user || "",
+        item.room || null,
+        item.message || "",
+        item.image || null,
+        item.file || null,
+        item.file_name || null,
+        item.file_type || null,
+        Number(item.ts) || Date.now()
+      );
+    }
+  });
+  tx(items);
+}
+
 function loadProfiles() {
   try {
     return JSON.parse(fs.readFileSync(PROFILE_MEMORY_PATH, "utf8"));
@@ -163,6 +248,7 @@ function saveProfiles() {
 }
 
 let profiles = loadProfiles();
+hydrateChatMessagesFromMemory();
 
 function normalizeBackupEmail(value = "") {
   const email = (value || "").toString().trim().toLowerCase();
@@ -1422,6 +1508,7 @@ wss.on("connection", (ws) => {
     msg.message = text;
     msg.likes = 0;
     msg.comments = [];
+    storeChatMemory(msg);
     if (fileName) {
       msg.file_name = fileName;
       msg.fileName = fileName;
@@ -1456,6 +1543,7 @@ wss.on("connection", (ws) => {
         db.prepare("DELETE FROM chat_messages WHERE id = ?").run(msg.id);
         db.prepare("DELETE FROM comments WHERE message_id = ?").run(msg.id);
         db.prepare("DELETE FROM likes WHERE message_id = ?").run(msg.id);
+        removeFromChatMemory(msg.id);
         const payload = JSON.stringify({ type: "delete", id: msg.id });
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(payload);
