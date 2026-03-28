@@ -11,6 +11,7 @@ import Database from "better-sqlite3";
 import webpush from "web-push";
 import { bech32 } from "bech32";
 import fetch from "node-fetch";
+import crypto from "crypto";
 import {
   isDirectVendorEnabled,
   vendGhostTokenDirect,
@@ -127,6 +128,15 @@ db.exec(`
     dropper_tokens_left INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS direct_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    auth_tag TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -134,6 +144,9 @@ try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
+} catch {}
+try {
+  db.exec("CREATE INDEX IF NOT EXISTS direct_messages_channel_idx ON direct_messages(channel_id, id)");
 } catch {}
 
 const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
@@ -262,6 +275,69 @@ function normalizeBackupPhone(value = "") {
   if (!raw) return null;
   const digits = raw.replace(/[^\d]/g, "");
   return digits.length >= 10 ? digits : null;
+}
+
+function canonicalChannelId(a = "", b = "") {
+  const pair = [a || "", b || ""].sort((x, y) => x.localeCompare(y));
+  return pair.join("::");
+}
+
+function followsEachOther(userA = "", userB = "") {
+  if (!userA || !userB || userA === userB) return false;
+  const aFollowsB = !!db
+    .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
+    .get(userA, userB);
+  const bFollowsA = !!db
+    .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
+    .get(userB, userA);
+  return aFollowsB && bFollowsA;
+}
+
+function resolveDmKey() {
+  const raw = (process.env.DM_ENCRYPTION_KEY || "").trim();
+  if (raw) {
+    const digest = crypto.createHash("sha256").update(raw).digest();
+    return digest;
+  }
+  return crypto
+    .createHash("sha256")
+    .update("chaines-default-dm-key-change-me")
+    .digest();
+}
+
+const DM_KEY = resolveDmKey();
+
+function encryptDmText(plainText = "") {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", DM_KEY, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(String(plainText), "utf8"),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+  return {
+    ciphertext: encrypted.toString("base64"),
+    iv: iv.toString("base64"),
+    authTag: authTag.toString("base64"),
+  };
+}
+
+function decryptDmText(row = {}) {
+  try {
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      DM_KEY,
+      Buffer.from(row.iv || "", "base64")
+    );
+    decipher.setAuthTag(Buffer.from(row.auth_tag || "", "base64"));
+    const decoded = Buffer.concat([
+      decipher.update(Buffer.from(row.ciphertext || "", "base64")),
+      decipher.final(),
+    ]);
+    return decoded.toString("utf8");
+  } catch {
+    return "[Unable to decrypt message]";
+  }
 }
 
 // express setup
@@ -958,6 +1034,7 @@ app.get("/profile/:username", (req, res) => {
           .get(viewer, req.params.username)
       : false
     : false;
+  const canMessage = viewer ? followsEachOther(viewer, req.params.username) : false;
   res.json({
     username: req.params.username,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
@@ -966,6 +1043,7 @@ app.get("/profile/:username", (req, res) => {
     followers,
     following,
     isFollowing,
+    canMessage,
   });
 });
 
@@ -1031,6 +1109,73 @@ app.post("/profile/:username/follow", (req, res) => {
     );
     res.json({ following: true });
   }
+});
+
+app.get("/messages/:username", (req, res) => {
+  const peer = req.params.username;
+  const viewer = (req.query.viewer || "").toString();
+  if (!viewer) {
+    res.status(400).json({ error: "Missing viewer" });
+    return;
+  }
+  if (!peer) {
+    res.status(400).json({ error: "Missing target user" });
+    return;
+  }
+  if (!followsEachOther(viewer, peer)) {
+    res.status(403).json({ error: "Only mutual followers can access private messages." });
+    return;
+  }
+  const channelId = canonicalChannelId(viewer, peer);
+  const rows = db
+    .prepare(
+      "SELECT id, sender, ciphertext, iv, auth_tag, strftime('%s', timestamp) * 1000 as ts FROM direct_messages WHERE channel_id=? ORDER BY id ASC"
+    )
+    .all(channelId)
+    .map((row) => ({
+      id: row.id,
+      sender: row.sender,
+      message: decryptDmText(row),
+      ts: row.ts,
+    }));
+  res.json({ channelId, messages: rows });
+});
+
+app.post("/messages/:username", (req, res) => {
+  const peer = req.params.username;
+  const { from, message } = req.body || {};
+  if (!from || !peer) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  if (!message || !String(message).trim()) {
+    res.status(400).json({ error: "Message cannot be empty." });
+    return;
+  }
+  if (!followsEachOther(from, peer)) {
+    res.status(403).json({ error: "Only mutual followers can send private messages." });
+    return;
+  }
+  const channelId = canonicalChannelId(from, peer);
+  const encrypted = encryptDmText(String(message).slice(0, 4000));
+  const info = db
+    .prepare(
+      "INSERT INTO direct_messages (channel_id, sender, ciphertext, iv, auth_tag) VALUES (?, ?, ?, ?, ?)"
+    )
+    .run(
+      channelId,
+      from,
+      encrypted.ciphertext,
+      encrypted.iv,
+      encrypted.authTag
+    );
+  res.json({
+    success: true,
+    id: info.lastInsertRowid,
+    sender: from,
+    message: String(message).slice(0, 4000),
+    ts: Date.now(),
+  });
 });
 
 app.get("/notifications/:username", (req, res) => {
