@@ -414,6 +414,16 @@ function sendPush(username, title, body, opts = {}) {
   }
 }
 
+function createNotification(username, type, payload = {}) {
+  if (!username || !type) return null;
+  const info = db
+    .prepare(
+      "INSERT INTO notifications (username, type, data) VALUES (?, ?, ?)"
+    )
+    .run(username, type, JSON.stringify(payload || {}));
+  return Number(info?.lastInsertRowid || 0) || null;
+}
+
 app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
   res
@@ -1094,21 +1104,57 @@ app.post("/profile/:username/follow", (req, res) => {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
       .run(follower, req.params.username);
-    db
-      .prepare(
-        "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
-      )
-      .run(
-        req.params.username,
-        JSON.stringify({ from: follower })
-      );
+    createNotification(req.params.username, "follow", { from: follower });
     sendPush(
       req.params.username,
       "New Follower",
       `${follower} started following you`
     );
+    if (followsEachOther(follower, req.params.username)) {
+      createNotification(req.params.username, "dm-unlocked", { with: follower });
+      createNotification(follower, "dm-unlocked", { with: req.params.username });
+      sendPush(
+        req.params.username,
+        "Private chat unlocked",
+        `You and ${follower} can now send private messages`
+      );
+      sendPush(
+        follower,
+        "Private chat unlocked",
+        `You and ${req.params.username} can now send private messages`
+      );
+    }
     res.json({ following: true });
   }
+});
+
+app.get("/messages/channels/:username", (req, res) => {
+  const username = (req.params.username || "").toString();
+  if (!username) {
+    res.status(400).json({ error: "Missing username" });
+    return;
+  }
+  const rows = db
+    .prepare(
+      "SELECT id, channel_id, sender, ciphertext, iv, auth_tag, strftime('%s', timestamp) * 1000 as ts FROM direct_messages WHERE channel_id LIKE ? OR channel_id LIKE ? ORDER BY id DESC"
+    )
+    .all(`${username}::%`, `%::${username}`);
+  const channels = new Map();
+  for (const row of rows) {
+    const [a = "", b = ""] = String(row.channel_id || "").split("::");
+    const peer = a === username ? b : b === username ? a : "";
+    if (!peer) continue;
+    if (channels.has(peer)) continue;
+    channels.set(peer, {
+      peer,
+      channelId: row.channel_id,
+      lastMessage: decryptDmText(row),
+      sender: row.sender,
+      ts: row.ts,
+      canMessage: followsEachOther(username, peer),
+    });
+  }
+  res.json({ channels: Array.from(channels.values()) });
 });
 
 app.get("/messages/:username", (req, res) => {
@@ -1169,6 +1215,12 @@ app.post("/messages/:username", (req, res) => {
       encrypted.iv,
       encrypted.authTag
     );
+  createNotification(peer, "dm", {
+    from,
+    channelId,
+    preview: String(message).slice(0, 140),
+  });
+  sendPush(peer, `New message from ${from}`, String(message).slice(0, 140));
   res.json({
     success: true,
     id: info.lastInsertRowid,
