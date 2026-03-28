@@ -1763,8 +1763,12 @@
             if(msgs.some(m => m.room)){
               msgs.forEach(m => receive(m));
             } else {
-              feed.innerHTML = '';
-              msgs.forEach(m => receive(m));
+              if(msgs.length === 0){
+                systemNote('Server history is empty. Showing locally cached posts.');
+              } else {
+                feed.innerHTML = '';
+                msgs.forEach(m => receive(m));
+              }
             }
           }
           if(data && data.type === 'id') clientId = data.id;

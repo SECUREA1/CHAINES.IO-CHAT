@@ -26,7 +26,27 @@ const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
+function resolveDurableRoot() {
+  const explicit = (process.env.PERSISTENT_DATA_DIR || "").trim();
+  if (explicit) return explicit;
+  const renderDisk = (process.env.RENDER_DISK_PATH || "").trim();
+  if (renderDisk) return renderDisk;
+  if (fs.existsSync("/var/data")) return "/var/data";
+  return ROOT;
+}
+
+const DURABLE_ROOT = resolveDurableRoot();
+fs.mkdirSync(DURABLE_ROOT, { recursive: true });
+
+const LEGACY_DB_PATH = path.join(ROOT, "app.db");
+const DB_PATH = process.env.DB_PATH || path.join(DURABLE_ROOT, "app.db");
+if (
+  DB_PATH !== LEGACY_DB_PATH &&
+  !fs.existsSync(DB_PATH) &&
+  fs.existsSync(LEGACY_DB_PATH)
+) {
+  fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
+}
 const db = new Database(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
@@ -116,7 +136,18 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
 
-const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
+const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
+const PROFILE_MEMORY_PATH =
+  process.env.PROFILE_MEMORY_PATH ||
+  path.join(DURABLE_ROOT, "profile_memory", "main.json");
+if (
+  PROFILE_MEMORY_PATH !== LEGACY_PROFILE_MEMORY_PATH &&
+  !fs.existsSync(PROFILE_MEMORY_PATH) &&
+  fs.existsSync(LEGACY_PROFILE_MEMORY_PATH)
+) {
+  fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
+  fs.copyFileSync(LEGACY_PROFILE_MEMORY_PATH, PROFILE_MEMORY_PATH);
+}
 
 function loadProfiles() {
   try {
