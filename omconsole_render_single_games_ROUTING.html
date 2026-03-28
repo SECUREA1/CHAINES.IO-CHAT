@@ -576,6 +576,14 @@
       overflow-y:auto;
       padding-right: 4px;
     }
+    .mobile-menu-toggle{
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      right: calc(env(safe-area-inset-right, 0px) + 10px);
+      z-index: 50;
+      font-size: 12px;
+      padding: 10px 12px;
+    }
 
     /* Responsive */
     @media (max-width: 1200px){
@@ -588,6 +596,47 @@
       body{overflow:auto}
       .app{grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "topbar" "sidebar" "main";}
       .sidebar{max-height: 520px}
+      .app.mobile-game-focus{
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        padding: 0;
+        gap: 0;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        grid-template-areas: "main";
+        z-index: 30;
+      }
+      .app.mobile-game-focus .topbar,
+      .app.mobile-game-focus .sidebar,
+      .app.mobile-game-focus .panel{
+        display:none;
+      }
+      .app.mobile-game-focus .main{
+        border-radius: 0;
+        border: none;
+      }
+      .app.mobile-game-focus .stage{
+        position:absolute;
+        inset: 0;
+        padding: 0;
+        gap: 0;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+      }
+      .app.mobile-game-focus .viewport{
+        border-radius: 0;
+        border: none;
+      }
+      .app.mobile-game-focus #cursor{
+        display:none;
+      }
+    }
+    @media (min-width: 901px){
+      .mobile-menu-toggle{
+        display:none !important;
+      }
     }
   </style>
 </head>
@@ -855,6 +904,7 @@
     </div>
   </main>
 </div>
+<button class="btn ghost mobile-menu-toggle hidden" id="btnMobileMenus" type="button" aria-label="Toggle console menus">Show Menus</button>
 
 <div id="cursor"></div>
 
@@ -1438,7 +1488,8 @@ const state = {
   settings: loadSettings(),
   ui: {
     mode: "dashboard", // dashboard | app:<name> | tuner:<name>
-    modalOpen: false
+    modalOpen: false,
+    mobileGameMenusVisible: false
   },
   runtime: {
     camReady: false,
@@ -1502,6 +1553,7 @@ const modalSave = $("#modalSave");
 const modalBody = $("#modalBody");
 
 const camVideo = $("#cam");
+const btnMobileMenus = $("#btnMobileMenus");
 
 // -----------------------------
 // Canvas / HiDPI
@@ -1514,7 +1566,27 @@ function resizeCanvas(){
   const ctx = viz.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", ()=>{
+  resizeCanvas();
+  applyMobileGameFocus();
+});
+
+function isMobileViewport(){
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function applyMobileGameFocus(){
+  const inGames = state.ui.mode === "app:games";
+  const mobile = isMobileViewport();
+  const shouldFocus = mobile && inGames && !state.ui.mobileGameMenusVisible;
+
+  appEl?.classList.toggle("mobile-game-focus", shouldFocus);
+
+  if(btnMobileMenus){
+    btnMobileMenus.classList.toggle("hidden", !(mobile && inGames));
+    btnMobileMenus.textContent = state.ui.mobileGameMenusVisible ? "Hide Menus" : "Show Menus";
+  }
+}
 
 async function requestGameFullscreen(){
   if(state.ui.mode !== "app:games") return;
@@ -2535,6 +2607,10 @@ class GamesApp{
     saveSettings();
 
     if(opts.reset) g.reset?.();
+    if(state.ui.mode === "app:games" && isMobileViewport()){
+      state.ui.mobileGameMenusVisible = false;
+      applyMobileGameFocus();
+    }
     if(opts.fullscreen) requestGameFullscreen();
     requestAnimationFrame(resizeCanvas);
 
@@ -3909,17 +3985,20 @@ function setMode(mode){
   // Ensure games don't keep drawing/updating after you switch apps.
   if(prev === "app:games" && mode !== "app:games"){
     apps.games.stop();
+    state.ui.mobileGameMenusVisible = true;
     if(document.fullscreenElement && document.exitFullscreen){
       document.exitFullscreen().catch(()=>{});
     }
   }
 
   if(mode === "app:games"){
+    if(isMobileViewport()) state.ui.mobileGameMenusVisible = false;
     viewportEl?.scrollIntoView({ block:"start", behavior:"smooth" });
     const list = $("#gamesQuickListItems");
     if(list) list.scrollTop = 0;
     requestAnimationFrame(resizeCanvas);
   }
+  applyMobileGameFocus();
 }
 
 function renderPanelTelemetry(){
@@ -4580,6 +4659,13 @@ function wireNav(){
     dotCtl.classList.toggle("ok", state.runtime.osEnabled);
     dotCtl.classList.toggle("bad", !state.runtime.osEnabled);
   };
+  if(btnMobileMenus){
+    btnMobileMenus.onclick = ()=>{
+      state.ui.mobileGameMenusVisible = !state.ui.mobileGameMenusVisible;
+      applyMobileGameFocus();
+      requestAnimationFrame(resizeCanvas);
+    };
+  }
 
   // hotkeys
   window.addEventListener("keydown", (e)=>{
