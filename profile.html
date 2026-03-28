@@ -34,6 +34,12 @@ body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 '
 .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
 .posts{list-style:none;padding:0;}
 .post{margin-bottom:12px;padding:8px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.profile-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+.profile-tab{padding:7px 10px;border-radius:999px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 20%);color:var(--fg);font-weight:700;cursor:pointer;}
+.profile-tab.active{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;}
+.post small{display:block;color:var(--muted);margin-top:5px;}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px;}
+.media-grid img,.media-grid video{width:100%;height:160px;object-fit:cover;border-radius:10px;border:1px solid var(--lining);}
 textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);padding:8px;box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .dm-wrap{margin-top:14px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .dm-channel-list{list-style:none;padding:0;margin:8px 0 10px;max-height:220px;overflow:auto;}
@@ -65,6 +71,12 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <div class="profile-tabs" id="profile-tabs">
+    <button type="button" class="profile-tab active" data-tab="posts">Posts</button>
+    <button type="button" class="profile-tab" data-tab="replies">Replies</button>
+    <button type="button" class="profile-tab" data-tab="images">Images</button>
+    <button type="button" class="profile-tab" data-tab="videos">Videos</button>
+  </div>
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
     <label><input type="checkbox" id="push-toggle" /> Enable push notifications</label><br />
@@ -72,7 +84,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <h3>Notifications</h3>
   <ul id="p-notifs" class="posts"></ul>
-  <h3>Posts</h3>
+  <h3 id="feed-title">Posts</h3>
   <ul id="p-posts" class="posts"></ul>
   <section id="dm-section" class="dm-wrap" hidden>
     <h3>Private chat</h3>
@@ -103,6 +115,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const messageBtn = document.getElementById('message-btn');
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
+  const feedTitle = document.getElementById('feed-title');
+  const profileTabs = document.getElementById('profile-tabs');
   const backBtn = document.getElementById('back-btn');
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
@@ -115,6 +129,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const dmChannelList = document.getElementById('dm-channel-list');
   let dmPoll = null;
   let activeDmUser = user;
+  let activeTab = 'posts';
+  let profileData = null;
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -182,22 +198,134 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     });
   });
 
+  function fmtDate(ts){
+    if(!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+  function setActiveTab(tab){
+    activeTab = tab;
+    profileTabs.querySelectorAll('.profile-tab').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    renderFeed();
+  }
+  function renderFeed(){
+    postsEl.innerHTML = '';
+    if(!profileData) return;
+    const tabTitle = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+    feedTitle.textContent = tabTitle;
+    if(activeTab === 'posts'){
+      const posts = Array.isArray(profileData.posts) ? profileData.posts : [];
+      if(!posts.length){
+        const li = document.createElement('li');
+        li.className = 'post muted';
+        li.textContent = 'No posts yet.';
+        postsEl.appendChild(li);
+        return;
+      }
+      posts.forEach((p) => {
+        const li = document.createElement('li');
+        li.className = 'post';
+        const message = document.createElement('div');
+        message.textContent = p.message || p.text || '(No text)';
+        li.appendChild(message);
+        if(p.image || p.file){
+          const mediaWrap = document.createElement('div');
+          mediaWrap.className = 'media-grid';
+          if(p.image){
+            const img = document.createElement('img');
+            img.src = p.image;
+            img.alt = 'Post image';
+            mediaWrap.appendChild(img);
+          }
+          if(p.file){
+            const isVideo = (p.file_type || '').toLowerCase().startsWith('video/');
+            if(isVideo){
+              const video = document.createElement('video');
+              video.src = p.file;
+              video.controls = true;
+              video.preload = 'metadata';
+              mediaWrap.appendChild(video);
+            }
+          }
+          if(mediaWrap.children.length) li.appendChild(mediaWrap);
+        }
+        const meta = document.createElement('small');
+        meta.textContent = '#' + p.id + ' · ' + fmtDate(p.ts);
+        li.appendChild(meta);
+        postsEl.appendChild(li);
+      });
+      return;
+    }
+    if(activeTab === 'replies'){
+      const replies = Array.isArray(profileData.replies) ? profileData.replies : [];
+      if(!replies.length){
+        const li = document.createElement('li');
+        li.className = 'post muted';
+        li.textContent = 'No replies yet.';
+        postsEl.appendChild(li);
+        return;
+      }
+      replies.forEach((r) => {
+        const li = document.createElement('li');
+        li.className = 'post';
+        li.textContent = r.text || '';
+        const meta = document.createElement('small');
+        meta.textContent = 'Reply to post #' + r.message_id + ' · ' + fmtDate(r.ts);
+        li.appendChild(meta);
+        postsEl.appendChild(li);
+      });
+      return;
+    }
+    const mediaItems = Array.isArray(profileData[activeTab]) ? profileData[activeTab] : [];
+    if(!mediaItems.length){
+      const li = document.createElement('li');
+      li.className = 'post muted';
+      li.textContent = 'No ' + activeTab + ' yet.';
+      postsEl.appendChild(li);
+      return;
+    }
+    const li = document.createElement('li');
+    li.className = 'post';
+    const grid = document.createElement('div');
+    grid.className = 'media-grid';
+    mediaItems.forEach((item) => {
+      if(activeTab === 'images' && item.image){
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = 'Profile image post';
+        grid.appendChild(img);
+      }
+      if(activeTab === 'videos' && item.file){
+        const video = document.createElement('video');
+        video.src = item.file;
+        video.controls = true;
+        video.preload = 'metadata';
+        grid.appendChild(video);
+      }
+    });
+    li.appendChild(grid);
+    postsEl.appendChild(li);
+  }
+
+  profileTabs.addEventListener('click', (event) => {
+    const btn = event.target.closest('.profile-tab');
+    if(!btn) return;
+    setActiveTab(btn.dataset.tab);
+  });
+
   async function load(){
     if(!user) return;
     const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = await res.json();
+    profileData = data;
     nameEl.textContent = '@' + data.username;
     if(data.profilePic){ avatar.src = data.profilePic; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
     followInfo.textContent = 'Followers: ' + data.followers.length + ' • Following: ' + data.following.length;
-    postsEl.innerHTML = '';
-    data.posts.forEach(p => {
-      const li = document.createElement('li');
-      li.className = 'post';
-      li.textContent = p.message || p.text || '';
-      postsEl.appendChild(li);
-    });
+    renderFeed();
     if(storeUser && storeUser !== user){
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
       followBtn.onclick = async () => {

@@ -1023,6 +1023,18 @@ app.get("/profile/:username", (req, res) => {
         )
         .all(req.params.username)
     : [];
+  const replies = dbUser
+    ? db
+        .prepare(
+          "SELECT id, message_id, text, strftime('%s', timestamp) * 1000 as ts FROM comments WHERE user=? ORDER BY id DESC"
+        )
+        .all(req.params.username)
+    : [];
+  const images = posts.filter((post) => !!post.image);
+  const videos = posts.filter((post) => {
+    const type = (post.file_type || "").toLowerCase();
+    return !!post.file && type.startsWith("video/");
+  });
   const followers = dbUser
     ? db
         .prepare("SELECT follower FROM follows WHERE following=?")
@@ -1050,6 +1062,9 @@ app.get("/profile/:username", (req, res) => {
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
     posts,
+    replies,
+    images,
+    videos,
     followers,
     following,
     isFollowing,
