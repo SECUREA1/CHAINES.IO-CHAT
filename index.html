@@ -1233,30 +1233,56 @@
         try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
         catch {}
       },
+      get indexPostsKey(){
+        return 'chaines_index_posts';
+      },
+      loadRawPosts(){
+        try{
+          const raw = localStorage.getItem(this.indexPostsKey);
+          if(raw) return JSON.parse(raw) || [];
+          const legacy = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+          if(Array.isArray(legacy) && legacy.length){
+            localStorage.setItem(this.indexPostsKey, JSON.stringify(legacy));
+            localStorage.removeItem('chaines_messages');
+            return legacy;
+          }
+          return [];
+        } catch { return []; }
+      },
+      savePosts(items){
+        try { localStorage.setItem(this.indexPostsKey, JSON.stringify(items)); }
+        catch {}
+      },
       pushMsg(m) {
         try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          items.push(m); while (items.length > 200) items.shift();
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
+          const items = this.loadRawPosts();
+          const idx = items.findIndex(x => x.id === m.id);
+          if(idx >= 0) items[idx] = m;
+          else items.push(m);
+          while (items.length > 200) items.shift();
+          this.savePosts(items);
         } catch {}
       },
       removeMsg(id){
         try{
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => x.id !== id);
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
+          const items = this.loadRawPosts().filter(x => x.id !== id);
+          this.savePosts(items);
         } catch{}
       },
       loadMsgs() {
         try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+          const items = this.loadRawPosts();
           const now = Date.now();
           const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          localStorage.setItem('chaines_messages', JSON.stringify(valid));
+          this.savePosts(valid);
           return valid;
         } catch { return []; }
       },
       clearMsgs() {
-        try { localStorage.removeItem('chaines_messages'); } catch {}
+        try {
+          localStorage.removeItem(this.indexPostsKey);
+          localStorage.removeItem('chaines_messages');
+        } catch {}
       }
     };
 
