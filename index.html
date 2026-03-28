@@ -1105,15 +1105,65 @@
     });
 
     let omconsoleBootstrapped = false;
-    const showOmconsole = () => {
+    let omconsoleReady = false;
+    let omconsoleLoadPromise = null;
+    const omconsoleSource = omconsoleFrame?.getAttribute('src') || 'omconsole_render_single_games_ROUTING.html';
+
+    const ensureOmconsoleLoaded = () => {
+      if(!omconsoleFrame) return Promise.resolve();
+      if(omconsoleReady) return Promise.resolve();
+      if(omconsoleLoadPromise) return omconsoleLoadPromise;
+
+      omconsoleLoadPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('OMConsole timed out while loading.'));
+        }, 7000);
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          omconsoleFrame.removeEventListener('load', onLoad);
+          omconsoleFrame.removeEventListener('error', onError);
+          omconsoleLoadPromise = null;
+        };
+        const onLoad = () => {
+          cleanup();
+          omconsoleReady = true;
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error('OMConsole failed to load.'));
+        };
+        omconsoleFrame.addEventListener('load', onLoad, { once: true });
+        omconsoleFrame.addEventListener('error', onError, { once: true });
+
+        // Force a user-initiated frame load for stricter mobile permission policies.
+        omconsoleFrame.src = omconsoleSource;
+      });
+
+      return omconsoleLoadPromise;
+    };
+
+    const showOmconsole = async () => {
       if(!omconsoleModal) return;
       omconsoleModal.hidden = false;
       if(omconsoleFrame && !omconsoleBootstrapped){
-        // Force a user-initiated frame load for stricter mobile permission policies.
-        omconsoleFrame.src = omconsoleFrame.src;
         omconsoleBootstrapped = true;
+        try {
+          await ensureOmconsoleLoaded();
+        } catch (err) {
+          console.warn(err);
+          if(typeof window.open === 'function'){
+            window.open(omconsoleSource, '_blank', 'noopener,noreferrer');
+          }
+          return;
+        }
       }
-      try{ omconsoleFrame?.contentWindow?.postMessage({ type: 'omconsole:activate' }, '*'); }catch{}
+      try{
+        omconsoleFrame?.contentWindow?.postMessage({ type: 'omconsole:activate' }, '*');
+        omconsoleFrame?.contentWindow?.postMessage({ type: 'omconsole:connect' }, '*');
+      }catch{}
       omconsoleFrame?.focus?.();
     };
 
@@ -1124,9 +1174,9 @@
     };
 
     if(omconsoleBtn){
-      omconsoleBtn.addEventListener('click', (event) => {
+      omconsoleBtn.addEventListener('click', async (event) => {
         event.preventDefault();
-        showOmconsole();
+        await showOmconsole();
       });
     }
 
