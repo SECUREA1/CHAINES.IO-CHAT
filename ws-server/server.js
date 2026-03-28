@@ -147,20 +147,6 @@ function normalizeBackupPhone(value = "") {
   return digits.length >= 10 ? digits : null;
 }
 
-function purgeAllUserAccounts() {
-  db.exec(`
-    DELETE FROM follows;
-    DELETE FROM notifications;
-    DELETE FROM push_subscriptions;
-    DELETE FROM notification_settings;
-    DELETE FROM users;
-  `);
-  profiles = {};
-  saveProfiles();
-}
-
-purgeAllUserAccounts();
-
 // express setup
 const app = express();
 app.use(express.json({ limit: "75mb" }));
