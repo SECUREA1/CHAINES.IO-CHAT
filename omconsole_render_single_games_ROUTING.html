@@ -585,8 +585,8 @@
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M3 12h18" stroke="white" opacity=".8" stroke-width="1.7"/><path d="M12 3c2.6 2.5 4.2 5.6 4.2 9s-1.6 6.5-4.2 9c-2.6-2.5-4.2-5.6-4.2-9S9.4 5.5 12 3Z" stroke="white" opacity=".8" stroke-width="1.7"/></svg>
             </div>
             <div>
-              <div class="label">Internet</div>
-              <div class="sublabel">Open web in new tab</div>
+              <div class="label">Browser</div>
+              <div class="sublabel">Open CHAINES.IO in console</div>
             </div>
           </div>
           <div class="right"><span>⌘</span><span>ALT+I</span></div>
@@ -1365,6 +1365,9 @@ const defaultSettings = {
       catch: 0,
       reactionBestMs: null
     }
+  },
+  internet: {
+    url: "https://chaines.io"
   },
   routing: {
     Gesture: { target: "cursor_ui" },
@@ -2243,6 +2246,18 @@ class EEGController{
 // -----------------------------
 // App Modules
 // -----------------------------
+class InternetApp{
+  constructor(){
+    this.home = "https://chaines.io";
+  }
+  open(){
+    setMode("app:internet");
+    panelTitle.textContent = "BROWSER";
+    panelSub.textContent = "Embedded web view • CHAINES.IO platform";
+    renderPanel_Internet();
+  }
+}
+
 class NotepadApp{
   constructor(){
     this.name = "notepad";
@@ -3852,6 +3867,64 @@ function renderPanelTelemetry(){
   );
 }
 
+function normalizeInternetUrl(input){
+  const raw = (input || "").trim();
+  if(!raw) return "https://chaines.io";
+  if(/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
+}
+
+function renderPanel_Internet(){
+  panelContent.innerHTML = "";
+  const savedUrl = normalizeInternetUrl(state.settings.internet?.url);
+
+  panelContent.append(
+    makeCard("Embedded Browser", [
+      el("div",{class:"hint"},["Use CHAINES.IO directly inside OMConsole. Enter a URL to navigate if needed."]),
+      el("div",{class:"row"},[
+        el("input",{
+          id:"webUrl",
+          value: savedUrl,
+          placeholder:"https://chaines.io",
+          style:"flex:1;padding:10px 12px;border-radius:14px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.30);color:var(--text);outline:none;font-weight:800;"
+        }),
+        el("button",{class:"smallbtn gold", id:"webGo"},["Go"]),
+        el("button",{class:"smallbtn", id:"webHome"},["CHAINES.IO"]),
+        el("button",{class:"smallbtn ghost", id:"webBack"},["Back"]),
+      ]),
+      el("iframe",{
+        id:"webFrame",
+        src: savedUrl,
+        title:"OMConsole Browser",
+        style:"width:100%;height:70vh;min-height:520px;border-radius:14px;border:1px solid rgba(140,180,255,.20);background:#061022;",
+        allow:"clipboard-read *; clipboard-write *",
+        loading:"eager",
+        referrerpolicy:"no-referrer-when-downgrade"
+      })
+    ])
+  );
+
+  const navigate = (nextUrl) => {
+    const finalUrl = normalizeInternetUrl(nextUrl || $("#webUrl").value);
+    $("#webUrl").value = finalUrl;
+    $("#webFrame").src = finalUrl;
+    state.settings.internet = { ...(state.settings.internet || {}), url: finalUrl };
+    saveSettings();
+  };
+
+  $("#webGo").onclick = ()=>navigate();
+  $("#webHome").onclick = ()=>navigate("https://chaines.io");
+  $("#webUrl").addEventListener("keydown", (event)=>{
+    if(event.key === "Enter") navigate();
+  });
+  $("#webBack").onclick = ()=>{
+    setMode("dashboard");
+    panelTitle.textContent = "LIVE TELEMETRY";
+    panelSub.textContent = "Cursor • Click • Signals";
+    renderPanelTelemetry();
+  };
+}
+
 function renderPanel_Notepad(){
   panelContent.innerHTML = "";
   const np = apps.notepad;
@@ -4243,6 +4316,7 @@ const controllers = {
   EEG: new EEGController()
 };
 const apps = {
+  internet: new InternetApp(),
   notepad: new NotepadApp(),
   audio: new AudioApp(),
   video: new VideoApp(),
@@ -4323,7 +4397,7 @@ function updateHoverClick(){
 // -----------------------------
 function wireNav(){
   const openMap = {
-    internet: ()=>window.open("https://www.google.com", "_blank", "noopener"),
+    internet: ()=>apps.internet.open(),
     games: ()=>apps.games.open(),
     notepad: ()=>apps.notepad.open(),
     audio: ()=>apps.audio.open(),
