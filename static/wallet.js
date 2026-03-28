@@ -880,7 +880,7 @@
       return;
     }
 
-    lockApp();
+    hideOverlay();
     state.config = parseConfig();
     if(!state.config.valid){
       setStatus(state.config.error, 'error');
