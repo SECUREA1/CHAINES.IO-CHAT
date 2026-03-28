@@ -1245,6 +1245,10 @@ function loadHistory(room = null) {
   }));
 }
 
+app.get("/api/index-posts", (req, res) => {
+  res.json({ messages: loadHistory() });
+});
+
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
 const broadcasters = new Map();
