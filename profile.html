@@ -36,6 +36,9 @@ body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 '
 .post{margin-bottom:12px;padding:8px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);padding:8px;box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .dm-wrap{margin-top:14px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.dm-channel-list{list-style:none;padding:0;margin:8px 0 10px;max-height:220px;overflow:auto;}
+.dm-channel-btn{width:100%;text-align:left;border:1px solid var(--lining);border-radius:10px;padding:8px;background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);cursor:pointer;}
+.dm-channel-btn small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dm-feed{list-style:none;padding:0;margin:8px 0;max-height:260px;overflow:auto;}
 .dm-msg{padding:8px;margin-bottom:8px;border-radius:10px;border:1px solid var(--lining);}
 .dm-msg.mine{background:color-mix(in oklab, var(--accent), transparent 78%);}
@@ -74,6 +77,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   <section id="dm-section" class="dm-wrap" hidden>
     <h3>Private chat</h3>
     <p id="dm-note" class="muted">Only mutual followers can view and send encrypted messages.</p>
+    <ul id="dm-channel-list" class="dm-channel-list"></ul>
     <ul id="dm-feed" class="dm-feed"></ul>
     <form id="dm-form" class="dm-form">
       <input id="dm-input" type="text" maxlength="4000" placeholder="Write a private message..." />
@@ -108,7 +112,9 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const dmForm = document.getElementById('dm-form');
   const dmInput = document.getElementById('dm-input');
   const dmNote = document.getElementById('dm-note');
+  const dmChannelList = document.getElementById('dm-channel-list');
   let dmPoll = null;
+  let activeDmUser = user;
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -204,10 +210,12 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       };
       messageBtn.hidden = false;
       messageBtn.onclick = () => {
+        activeDmUser = user;
         dmSection.hidden = false;
         loadDm(true);
       };
       if(openDmByDefault){
+        activeDmUser = user;
         dmSection.hidden = false;
         loadDm(true);
       } else if(!data.canMessage){
@@ -217,7 +225,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     } else {
       followBtn.style.display = 'none';
       messageBtn.hidden = true;
-      dmSection.hidden = true;
+      dmSection.hidden = false;
       editSection.hidden = false;
       descInput.value = data.description || '';
       saveDesc.onclick = async () => {
@@ -247,6 +255,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       settingsSection.hidden = false;
       loadSettings();
       loadNotifs();
+      loadDmChannels();
     }
   }
   function stopDmPolling(){
@@ -275,8 +284,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     dmFeed.scrollTop = dmFeed.scrollHeight;
   }
   async function loadDm(forceOpen = false){
-    if(!storeUser || !user || storeUser === user) return;
-    const res = await fetch('/messages/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
+    if(!storeUser || !activeDmUser || storeUser === activeDmUser) return;
+    const res = await fetch('/messages/' + encodeURIComponent(activeDmUser) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok){
       if(res.status === 403){
         dmSection.hidden = false;
@@ -294,11 +303,48 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       dmPoll = setInterval(() => loadDm(false), 5000);
     }
   }
+  function fmtDmPreview(item){
+    const from = item.sender === storeUser ? 'You' : ('@' + (item.sender || item.peer));
+    const text = (item.lastMessage || '').trim() || 'No messages yet';
+    return from + ': ' + text;
+  }
+  async function loadDmChannels(){
+    if(!storeUser) return;
+    const res = await fetch('/messages/channels/' + encodeURIComponent(storeUser));
+    if(!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const channels = Array.isArray(data.channels) ? data.channels : [];
+    dmChannelList.innerHTML = '';
+    if(!channels.length){
+      const li = document.createElement('li');
+      li.className = 'muted';
+      li.textContent = 'No direct message channels yet. Follow each other to unlock DMs.';
+      dmChannelList.appendChild(li);
+      return;
+    }
+    channels.forEach((channel) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dm-channel-btn';
+      const locked = !channel.canMessage;
+      btn.innerHTML =
+        '<strong>@' + channel.peer + (locked ? ' 🔒' : '') + '</strong>' +
+        '<small>' + fmtDmPreview(channel) + '</small>';
+      btn.onclick = () => {
+        activeDmUser = channel.peer;
+        dmSection.hidden = false;
+        loadDm(true);
+      };
+      li.appendChild(btn);
+      dmChannelList.appendChild(li);
+    });
+  }
   dmForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = dmInput.value.trim();
-    if(!text || !storeUser || !user) return;
-    const res = await fetch('/messages/' + encodeURIComponent(user), {
+    if(!text || !storeUser || !activeDmUser) return;
+    const res = await fetch('/messages/' + encodeURIComponent(activeDmUser), {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ from: storeUser, message: text })
@@ -309,6 +355,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     }
     dmInput.value = '';
     loadDm();
+    loadDmChannels();
   });
   async function loadNotifs(){
     const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
@@ -322,10 +369,23 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         li.textContent = (n.data.from || 'Someone') + ' liked your post #' + n.data.messageId;
       } else if(n.type === 'follow'){
         li.textContent = (n.data.from || 'Someone') + ' started following you';
+      } else if(n.type === 'dm'){
+        li.textContent = 'New DM from ' + (n.data.from || 'Someone') + ': ' + (n.data.preview || '');
+      } else if(n.type === 'dm-unlocked'){
+        li.textContent = 'Private chat unlocked with ' + (n.data.with || 'a mutual follower');
       } else if(n.type === 'broadcast'){
         li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
+      }
+      if(n.type === 'dm' && n.data.from){
+        li.style.cursor = 'pointer';
+        li.title = 'Open private chat';
+        li.onclick = () => {
+          activeDmUser = n.data.from;
+          dmSection.hidden = false;
+          loadDm(true);
+        };
       }
       notifsEl.appendChild(li);
     });
