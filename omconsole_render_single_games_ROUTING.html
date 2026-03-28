@@ -341,6 +341,13 @@
       display:flex;
       flex-direction:column;
     }
+    .app.games-active .stage{
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+    }
+    .app.games-active .panel{
+      display:none;
+    }
     .panel .ph{
       padding: 14px 14px 12px 14px;
       display:flex;
@@ -557,6 +564,7 @@
       .app{grid-template-columns: 320px 1fr;}
       .stage{grid-template-columns: 1fr; grid-template-rows: 1fr 360px;}
       .panel{height: 360px}
+      .app.games-active .stage{grid-template-rows: 1fr;}
     }
     @media (max-width: 900px){
       body{overflow:auto}
@@ -1450,6 +1458,7 @@ const $ = (sel) => document.querySelector(sel);
 const cursorEl = $("#cursor");
 const viz = $("#viz");
 const viewportEl = $("#viewport");
+const appEl = $(".app");
 const panelTitle = $("#panelTitle");
 const panelSub = $("#panelSub");
 const panelContent = $("#panelContent");
@@ -1484,6 +1493,17 @@ function resizeCanvas(){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 window.addEventListener("resize", resizeCanvas);
+
+async function requestGameFullscreen(){
+  if(state.ui.mode !== "app:games") return;
+  if(document.fullscreenElement) return;
+  if(!viewportEl?.requestFullscreen) return;
+  try{
+    await viewportEl.requestFullscreen({ navigationUI:"hide" });
+  }catch(_e){
+    // Browser may block fullscreen in some contexts (e.g. iframe policy/user settings).
+  }
+}
 
 // -----------------------------
 // Control Manager (mixes active systems)
@@ -2443,7 +2463,7 @@ class GamesApp{
     setMode("app:games");
     panelTitle.textContent = "GAMES";
     this.ensureWired();
-    this.select(state.settings.games.last || this.current || "pong", {reset:true});
+    this.select(state.settings.games.last || this.current || "pong", {reset:true, fullscreen:false});
     renderPanel_Games();
   }
 
@@ -2481,7 +2501,7 @@ class GamesApp{
     }
   }
 
-  select(key, opts={reset:true}){
+  select(key, opts={reset:true, fullscreen:true}){
     if(!this.games[key]) key = "pong";
     this.stop();
 
@@ -2493,6 +2513,8 @@ class GamesApp{
     saveSettings();
 
     if(opts.reset) g.reset?.();
+    if(opts.fullscreen) requestGameFullscreen();
+    requestAnimationFrame(resizeCanvas);
 
     const m = this.meta(key);
     panelSub.textContent = `${m.title} • Cursor + Click`;
@@ -3810,6 +3832,7 @@ function setMode(mode){
   const prev = state.ui.mode;
   state.ui.mode = mode;
   badgeMode.textContent = mode.toUpperCase();
+  appEl?.classList.toggle("games-active", mode === "app:games");
   // update active nav button styling
   document.querySelectorAll(".navbtn").forEach(b=>b.classList.remove("active"));
   const map = {
@@ -3826,6 +3849,14 @@ function setMode(mode){
   // Ensure games don't keep drawing/updating after you switch apps.
   if(prev === "app:games" && mode !== "app:games"){
     apps.games.stop();
+    if(document.fullscreenElement && document.exitFullscreen){
+      document.exitFullscreen().catch(()=>{});
+    }
+  }
+
+  if(mode === "app:games"){
+    viewportEl?.scrollIntoView({ block:"start", behavior:"smooth" });
+    requestAnimationFrame(resizeCanvas);
   }
 }
 
