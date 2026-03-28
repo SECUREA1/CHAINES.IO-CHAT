@@ -2519,14 +2519,18 @@ class GamesApp{
     if(!state.settings.games){
       state.settings.games = {
         last: "pong",
-        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null }
+        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null }
       };
       saveSettings();
     }
     if(!state.settings.games.highs){
-      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
+      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null };
       saveSettings();
     }
+    state.settings.games.highs = {
+      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null,
+      ...state.settings.games.highs
+    };
 
     this.catalog = [
       { key:"pong",     title:"Pong",          desc:"Cursor Y controls your paddle. AI on the right." },
@@ -2535,6 +2539,10 @@ class GamesApp{
       { key:"catch",    title:"Star Catch",    desc:"Cursor X controls catcher. Catch the falling stars." },
       { key:"reaction", title:"Reaction Test", desc:"Click/pinch as soon as it turns green." },
       { key:"paint",    title:"Zen Paint",     desc:"Paint with particles. Click/pinch to clear." },
+      { key:"neon",     title:"Neon Blaster '86", desc:"80s-style arcade shooter. Cursor aims ship, click/pinch fires." },
+      { key:"sports",   title:"Penalty Pro",   desc:"Sports challenge: aim then click/pinch to shoot against the keeper." },
+      { key:"runner",   title:"Lane Runner",   desc:"Standardized endless runner. Cursor chooses lane, click/pinch dashes." },
+      { key:"memory",   title:"Memory Match",  desc:"Standardized memory game. Cursor + click to flip matching cards." },
     ];
 
     this.games = {
@@ -2543,7 +2551,11 @@ class GamesApp{
       bubbles: new BubblePopGame(),
       catch: new StarCatchGame(),
       reaction: new ReactionTestGame(),
-      paint: new ZenPaintGame()
+      paint: new ZenPaintGame(),
+      neon: new NeonBlasterGame(),
+      sports: new PenaltyProGame(),
+      runner: new LaneRunnerGame(),
+      memory: new MemoryMatchGame()
     };
 
     this.current = state.settings.games.last || "pong";
@@ -2649,7 +2661,7 @@ class GamesApp{
   }
 
   clearScores(){
-    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
+    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null };
     saveSettings();
     toast("Game scores cleared");
   }
@@ -3330,6 +3342,180 @@ class ReactionTestGame{
   }
 }
 
+class NeonBlasterGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Move cursor to pilot the neon ship. Click/pinch to fire and clear enemy waves."; }
+  reset(){ this.player={x:0.5,y:0.9}; this.shots=[]; this.enemies=[]; this.score=0; this.lives=3; this.running=true; this.spawnCd=0; this.fireCd=0; }
+  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.neon||0) < this.score){ highs.neon = this.score; saveSettings(); toast(`New Neon Blaster best: ${this.score}`);} }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+    this.player.x = clamp(cur?.x ?? 0.5, 0.06, 0.94);
+    this.player.y = clamp((cur?.y ?? 0.9)*0.75 + 0.22, 0.56, 0.94);
+    if(!this.running) return;
+    this.spawnCd -= dt;
+    this.fireCd = Math.max(0, this.fireCd - dt);
+    if(this.spawnCd <= 0){
+      const count = 1 + Math.floor(Math.random()*2);
+      for(let i=0;i<count;i++) this.enemies.push({x:0.08+Math.random()*0.84, y:-0.08 - i*0.06, vy:0.18+Math.random()*0.18 + this.score*0.0009, hp:1});
+      this.spawnCd = Math.max(260, 840 - this.score*4);
+    }
+    for(let i=this.shots.length-1;i>=0;i--){ const s = this.shots[i]; s.y -= s.vy*t; if(s.y < -0.1) this.shots.splice(i,1); }
+    for(let i=this.enemies.length-1;i>=0;i--){ const e = this.enemies[i]; e.y += e.vy*t; if(e.y > 1.06){ this.enemies.splice(i,1); this.lives--; if(this.lives<=0){ this.running=false; this.setBestIfNeeded(); } } }
+    for(let i=this.enemies.length-1;i>=0;i--){
+      const e = this.enemies[i];
+      for(let j=this.shots.length-1;j>=0;j--){
+        const s = this.shots[j];
+        if((s.x-e.x)**2 + (s.y-e.y)**2 < 0.0018){
+          this.shots.splice(j,1); this.enemies.splice(i,1); this.score += 25; break;
+        }
+      }
+    }
+  }
+  onClick(nx){
+    if(!this.active) return;
+    if(!this.running){ this.reset(); return; }
+    if(this.fireCd > 0) return;
+    this.fireCd = 130;
+    this.shots.push({x:clamp(nx ?? this.player.x, 0.04, 0.96), y:this.player.y-0.03, vy:1.05});
+  }
+  draw(ctx,w,h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(255,50,190,.10)"; ctx.fillRect(0,0,w,h);
+    for(const s of this.shots){ ctx.fillStyle="rgba(242,213,122,.95)"; ctx.fillRect(s.x*w-2, s.y*h-10, 4, 16); }
+    for(const e of this.enemies){ ctx.fillStyle="rgba(255,77,77,.82)"; roundRect(ctx, e.x*w-12, e.y*h-10, 24, 20, 8); ctx.fill(); }
+    ctx.fillStyle="rgba(140,180,255,.9)"; roundRect(ctx, this.player.x*w-18, this.player.y*h-8, 36, 16, 8); ctx.fill();
+    const best = state.settings.games.highs.neon || 0;
+    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`SCORE ${this.score}   LIVES ${this.lives}   BEST ${best}`, 18, 28);
+    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(255,77,77,.86)"; ctx.fillText("GAME OVER — CLICK TO RESTART", w/2, h*0.58); }
+    ctx.restore();
+  }
+}
+
+class PenaltyProGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Aim with cursor and click/pinch to take penalty kicks. Beat the moving keeper."; }
+  reset(){ this.score=0; this.shots=0; this.rounds=10; this.ball={x:0.5,y:0.86,flying:false,t:0}; this.target={x:0.5,y:0.45}; this.keeper={x:0.5,v:0.24}; this.running=true; }
+  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.sports||0) < this.score){ highs.sports = this.score; saveSettings(); toast(`New Penalty Pro best: ${this.score}`);} }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+    this.target.x = clamp(cur?.x ?? 0.5, 0.16, 0.84);
+    this.target.y = clamp(cur?.y ?? 0.45, 0.18, 0.60);
+    if(!this.running) return;
+    this.keeper.x += this.keeper.v * t;
+    if(this.keeper.x < 0.24 || this.keeper.x > 0.76) this.keeper.v *= -1;
+    if(this.ball.flying){
+      this.ball.t += t*1.8;
+      this.ball.x = lerp(0.5, this.target.x, this.ball.t);
+      this.ball.y = lerp(0.86, this.target.y, this.ball.t);
+      if(this.ball.t >= 1){
+        const saved = Math.abs(this.ball.x - this.keeper.x) < 0.12 && this.ball.y < 0.55;
+        if(!saved) this.score += 1;
+        this.shots += 1;
+        this.ball = {x:0.5,y:0.86,flying:false,t:0};
+        if(this.shots >= this.rounds){ this.running = false; this.setBestIfNeeded(); }
+      }
+    }
+  }
+  onClick(){ if(!this.active) return; if(!this.running){ this.reset(); return; } if(!this.ball.flying) this.ball.flying = true; }
+  draw(ctx,w,h){
+    if(!this.active) return;
+    ctx.save();
+    ctx.strokeStyle="rgba(234,242,255,.3)"; ctx.strokeRect(w*0.2, h*0.12, w*0.6, h*0.46);
+    ctx.fillStyle="rgba(234,242,255,.75)"; roundRect(ctx, this.keeper.x*w-42, h*0.48, 84, 12, 8); ctx.fill();
+    ctx.strokeStyle="rgba(242,213,122,.45)"; ctx.beginPath(); ctx.arc(this.target.x*w, this.target.y*h, 13, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle="rgba(212,175,55,.96)"; ctx.beginPath(); ctx.arc(this.ball.x*w, this.ball.y*h, 10, 0, Math.PI*2); ctx.fill();
+    const best = state.settings.games.highs.sports || 0;
+    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`GOALS ${this.score}/${this.rounds}   SHOT ${Math.min(this.shots+1,this.rounds)}   BEST ${best}`, 18, 28);
+    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(242,213,122,.9)"; ctx.fillText("ROUND COMPLETE — CLICK TO PLAY AGAIN", w/2, h*0.62); }
+    ctx.restore();
+  }
+}
+
+class LaneRunnerGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Standardized runner: move between lanes with cursor and click/pinch for a short dash shield."; }
+  reset(){ this.lane=1; this.obstacles=[]; this.spawnCd=0; this.score=0; this.running=true; this.dashMs=0; }
+  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.runner||0) < this.score){ highs.runner = this.score; saveSettings(); toast(`New Lane Runner best: ${this.score}`);} }
+  update(dt, cur){
+    if(!this.active) return;
+    const x = cur?.x ?? 0.5;
+    this.lane = x < 0.33 ? 0 : (x < 0.66 ? 1 : 2);
+    if(!this.running) return;
+    this.dashMs = Math.max(0, this.dashMs - dt);
+    this.spawnCd -= dt;
+    if(this.spawnCd <= 0){ this.obstacles.push({lane:Math.floor(Math.random()*3), y:-0.1, vy:0.36 + this.score*0.0007}); this.spawnCd = Math.max(220, 760 - this.score*6); }
+    for(let i=this.obstacles.length-1;i>=0;i--){
+      const o=this.obstacles[i]; o.y += o.vy*(dt/1000);
+      if(o.y > 1.06){ this.obstacles.splice(i,1); this.score += 1; continue; }
+      if(o.lane===this.lane && o.y > 0.78 && o.y < 0.96){
+        if(this.dashMs<=0){ this.running=false; this.setBestIfNeeded(); break; }
+      }
+    }
+  }
+  onClick(){ if(!this.active) return; if(!this.running){ this.reset(); return; } this.dashMs = 520; }
+  draw(ctx,w,h){
+    if(!this.active) return;
+    ctx.save();
+    for(let i=1;i<3;i++){ ctx.strokeStyle="rgba(140,180,255,.2)"; ctx.beginPath(); ctx.moveTo((w/3)*i,0); ctx.lineTo((w/3)*i,h); ctx.stroke(); }
+    const laneX = (this.lane+0.5)*(w/3);
+    ctx.fillStyle = this.dashMs>0 ? "rgba(50,213,131,.88)" : "rgba(234,242,255,.88)";
+    roundRect(ctx, laneX-30, h*0.86, 60, 26, 10); ctx.fill();
+    for(const o of this.obstacles){ ctx.fillStyle="rgba(255,77,77,.8)"; roundRect(ctx, (o.lane+0.5)*(w/3)-24, o.y*h, 48, 20, 8); ctx.fill(); }
+    const best = state.settings.games.highs.runner || 0;
+    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`DIST ${this.score}   BEST ${best}   DASH ${this.dashMs>0?'ON':'READY'}`, 18, 28);
+    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(255,77,77,.86)"; ctx.fillText("CRASHED — CLICK TO RESTART", w/2, h*0.56); }
+    ctx.restore();
+  }
+}
+
+class MemoryMatchGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Standardized memory puzzle. Click/pinch cards to match all pairs as quickly as possible."; }
+  reset(){
+    const vals = ["▲","◆","●","■","★","✦"];
+    const deck = [...vals, ...vals].sort(()=>Math.random()-0.5);
+    this.cards = deck.map((v,i)=>({v, i, open:false, done:false}));
+    this.first = null;
+    this.lockMs = 0;
+    this.startMs = nowMs();
+    this.completeMs = null;
+  }
+  setBestIfNeeded(ms){ const highs = state.settings.games.highs; const prev = highs.memoryBestMs; if(prev === null || ms < prev){ highs.memoryBestMs = ms; saveSettings(); toast(`New Memory Match best: ${ms} ms`);} }
+  onClick(nx, ny){
+    if(!this.active) return;
+    if(this.completeMs !== null){ this.reset(); return; }
+    if(this.lockMs > 0) return;
+    const col = clamp(Math.floor(nx*4),0,3);
+    const row = clamp(Math.floor((ny-0.12)/0.20),0,2);
+    const idx = row*4 + col;
+    const c = this.cards[idx];
+    if(!c || c.done || c.open) return;
+    c.open = true;
+    if(this.first === null){ this.first = idx; return; }
+    const a = this.cards[this.first];
+    if(a.v === c.v){ a.done = c.done = true; this.first = null; if(this.cards.every(k=>k.done)){ this.completeMs = Math.round(nowMs()-this.startMs); this.setBestIfNeeded(this.completeMs);} }
+    else{ this.lockMs = 550; this.second = idx; }
+  }
+  update(dt){
+    if(!this.active) return;
+    if(this.lockMs > 0){ this.lockMs -= dt; if(this.lockMs <= 0 && this.first !== null && this.second !== undefined){ this.cards[this.first].open=false; this.cards[this.second].open=false; this.first=null; this.second=undefined; } }
+  }
+  draw(ctx,w,h){
+    if(!this.active) return;
+    ctx.save();
+    const cw = w*0.20, ch = h*0.16, gx = w*0.04, gy = h*0.04, sx = w*0.06, sy = h*0.14;
+    this.cards.forEach((c,i)=>{ const col=i%4,row=(i/4)|0,x=sx+col*(cw+gx),y=sy+row*(ch+gy); ctx.fillStyle=(c.open||c.done)?"rgba(140,180,255,.5)":"rgba(7,20,40,.6)"; roundRect(ctx,x,y,cw,ch,12); ctx.fill(); ctx.strokeStyle="rgba(242,213,122,.24)"; ctx.stroke(); if(c.open||c.done){ ctx.fillStyle="rgba(234,242,255,.95)"; ctx.font="900 26px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.textAlign="center"; ctx.fillText(c.v,x+cw/2,y+ch*0.62);} });
+    const flips = this.cards.filter(c=>c.done).length/2;
+    const best = state.settings.games.highs.memoryBestMs;
+    ctx.fillStyle="rgba(234,242,255,.88)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.textAlign="left"; ctx.fillText(`MATCHED ${flips}/6   BEST ${best===null?'--':best+'ms'}`, 18, 28);
+    if(this.completeMs !== null){ ctx.textAlign="center"; ctx.fillStyle="rgba(242,213,122,.92)"; ctx.fillText(`CLEARED IN ${this.completeMs} ms — CLICK TO RESTART`, w/2, h*0.9); }
+    ctx.restore();
+  }
+}
+
 class ZenPaintGame{
   constructor(){
     this.active = false;
@@ -3341,6 +3527,8 @@ class ZenPaintGame{
   reset(){
     this.particles = [];
     this.hue = Math.random()*360;
+    this.maxParticles = isMobileViewport() ? 900 : 2000;
+    this.emitBase = isMobileViewport() ? 1 : 2;
   }
   onClick(){
     if(!this.active) return;
@@ -3353,7 +3541,7 @@ class ZenPaintGame{
     // Add a few particles at cursor
     const x = cur?.x ?? 0.5;
     const y = cur?.y ?? 0.5;
-    const n = 2;
+    const n = this.emitBase + (dt < 20 ? 1 : 0);
     for(let i=0; i<n; i++){
       const a = Math.random()*Math.PI*2;
       const sp = 0.06 + Math.random()*0.16;
@@ -3382,7 +3570,7 @@ class ZenPaintGame{
     }
 
     // keep bounded
-    if(this.particles.length > 2200) this.particles.splice(0, this.particles.length-2200);
+    if(this.particles.length > this.maxParticles) this.particles.splice(0, this.particles.length-this.maxParticles);
   }
   draw(ctx, w, h){
     if(!this.active) return;
@@ -4462,7 +4650,11 @@ function renderPanel_Games(){
       el("div",{class:"kv2"},[el("span",{},["Breakout"]), el("b",{},[String(hs.breakout || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Bubble Pop"]), el("b",{},[String(hs.bubbles || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Star Catch"]), el("b",{},[String(hs.catch || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Neon Blaster '86"]), el("b",{},[String(hs.neon || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Penalty Pro"]), el("b",{},[String(hs.sports || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Lane Runner"]), el("b",{},[String(hs.runner || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Reaction Best"]), el("b",{},[reactionBest])]),
+      el("div",{class:"kv2"},[el("span",{},["Memory Match Best"]), el("b",{},[(hs.memoryBestMs == null ? "--" : `${hs.memoryBestMs} ms`)])]),
       el("div",{class:"row"},[
         el("button",{class:"smallbtn ghost", onclick:()=>{ g.clearScores(); renderPanel_Games(); }},["Clear Scores"])
       ])
@@ -4742,8 +4934,10 @@ function draw(ctx, dt){
     updateModalLiveLabels();
   }
 
-  // Games overlay
-  apps.games.draw(ctx, w, h);
+  // Games overlay (strictly hidden unless Games app is selected)
+  if(state.ui.mode === "app:games"){
+    apps.games.draw(ctx, w, h);
+  }
 
   // Draw status watermark
   ctx.save();
