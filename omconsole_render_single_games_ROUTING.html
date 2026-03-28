@@ -2519,16 +2519,16 @@ class GamesApp{
     if(!state.settings.games){
       state.settings.games = {
         last: "pong",
-        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null }
+        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null }
       };
       saveSettings();
     }
     if(!state.settings.games.highs){
-      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null };
+      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
       saveSettings();
     }
     state.settings.games.highs = {
-      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null,
+      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null,
       ...state.settings.games.highs
     };
 
@@ -2541,6 +2541,7 @@ class GamesApp{
       { key:"paint",    title:"Zen Paint",     desc:"Paint with particles. Click/pinch to clear." },
       { key:"neon",     title:"Neon Blaster '86", desc:"80s-style arcade shooter. Cursor aims ship, click/pinch fires." },
       { key:"sports",   title:"Penalty Pro",   desc:"Sports challenge: aim then click/pinch to shoot against the keeper." },
+      { key:"hoops",    title:"Street Hoops",  desc:"Sports shooting challenge. Move to aim, click/pinch to shoot baskets." },
       { key:"runner",   title:"Lane Runner",   desc:"Standardized endless runner. Cursor chooses lane, click/pinch dashes." },
       { key:"memory",   title:"Memory Match",  desc:"Standardized memory game. Cursor + click to flip matching cards." },
     ];
@@ -2554,6 +2555,7 @@ class GamesApp{
       paint: new ZenPaintGame(),
       neon: new NeonBlasterGame(),
       sports: new PenaltyProGame(),
+      hoops: new StreetHoopsGame(),
       runner: new LaneRunnerGame(),
       memory: new MemoryMatchGame()
     };
@@ -2661,7 +2663,7 @@ class GamesApp{
   }
 
   clearScores(){
-    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, runner:0, memoryBestMs:null };
+    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
     saveSettings();
     toast("Game scores cleared");
   }
@@ -3434,6 +3436,92 @@ class PenaltyProGame{
   }
 }
 
+class StreetHoopsGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Sports mode: move cursor to set shot angle, click/pinch to shoot. Hit the moving hoop for combo streak points."; }
+  reset(){
+    this.ball = null;
+    this.score = 0;
+    this.streak = 0;
+    this.shotsLeft = 12;
+    this.running = true;
+    this.aimX = 0.5;
+    this.hoop = {x:0.70, y:0.26, vx:0.18};
+  }
+  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.hoops||0) < this.score){ highs.hoops = this.score; saveSettings(); toast(`New Street Hoops best: ${this.score}`);} }
+  onClick(nx){
+    if(!this.active) return;
+    if(!this.running){ this.reset(); return; }
+    if(this.ball || this.shotsLeft <= 0) return;
+    const aim = clamp(nx ?? this.aimX, 0.14, 0.86);
+    this.ball = {x:0.1, y:0.86, vx:0.55 + aim*0.35, vy:-0.92 + (0.5-aim)*0.35, g:1.08};
+    this.shotsLeft -= 1;
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+    this.aimX = clamp(cur?.x ?? this.aimX, 0.1, 0.9);
+    if(!this.running) return;
+    this.hoop.x += this.hoop.vx*t;
+    if(this.hoop.x < 0.56 || this.hoop.x > 0.88) this.hoop.vx *= -1;
+    if(this.ball){
+      this.ball.vy += this.ball.g*t;
+      this.ball.x += this.ball.vx*t;
+      this.ball.y += this.ball.vy*t;
+      const dx = this.ball.x - this.hoop.x;
+      const dy = this.ball.y - this.hoop.y;
+      if(Math.abs(dx) < 0.05 && Math.abs(dy) < 0.03 && this.ball.vy > 0){
+        this.streak += 1;
+        this.score += 2 + Math.min(5, this.streak);
+        this.ball = null;
+      }else if(this.ball.y > 1.05 || this.ball.x > 1.15){
+        this.streak = 0;
+        this.ball = null;
+      }
+    }
+    if(this.shotsLeft <= 0 && !this.ball){
+      this.running = false;
+      this.setBestIfNeeded();
+    }
+  }
+  draw(ctx,w,h){
+    if(!this.active) return;
+    ctx.save();
+    const best = state.settings.games.highs.hoops || 0;
+    ctx.strokeStyle = "rgba(234,242,255,.82)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo((this.hoop.x-0.06)*w, this.hoop.y*h);
+    ctx.lineTo((this.hoop.x+0.06)*w, this.hoop.y*h);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(242,213,122,.32)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect((this.hoop.x-0.09)*w, (this.hoop.y-0.11)*h, 0.18*w, 0.18*h);
+    if(this.ball){
+      ctx.fillStyle = "rgba(212,175,55,.94)";
+      ctx.beginPath();
+      ctx.arc(this.ball.x*w, this.ball.y*h, 9, 0, Math.PI*2);
+      ctx.fill();
+    }else if(this.running){
+      ctx.strokeStyle = "rgba(140,180,255,.45)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0.1*w, 0.86*h);
+      ctx.quadraticCurveTo((0.28+this.aimX*0.35)*w, (0.22+Math.abs(this.aimX-0.5)*0.2)*h, this.hoop.x*w, this.hoop.y*h);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(234,242,255,.88)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    ctx.fillText(`SCORE ${this.score}   STREAK ${this.streak}   SHOTS ${this.shotsLeft}   BEST ${best}`, 18, 28);
+    if(!this.running){
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(242,213,122,.86)";
+      ctx.fillText("ROUND OVER — CLICK TO PLAY AGAIN", w/2, h*0.56);
+    }
+    ctx.restore();
+  }
+}
+
 class LaneRunnerGame{
   constructor(){ this.active = false; this.reset(); }
   helpText(){ return "Standardized runner: move between lanes with cursor and click/pinch for a short dash shield."; }
@@ -4159,6 +4247,7 @@ function setMode(mode){
   // update active nav button styling
   document.querySelectorAll(".navbtn").forEach(b=>b.classList.remove("active"));
   const map = {
+    "app:internet":"btnInternet",
     "app:notepad":"btnNotepad",
     "app:audio":"btnAudio",
     "app:video":"btnVideo",
@@ -4652,6 +4741,7 @@ function renderPanel_Games(){
       el("div",{class:"kv2"},[el("span",{},["Star Catch"]), el("b",{},[String(hs.catch || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Neon Blaster '86"]), el("b",{},[String(hs.neon || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Penalty Pro"]), el("b",{},[String(hs.sports || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Street Hoops"]), el("b",{},[String(hs.hoops || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Lane Runner"]), el("b",{},[String(hs.runner || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Reaction Best"]), el("b",{},[reactionBest])]),
       el("div",{class:"kv2"},[el("span",{},["Memory Match Best"]), el("b",{},[(hs.memoryBestMs == null ? "--" : `${hs.memoryBestMs} ms`)])]),
