@@ -31,26 +31,9 @@ body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 '
 .profile-header{display:flex;align-items:center;gap:12px;background:color-mix(in oklab, var(--panel), transparent 25%);padding:10px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .profile-header img{width:64px;height:64px;border-radius:50%;object-fit:cover;}
 .follow-btn{padding:8px 12px;border-radius:12px;border:0;font-weight:700;cursor:pointer;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;box-shadow:var(--shadow);}
-.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
 .posts{list-style:none;padding:0;}
 .post{margin-bottom:12px;padding:8px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
-.profile-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
-.profile-tab{padding:7px 10px;border-radius:999px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 20%);color:var(--fg);font-weight:700;cursor:pointer;}
-.profile-tab.active{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;}
-.post small{display:block;color:var(--muted);margin-top:5px;}
-.media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px;}
-.media-grid img,.media-grid video{width:100%;height:160px;object-fit:cover;border-radius:10px;border:1px solid var(--lining);}
 textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);padding:8px;box-shadow:var(--shadow);backdrop-filter:blur(8px);}
-.dm-wrap{margin-top:14px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
-.dm-channel-list{list-style:none;padding:0;margin:8px 0 10px;max-height:220px;overflow:auto;}
-.dm-channel-btn{width:100%;text-align:left;border:1px solid var(--lining);border-radius:10px;padding:8px;background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);cursor:pointer;}
-.dm-channel-btn small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.dm-feed{list-style:none;padding:0;margin:8px 0;max-height:260px;overflow:auto;}
-.dm-msg{padding:8px;margin-bottom:8px;border-radius:10px;border:1px solid var(--lining);}
-.dm-msg.mine{background:color-mix(in oklab, var(--accent), transparent 78%);}
-.dm-form{display:flex;gap:8px;}
-.dm-form input{flex:1;border-radius:8px;border:1px solid var(--lining);padding:8px;background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);}
-.muted{color:var(--muted);}
 </style>
 </head>
 <body>
@@ -59,10 +42,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   <div class="profile-header">
     <img id="p-avatar" alt="avatar" />
     <h2 id="p-name"></h2>
-    <div class="header-actions">
-      <button id="follow-btn" class="follow-btn"></button>
-      <button id="message-btn" class="follow-btn" hidden>Message</button>
-    </div>
+    <button id="follow-btn" class="follow-btn"></button>
   </div>
   <div id="edit-section" hidden>
     <input type="file" id="p-pic" accept="image/*" />
@@ -71,12 +51,6 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
-  <div class="profile-tabs" id="profile-tabs">
-    <button type="button" class="profile-tab active" data-tab="posts">Posts</button>
-    <button type="button" class="profile-tab" data-tab="replies">Replies</button>
-    <button type="button" class="profile-tab" data-tab="images">Images</button>
-    <button type="button" class="profile-tab" data-tab="videos">Videos</button>
-  </div>
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
     <label><input type="checkbox" id="push-toggle" /> Enable push notifications</label><br />
@@ -84,24 +58,13 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <h3>Notifications</h3>
   <ul id="p-notifs" class="posts"></ul>
-  <h3 id="feed-title">Posts</h3>
+  <h3>Posts</h3>
   <ul id="p-posts" class="posts"></ul>
-  <section id="dm-section" class="dm-wrap" hidden>
-    <h3>Private chat</h3>
-    <p id="dm-note" class="muted">Only mutual followers can view and send encrypted messages.</p>
-    <ul id="dm-channel-list" class="dm-channel-list"></ul>
-    <ul id="dm-feed" class="dm-feed"></ul>
-    <form id="dm-form" class="dm-form">
-      <input id="dm-input" type="text" maxlength="4000" placeholder="Write a private message..." />
-      <button id="dm-send" class="follow-btn" type="submit">Send</button>
-    </form>
-  </section>
 </div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
   const user = params.get('user');
-  const openDmByDefault = params.get('openDm') === '1';
   const storeUser = localStorage.getItem('chaines_username') || '';
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
@@ -112,25 +75,12 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const descInput = document.getElementById('p-desc-input');
   const picInput = document.getElementById('p-pic');
   const saveDesc = document.getElementById('save-desc');
-  const messageBtn = document.getElementById('message-btn');
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
-  const feedTitle = document.getElementById('feed-title');
-  const profileTabs = document.getElementById('profile-tabs');
   const backBtn = document.getElementById('back-btn');
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
-  const dmSection = document.getElementById('dm-section');
-  const dmFeed = document.getElementById('dm-feed');
-  const dmForm = document.getElementById('dm-form');
-  const dmInput = document.getElementById('dm-input');
-  const dmNote = document.getElementById('dm-note');
-  const dmChannelList = document.getElementById('dm-channel-list');
-  let dmPoll = null;
-  let activeDmUser = user;
-  let activeTab = 'posts';
-  let profileData = null;
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -198,153 +148,22 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     });
   });
 
-  function fmtDate(ts){
-    if(!ts) return '';
-    const d = new Date(ts);
-    return d.toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  }
-  function setActiveTab(tab){
-    activeTab = tab;
-    profileTabs.querySelectorAll('.profile-tab').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
-    renderFeed();
-  }
-  function renderFeed(){
-    postsEl.innerHTML = '';
-    if(!profileData) return;
-    const tabTitle = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
-    feedTitle.textContent = tabTitle;
-    if(activeTab === 'posts'){
-      const posts = Array.isArray(profileData.posts) ? profileData.posts : [];
-      if(!posts.length){
-        const li = document.createElement('li');
-        li.className = 'post muted';
-        li.textContent = 'No posts yet.';
-        postsEl.appendChild(li);
-        return;
-      }
-      posts.forEach((p) => {
-        const li = document.createElement('li');
-        li.className = 'post';
-        const message = document.createElement('div');
-        message.textContent = p.message || p.text || '(No text)';
-        li.appendChild(message);
-        if(p.image || p.file){
-          const mediaWrap = document.createElement('div');
-          mediaWrap.className = 'media-grid';
-          if(p.image){
-            const img = document.createElement('img');
-            img.src = p.image;
-            img.alt = 'Post image';
-            mediaWrap.appendChild(img);
-          }
-          if(p.file){
-            const fileType = ((p.file_type || p.fileType || '') + '').toLowerCase();
-            const fileName = p.file_name || p.fileName || 'attachment';
-            const isVideo = fileType.startsWith('video/');
-            const isImage = fileType.startsWith('image/');
-            if(isVideo){
-              const video = document.createElement('video');
-              video.src = p.file;
-              video.controls = true;
-              video.preload = 'metadata';
-              mediaWrap.appendChild(video);
-            } else if(isImage && !p.image){
-              const fileImage = document.createElement('img');
-              fileImage.src = p.file;
-              fileImage.alt = fileName;
-              mediaWrap.appendChild(fileImage);
-            } else {
-              const fileLink = document.createElement('a');
-              fileLink.href = p.file;
-              fileLink.target = '_blank';
-              fileLink.rel = 'noopener';
-              fileLink.download = fileName;
-              fileLink.textContent = 'Download ' + fileName;
-              mediaWrap.appendChild(fileLink);
-            }
-          }
-          if(mediaWrap.children.length) li.appendChild(mediaWrap);
-        }
-        const meta = document.createElement('small');
-        meta.textContent = '#' + p.id + ' · ' + fmtDate(p.ts);
-        li.appendChild(meta);
-        postsEl.appendChild(li);
-      });
-      return;
-    }
-    if(activeTab === 'replies'){
-      const replies = Array.isArray(profileData.replies) ? profileData.replies : [];
-      if(!replies.length){
-        const li = document.createElement('li');
-        li.className = 'post muted';
-        li.textContent = 'No replies yet.';
-        postsEl.appendChild(li);
-        return;
-      }
-      replies.forEach((r) => {
-        const li = document.createElement('li');
-        li.className = 'post';
-        li.textContent = r.text || '';
-        const meta = document.createElement('small');
-        meta.textContent = 'Reply to post #' + r.message_id + ' · ' + fmtDate(r.ts);
-        li.appendChild(meta);
-        postsEl.appendChild(li);
-      });
-      return;
-    }
-    const mediaItems = Array.isArray(profileData[activeTab]) ? profileData[activeTab] : [];
-    if(!mediaItems.length){
-      const li = document.createElement('li');
-      li.className = 'post muted';
-      li.textContent = 'No ' + activeTab + ' yet.';
-      postsEl.appendChild(li);
-      return;
-    }
-    const li = document.createElement('li');
-    li.className = 'post';
-    const grid = document.createElement('div');
-    grid.className = 'media-grid';
-    mediaItems.forEach((item) => {
-      const fileType = ((item.file_type || item.fileType || '') + '').toLowerCase();
-      const fileName = item.file_name || item.fileName || 'attachment';
-      if(activeTab === 'images' && (item.image || (item.file && fileType.startsWith('image/')))){
-        const img = document.createElement('img');
-        img.src = item.image || item.file;
-        img.alt = 'Profile image post';
-        grid.appendChild(img);
-      }
-      if(activeTab === 'videos' && item.file && fileType.startsWith('video/')){
-        const video = document.createElement('video');
-        video.src = item.file;
-        video.controls = true;
-        video.preload = 'metadata';
-        video.title = fileName;
-        grid.appendChild(video);
-      }
-    });
-    li.appendChild(grid);
-    postsEl.appendChild(li);
-  }
-
-  profileTabs.addEventListener('click', (event) => {
-    const btn = event.target.closest('.profile-tab');
-    if(!btn) return;
-    setActiveTab(btn.dataset.tab);
-  });
-
   async function load(){
     if(!user) return;
     const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = await res.json();
-    profileData = data;
     nameEl.textContent = '@' + data.username;
     if(data.profilePic){ avatar.src = data.profilePic; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
     followInfo.textContent = 'Followers: ' + data.followers.length + ' • Following: ' + data.following.length;
-    renderFeed();
+    postsEl.innerHTML = '';
+    data.posts.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'post';
+      li.textContent = p.message || p.text || '';
+      postsEl.appendChild(li);
+    });
     if(storeUser && storeUser !== user){
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
       followBtn.onclick = async () => {
@@ -355,24 +174,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         });
         load();
       };
-      messageBtn.hidden = false;
-      messageBtn.onclick = () => {
-        activeDmUser = user;
-        dmSection.hidden = false;
-        loadDm(true);
-      };
-      if(openDmByDefault){
-        activeDmUser = user;
-        dmSection.hidden = false;
-        loadDm(true);
-      } else if(!data.canMessage){
-        dmSection.hidden = true;
-        stopDmPolling();
-      }
     } else {
       followBtn.style.display = 'none';
-      messageBtn.hidden = true;
-      dmSection.hidden = false;
       editSection.hidden = false;
       descInput.value = data.description || '';
       saveDesc.onclick = async () => {
@@ -402,108 +205,8 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       settingsSection.hidden = false;
       loadSettings();
       loadNotifs();
-      loadDmChannels();
     }
   }
-  function stopDmPolling(){
-    if(dmPoll){
-      clearInterval(dmPoll);
-      dmPoll = null;
-    }
-  }
-  function fmtTime(ts){
-    const d = new Date(ts || Date.now());
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-  function renderDm(messages){
-    dmFeed.innerHTML = '';
-    messages.forEach(msg => {
-      const li = document.createElement('li');
-      li.className = 'dm-msg' + (msg.sender === storeUser ? ' mine' : '');
-      const head = document.createElement('div');
-      head.innerHTML = '<strong>@' + (msg.sender || 'user') + '</strong> · ' + fmtTime(msg.ts);
-      const body = document.createElement('div');
-      body.textContent = msg.message || '';
-      li.appendChild(head);
-      li.appendChild(body);
-      dmFeed.appendChild(li);
-    });
-    dmFeed.scrollTop = dmFeed.scrollHeight;
-  }
-  async function loadDm(forceOpen = false){
-    if(!storeUser || !activeDmUser || storeUser === activeDmUser) return;
-    const res = await fetch('/messages/' + encodeURIComponent(activeDmUser) + '?viewer=' + encodeURIComponent(storeUser));
-    if(!res.ok){
-      if(res.status === 403){
-        dmSection.hidden = false;
-        dmNote.textContent = 'Follow each other to unlock encrypted private chat.';
-      }
-      stopDmPolling();
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    dmSection.hidden = false;
-    dmNote.textContent = 'Encrypted private messages between mutual followers.';
-    renderDm(Array.isArray(data.messages) ? data.messages : []);
-    if(forceOpen) dmInput.focus();
-    if(!dmPoll){
-      dmPoll = setInterval(() => loadDm(false), 5000);
-    }
-  }
-  function fmtDmPreview(item){
-    const from = item.sender === storeUser ? 'You' : ('@' + (item.sender || item.peer));
-    const text = (item.lastMessage || '').trim() || 'No messages yet';
-    return from + ': ' + text;
-  }
-  async function loadDmChannels(){
-    if(!storeUser) return;
-    const res = await fetch('/messages/channels/' + encodeURIComponent(storeUser));
-    if(!res.ok) return;
-    const data = await res.json().catch(() => ({}));
-    const channels = Array.isArray(data.channels) ? data.channels : [];
-    dmChannelList.innerHTML = '';
-    if(!channels.length){
-      const li = document.createElement('li');
-      li.className = 'muted';
-      li.textContent = 'No direct message channels yet. Follow each other to unlock DMs.';
-      dmChannelList.appendChild(li);
-      return;
-    }
-    channels.forEach((channel) => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'dm-channel-btn';
-      const locked = !channel.canMessage;
-      btn.innerHTML =
-        '<strong>@' + channel.peer + (locked ? ' 🔒' : '') + '</strong>' +
-        '<small>' + fmtDmPreview(channel) + '</small>';
-      btn.onclick = () => {
-        activeDmUser = channel.peer;
-        dmSection.hidden = false;
-        loadDm(true);
-      };
-      li.appendChild(btn);
-      dmChannelList.appendChild(li);
-    });
-  }
-  dmForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = dmInput.value.trim();
-    if(!text || !storeUser || !activeDmUser) return;
-    const res = await fetch('/messages/' + encodeURIComponent(activeDmUser), {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ from: storeUser, message: text })
-    });
-    if(!res.ok){
-      alert('Unable to send message. Both users must follow each other.');
-      return;
-    }
-    dmInput.value = '';
-    loadDm();
-    loadDmChannels();
-  });
   async function loadNotifs(){
     const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
     if(!res.ok) return;
@@ -516,23 +219,10 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         li.textContent = (n.data.from || 'Someone') + ' liked your post #' + n.data.messageId;
       } else if(n.type === 'follow'){
         li.textContent = (n.data.from || 'Someone') + ' started following you';
-      } else if(n.type === 'dm'){
-        li.textContent = 'New DM from ' + (n.data.from || 'Someone') + ': ' + (n.data.preview || '');
-      } else if(n.type === 'dm-unlocked'){
-        li.textContent = 'Private chat unlocked with ' + (n.data.with || 'a mutual follower');
       } else if(n.type === 'broadcast'){
         li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
-      }
-      if(n.type === 'dm' && n.data.from){
-        li.style.cursor = 'pointer';
-        li.title = 'Open private chat';
-        li.onclick = () => {
-          activeDmUser = n.data.from;
-          dmSection.hidden = false;
-          loadDm(true);
-        };
       }
       notifsEl.appendChild(li);
     });
@@ -555,7 +245,6 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     return outputArray;
   }
   load();
-  window.addEventListener('beforeunload', stopDmPolling);
 })();
 </script>
 </body>
