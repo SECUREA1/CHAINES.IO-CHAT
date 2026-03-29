@@ -193,8 +193,8 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #notif-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #notif-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -684,7 +684,7 @@
       font-size: 1rem;
     }
 
-      .download-btn{
+    .download-btn{
       display:inline-block;
       margin-top:4px;
       padding:4px 8px;
@@ -695,76 +695,6 @@
       text-decoration:none;
       font-size:12px;
       box-shadow: var(--shadow);
-    }
-    .notif-btn{
-      position: relative;
-      overflow: visible;
-    }
-    .notif-btn__badge{
-      position:absolute;
-      top:-6px;
-      right:-6px;
-      min-width:18px;
-      height:18px;
-      border-radius:999px;
-      background:#ef4444;
-      color:#fff;
-      border:2px solid var(--panel);
-      font-size:11px;
-      line-height:1;
-      font-weight:700;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:0 4px;
-    }
-    .notif-panel{
-      position: fixed;
-      right: 14px;
-      bottom: calc(88px + env(safe-area-inset-bottom));
-      width: min(92vw, 360px);
-      max-height: min(60vh, 460px);
-      overflow: auto;
-      border: 1px solid var(--lining);
-      border-radius: 14px;
-      background: color-mix(in oklab, var(--panel), transparent 6%);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-      z-index: 40;
-      padding: 10px;
-    }
-    .notif-panel h3{
-      margin: 2px 4px 8px;
-      font-size: 14px;
-    }
-    .notif-list{
-      list-style:none;
-      margin:0;
-      padding:0;
-      display:grid;
-      gap:8px;
-    }
-    .notif-item{
-      border:1px solid var(--lining);
-      border-radius:10px;
-      background: color-mix(in oklab, var(--panel), transparent 20%);
-      padding:8px 10px;
-      cursor:pointer;
-      font-size:13px;
-    }
-    .notif-item:hover{
-      border-color: color-mix(in oklab, var(--gold), transparent 45%);
-    }
-    .notif-item__time{
-      display:block;
-      margin-top:4px;
-      color:var(--muted);
-      font-size:11px;
-    }
-    .notif-empty{
-      margin: 4px;
-      color: var(--muted);
-      font-size:13px;
     }
 
     /* ✅ make hidden actually hide, even with .auth display rules */
@@ -886,10 +816,6 @@
       </form>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
-        <button class="chip notif-btn" id="notif-btn" title="Notifications" aria-label="Notifications">
-          🔔
-          <span id="notif-badge" class="notif-btn__badge" hidden>0</span>
-        </button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
@@ -910,11 +836,6 @@
       <p id="popup-text"></p>
       <div id="popup-actions" class="popup-actions"></div>
     </div>
-  </div>
-  <div id="notif-panel" class="notif-panel" hidden>
-    <h3>New notifications</h3>
-    <ul id="notif-list" class="notif-list"></ul>
-    <p id="notif-empty" class="notif-empty" hidden>No new notifications.</p>
   </div>
 
   <div id="omconsole-modal" class="omconsole-modal" hidden>
@@ -985,15 +906,9 @@
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
-    const notifBtn = el('#notif-btn');
-    const notifBadge = el('#notif-badge');
-    const notifPanel = el('#notif-panel');
-    const notifList = el('#notif-list');
-    const notifEmpty = el('#notif-empty');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
-    let notificationPollTimer = null;
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
@@ -1013,88 +928,6 @@
         autoResize(input);
         input.focus();
       }
-    });
-
-    function describeNotification(n){
-      if(n.type === 'like') return `${n.data?.from || 'Someone'} liked your post #${n.data?.messageId || ''}`.trim();
-      if(n.type === 'follow') return `${n.data?.from || 'Someone'} started following you`;
-      if(n.type === 'broadcast') return `${n.data?.from || 'Someone'} requested to ${n.data?.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`;
-      if(n.type === 'dm') return `${n.data?.from || 'Someone'} sent you a private encrypted message`;
-      if(n.type === 'self-destruct') return `Your post #${n.data?.messageId || ''} self-destructed`.trim();
-      return 'You have a new notification';
-    }
-
-    function notificationDestination(n){
-      if(n.type === 'follow' && n.data?.from) return '/profile.html?user=' + encodeURIComponent(n.data.from);
-      if(n.type === 'dm' && n.data?.from) return '/private-chat.html?user=' + encodeURIComponent(n.data.from);
-      return '/profile.html?user=' + encodeURIComponent(store.user || '');
-    }
-
-    async function fetchNotifications(){
-      if(!store.user) return [];
-      try {
-        const res = await apiFetch('/notifications/' + encodeURIComponent(store.user));
-        if(!res.ok) return [];
-        const list = await res.json().catch(()=>[]);
-        return Array.isArray(list) ? list : [];
-      } catch {
-        return [];
-      }
-    }
-
-    async function refreshNotificationBadge(){
-      const all = await fetchNotifications();
-      const unread = all.filter(n => !n.read);
-      const count = unread.length;
-      notifBadge.hidden = count === 0;
-      notifBadge.textContent = String(Math.min(count, 99));
-      return unread;
-    }
-
-    async function openNotifications(){
-      const unread = await refreshNotificationBadge();
-      notifList.innerHTML = '';
-      if(!unread.length){
-        notifEmpty.hidden = false;
-      } else {
-        notifEmpty.hidden = true;
-        unread.forEach((n) => {
-          const li = document.createElement('li');
-          li.className = 'notif-item';
-          li.tabIndex = 0;
-          li.textContent = describeNotification(n);
-          const tm = document.createElement('span');
-          tm.className = 'notif-item__time';
-          tm.textContent = n.ts ? new Date(n.ts).toLocaleString() : '';
-          li.appendChild(tm);
-          const go = () => { window.location.href = notificationDestination(n); };
-          li.addEventListener('click', go);
-          li.addEventListener('keydown', (ev) => {
-            if(ev.key === 'Enter' || ev.key === ' ') {
-              ev.preventDefault();
-              go();
-            }
-          });
-          notifList.appendChild(li);
-        });
-      }
-      notifPanel.hidden = false;
-      try {
-        await apiFetch('/notifications/' + encodeURIComponent(store.user) + '/read', { method:'POST' });
-      } catch {}
-      notifBadge.hidden = true;
-    }
-
-    notifBtn.addEventListener('click', async (ev) => {
-      ev.stopPropagation();
-      if(notifPanel.hidden) await openNotifications();
-      else notifPanel.hidden = true;
-    });
-
-    document.addEventListener('click', (ev) => {
-      if(notifPanel.hidden) return;
-      if(notifPanel.contains(ev.target) || notifBtn.contains(ev.target)) return;
-      notifPanel.hidden = true;
     });
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
@@ -2075,12 +1908,6 @@
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
       setupPush();
-      refreshNotificationBadge();
-      if(notificationPollTimer) clearInterval(notificationPollTimer);
-      notificationPollTimer = setInterval(() => {
-        if(document.hidden) return;
-        refreshNotificationBadge();
-      }, 30000);
     }
 
     async function setupPush(){
