@@ -191,15 +191,23 @@ function saveChatMemory(items = []) {
 function storeChatMemory(message = {}) {
   const items = loadChatMemory();
   const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
+  const normalizedFile =
+    message.file || message.video || null;
+  const normalizedFileType =
+    message.file_type ||
+    message.fileType ||
+    message.video_type ||
+    message.videoType ||
+    null;
   const entry = {
     id: Number(message.id),
     user: message.user || "",
     room: message.room || null,
     message: message.text ?? message.message ?? "",
     image: message.image || null,
-    file: message.file || null,
+    file: normalizedFile,
     file_name: message.file_name || message.fileName || null,
-    file_type: message.file_type || message.fileType || null,
+    file_type: normalizedFileType,
     ts: Number(message.ts) || Date.now(),
   };
   if (idx >= 0) {
@@ -1753,11 +1761,18 @@ wss.on("connection", (ws) => {
     // higher than the desired byte thresholds.
     if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
     if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
+    if (msg.video && msg.video.length > 50_000_000) return; // legacy video field
+    if (!msg.file && msg.video) msg.file = msg.video;
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
-    const fileType = msg.file_type || msg.fileType || null;
+    const fileType =
+      msg.file_type ||
+      msg.fileType ||
+      msg.video_type ||
+      msg.videoType ||
+      null;
     ensureUserRecord(msg.user || "");
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
