@@ -3187,9 +3187,14 @@
         seen.add(m.id);
         if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
-          if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-          if(streams[m.room]){
-            appendMessage(m, false, streams[m.room].feed);
+          const isLiveRoom = userCache.some(u => (typeof u === 'object' && u) ? (u.id === m.room && !!u.live) : false);
+          if(isLiveRoom){
+            if(!streams[m.room]) ensureStreamThumb(m.room, m.user || m.room);
+            if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
+          } else {
+            // Archived room-scoped posts should remain visible after reconnect/redeploy,
+            // even when the original broadcaster websocket id no longer exists.
+            appendMessage(m);
           }
         } else {
           appendMessage(m);
