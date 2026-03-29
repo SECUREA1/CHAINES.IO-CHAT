@@ -103,9 +103,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const liveToggle = document.getElementById('live-toggle');
   const messageBtn = document.getElementById('message-btn');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
+  const feedMemoryKey = user ? ('chaines_profile_feed_' + user) : '';
+  const tabMemoryKey = user ? ('chaines_profile_feed_tab_' + user) : '';
+  const allowedTabs = new Set(['posts', 'replies', 'images', 'videos']);
 
   let profileData = null;
-  let activeTab = 'posts';
+  const rememberedTab = tabMemoryKey ? (localStorage.getItem(tabMemoryKey) || '') : '';
+  let activeTab = allowedTabs.has(rememberedTab) ? rememberedTab : 'posts';
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -124,10 +128,46 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   tabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       activeTab = btn.dataset.tab;
+      if(tabMemoryKey) localStorage.setItem(tabMemoryKey, activeTab);
       tabs.forEach((item) => item.classList.toggle('active', item === btn));
       renderFeed();
     });
   });
+  tabs.forEach((item) => item.classList.toggle('active', item.dataset.tab === activeTab));
+
+  function normalizeProfileData(raw){
+    const data = raw && typeof raw === 'object' ? raw : {};
+    return {
+      ...data,
+      posts: Array.isArray(data.posts) ? data.posts : [],
+      replies: Array.isArray(data.replies) ? data.replies : []
+    };
+  }
+
+  function saveFeedMemory(){
+    if(!feedMemoryKey || !profileData) return;
+    try {
+      localStorage.setItem(feedMemoryKey, JSON.stringify({
+        username: profileData.username || user,
+        profilePic: profileData.profilePic || null,
+        description: profileData.description || '',
+        posts: Array.isArray(profileData.posts) ? profileData.posts : [],
+        replies: Array.isArray(profileData.replies) ? profileData.replies : [],
+        followerCount: Number.isFinite(profileData.followerCount) ? profileData.followerCount : (profileData.followers?.length || 0),
+        followingCount: Number.isFinite(profileData.followingCount) ? profileData.followingCount : (profileData.following?.length || 0),
+        savedAt: Date.now()
+      }));
+    } catch {}
+  }
+
+  function loadFeedMemory(){
+    if(!feedMemoryKey) return null;
+    try {
+      return normalizeProfileData(JSON.parse(localStorage.getItem(feedMemoryKey) || 'null'));
+    } catch {
+      return null;
+    }
+  }
 
   function formatTime(ts){
     if(!ts) return 'Unknown time';
@@ -208,6 +248,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       if(res.ok){
         post.likes = data.likes || post.likes || 0;
         likeBtn.textContent = '❤️ ' + post.likes;
+        saveFeedMemory();
       }
     });
     actions.appendChild(likeBtn);
@@ -237,6 +278,17 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         post.comments = post.comments || [];
         post.comments.push({ id: data.reply.id, user: storeUser, text: textValue, ts: data.reply.ts });
         replyList.appendChild(createReplyElement({ user: storeUser, text: textValue }));
+        if(Array.isArray(profileData?.replies)){
+          profileData.replies.unshift({
+            id: data.reply.id,
+            message_id: post.id,
+            user: storeUser,
+            text: textValue,
+            ts: data.reply.ts,
+            post_user: profileData?.username || user
+          });
+        }
+        saveFeedMemory();
         input.value = '';
       }
     });
@@ -326,10 +378,18 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   async function load(){
     if(!user) return;
+    if(!profileData){
+      const cached = loadFeedMemory();
+      if(cached){
+        profileData = cached;
+        renderFeed();
+      }
+    }
     const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok) return;
-    const data = await res.json();
+    const data = normalizeProfileData(await res.json());
     profileData = data;
+    saveFeedMemory();
     nameEl.textContent = '@' + data.username;
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
