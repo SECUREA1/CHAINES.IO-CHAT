@@ -28,12 +28,22 @@
   --shadow:0 0 20px rgba(255,215,0,.4);
 }
 body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
-.profile-header{display:flex;align-items:center;gap:12px;background:color-mix(in oklab, var(--panel), transparent 25%);padding:10px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.profile-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:color-mix(in oklab, var(--panel), transparent 25%);padding:10px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .profile-header img{width:64px;height:64px;border-radius:50%;object-fit:cover;}
 .follow-btn{padding:8px 12px;border-radius:12px;border:0;font-weight:700;cursor:pointer;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;box-shadow:var(--shadow);}
-.posts{list-style:none;padding:0;}
-.post{margin-bottom:12px;padding:8px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
-textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);padding:8px;box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.posts{list-style:none;padding:0;margin:0;}
+.post{margin-bottom:12px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.post-media{margin-top:8px;max-width:100%;border-radius:8px;}
+.post-meta{color:var(--muted);font-size:13px;margin-bottom:6px;}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
+.tab-btn{padding:6px 10px;border-radius:999px;border:1px solid var(--lining);background:transparent;color:var(--fg);cursor:pointer;}
+.tab-btn.active{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;font-weight:700;}
+textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lining);background:color-mix(in oklab, var(--panel), transparent 25%);color:var(--fg);padding:8px;box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.reply-wrap{margin-top:10px;}
+.reply-list{margin-top:8px;padding-top:8px;border-top:1px solid var(--lining);}
+.reply-item{font-size:13px;margin:4px 0;}
+.hidden{display:none!important;}
+.section-title{margin:10px 0 8px;}
 </style>
 </head>
 <body>
@@ -52,6 +62,17 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+
+  <div class="tab-row" id="feed-tabs">
+    <button class="tab-btn active" data-tab="posts" type="button">Posts</button>
+    <button class="tab-btn" data-tab="replies" type="button">Replies</button>
+    <button class="tab-btn" data-tab="images" type="button">Images</button>
+    <button class="tab-btn" data-tab="videos" type="button">Videos</button>
+  </div>
+
+  <h3 class="section-title">Profile Feed</h3>
+  <ul id="p-feed" class="posts"></ul>
+
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
     <label><input type="checkbox" id="push-toggle" /> Enable push notifications</label><br />
@@ -59,8 +80,6 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   </div>
   <h3>Notifications</h3>
   <ul id="p-notifs" class="posts"></ul>
-  <h3>Posts</h3>
-  <ul id="p-posts" class="posts"></ul>
 </div>
 <script>
 (() => {
@@ -70,7 +89,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
   const descEl = document.getElementById('p-desc');
-  const postsEl = document.getElementById('p-posts');
+  const feedEl = document.getElementById('p-feed');
   const followBtn = document.getElementById('follow-btn');
   const editSection = document.getElementById('edit-section');
   const descInput = document.getElementById('p-desc-input');
@@ -83,6 +102,10 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
   const messageBtn = document.getElementById('message-btn');
+  const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
+
+  let profileData = null;
+  let activeTab = 'posts';
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -97,6 +120,156 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       reader.readAsDataURL(file);
     }
   });
+
+  tabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      tabs.forEach((item) => item.classList.toggle('active', item === btn));
+      renderFeed();
+    });
+  });
+
+  function formatTime(ts){
+    if(!ts) return 'Unknown time';
+    const d = new Date(ts);
+    return Number.isNaN(d.getTime()) ? 'Unknown time' : d.toLocaleString();
+  }
+
+  function detectMime(post){
+    if(post.file_type) return post.file_type;
+    if(post.fileType) return post.fileType;
+    if(post.file){
+      const m = String(post.file).match(/^data:(.*?);/);
+      if(m) return m[1];
+    }
+    if(post.image) return 'image/*';
+    return '';
+  }
+
+  function filteredFeed(){
+    const posts = Array.isArray(profileData?.posts) ? profileData.posts : [];
+    const replies = Array.isArray(profileData?.replies) ? profileData.replies : [];
+    if(activeTab === 'replies') return replies;
+    if(activeTab === 'images') return posts.filter((p) => detectMime(p).startsWith('image/'));
+    if(activeTab === 'videos') return posts.filter((p) => detectMime(p).startsWith('video/'));
+    return posts;
+  }
+
+  function createReplyElement(c){
+    const div = document.createElement('div');
+    div.className = 'reply-item';
+    div.textContent = '@' + (c.user || 'unknown') + ': ' + (c.text || '');
+    return div;
+  }
+
+  function renderPostCard(post){
+    const li = document.createElement('li');
+    li.className = 'post';
+    const meta = document.createElement('div');
+    meta.className = 'post-meta';
+    meta.textContent = 'Post #' + post.id + ' • ' + formatTime(post.ts);
+    li.appendChild(meta);
+
+    const text = document.createElement('div');
+    text.textContent = post.message || post.text || '';
+    li.appendChild(text);
+
+    const data = post.file || post.image;
+    const mime = detectMime(post);
+    if(data && mime.startsWith('image/')){
+      const img = document.createElement('img');
+      img.className = 'post-media';
+      img.src = data;
+      img.alt = post.file_name || post.fileName || 'image';
+      li.appendChild(img);
+    } else if(data && mime.startsWith('video/')){
+      const vid = document.createElement('video');
+      vid.className = 'post-media';
+      vid.src = data;
+      vid.controls = true;
+      vid.playsInline = true;
+      li.appendChild(vid);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'reply-wrap';
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'follow-btn';
+    likeBtn.type = 'button';
+    likeBtn.textContent = '❤️ ' + (post.likes || 0);
+    likeBtn.addEventListener('click', async () => {
+      if(!storeUser){ alert('Log in to like posts.'); return; }
+      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/like', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ user: storeUser })
+      });
+      const data = await res.json().catch(()=>({}));
+      if(res.ok){
+        post.likes = data.likes || post.likes || 0;
+        likeBtn.textContent = '❤️ ' + post.likes;
+      }
+    });
+    actions.appendChild(likeBtn);
+
+    const replyList = document.createElement('div');
+    replyList.className = 'reply-list';
+    (post.comments || []).forEach((reply) => replyList.appendChild(createReplyElement(reply)));
+
+    const form = document.createElement('form');
+    form.className = 'reply-wrap';
+    const input = document.createElement('input');
+    input.className = 'reply-input';
+    input.placeholder = 'Reply to this post...';
+    form.appendChild(input);
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if(!storeUser){ alert('Log in to reply.'); return; }
+      const textValue = (input.value || '').trim();
+      if(!textValue) return;
+      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/reply', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ user: storeUser, text: textValue })
+      });
+      const data = await res.json().catch(()=>({}));
+      if(res.ok && data.reply){
+        post.comments = post.comments || [];
+        post.comments.push({ id: data.reply.id, user: storeUser, text: textValue, ts: data.reply.ts });
+        replyList.appendChild(createReplyElement({ user: storeUser, text: textValue }));
+        input.value = '';
+      }
+    });
+
+    li.appendChild(actions);
+    li.appendChild(replyList);
+    li.appendChild(form);
+    return li;
+  }
+
+  function renderReplyCard(reply){
+    const li = document.createElement('li');
+    li.className = 'post';
+    li.innerHTML = `<div class="post-meta">Reply • ${formatTime(reply.ts)}</div><div>${reply.text || ''}</div><div class="post-meta">On @${reply.post_user || 'unknown'} post #${reply.message_id || ''}</div>`;
+    return li;
+  }
+
+  function renderFeed(){
+    feedEl.innerHTML = '';
+    const items = filteredFeed();
+    if(!items.length){
+      const li = document.createElement('li');
+      li.className = 'post';
+      li.textContent = 'No ' + activeTab + ' yet.';
+      feedEl.appendChild(li);
+      return;
+    }
+    if(activeTab === 'replies'){
+      items.forEach((reply) => feedEl.appendChild(renderReplyCard(reply)));
+      return;
+    }
+    items.forEach((post) => feedEl.appendChild(renderPostCard(post)));
+  }
 
   pushToggle.addEventListener('change', async () => {
     if (pushToggle.checked) {
@@ -142,6 +315,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       });
     }
   });
+
   liveToggle.addEventListener('change', async () => {
     await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
       method:'POST',
@@ -155,17 +329,12 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = await res.json();
+    profileData = data;
     nameEl.textContent = '@' + data.username;
-    if(data.profilePic){ avatar.src = data.profilePic; } else { avatar.style.display='none'; }
+    if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
-    followInfo.textContent = 'Followers: ' + data.followers.length + ' • Following: ' + data.following.length;
-    postsEl.innerHTML = '';
-    data.posts.forEach(p => {
-      const li = document.createElement('li');
-      li.className = 'post';
-      li.textContent = p.message || p.text || '';
-      postsEl.appendChild(li);
-    });
+    followInfo.textContent = 'Followers: ' + (data.followers?.length || 0) + ' • Following: ' + (data.following?.length || 0);
+
     if(storeUser && storeUser !== user){
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
       followBtn.onclick = async () => {
@@ -198,13 +367,11 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
           reader.onload = (e) => {
             localStorage.setItem('chaines_profile_pic', e.target.result);
             avatar.src = e.target.result;
-            alert('Profile updated');
             load();
             loadNotifs();
           };
           reader.readAsDataURL(picInput.files[0]);
         } else {
-          alert('Profile updated');
           load();
           loadNotifs();
         }
@@ -213,7 +380,9 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       loadSettings();
       loadNotifs();
     }
+    renderFeed();
   }
+
   async function loadNotifs(){
     const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
     if(!res.ok) return;
@@ -234,6 +403,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
       notifsEl.appendChild(li);
     });
   }
+
   async function loadSettings(){
     const res = await fetch('/notification-settings/' + encodeURIComponent(storeUser));
     if(!res.ok) return;
@@ -241,6 +411,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     pushToggle.checked = !!data.push;
     liveToggle.checked = !!data.live;
   }
+
   function urlBase64ToUint8Array(base64String){
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -251,6 +422,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     }
     return outputArray;
   }
+
   load();
 })();
 </script>

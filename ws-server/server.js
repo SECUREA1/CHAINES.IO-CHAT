@@ -258,6 +258,12 @@ function saveProfiles() {
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
 
+function ensureUserRecord(username = "") {
+  const clean = (username || "").toString().trim();
+  if (!clean) return;
+  db.prepare("INSERT OR IGNORE INTO users (username) VALUES (?)").run(clean);
+}
+
 function normalizeBackupEmail(value = "") {
   const email = (value || "").toString().trim().toLowerCase();
   if (!email) return null;
@@ -930,50 +936,84 @@ app.get(["/profile.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
+  const targetUser = (req.params.username || "").toString().trim();
   const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
     )
-    .get(req.params.username);
-  const memUser = profiles[req.params.username] || {};
-  if (!dbUser && !memUser.password) {
+    .get(targetUser);
+  const memUser = profiles[targetUser] || {};
+  const hasPosts = !!db
+    .prepare("SELECT 1 FROM chat_messages WHERE user=? LIMIT 1")
+    .get(targetUser);
+  if (!dbUser && !memUser.password && !hasPosts) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const posts = dbUser
+  const posts = db
+    .prepare(
+      "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
+    )
+    .all(targetUser);
+  const postIds = posts.map((post) => post.id);
+  const postIdPlaceholders = postIds.map(() => "?").join(", ");
+  const commentRows = postIds.length
     ? db
         .prepare(
-          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
+          `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments WHERE message_id IN (${postIdPlaceholders}) ORDER BY id`
         )
-        .all(req.params.username)
+        .all(...postIds)
     : [];
-  const followers = dbUser
+  const likeRows = postIds.length
     ? db
-        .prepare("SELECT follower FROM follows WHERE following=?")
-        .all(req.params.username)
-        .map((r) => r.follower)
+        .prepare(
+          `SELECT message_id, COUNT(*) as c FROM likes WHERE message_id IN (${postIdPlaceholders}) GROUP BY message_id`
+        )
+        .all(...postIds)
     : [];
-  const following = dbUser
-    ? db
-        .prepare("SELECT following FROM follows WHERE follower=?")
-        .all(req.params.username)
-        .map((r) => r.following)
-    : [];
+  const commentsByMessage = {};
+  for (const row of commentRows) {
+    (commentsByMessage[row.message_id] ||= []).push({
+      id: row.id,
+      user: row.user,
+      text: row.text,
+      ts: row.ts,
+    });
+  }
+  const likesByMessage = {};
+  for (const row of likeRows) likesByMessage[row.message_id] = row.c;
+  const hydratedPosts = posts.map((post) => ({
+    ...post,
+    likes: likesByMessage[post.id] || 0,
+    comments: commentsByMessage[post.id] || [],
+  }));
+  const replies = db
+    .prepare(
+      "SELECT c.id, c.message_id, c.user, c.text, strftime('%s', c.timestamp) * 1000 as ts, m.user as post_user, m.message as post_message FROM comments c LEFT JOIN chat_messages m ON c.message_id = m.id WHERE c.user=? ORDER BY c.id DESC"
+    )
+    .all(targetUser);
+  const followers = db
+    .prepare("SELECT follower FROM follows WHERE following=?")
+    .all(targetUser)
+    .map((r) => r.follower);
+  const following = db
+    .prepare("SELECT following FROM follows WHERE follower=?")
+    .all(targetUser)
+    .map((r) => r.following);
   const isFollowing = viewer
-    ? dbUser
-      ? !!db
-          .prepare(
-            "SELECT 1 FROM follows WHERE follower=? AND following=?"
-          )
-          .get(viewer, req.params.username)
-      : false
+    ? !!db
+        .prepare(
+          "SELECT 1 FROM follows WHERE follower=? AND following=?"
+        )
+        .get(viewer, targetUser)
     : false;
   res.json({
-    username: req.params.username,
+    username: targetUser,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
-    posts,
+    posts: hydratedPosts,
+    replies,
     followers,
     following,
     isFollowing,
@@ -1011,37 +1051,96 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
 
 app.post("/profile/:username/follow", (req, res) => {
   const { follower } = req.body || {};
-  if (!follower) {
+  const cleanFollower = (follower || "").toString().trim();
+  const cleanFollowing = (req.params.username || "").toString().trim();
+  if (!cleanFollower || !cleanFollowing) {
     res.status(400).json({ error: "Missing follower" });
     return;
   }
+  if (cleanFollower === cleanFollowing) {
+    res.status(400).json({ error: "You cannot follow yourself." });
+    return;
+  }
+  ensureUserRecord(cleanFollower);
+  ensureUserRecord(cleanFollowing);
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(follower, req.params.username);
+    .get(cleanFollower, cleanFollowing);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(follower, req.params.username);
+      .run(cleanFollower, cleanFollowing);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(follower, req.params.username);
+      .run(cleanFollower, cleanFollowing);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        req.params.username,
-        JSON.stringify({ from: follower })
+        cleanFollowing,
+        JSON.stringify({ from: cleanFollower })
       );
     sendPush(
-      req.params.username,
+      cleanFollowing,
       "New Follower",
-      `${follower} started following you`
+      `${cleanFollower} started following you`
     );
     res.json({ following: true });
   }
+});
+
+app.post("/messages/:messageId/like", (req, res) => {
+  const messageId = Number(req.params.messageId);
+  const user = (req.body?.user || "").toString().trim();
+  if (!Number.isFinite(messageId) || !user) {
+    res.status(400).json({ error: "Message id and user are required." });
+    return;
+  }
+  ensureUserRecord(user);
+  db
+    .prepare("INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)")
+    .run(messageId, user);
+  const count = db
+    .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
+    .get(messageId)?.c || 0;
+  const owner = db
+    .prepare("SELECT user FROM chat_messages WHERE id=?")
+    .get(messageId)?.user;
+  if (owner && owner !== user) {
+    db
+      .prepare(
+        "INSERT INTO notifications (username, type, data) VALUES (?, 'like', ?)"
+      )
+      .run(owner, JSON.stringify({ from: user, messageId }));
+  }
+  res.json({ success: true, likes: count });
+});
+
+app.post("/messages/:messageId/reply", (req, res) => {
+  const messageId = Number(req.params.messageId);
+  const user = (req.body?.user || "").toString().trim();
+  const text = (req.body?.text || "").toString().trim();
+  if (!Number.isFinite(messageId) || !user || !text) {
+    res.status(400).json({ error: "Message id, user, and text are required." });
+    return;
+  }
+  ensureUserRecord(user);
+  const info = db
+    .prepare("INSERT INTO comments (message_id, user, text) VALUES (?, ?, ?)")
+    .run(messageId, user, text);
+  res.json({
+    success: true,
+    reply: {
+      id: info.lastInsertRowid,
+      messageId,
+      user,
+      text,
+      ts: Date.now(),
+    },
+  });
 });
 
 app.get("/notifications/:username", (req, res) => {
@@ -1573,6 +1672,7 @@ wss.on("connection", (ws) => {
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
+    ensureUserRecord(msg.user || "");
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
