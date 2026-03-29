@@ -1374,7 +1374,7 @@
       get indexPostsKey(){
         return 'chaines_index_posts';
       },
-      loadRawPosts(){
+      recallIndexMessages(){
         try{
           const raw = localStorage.getItem(this.indexPostsKey);
           if(raw) return JSON.parse(raw) || [];
@@ -1387,32 +1387,38 @@
           return [];
         } catch { return []; }
       },
-      savePosts(items){
+      saveIndexMessages(items){
         try { localStorage.setItem(this.indexPostsKey, JSON.stringify(items)); }
         catch {}
       },
+      loadRawPosts(){
+        return this.recallIndexMessages();
+      },
+      savePosts(items){
+        this.saveIndexMessages(items);
+      },
       pushMsg(m) {
         try {
-          const items = this.loadRawPosts();
+          const items = this.recallIndexMessages();
           const idx = items.findIndex(x => x.id === m.id);
           if(idx >= 0) items[idx] = m;
           else items.push(m);
           while (items.length > 200) items.shift();
-          this.savePosts(items);
+          this.saveIndexMessages(items);
         } catch {}
       },
       removeMsg(id){
         try{
-          const items = this.loadRawPosts().filter(x => x.id !== id);
-          this.savePosts(items);
+          const items = this.recallIndexMessages().filter(x => x.id !== id);
+          this.saveIndexMessages(items);
         } catch{}
       },
       loadMsgs() {
         try {
-          const items = this.loadRawPosts();
+          const items = this.recallIndexMessages();
           const now = Date.now();
           const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          this.savePosts(valid);
+          this.saveIndexMessages(valid);
           return valid;
         } catch { return []; }
       },
@@ -3378,7 +3384,7 @@
           }
         } else {
           appendMessage(m);
-          if(!isLocal && m && m.localOnly) store.pushMsg(m);
+          if(!isLocal && m && !m.room) store.pushMsg({ ...m, localOnly: false });
         }
         if(!isLocal){
           setActiveRoomState({
@@ -3404,10 +3410,17 @@
       async function hydrateIndexPostsFromDatabase(){
         try{
           const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
-          if(!res.ok) return;
+          if(!res.ok){
+            renderCachedFeed();
+            return;
+          }
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          if(!dbMessages.length) return;
+          if(!dbMessages.length){
+            renderCachedFeed();
+            return;
+          }
+          store.saveIndexMessages(dbMessages);
           feed.innerHTML = '';
           seen.clear();
           dbMessages
@@ -3418,7 +3431,9 @@
               appendMessage(m, true);
             });
           scrollToTop();
-        } catch {}
+        } catch {
+          renderCachedFeed();
+        }
       }
 
       function syncOfflineLocalPostsToCloud(){
