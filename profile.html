@@ -240,13 +240,29 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
             mediaWrap.appendChild(img);
           }
           if(p.file){
-            const isVideo = (p.file_type || '').toLowerCase().startsWith('video/');
+            const fileType = ((p.file_type || p.fileType || '') + '').toLowerCase();
+            const fileName = p.file_name || p.fileName || 'attachment';
+            const isVideo = fileType.startsWith('video/');
+            const isImage = fileType.startsWith('image/');
             if(isVideo){
               const video = document.createElement('video');
               video.src = p.file;
               video.controls = true;
               video.preload = 'metadata';
               mediaWrap.appendChild(video);
+            } else if(isImage && !p.image){
+              const fileImage = document.createElement('img');
+              fileImage.src = p.file;
+              fileImage.alt = fileName;
+              mediaWrap.appendChild(fileImage);
+            } else {
+              const fileLink = document.createElement('a');
+              fileLink.href = p.file;
+              fileLink.target = '_blank';
+              fileLink.rel = 'noopener';
+              fileLink.download = fileName;
+              fileLink.textContent = 'Download ' + fileName;
+              mediaWrap.appendChild(fileLink);
             }
           }
           if(mediaWrap.children.length) li.appendChild(mediaWrap);
@@ -291,17 +307,20 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     const grid = document.createElement('div');
     grid.className = 'media-grid';
     mediaItems.forEach((item) => {
-      if(activeTab === 'images' && item.image){
+      const fileType = ((item.file_type || item.fileType || '') + '').toLowerCase();
+      const fileName = item.file_name || item.fileName || 'attachment';
+      if(activeTab === 'images' && (item.image || (item.file && fileType.startsWith('image/')))){
         const img = document.createElement('img');
-        img.src = item.image;
+        img.src = item.image || item.file;
         img.alt = 'Profile image post';
         grid.appendChild(img);
       }
-      if(activeTab === 'videos' && item.file){
+      if(activeTab === 'videos' && item.file && fileType.startsWith('video/')){
         const video = document.createElement('video');
         video.src = item.file;
         video.controls = true;
         video.preload = 'metadata';
+        video.title = fileName;
         grid.appendChild(video);
       }
     });
