@@ -3094,8 +3094,14 @@
             .slice()
             .sort((a, b) => (a.ts || 0) - (b.ts || 0))
             .forEach(m => {
+              if(!m) return;
               seen.add(m.id);
-              appendMessage(m, true);
+              if(m.room){
+                if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
+                if(streams[m.room]) appendMessage(m, true, streams[m.room].feed);
+              } else {
+                appendMessage(m, true);
+              }
             });
           scrollToTop();
         } catch {}

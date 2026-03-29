@@ -287,7 +287,7 @@ function backfillChatMemoryFromDatabase() {
 function loadHistoryFromMemory(room = null) {
   const commentsByMessage = {};
   for (const item of loadChatMemory()) {
-    if (room ? item.room !== room : item.room) continue;
+    if (room && item.room !== room) continue;
     const id = Number(item.id);
     if (!Number.isFinite(id)) continue;
     commentsByMessage[id] = {
@@ -1279,10 +1279,17 @@ const server = http.createServer(app);
 
 function loadHistory(room = null) {
   hydrateChatMessagesFromMemory();
-  const where = room ? "c.room = ?" : "c.room IS NULL";
-  const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
-  );
+  const query = room
+    ? `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts
+       FROM chat_messages c
+       LEFT JOIN users u ON c.user = u.username
+       WHERE c.room = ?
+       ORDER BY c.id`
+    : `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts
+       FROM chat_messages c
+       LEFT JOIN users u ON c.user = u.username
+       ORDER BY c.id`;
+  const stmt = db.prepare(query);
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
