@@ -385,6 +385,9 @@ function saveProfiles() {
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
 backfillChatMemoryFromDatabase();
+console.log(
+  `[startup] persistence configured: DURABLE_ROOT=${DURABLE_ROOT} DB_PATH=${DB_PATH} CHAT_MEMORY_PATH=${CHAT_MEMORY_PATH}`
+);
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
