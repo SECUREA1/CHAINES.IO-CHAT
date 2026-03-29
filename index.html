@@ -2967,28 +2967,11 @@
         }
       }
 
-      async function hydrateIndexPostsFromDatabase(){
-        try{
-          const res = await fetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
-          if(!res.ok) return;
-          const data = await res.json();
-          const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          if(!dbMessages.length) return;
-          feed.innerHTML = '';
-          seen.clear();
-          dbMessages.forEach(m => {
-            receive(m);
-          });
-        } catch {}
-      }
-
       function renderHistory(){
       feed.innerHTML = '';
-      seen.clear();
       const items = store.loadMsgs();
       items.slice().reverse().forEach(m => appendMessage(m, true));
       scrollToTop();
-      hydrateIndexPostsFromDatabase();
     }
 
       function appendMessage(m, skipScroll=false, container=feed){
@@ -3017,13 +3000,6 @@
       const meta = document.createElement('div');
       meta.className = 'meta';
       meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
-      const whoEl = meta.querySelector('.who');
-      if(whoEl){
-        whoEl.style.cursor = 'pointer';
-        whoEl.addEventListener('click', () => {
-          location.href = '/profile.html?user=' + encodeURIComponent(m.user) + '&openDm=1';
-        });
-      }
 
       const text = document.createElement('div');
       text.className = 'msg-text';
