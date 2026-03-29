@@ -1236,50 +1236,81 @@
       get indexPostsKey(){
         return 'chaines_index_posts';
       },
-      loadRawPosts(){
+      get localPostsKey(){
+        return 'chaines_local_posts';
+      },
+      get cloudPostsKey(){
+        return 'chaines_cloud_posts';
+      },
+      loadRawPosts(key){
         try{
-          const raw = localStorage.getItem(this.indexPostsKey);
+          const raw = localStorage.getItem(key);
           if(raw) return JSON.parse(raw) || [];
-          const legacy = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          if(Array.isArray(legacy) && legacy.length){
-            localStorage.setItem(this.indexPostsKey, JSON.stringify(legacy));
-            localStorage.removeItem('chaines_messages');
-            return legacy;
+          if(key === this.localPostsKey){
+            const legacy = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+            if(Array.isArray(legacy) && legacy.length){
+              localStorage.setItem(this.localPostsKey, JSON.stringify(legacy));
+              localStorage.removeItem('chaines_messages');
+              return legacy;
+            }
           }
           return [];
         } catch { return []; }
       },
-      savePosts(items){
-        try { localStorage.setItem(this.indexPostsKey, JSON.stringify(items)); }
+      savePosts(key, items){
+        try { localStorage.setItem(key, JSON.stringify(items)); }
         catch {}
       },
-      pushMsg(m) {
+      pushLocalMsg(m) {
         try {
-          const items = this.loadRawPosts();
+          const items = this.loadRawPosts(this.localPostsKey);
           const idx = items.findIndex(x => x.id === m.id);
           if(idx >= 0) items[idx] = m;
           else items.push(m);
           while (items.length > 200) items.shift();
-          this.savePosts(items);
+          this.savePosts(this.localPostsKey, items);
+        } catch {}
+      },
+      pushCloudMsg(m) {
+        try {
+          const items = this.loadRawPosts(this.cloudPostsKey);
+          const idx = items.findIndex(x => x.id === m.id);
+          if(idx >= 0) items[idx] = m;
+          else items.push(m);
+          while (items.length > 200) items.shift();
+          this.savePosts(this.cloudPostsKey, items);
         } catch {}
       },
       removeMsg(id){
         try{
-          const items = this.loadRawPosts().filter(x => x.id !== id);
-          this.savePosts(items);
+          const localItems = this.loadRawPosts(this.localPostsKey).filter(x => x.id !== id);
+          const cloudItems = this.loadRawPosts(this.cloudPostsKey).filter(x => x.id !== id);
+          this.savePosts(this.localPostsKey, localItems);
+          this.savePosts(this.cloudPostsKey, cloudItems);
         } catch{}
       },
-      loadMsgs() {
+      loadLocalMsgs() {
         try {
-          const items = this.loadRawPosts();
+          const items = this.loadRawPosts(this.localPostsKey);
           const now = Date.now();
           const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          this.savePosts(valid);
+          this.savePosts(this.localPostsKey, valid);
+          return valid;
+        } catch { return []; }
+      },
+      loadCloudMsgs() {
+        try {
+          const items = this.loadRawPosts(this.cloudPostsKey);
+          const now = Date.now();
+          const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
+          this.savePosts(this.cloudPostsKey, valid);
           return valid;
         } catch { return []; }
       },
       clearMsgs() {
         try {
+          localStorage.removeItem(this.localPostsKey);
+          localStorage.removeItem(this.cloudPostsKey);
           localStorage.removeItem(this.indexPostsKey);
           localStorage.removeItem('chaines_messages');
         } catch {}
@@ -2179,7 +2210,8 @@
 
       // Push to UI + storage immediately
         receive(msg, true);
-        store.pushMsg(msg);
+        if(msg.localOnly) store.pushLocalMsg(msg);
+        else store.pushCloudMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -3005,14 +3037,31 @@
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(m) store.pushMsg(m);
+          if(m){
+            if(onlineMode === 'cloud') store.pushCloudMsg(m);
+            else store.pushLocalMsg(m);
+          }
         }
       }
 
-      function renderCachedFeed(){
+      function renderLocalCachedFeed(){
       feed.innerHTML = '';
       seen.clear();
-      const items = store.loadMsgs();
+      const items = store.loadLocalMsgs();
+      items
+        .slice()
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+        .forEach(m => {
+          seen.add(m.id);
+          appendMessage(m, true);
+        });
+      scrollToTop();
+    }
+
+      function renderCloudCachedFeed(){
+      feed.innerHTML = '';
+      seen.clear();
+      const items = store.loadCloudMsgs();
       items
         .slice()
         .sort((a, b) => (a.ts || 0) - (b.ts || 0))
@@ -3030,7 +3079,7 @@
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
           if(!dbMessages.length) return;
-          store.savePosts(dbMessages);
+          store.savePosts(store.cloudPostsKey, dbMessages);
           feed.innerHTML = '';
           seen.clear();
           dbMessages
@@ -3046,7 +3095,7 @@
 
       function syncOfflineLocalPostsToCloud(){
         if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
-        const localItems = store.loadMsgs();
+        const localItems = store.loadLocalMsgs();
         const offlineOnly = localItems.filter(m => (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
         if(!offlineOnly.length) return;
         offlineOnly.forEach((m) => {
@@ -3060,15 +3109,15 @@
           try { socket.send(JSON.stringify(outbound)); } catch {}
         });
         const syncedIds = new Set(offlineOnly.map(m => String(m.id)));
-        store.savePosts(localItems.filter(m => !syncedIds.has(String(m.id))));
+        store.savePosts(store.localPostsKey, localItems.filter(m => !syncedIds.has(String(m.id))));
       }
 
       function renderHistory(){
       if(onlineMode === 'cloud'){
-        renderCachedFeed();
+        renderCloudCachedFeed();
         hydrateIndexPostsFromDatabase();
       } else {
-        renderCachedFeed();
+        renderLocalCachedFeed();
       }
     }
 
