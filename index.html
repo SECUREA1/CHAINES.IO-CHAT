@@ -3211,10 +3211,25 @@
           if(!res.ok) return;
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          if(!dbMessages.length) return;
+          const localMessages = store.loadMsgs().filter((m) => !m.room && (m.localOnly || m.syncPending));
+          const merged = [];
+          const seenIds = new Set();
+          const seenNonces = new Set();
+          dbMessages.forEach((m) => {
+            if(m && m.id != null) seenIds.add(String(m.id));
+            if(m && m.clientNonce) seenNonces.add(String(m.clientNonce));
+            merged.push(m);
+          });
+          localMessages.forEach((m) => {
+            const idKey = m && m.id != null ? String(m.id) : null;
+            const nonceKey = m && m.clientNonce ? String(m.clientNonce) : null;
+            if((idKey && seenIds.has(idKey)) || (nonceKey && seenNonces.has(nonceKey))) return;
+            merged.push(m);
+          });
+          if(!merged.length) return;
           feed.innerHTML = '';
           seen.clear();
-          dbMessages
+          merged
             .slice()
             .sort((a, b) => (a.ts || 0) - (b.ts || 0))
             .forEach(m => {
@@ -3228,8 +3243,9 @@
       function syncOfflineLocalPostsToCloud(){
         if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
         const localItems = store.loadMsgs();
-        const offlineOnly = localItems.filter(m => !m.room && (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
+        const offlineOnly = localItems.filter(m => !m.room && m.localOnly);
         if(!offlineOnly.length) return;
+        const queued = new Map(localItems.map((m) => [String(m.id), m]));
         offlineOnly.forEach((m) => {
           const outbound = {
             ...m,
@@ -3238,9 +3254,10 @@
             localOnly: false,
             clientNonce: m.clientNonce || (Date.now().toString(36) + Math.random().toString(36).slice(2,7))
           };
+          queued.set(String(m.id), { ...m, clientNonce: outbound.clientNonce, syncPending: true });
           try { socket.send(JSON.stringify(outbound)); } catch {}
         });
-        store.clearMsgs();
+        store.savePosts(Array.from(queued.values()));
       }
 
       function renderHistory(){
