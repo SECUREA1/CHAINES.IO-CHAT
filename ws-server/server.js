@@ -986,42 +986,25 @@ app.get("/profile/:username", (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const posts = db
-    .prepare(
-      "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
-    )
-    .all(targetUser);
-  const postIds = posts.map((post) => post.id);
-  const postIdPlaceholders = postIds.map(() => "?").join(", ");
-  const commentRows = postIds.length
-    ? db
-        .prepare(
-          `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments WHERE message_id IN (${postIdPlaceholders}) ORDER BY id`
-        )
-        .all(...postIds)
-    : [];
-  const likeRows = postIds.length
-    ? db
-        .prepare(
-          `SELECT message_id, COUNT(*) as c FROM likes WHERE message_id IN (${postIdPlaceholders}) GROUP BY message_id`
-        )
-        .all(...postIds)
-    : [];
-  const commentsByMessage = {};
-  for (const row of commentRows) {
-    (commentsByMessage[row.message_id] ||= []).push({
-      id: row.id,
-      user: row.user,
-      text: row.text,
-      ts: row.ts,
-    });
-  }
-  const likesByMessage = {};
-  for (const row of likeRows) likesByMessage[row.message_id] = row.c;
+  const allPublicHistory = loadHistory(null);
+  const posts = allPublicHistory
+    .filter((post) => post.user === targetUser)
+    .map((post) => ({
+      id: post.id,
+      message: post.text || "",
+      image: post.image || null,
+      file: post.file || null,
+      file_name: post.fileName || null,
+      file_type: post.fileType || null,
+      ts: post.ts || Date.now(),
+      likes: Number(post.likes) || 0,
+      comments: Array.isArray(post.comments) ? post.comments : [],
+    }))
+    .sort((a, b) => (b.id || 0) - (a.id || 0));
   const hydratedPosts = posts.map((post) => ({
     ...post,
-    likes: likesByMessage[post.id] || 0,
-    comments: commentsByMessage[post.id] || [],
+    likes: Number(post.likes) || 0,
+    comments: Array.isArray(post.comments) ? post.comments : [],
   }));
   const replies = db
     .prepare(

@@ -2147,8 +2147,10 @@
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
+      const clientNonce = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+        clientNonce,
         type: 'chat',
         user: store.user,
         profilePic: store.profilePic,
@@ -2977,6 +2979,17 @@
     }
 
       function receive(m, isLocal=false){
+        if(!isLocal && m && m.clientNonce){
+          const pendingEl = feed.querySelector(`li[data-client-nonce="${m.clientNonce}"]`);
+          if(pendingEl){
+            const pendingId = pendingEl.dataset.id;
+            if(pendingId){
+              seen.delete(pendingId);
+              store.removeMsg(pendingId);
+            }
+            pendingEl.remove();
+          }
+        }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
         if(activeRooms.size > 0 && !m.room) return;
@@ -3025,6 +3038,7 @@
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
       li.dataset.id = m.id;
+      if(m.clientNonce) li.dataset.clientNonce = m.clientNonce;
 
       const av = document.createElement('div');
       av.className = 'avatar';
