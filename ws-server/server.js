@@ -1016,6 +1016,8 @@ app.get("/profile/:username", (req, res) => {
     replies,
     followers,
     following,
+    followerCount: followers.length,
+    followingCount: following.length,
     isFollowing,
   });
 });
@@ -1639,6 +1641,24 @@ wss.on("connection", (ws) => {
             "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
           )
           .run(from, to, ciphertext, iv);
+        if (from !== to) {
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'dm', ?)"
+            )
+            .run(
+              to,
+              JSON.stringify({
+                from,
+                preview: "Sent you a private encrypted message",
+              })
+            );
+          sendPush(
+            to,
+            "New Private Message",
+            `${from} sent you a private encrypted message`
+          );
+        }
         const payload = JSON.stringify({
           type: "dm",
           id: info.lastInsertRowid,

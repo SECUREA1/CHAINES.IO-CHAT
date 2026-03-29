@@ -333,22 +333,38 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     nameEl.textContent = '@' + data.username;
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
-    followInfo.textContent = 'Followers: ' + (data.followers?.length || 0) + ' • Following: ' + (data.following?.length || 0);
+    const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
+    const followingCount = Number.isFinite(data.followingCount) ? data.followingCount : (data.following?.length || 0);
+    followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount;
 
     if(storeUser && storeUser !== user){
+      followBtn.style.display = '';
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
+      messageBtn.textContent = 'Message';
       followBtn.onclick = async () => {
-        await fetch('/profile/' + encodeURIComponent(user) + '/follow', {
+        const res = await fetch('/profile/' + encodeURIComponent(user) + '/follow', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ follower: storeUser })
         });
+        if(!res.ok){
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'Unable to update follow status.');
+          return;
+        }
         load();
       };
       messageBtn.hidden = false;
       messageBtn.onclick = () => {
         window.location.href = '/private-chat.html?user=' + encodeURIComponent(user);
       };
+    } else if(!storeUser && user){
+      followBtn.style.display = '';
+      followBtn.textContent = 'Log in to Follow';
+      followBtn.onclick = () => alert('Please log in to follow users.');
+      messageBtn.hidden = false;
+      messageBtn.textContent = 'Log in to Chat';
+      messageBtn.onclick = () => alert('Please log in to send encrypted private messages.');
     } else {
       followBtn.style.display = 'none';
       messageBtn.hidden = true;
@@ -397,6 +413,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         li.textContent = (n.data.from || 'Someone') + ' started following you';
       } else if(n.type === 'broadcast'){
         li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
+      } else if(n.type === 'dm'){
+        const sender = n.data.from || 'Someone';
+        li.textContent = sender + ' sent you a private encrypted message';
+        li.style.cursor = 'pointer';
+        li.onclick = () => {
+          window.location.href = '/private-chat.html?user=' + encodeURIComponent(sender);
+        };
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
       }
