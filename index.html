@@ -220,68 +220,6 @@
   height: 28px;
   display: block;
 }
-    #notif-btn {
-      position: relative;
-      min-width: 36px;
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      justify-content: center;
-      border-radius: 12px;
-      font-size: 18px;
-      line-height: 1;
-    }
-    #notif-badge {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
-      border-radius: 999px;
-      background: var(--danger);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid color-mix(in oklab, #fff, transparent 70%);
-    }
-    .notif-panel {
-      position: fixed;
-      right: 16px;
-      bottom: calc(84px + env(safe-area-inset-bottom));
-      width: min(360px, calc(100vw - 24px));
-      max-height: min(60vh, 420px);
-      overflow: auto;
-      border-radius: 14px;
-      border: 1px solid var(--lining);
-      background: color-mix(in oklab, var(--panel), transparent 10%);
-      box-shadow: var(--shadow);
-      z-index: 25;
-      padding: 10px;
-    }
-    .notif-panel h3 { margin: 0 0 8px; font-size: 14px; }
-    .notif-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 6px;
-    }
-    .notif-list button {
-      width: 100%;
-      text-align: left;
-      border: 1px solid var(--lining);
-      background: color-mix(in oklab, var(--panel), transparent 25%);
-      color: var(--fg);
-      border-radius: 10px;
-      padding: 8px 10px;
-      cursor: pointer;
-      font: inherit;
-    }
-    .notif-empty { margin: 0; color: var(--muted); font-size: 13px; }
 
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
@@ -878,7 +816,6 @@
       </form>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
-        <button class="chip" id="notif-btn" title="New notifications" aria-label="New notifications">🔔<span id="notif-badge" hidden>0</span></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
@@ -899,11 +836,6 @@
       <p id="popup-text"></p>
       <div id="popup-actions" class="popup-actions"></div>
     </div>
-  </div>
-  <div id="notif-panel" class="notif-panel" hidden>
-    <h3>New notifications</h3>
-    <ul id="notif-list" class="notif-list"></ul>
-    <p id="notif-empty" class="notif-empty" hidden>No new notifications.</p>
   </div>
 
   <div id="omconsole-modal" class="omconsole-modal" hidden>
@@ -974,11 +906,6 @@
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
-    const notifBtn = el('#notif-btn');
-    const notifBadge = el('#notif-badge');
-    const notifPanel = el('#notif-panel');
-    const notifList = el('#notif-list');
-    const notifEmpty = el('#notif-empty');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -1001,22 +928,6 @@
         autoResize(input);
         input.focus();
       }
-    });
-    notifBtn.addEventListener('click', async () => {
-      const willShow = notifPanel.hidden;
-      notifPanel.hidden = !notifPanel.hidden;
-      if(willShow){
-        renderUnreadNotifications();
-        if(unreadNotifications.length){
-          await markNotificationsRead();
-          setNotificationBadge(0);
-        }
-      }
-    });
-    document.addEventListener('click', (ev) => {
-      if(notifPanel.hidden) return;
-      if(notifPanel.contains(ev.target) || notifBtn.contains(ev.target)) return;
-      notifPanel.hidden = true;
     });
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
@@ -1123,8 +1034,6 @@
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
-    let unreadNotifications = [];
-    let notificationPollTimer = null;
     const videoToggle = el('#video-toggle');
     function showStream(){
       videoContainer.removeAttribute('hidden');
@@ -1860,82 +1769,6 @@
       return fetch(apiURL(path), options);
     }
 
-    function formatNotificationText(n){
-      if(!n || !n.type) return 'New notification';
-      const data = n.data || {};
-      if(n.type === 'like') return `${data.from || 'Someone'} liked your post #${data.messageId || ''}`.trim();
-      if(n.type === 'follow') return `${data.from || 'Someone'} started following you`;
-      if(n.type === 'broadcast') return `${data.from || 'Someone'} requested to ${data.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`;
-      if(n.type === 'dm') return `${data.from || 'Someone'} sent you a private encrypted message`;
-      if(n.type === 'self-destruct') return `Your post #${data.messageId || ''} self-destructed`;
-      return 'New notification';
-    }
-
-    function selectNotification(n){
-      if(!n) return;
-      const data = n.data || {};
-      if(n.type === 'dm' && data.from){
-        window.location.href = '/private-chat.html?user=' + encodeURIComponent(data.from);
-        return;
-      }
-      if(n.type === 'follow' && data.from){
-        window.location.href = '/profile.html?user=' + encodeURIComponent(data.from);
-        return;
-      }
-      if((n.type === 'like' || n.type === 'self-destruct') && data.messageId){
-        showChat();
-        const target = feed.querySelector(`li[data-id="${data.messageId}"]`);
-        if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      if(n.type === 'broadcast' && data.from){
-        showPopup(`${data.from} requested to join your broadcast.`, [{ label: 'OK', onClick: () => hidePopup() }]);
-      }
-    }
-
-    function renderUnreadNotifications(){
-      notifList.innerHTML = '';
-      if(!unreadNotifications.length){
-        notifEmpty.hidden = false;
-        return;
-      }
-      notifEmpty.hidden = true;
-      unreadNotifications.forEach((n) => {
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = formatNotificationText(n);
-        btn.addEventListener('click', () => selectNotification(n));
-        li.appendChild(btn);
-        notifList.appendChild(li);
-      });
-    }
-
-    function setNotificationBadge(count){
-      const safeCount = Number.isFinite(count) ? count : 0;
-      notifBadge.hidden = safeCount <= 0;
-      notifBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
-    }
-
-    async function markNotificationsRead(){
-      if(!store.user) return;
-      try {
-        await apiFetch('/notifications/' + encodeURIComponent(store.user) + '/read', { method:'POST' });
-      } catch {}
-    }
-
-    async function refreshUnreadNotifications(){
-      if(!store.user) return;
-      try {
-        const res = await apiFetch('/notifications/' + encodeURIComponent(store.user));
-        if(!res.ok) return;
-        const list = await res.json().catch(() => []);
-        unreadNotifications = Array.isArray(list) ? list.filter(n => !n.read) : [];
-        setNotificationBadge(unreadNotifications.length);
-        if(!notifPanel.hidden) renderUnreadNotifications();
-      } catch {}
-    }
-
     function setStatus(mode){
       onlineMode = mode;
       if(mode === 'cloud'){
@@ -1988,7 +1821,6 @@
                 feed.innerHTML = '';
                 msgs.forEach(m => receive(m));
               }
-              setTimeout(syncOfflineLocalPostsToCloud, 0);
             }
           }
           if(data && data.type === 'id') clientId = data.id;
@@ -2014,9 +1846,6 @@
           }
           if(data && data.type === 'self-destruct') {
             systemNote(`Your post #${data.messageId} self-destructed`);
-          }
-          if(data && ['dm','like','self-destruct','broadcast'].includes(data.type)) {
-            refreshUnreadNotifications();
           }
         } catch {}
       });
@@ -2079,9 +1908,6 @@
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
       setupPush();
-      refreshUnreadNotifications();
-      if(notificationPollTimer) clearInterval(notificationPollTimer);
-      notificationPollTimer = setInterval(refreshUnreadNotifications, 20000);
     }
 
     async function setupPush(){
@@ -2205,16 +2031,7 @@
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if(notificationPollTimer){
-        clearInterval(notificationPollTimer);
-        notificationPollTimer = null;
-      }
-      store.user='';
-      store.profilePic='';
-      location.reload();
-    });
+    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
@@ -3186,13 +3003,7 @@
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal && m){
-            store.pushMsg({
-              ...m,
-              localOnly: false,
-              syncPending: false
-            });
-          }
+          if(!isLocal && m && m.localOnly) store.pushMsg(m);
         }
       }
 
@@ -3216,36 +3027,16 @@
           if(!res.ok) return;
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          const cachedMessages = store.loadMsgs().filter((m) => !m.room);
-          const merged = [];
-          const seenIds = new Set();
-          const seenNonces = new Set();
-          dbMessages.forEach((m) => {
-            if(m && m.id != null) seenIds.add(String(m.id));
-            if(m && m.clientNonce) seenNonces.add(String(m.clientNonce));
-            merged.push(m);
-          });
-          cachedMessages.forEach((m) => {
-            const idKey = m && m.id != null ? String(m.id) : null;
-            const nonceKey = m && m.clientNonce ? String(m.clientNonce) : null;
-            if((idKey && seenIds.has(idKey)) || (nonceKey && seenNonces.has(nonceKey))) return;
-            merged.push(m);
-          });
-          if(!merged.length) return;
+          if(!dbMessages.length) return;
           feed.innerHTML = '';
           seen.clear();
-          merged
+          dbMessages
             .slice()
             .sort((a, b) => (a.ts || 0) - (b.ts || 0))
             .forEach(m => {
               seen.add(m.id);
               appendMessage(m, true);
             });
-          store.savePosts(merged.map((m) => ({
-            ...m,
-            localOnly: Boolean(m?.localOnly),
-            syncPending: Boolean(m?.syncPending)
-          })));
           scrollToTop();
         } catch {}
       }
@@ -3253,9 +3044,8 @@
       function syncOfflineLocalPostsToCloud(){
         if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
         const localItems = store.loadMsgs();
-        const offlineOnly = localItems.filter(m => !m.room && m.localOnly);
+        const offlineOnly = localItems.filter(m => !m.room && (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
         if(!offlineOnly.length) return;
-        const queued = new Map(localItems.map((m) => [String(m.id), m]));
         offlineOnly.forEach((m) => {
           const outbound = {
             ...m,
@@ -3264,10 +3054,9 @@
             localOnly: false,
             clientNonce: m.clientNonce || (Date.now().toString(36) + Math.random().toString(36).slice(2,7))
           };
-          queued.set(String(m.id), { ...m, clientNonce: outbound.clientNonce, syncPending: true });
           try { socket.send(JSON.stringify(outbound)); } catch {}
         });
-        store.savePosts(Array.from(queued.values()));
+        store.clearMsgs();
       }
 
       function renderHistory(){
