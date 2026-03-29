@@ -44,6 +44,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .reply-item{font-size:13px;margin:4px 0;}
 .hidden{display:none!important;}
 .section-title{margin:10px 0 8px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0;}
+.stat-card{padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.stat-label{font-size:12px;color:var(--muted);}
+.stat-value{font-size:18px;font-weight:700;}
+.relation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+.relation-list{list-style:none;margin:0;padding:0;}
+.relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
 </style>
 </head>
 <body>
@@ -62,6 +69,17 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <div id="stats-grid" class="stats-grid"></div>
+  <div class="relation-grid">
+    <div>
+      <h3 class="section-title">Followers</h3>
+      <ul id="followers-list" class="relation-list"></ul>
+    </div>
+    <div>
+      <h3 class="section-title">Following</h3>
+      <ul id="following-list" class="relation-list"></ul>
+    </div>
+  </div>
 
   <div class="tab-row" id="feed-tabs">
     <button class="tab-btn active" data-tab="posts" type="button">Posts</button>
@@ -97,6 +115,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const saveDesc = document.getElementById('save-desc');
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
+  const followersList = document.getElementById('followers-list');
+  const followingList = document.getElementById('following-list');
+  const statsGrid = document.getElementById('stats-grid');
   const backBtn = document.getElementById('back-btn');
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
@@ -271,6 +292,46 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     items.forEach((post) => feedEl.appendChild(renderPostCard(post)));
   }
 
+  function renderRelationList(el, users, emptyText){
+    el.innerHTML = '';
+    if(!users.length){
+      const li = document.createElement('li');
+      li.className = 'relation-item';
+      li.textContent = emptyText;
+      el.appendChild(li);
+      return;
+    }
+    users.forEach((name) => {
+      const li = document.createElement('li');
+      li.className = 'relation-item';
+      const a = document.createElement('a');
+      a.href = '/profile.html?user=' + encodeURIComponent(name);
+      a.textContent = '@' + name;
+      a.style.color = 'inherit';
+      li.appendChild(a);
+      el.appendChild(li);
+    });
+  }
+
+  function renderStats(data){
+    const stats = data?.stats || {};
+    const cards = [
+      ['Posts', stats.posts ?? data?.posts?.length ?? 0],
+      ['Replies', stats.replies ?? data?.replies?.length ?? 0],
+      ['Followers', stats.followers ?? data?.followers?.length ?? 0],
+      ['Following', stats.following ?? data?.following?.length ?? 0],
+      ['Likes Received', stats.likesReceived ?? 0],
+      ['Messages', stats.directMessages ?? 0]
+    ];
+    statsGrid.innerHTML = '';
+    cards.forEach(([label, value]) => {
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = '<div class="stat-label">' + label + '</div><div class="stat-value">' + value + '</div>';
+      statsGrid.appendChild(card);
+    });
+  }
+
   pushToggle.addEventListener('change', async () => {
     if (pushToggle.checked) {
       try {
@@ -336,6 +397,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
     const followingCount = Number.isFinite(data.followingCount) ? data.followingCount : (data.following?.length || 0);
     followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount;
+    renderStats(data);
+    renderRelationList(followersList, Array.isArray(data.followers) ? data.followers : [], 'No followers yet.');
+    renderRelationList(followingList, Array.isArray(data.following) ? data.following : [], 'Not following anyone yet.');
 
     if(storeUser && storeUser !== user){
       followBtn.style.display = '';
