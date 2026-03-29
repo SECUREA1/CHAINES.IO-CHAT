@@ -102,8 +102,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
-  const user = params.get('user');
   const storeUser = localStorage.getItem('chaines_username') || '';
+  const fallbackUser = (params.get('user') || storeUser || '').trim();
+  let currentUser = fallbackUser;
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
   const descEl = document.getElementById('p-desc');
@@ -332,6 +333,32 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     });
   }
 
+  function normalizeProfileData(raw){
+    const data = raw || {};
+    return {
+      username: data.username || currentUser,
+      profilePic: data.profilePic || '',
+      description: data.description || '',
+      posts: Array.isArray(data.posts) ? data.posts : [],
+      replies: Array.isArray(data.replies) ? data.replies : [],
+      followers: Array.isArray(data.followers) ? data.followers : [],
+      following: Array.isArray(data.following) ? data.following : [],
+      followerCount: Number.isFinite(data.followerCount) ? data.followerCount : undefined,
+      followingCount: Number.isFinite(data.followingCount) ? data.followingCount : undefined,
+      stats: data.stats || {},
+      isFollowing: !!data.isFollowing
+    };
+  }
+
+  function resetProfileUI(){
+    followBtn.style.display = '';
+    followBtn.disabled = false;
+    messageBtn.hidden = false;
+    messageBtn.disabled = false;
+    editSection.hidden = true;
+    settingsSection.hidden = true;
+  }
+
   pushToggle.addEventListener('change', async () => {
     if (pushToggle.checked) {
       try {
@@ -385,11 +412,29 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     });
   });
 
-  async function load(){
-    if(!user) return;
-    const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
-    if(!res.ok) return;
-    const data = await res.json();
+  async function load(target = currentUser){
+    currentUser = (target || '').trim();
+    if(!currentUser){
+      nameEl.textContent = '@unknown';
+      descEl.textContent = 'Select a user profile to view full details.';
+      feedEl.innerHTML = '';
+      return;
+    }
+    resetProfileUI();
+    const res = await fetch('/profile/' + encodeURIComponent(currentUser) + '?viewer=' + encodeURIComponent(storeUser));
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      nameEl.textContent = '@' + currentUser;
+      descEl.textContent = err.error || 'Profile could not be loaded.';
+      profileData = normalizeProfileData({ username: currentUser });
+      renderStats(profileData);
+      renderRelationList(followersList, [], 'No followers yet.');
+      renderRelationList(followingList, [], 'Not following anyone yet.');
+      followInfo.textContent = 'Followers: 0 • Following: 0';
+      renderFeed();
+      return;
+    }
+    const data = normalizeProfileData(await res.json());
     profileData = data;
     nameEl.textContent = '@' + data.username;
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
@@ -401,12 +446,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     renderRelationList(followersList, Array.isArray(data.followers) ? data.followers : [], 'No followers yet.');
     renderRelationList(followingList, Array.isArray(data.following) ? data.following : [], 'Not following anyone yet.');
 
-    if(storeUser && storeUser !== user){
+    if(storeUser && storeUser !== currentUser){
       followBtn.style.display = '';
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
       messageBtn.textContent = 'Message';
       followBtn.onclick = async () => {
-        const res = await fetch('/profile/' + encodeURIComponent(user) + '/follow', {
+        const res = await fetch('/profile/' + encodeURIComponent(currentUser) + '/follow', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ follower: storeUser })
@@ -420,9 +465,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       };
       messageBtn.hidden = false;
       messageBtn.onclick = () => {
-        window.location.href = '/private-chat.html?user=' + encodeURIComponent(user);
+        window.location.href = '/private-chat.html?user=' + encodeURIComponent(currentUser);
       };
-    } else if(!storeUser && user){
+    } else if(!storeUser && currentUser){
       followBtn.style.display = '';
       followBtn.textContent = 'Log in to Follow';
       followBtn.onclick = () => alert('Please log in to follow users.');
@@ -430,8 +475,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.textContent = 'Log in to Chat';
       messageBtn.onclick = () => alert('Please log in to send encrypted private messages.');
     } else {
-      followBtn.style.display = 'none';
-      messageBtn.hidden = true;
+      followBtn.style.display = '';
+      followBtn.textContent = 'This is your profile';
+      followBtn.disabled = true;
+      messageBtn.hidden = false;
+      messageBtn.textContent = 'Cannot message yourself';
+      messageBtn.disabled = true;
       editSection.hidden = false;
       descInput.value = data.description || '';
       saveDesc.onclick = async () => {
@@ -510,7 +559,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     return outputArray;
   }
 
-  load();
+  load(currentUser);
 })();
 </script>
 </body>
