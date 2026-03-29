@@ -3187,7 +3187,13 @@
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal && m && m.localOnly) store.pushMsg(m);
+          if(!isLocal && m){
+            store.pushMsg({
+              ...m,
+              localOnly: false,
+              syncPending: false
+            });
+          }
         }
       }
 
@@ -3236,6 +3242,11 @@
               seen.add(m.id);
               appendMessage(m, true);
             });
+          store.savePosts(merged.map((m) => ({
+            ...m,
+            localOnly: Boolean(m?.localOnly),
+            syncPending: Boolean(m?.syncPending)
+          })));
           scrollToTop();
         } catch {}
       }
