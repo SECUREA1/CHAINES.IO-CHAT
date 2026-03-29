@@ -2151,6 +2151,8 @@
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
+      const mediaPayload = file || video || null;
+      const normalizedFileType = fileType || (video ? 'video/webm' : undefined);
       const clientNonce = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
@@ -2161,9 +2163,9 @@
           text: text,
           room: room,
         image: image,
-        file: file,
+        file: mediaPayload,
         fileName: fileName || name,
-        fileType: fileType,
+        fileType: normalizedFileType,
         name: fileName || name,
         isAction,
         broadcast,
@@ -2177,7 +2179,7 @@
 
       // Push to UI + storage immediately
         receive(msg, true);
-        if(!room) store.pushMsg(msg);
+        store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -3028,7 +3030,7 @@
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
           if(!dbMessages.length) return;
-          store.savePosts(dbMessages.filter(m => !m.room));
+          store.savePosts(dbMessages);
           feed.innerHTML = '';
           seen.clear();
           dbMessages
@@ -3045,7 +3047,7 @@
       function syncOfflineLocalPostsToCloud(){
         if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
         const localItems = store.loadMsgs();
-        const offlineOnly = localItems.filter(m => !m.room && (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
+        const offlineOnly = localItems.filter(m => (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
         if(!offlineOnly.length) return;
         offlineOnly.forEach((m) => {
           const outbound = {
