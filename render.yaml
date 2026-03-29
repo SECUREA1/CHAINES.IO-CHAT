@@ -25,7 +25,11 @@ services:
       mountPath: /var/data
       sizeGB: 1
     envVars:
+      - key: PERSISTENT_DATA_DIR
+        value: /var/data
       - key: DB_PATH
         value: /var/data/app.db
       - key: PROFILE_MEMORY_PATH
         value: /var/data/profile_memory/main.json
+      - key: CHAT_MEMORY_PATH
+        value: /var/data/profile_memory/chat_messages.json

@@ -1791,7 +1791,7 @@
     }
 
     function mergeCloudIndexMessages(messages){
-      const incoming = (Array.isArray(messages) ? messages : []).filter(m => m && !m.room);
+      const incoming = (Array.isArray(messages) ? messages : []).filter(m => m && isPublicIndexPost(m));
       if(!incoming.length) return [];
       const merged = store.loadCloudMsgs().slice();
       incoming.forEach((m) => {
@@ -1823,6 +1823,17 @@
 
     function apiFetch(path, options){
       return fetch(apiURL(path), options);
+    }
+
+    function isPublicIndexPost(message){
+      if(!message) return false;
+      if(typeof message.isPublicIndex === 'boolean') return message.isPublicIndex;
+      if(message.isPublicIndex === 1 || message.isPublicIndex === '1') return true;
+      if(message.isPublicIndex === 0 || message.isPublicIndex === '0') return false;
+      if(typeof message.publicIndex === 'boolean') return message.publicIndex;
+      if(message.publicIndex === 1 || message.publicIndex === '1') return true;
+      if(message.publicIndex === 0 || message.publicIndex === '0') return false;
+      return !message.room;
     }
 
     function setStatus(mode){
@@ -1871,8 +1882,8 @@
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
             const msgs = Array.isArray(data.messages) ? data.messages.filter(Boolean) : [];
-            const roomMsgs = msgs.filter(m => m.room);
-            const indexMsgs = msgs.filter(m => !m.room);
+            const roomMsgs = msgs.filter(m => m.room && !isPublicIndexPost(m));
+            const indexMsgs = msgs.filter(m => isPublicIndexPost(m));
             roomMsgs.forEach(m => receive(m));
             if(indexMsgs.length === 0){
               hydrateIndexPostsFromDatabase({ force: true }).then((hydrated) => {
@@ -2240,6 +2251,8 @@
         likes: 0,
         comments: []
       };
+      msg.publicIndex = !room || Boolean(broadcast);
+      msg.isPublicIndex = msg.publicIndex;
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
       msg.localOnly = (onlineMode !== 'cloud' || !socket || socket.readyState !== 1);
 
@@ -3066,11 +3079,13 @@
         }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
+        const showInIndex = isPublicIndexPost(m);
+        if(activeRooms.size > 0 && showInIndex) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
-        } else {
+        }
+        if(showInIndex){
           appendMessage(m);
           if(m){
             if(onlineMode === 'cloud') store.pushCloudMsg(m);
