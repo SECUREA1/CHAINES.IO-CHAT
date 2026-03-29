@@ -43,6 +43,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
     <img id="p-avatar" alt="avatar" />
     <h2 id="p-name"></h2>
     <button id="follow-btn" class="follow-btn"></button>
+    <button id="message-btn" class="follow-btn" hidden>Message</button>
   </div>
   <div id="edit-section" hidden>
     <input type="file" id="p-pic" accept="image/*" />
@@ -81,6 +82,7 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
+  const messageBtn = document.getElementById('message-btn');
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -174,8 +176,13 @@ textarea{width:100%;min-height:80px;border-radius:8px;border:1px solid var(--lin
         });
         load();
       };
+      messageBtn.hidden = false;
+      messageBtn.onclick = () => {
+        window.location.href = '/private-chat.html?user=' + encodeURIComponent(user);
+      };
     } else {
       followBtn.style.display = 'none';
+      messageBtn.hidden = true;
       editSection.hidden = false;
       descInput.value = data.description || '';
       saveDesc.onclick = async () => {

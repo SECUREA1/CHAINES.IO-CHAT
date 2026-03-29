@@ -127,6 +127,14 @@ db.exec(`
     dropper_tokens_left INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS private_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender TEXT NOT NULL,
+    recipient TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -348,6 +356,9 @@ app.get("/favicon.svg", (req, res) =>
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
+);
+app.get(["/private-chat.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "private-chat.html"))
 );
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
@@ -1146,6 +1157,31 @@ function sendListenerCount(id){
   }
 }
 
+function dmChannelId(a = "", b = "") {
+  return [a || "", b || ""].map((v) => v.toLowerCase()).sort().join("|");
+}
+
+function loadDirectHistory(a, b) {
+  return db
+    .prepare(
+      `SELECT id, sender, recipient, ciphertext, iv, strftime('%s', timestamp) * 1000 as ts
+       FROM private_messages
+       WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)
+       ORDER BY id`
+    )
+    .all(a, b, b, a)
+    .map((row) => ({
+      type: "dm",
+      id: row.id,
+      from: row.sender,
+      to: row.recipient,
+      ciphertext: row.ciphertext,
+      iv: row.iv,
+      ts: row.ts,
+      channel: dmChannelId(row.sender, row.recipient),
+    }));
+}
+
 wss.on("connection", (ws) => {
   ws.id = uid();
   clients.set(ws.id, ws);
@@ -1476,6 +1512,52 @@ wss.on("connection", (ws) => {
           if (msg.sdp) payload.sdp = msg.sdp;
           if (msg.candidate) payload.candidate = msg.candidate;
           dest.send(JSON.stringify(payload));
+        }
+        return;
+      }
+      case "dm-history": {
+        const user = ws.username || msg.user || "";
+        const peer = (msg.with || "").toString().trim();
+        if (!user || !peer) return;
+        ws.send(
+          JSON.stringify({
+            type: "dm-history",
+            channel: dmChannelId(user, peer),
+            with: peer,
+            messages: loadDirectHistory(user, peer),
+          })
+        );
+        return;
+      }
+      case "dm": {
+        const from = ws.username || msg.from || "";
+        const to = (msg.to || "").toString().trim();
+        const ciphertext = (msg.ciphertext || "").toString();
+        const iv = (msg.iv || "").toString();
+        if (!from || !to || !ciphertext || !iv) return;
+        const info = db
+          .prepare(
+            "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
+          )
+          .run(from, to, ciphertext, iv);
+        const payload = JSON.stringify({
+          type: "dm",
+          id: info.lastInsertRowid,
+          from,
+          to,
+          ciphertext,
+          iv,
+          ts: Date.now(),
+          channel: dmChannelId(from, to),
+        });
+        for (const client of wss.clients) {
+          if (
+            client.readyState === 1 &&
+            client.username &&
+            (client.username === from || client.username === to)
+          ) {
+            client.send(payload);
+          }
         }
         return;
       }
