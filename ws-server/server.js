@@ -174,6 +174,12 @@ if (
   fs.copyFileSync(LEGACY_CHAT_MEMORY_PATH, CHAT_MEMORY_PATH);
 }
 
+console.log("=== CHAINES PERSISTENCE CONFIG ===");
+console.log("DURABLE_ROOT:", DURABLE_ROOT);
+console.log("DB_PATH:", DB_PATH);
+console.log("CHAT_MEMORY_PATH:", CHAT_MEMORY_PATH);
+console.log("==================================");
+
 function loadChatMemory() {
   try {
     const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
@@ -208,6 +214,104 @@ function storeChatMemory(message = {}) {
     items.push(entry);
   }
   saveChatMemory(items);
+}
+
+function createAndBroadcastMessage(message = {}) {
+  const text = message.text ?? message.message ?? "";
+  const ts = Number(message.ts || Date.now());
+
+  // Insert into DB and get the new id
+  const insert = db.prepare(
+    "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
+  );
+  const info = insert.run(
+    message.user || "",
+    message.room || null,
+    text,
+    message.image || null,
+    message.file || null,
+    message.file_name || message.fileName || null,
+    message.file_type || message.fileType || null,
+    ts
+  );
+
+  const msg = {
+    id: Number(info.lastInsertRowid),
+    user: message.user || "",
+    room: message.room || null,
+    message: text,
+    image: message.image || null,
+    file: message.file || null,
+    file_name: message.file_name || message.fileName || null,
+    file_type: message.file_type || message.fileType || null,
+    ts,
+    likes: 0,
+    comments: []
+  };
+
+  // Persist to disk memory (CRITICAL)
+  try {
+    storeChatMemory(msg);
+  } catch (err) {
+    console.error("storeChatMemory failed:", err);
+    // DB row exists; continue but log the failure
+  }
+
+  // Broadcast to clients (respect room routing)
+  try {
+    if (msg.room) {
+      const targets = new Set();
+      const host = broadcasters.get(msg.room);
+      if (host && host.readyState === 1) targets.add(host);
+      const set = listeners.get(msg.room);
+      if (set) {
+        for (const id of set) {
+          const c = clients.get(id);
+          if (c && c.readyState === 1) targets.add(c);
+        }
+      }
+      for (const c of targets) c.send(JSON.stringify(msg));
+    } else {
+      for (const client of wss.clients) {
+        if (client.readyState === 1 && !watching.has(client.id)) {
+          client.send(JSON.stringify(msg));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("broadcast error for msg:", msg.id, err);
+  }
+
+  return msg;
+}
+
+function backfillChatMemoryFromDatabase() {
+  const rows = db
+    .prepare(
+      "SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id"
+    )
+    .all();
+  if (!rows.length) return;
+  const existing = loadChatMemory();
+  const merged = new Map(existing.map((item) => [Number(item.id), item]));
+  for (const row of rows) {
+    const id = Number(row.id);
+    if (!Number.isFinite(id)) continue;
+    merged.set(id, {
+      id,
+      user: row.user || "",
+      room: row.room || null,
+      message: row.message || "",
+      image: row.image || null,
+      file: row.file || null,
+      file_name: row.file_name || null,
+      file_type: row.file_type || null,
+      ts: Number(row.ts) || Date.now(),
+    });
+  }
+  saveChatMemory(
+    Array.from(merged.values()).sort((a, b) => (a.id || 0) - (b.id || 0))
+  );
 }
 
 function removeFromChatMemory(messageId) {
@@ -280,6 +384,7 @@ function saveProfiles() {
 
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
+backfillChatMemoryFromDatabase();
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
@@ -660,6 +765,23 @@ app.post("/api/nft-dropper/mint", async (req, res) => {
       Number.isFinite(dropper?.tokensLeft) ? dropper.tokensLeft : null
     );
 
+    // Optionally create a feed post for the minted asset (default true)
+    const createFeedPost = req.body?.postToFeed !== false;
+    if (createFeedPost) {
+      try {
+        createAndBroadcastMessage({
+          user: req.body?.user || "mint",
+          message: `Minted: ${safeName}`,
+          file: targetPath,
+          file_name: safeName,
+          file_type: fileType || parsed.mime,
+          ts: Date.now()
+        });
+      } catch (err) {
+        console.error("Failed to create feed post for mint:", err);
+      }
+    }
+
     res.json({
       success: true,
       fileName: safeName,
@@ -824,6 +946,22 @@ app.post("/api/hologhosts/dispense", async (req, res) => {
     vendorStatus,
     vendorResponse,
   });
+
+  const createFeedPost = req.body?.postToFeed !== false;
+  if (createFeedPost) {
+    try {
+      createAndBroadcastMessage({
+        user: req.body?.user || "hologhost",
+        message: `Dispensed hologhost asset: ${assetNameHex}`,
+        file: null,
+        file_name: assetNameHex,
+        file_type: "application/vnd.cardano.asset",
+        ts: Date.now(),
+      });
+    } catch (err) {
+      console.error("Failed to create feed post for dispense:", err);
+    }
+  }
 
   const count = getGhostDropCount(bechAddress);
 
