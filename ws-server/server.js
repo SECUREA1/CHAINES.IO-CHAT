@@ -248,6 +248,42 @@ function hydrateChatMessagesFromMemory() {
   tx(items);
 }
 
+function backfillChatMemoryFromDatabase() {
+  const rows = db
+    .prepare(
+      "SELECT id, user, room, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id"
+    )
+    .all();
+  if (!rows.length) return;
+  const items = loadChatMemory();
+  const byId = new Map();
+  for (const item of items) {
+    const id = Number(item.id);
+    if (!Number.isFinite(id)) continue;
+    byId.set(id, item);
+  }
+  for (const row of rows) {
+    const id = Number(row.id);
+    if (!Number.isFinite(id)) continue;
+    byId.set(id, {
+      id,
+      user: row.user || "",
+      room: row.room || null,
+      message: row.message || "",
+      image: row.image || null,
+      file: row.file || null,
+      file_name: row.file_name || null,
+      file_type: row.file_type || null,
+      ts: Number(row.ts) || Date.now(),
+    });
+  }
+  saveChatMemory(
+    Array.from(byId.values()).sort(
+      (a, b) => Number(a.id || 0) - Number(b.id || 0)
+    )
+  );
+}
+
 function loadHistoryFromMemory(room = null) {
   const commentsByMessage = {};
   for (const item of loadChatMemory()) {
@@ -288,6 +324,7 @@ function saveProfiles() {
 
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
+backfillChatMemoryFromDatabase();
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
