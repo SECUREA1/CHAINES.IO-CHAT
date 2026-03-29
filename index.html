@@ -3216,7 +3216,7 @@
           if(!res.ok) return;
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          const localMessages = store.loadMsgs().filter((m) => !m.room && (m.localOnly || m.syncPending));
+          const cachedMessages = store.loadMsgs().filter((m) => !m.room);
           const merged = [];
           const seenIds = new Set();
           const seenNonces = new Set();
@@ -3225,7 +3225,7 @@
             if(m && m.clientNonce) seenNonces.add(String(m.clientNonce));
             merged.push(m);
           });
-          localMessages.forEach((m) => {
+          cachedMessages.forEach((m) => {
             const idKey = m && m.id != null ? String(m.id) : null;
             const nonceKey = m && m.clientNonce ? String(m.clientNonce) : null;
             if((idKey && seenIds.has(idKey)) || (nonceKey && seenNonces.has(nonceKey))) return;
