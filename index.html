@@ -1815,6 +1815,7 @@
                 systemNote('Server history is empty. Showing locally cached posts.');
               } else {
                 feed.innerHTML = '';
+                seen.clear();
                 msgs.forEach(m => receive(m));
               }
             }
@@ -2997,7 +2998,6 @@
         .slice()
         .sort((a, b) => (a.ts || 0) - (b.ts || 0))
         .forEach(m => {
-          seen.add(m.id);
           appendMessage(m, true);
         });
       scrollToTop();
