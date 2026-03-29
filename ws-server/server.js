@@ -216,6 +216,8 @@ function removeFromChatMemory(messageId) {
 }
 
 function hydrateChatMessagesFromMemory() {
+  const row = db.prepare("SELECT COUNT(*) as c FROM chat_messages").get();
+  if ((row?.c || 0) > 0) return;
   const items = loadChatMemory();
   if (!items.length) return;
   const insert = db.prepare(
@@ -238,31 +240,6 @@ function hydrateChatMessagesFromMemory() {
     }
   });
   tx(items);
-}
-
-function loadHistoryFromMemory(room = null) {
-  const commentsByMessage = {};
-  for (const item of loadChatMemory()) {
-    if (room ? item.room !== room : item.room) continue;
-    const id = Number(item.id);
-    if (!Number.isFinite(id)) continue;
-    commentsByMessage[id] = {
-      type: "chat",
-      id,
-      user: item.user || "",
-      profilePic: null,
-      room: item.room || null,
-      text: item.message || "",
-      image: item.image || null,
-      file: item.file || null,
-      fileName: item.file_name || null,
-      fileType: item.file_type || null,
-      ts: Number(item.ts) || Date.now(),
-      likes: 0,
-      comments: [],
-    };
-  }
-  return commentsByMessage;
 }
 
 function loadProfiles() {
@@ -303,18 +280,6 @@ function normalizeBackupPhone(value = "") {
 
 // express setup
 const app = express();
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin;
-  res.setHeader("Access-Control-Allow-Origin", requestOrigin || "*");
-  res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");
@@ -1206,7 +1171,6 @@ app.post("/notifications/:username/read", (req, res) => {
 const server = http.createServer(app);
 
 function loadHistory(room = null) {
-  hydrateChatMessagesFromMemory();
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
     `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
@@ -1231,7 +1195,7 @@ function loadHistory(room = null) {
   }
   const likes = {};
   for (const l of likeRows) likes[l.message_id] = l.c;
-  const fromDb = rows.map((r) => ({
+  return rows.map((r) => ({
     type: "chat",
     id: r.id,
     user: r.user,
@@ -1246,9 +1210,6 @@ function loadHistory(room = null) {
     likes: likes[r.id] || 0,
     comments: comments[r.id] || [],
   }));
-  const merged = loadHistoryFromMemory(room);
-  for (const row of fromDb) merged[row.id] = row;
-  return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
 
 app.get("/api/index-posts", (req, res) => {
