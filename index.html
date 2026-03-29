@@ -1702,8 +1702,11 @@
           usersEl.appendChild(li);
         });
         for(const id in streams){
-          if(!liveIds.has(id)){
-            streams[id].container.remove();
+          const stream = streams[id];
+          if(!stream) continue;
+          const hasHistory = !!(stream.feed && stream.feed.children && stream.feed.children.length);
+          if(!liveIds.has(id) && !hasHistory){
+            stream.container.remove();
             delete streams[id];
           }
         }
@@ -3185,7 +3188,9 @@
         if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-          if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
+          if(streams[m.room]){
+            appendMessage(m, false, streams[m.room].feed);
+          }
         } else {
           appendMessage(m);
           if(!isLocal && m && m.localOnly) store.pushMsg(m);
