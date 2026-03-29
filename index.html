@@ -1793,7 +1793,11 @@
         socket = new WebSocket(url);
       } catch { setStatus('off'); return; }
 
-      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
+      socket.addEventListener('open', () => {
+        setStatus('cloud');
+        sendJoin();
+        setTimeout(syncOfflineLocalPostsToCloud, 300);
+      });
       socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('message', ev => {
@@ -2169,10 +2173,11 @@
         comments: []
       };
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
+      msg.localOnly = (onlineMode !== 'cloud' || !socket || socket.readyState !== 1);
 
       // Push to UI + storage immediately
         receive(msg, true);
-        if(!room) store.pushMsg(msg);
+        if(!room && msg.localOnly) store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -2998,7 +3003,7 @@
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal) store.pushMsg(m);
+          if(!isLocal && m && m.localOnly) store.pushMsg(m);
         }
       }
 
@@ -3023,14 +3028,43 @@
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
           if(!dbMessages.length) return;
-          dbMessages.forEach(m => store.pushMsg(m));
-          renderCachedFeed();
+          feed.innerHTML = '';
+          seen.clear();
+          dbMessages
+            .slice()
+            .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+            .forEach(m => {
+              seen.add(m.id);
+              appendMessage(m, true);
+            });
+          scrollToTop();
         } catch {}
       }
 
+      function syncOfflineLocalPostsToCloud(){
+        if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
+        const localItems = store.loadMsgs();
+        const offlineOnly = localItems.filter(m => !m.room && (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
+        if(!offlineOnly.length) return;
+        offlineOnly.forEach((m) => {
+          const outbound = {
+            ...m,
+            type: 'chat',
+            id: undefined,
+            localOnly: false,
+            clientNonce: m.clientNonce || (Date.now().toString(36) + Math.random().toString(36).slice(2,7))
+          };
+          try { socket.send(JSON.stringify(outbound)); } catch {}
+        });
+        store.clearMsgs();
+      }
+
       function renderHistory(){
-      renderCachedFeed();
-      hydrateIndexPostsFromDatabase();
+      if(onlineMode === 'cloud'){
+        hydrateIndexPostsFromDatabase();
+      } else {
+        renderCachedFeed();
+      }
     }
 
       function appendMessage(m, skipScroll=false, container=feed){
