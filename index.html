@@ -1526,6 +1526,9 @@
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
     const seenComments = new Set();
+    let historyHydrationPromise = null;
+    let didAttemptApiHistoryHydration = false;
+    let hasWarnedEmptyServerHistory = false;
 
     // --- WebRTC state ---
       const peerConnections = {};
@@ -1771,11 +1774,33 @@
     }
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
-        ? 'chaines-io-chat.onrender.com'
-        : location.host;
+      const hostMap = {
+        'chaines-chat-site.onrender.com': 'chaines-chat-ws.onrender.com',
+      };
+      const isLocalhost = /^(localhost|127\\.0\\.0\\.1)$/i.test(location.hostname || '');
+      const host = isLocalhost ? location.host : (hostMap[location.hostname] || location.host);
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
       return proto + host + '/ws';
+    }
+
+    function noteEmptyServerHistoryFallback(){
+      renderCloudCachedFeed();
+      if(hasWarnedEmptyServerHistory) return;
+      hasWarnedEmptyServerHistory = true;
+      systemNote('Server history is empty. Showing locally cached cloud posts.');
+    }
+
+    function mergeCloudIndexMessages(messages){
+      const incoming = (Array.isArray(messages) ? messages : []).filter(m => m && !m.room);
+      if(!incoming.length) return [];
+      const merged = store.loadCloudMsgs().slice();
+      incoming.forEach((m) => {
+        const idx = merged.findIndex(x => x.id === m.id);
+        if(idx >= 0) merged[idx] = m;
+        else merged.push(m);
+      });
+      store.savePosts(store.cloudPostsKey, merged);
+      return merged;
     }
 
     function apiBaseURL(){
@@ -1825,6 +1850,8 @@
       } catch { setStatus('off'); return; }
 
       socket.addEventListener('open', () => {
+        didAttemptApiHistoryHydration = false;
+        hasWarnedEmptyServerHistory = false;
         setStatus('cloud');
         renderCloudCachedFeed();
         sendJoin();
@@ -1843,17 +1870,23 @@
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
-            const msgs = data.messages || [];
-            const roomMsgs = msgs.filter(m => m && m.room);
-            const indexMsgs = msgs.filter(m => !m || !m.room);
+            const msgs = Array.isArray(data.messages) ? data.messages.filter(Boolean) : [];
+            const roomMsgs = msgs.filter(m => m.room);
+            const indexMsgs = msgs.filter(m => !m.room);
             roomMsgs.forEach(m => receive(m));
             if(indexMsgs.length === 0){
-              renderCloudCachedFeed();
-              systemNote('Server history is empty. Showing locally cached cloud posts.');
+              hydrateIndexPostsFromDatabase({ force: true }).then((hydrated) => {
+                if(!hydrated) noteEmptyServerHistoryFallback();
+              });
             } else {
+              hasWarnedEmptyServerHistory = false;
+              const merged = mergeCloudIndexMessages(indexMsgs);
               feed.innerHTML = '';
               seen.clear();
-              indexMsgs.forEach(m => receive(m));
+              (merged.length ? merged : indexMsgs)
+                .slice()
+                .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+                .forEach(m => receive(m));
             }
           }
           if(data && data.type === 'id') clientId = data.id;
@@ -3074,37 +3107,38 @@
       scrollToTop();
     }
 
-      async function hydrateIndexPostsFromDatabase(){
-        try{
-          const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
-          if(!res.ok) return;
-          const data = await res.json();
-          const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          if(!dbMessages.length) return;
-          const merged = store.loadCloudMsgs().slice();
-          dbMessages.forEach((m) => {
-            const idx = merged.findIndex(x => x.id === m.id);
-            if(idx >= 0) merged[idx] = m;
-            else merged.push(m);
-          });
-          store.savePosts(store.cloudPostsKey, merged);
-          feed.innerHTML = '';
-          seen.clear();
-          merged
-            .slice()
-            .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-            .forEach(m => {
-              if(!m) return;
-              seen.add(m.id);
-              if(m.room){
-                if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-                if(streams[m.room]) appendMessage(m, true, streams[m.room].feed);
-              } else {
+      async function hydrateIndexPostsFromDatabase({ force = false } = {}){
+        if(historyHydrationPromise) return historyHydrationPromise;
+        if(didAttemptApiHistoryHydration && !force) return false;
+        didAttemptApiHistoryHydration = true;
+        historyHydrationPromise = (async () => {
+          try{
+            const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
+            if(!res.ok) return false;
+            const data = await res.json();
+            const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
+            const merged = mergeCloudIndexMessages(dbMessages);
+            if(!merged.length) return false;
+            hasWarnedEmptyServerHistory = false;
+            feed.innerHTML = '';
+            seen.clear();
+            merged
+              .slice()
+              .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+              .forEach(m => {
+                if(!m) return;
+                seen.add(m.id);
                 appendMessage(m, true);
-              }
-            });
-          scrollToTop();
-        } catch {}
+              });
+            scrollToTop();
+            return true;
+          } catch {
+            return false;
+          } finally {
+            historyHydrationPromise = null;
+          }
+        })();
+        return historyHydrationPromise;
       }
 
       function syncOfflineLocalPostsToCloud(){
