@@ -250,7 +250,7 @@ function loadHistoryFromMemory(room = null) {
       type: "chat",
       id,
       user: item.user || "",
-      profilePic: null,
+      profilePic: resolveUserProfilePic(item.user || ""),
       room: item.room || null,
       text: item.message || "",
       image: item.image || null,
@@ -280,6 +280,16 @@ function saveProfiles() {
 
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
+
+function resolveUserProfilePic(username = "") {
+  const clean = (username || "").toString().trim();
+  if (!clean) return null;
+  const dbPic = db
+    .prepare("SELECT profile_pic FROM users WHERE username=?")
+    .get(clean)?.profile_pic;
+  if (dbPic) return dbPic;
+  return profiles[clean]?.profilePic || null;
+}
 
 function ensureUserRecord(username = "") {
   const clean = (username || "").toString().trim();
@@ -971,6 +981,7 @@ app.get(["/profile.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
+  hydrateChatMessagesFromMemory();
   const targetUser = (req.params.username || "").toString().trim();
   const viewer = req.query.viewer || "";
   const dbUser = db
@@ -982,7 +993,17 @@ app.get("/profile/:username", (req, res) => {
   const hasPosts = !!db
     .prepare("SELECT 1 FROM chat_messages WHERE user=? LIMIT 1")
     .get(targetUser);
-  if (!dbUser && !memUser.password && !hasPosts) {
+  const hasMemProfile = !!(
+    memUser &&
+    (
+      memUser.password ||
+      memUser.profilePic ||
+      memUser.description ||
+      memUser.backupEmail ||
+      memUser.backupPhone
+    )
+  );
+  if (!dbUser && !hasMemProfile && !hasPosts) {
     res.status(404).json({ error: "Not found" });
     return;
   }
@@ -1028,7 +1049,7 @@ app.get("/profile/:username", (req, res) => {
     : false;
   res.json({
     username: targetUser,
-    profilePic: dbUser?.profile_pic || memUser.profilePic || null,
+    profilePic: dbUser?.profile_pic || memUser.profilePic || resolveUserProfilePic(targetUser),
     description: dbUser?.description || memUser.description || null,
     posts: hydratedPosts,
     replies,
