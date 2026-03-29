@@ -81,7 +81,8 @@ db.exec(`
     profile_pic TEXT,
     description TEXT,
     backup_email TEXT,
-    backup_phone TEXT
+    backup_phone TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -140,6 +141,12 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN created_at DATETIME"); } catch {}
+try {
+  db.exec(
+    "UPDATE users SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP)"
+  );
+} catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
@@ -940,7 +947,7 @@ app.get("/profile/:username", (req, res) => {
   const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
-      "SELECT username, profile_pic, description FROM users WHERE username=?"
+      "SELECT username, profile_pic, description, strftime('%s', created_at) * 1000 as signup_ts FROM users WHERE username=?"
     )
     .get(targetUser);
   const memUser = profiles[targetUser] || {};
@@ -993,6 +1000,19 @@ app.get("/profile/:username", (req, res) => {
       "SELECT c.id, c.message_id, c.user, c.text, strftime('%s', c.timestamp) * 1000 as ts, m.user as post_user, m.message as post_message FROM comments c LEFT JOIN chat_messages m ON c.message_id = m.id WHERE c.user=? ORDER BY c.id DESC"
     )
     .all(targetUser);
+  const firstPostTs = db
+    .prepare(
+      "SELECT strftime('%s', MIN(timestamp)) * 1000 as ts FROM chat_messages WHERE user=?"
+    )
+    .get(targetUser)?.ts || null;
+  const firstReplyTs = db
+    .prepare(
+      "SELECT strftime('%s', MIN(timestamp)) * 1000 as ts FROM comments WHERE user=?"
+    )
+    .get(targetUser)?.ts || null;
+  const fallbackSignupTs = [firstPostTs, firstReplyTs]
+    .filter((ts) => Number.isFinite(ts))
+    .sort((a, b) => a - b)[0] || null;
   const followers = db
     .prepare("SELECT follower FROM follows WHERE following=?")
     .all(targetUser)
@@ -1019,6 +1039,8 @@ app.get("/profile/:username", (req, res) => {
     followerCount: followers.length,
     followingCount: following.length,
     isFollowing,
+    signupTs: dbUser?.signup_ts || fallbackSignupTs,
+    indexPostCount: hydratedPosts.length,
   });
 });
 

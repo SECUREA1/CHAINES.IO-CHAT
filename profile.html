@@ -62,8 +62,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   </div>
   <p id="p-desc"></p>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
+  <div id="signup-info" style="margin:8px 0;color:var(--muted);"></div>
 
   <div class="tab-row" id="feed-tabs">
+    <button class="tab-btn" data-tab="activity" type="button">Activity</button>
     <button class="tab-btn active" data-tab="posts" type="button">Posts</button>
     <button class="tab-btn" data-tab="replies" type="button">Replies</button>
     <button class="tab-btn" data-tab="images" type="button">Images</button>
@@ -97,6 +99,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const saveDesc = document.getElementById('save-desc');
   const followInfo = document.getElementById('follow-info');
   const notifsEl = document.getElementById('p-notifs');
+  const signupInfo = document.getElementById('signup-info');
   const backBtn = document.getElementById('back-btn');
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
@@ -149,6 +152,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   function filteredFeed(){
     const posts = Array.isArray(profileData?.posts) ? profileData.posts : [];
     const replies = Array.isArray(profileData?.replies) ? profileData.replies : [];
+    if(activeTab === 'activity'){
+      const postItems = posts.map((post) => ({ ...post, _kind: 'post' }));
+      const replyItems = replies.map((reply) => ({ ...reply, _kind: 'reply' }));
+      return [...postItems, ...replyItems].sort((a,b) => (b.ts || 0) - (a.ts || 0));
+    }
     if(activeTab === 'replies') return replies;
     if(activeTab === 'images') return posts.filter((p) => detectMime(p).startsWith('image/'));
     if(activeTab === 'videos') return posts.filter((p) => detectMime(p).startsWith('video/'));
@@ -268,6 +276,16 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       items.forEach((reply) => feedEl.appendChild(renderReplyCard(reply)));
       return;
     }
+    if(activeTab === 'activity'){
+      items.forEach((item) => {
+        if(item._kind === 'reply'){
+          feedEl.appendChild(renderReplyCard(item));
+          return;
+        }
+        feedEl.appendChild(renderPostCard(item));
+      });
+      return;
+    }
     items.forEach((post) => feedEl.appendChild(renderPostCard(post)));
   }
 
@@ -335,7 +353,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     descEl.textContent = data.description || '';
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
     const followingCount = Number.isFinite(data.followingCount) ? data.followingCount : (data.following?.length || 0);
-    followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount;
+    const indexPosts = Number.isFinite(data.indexPostCount) ? data.indexPostCount : (data.posts?.length || 0);
+    followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount + ' • Index posts: ' + indexPosts;
+    signupInfo.textContent = 'Joined: ' + formatTime(data.signupTs);
 
     if(storeUser && storeUser !== user){
       followBtn.style.display = '';
