@@ -1289,7 +1289,7 @@
     async function fetchDropperStatus(force){
       if(dropperStatus && !force) return dropperStatus;
       try{
-        const res = await apiFetch('/api/nft-dropper/info');
+        const res = await fetch('/api/nft-dropper/info');
         if(!res.ok) throw new Error('Unable to reach NFT dropper.');
         const data = await res.json();
         dropperStatus = data;
@@ -1323,7 +1323,7 @@
       try { nftDescription = prompt('NFT description (optional)', '') || ''; } catch{}
 
       try{
-        const res = await apiFetch('/api/nft-dropper/mint', {
+        const res = await fetch('/api/nft-dropper/mint', {
           method:'POST',
           headers:{ 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -1747,28 +1747,6 @@
       return proto + host + '/ws';
     }
 
-    function apiBaseURL(){
-      try{
-        const u = new URL(store.wsURL || defaultWS(), location.href);
-        u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:';
-        u.pathname = '';
-        u.search = '';
-        u.hash = '';
-        return u.origin;
-      } catch {
-        return location.origin;
-      }
-    }
-
-    function apiURL(path){
-      if(/^https?:\/\//i.test(path || '')) return path;
-      return apiBaseURL() + path;
-    }
-
-    function apiFetch(path, options){
-      return fetch(apiURL(path), options);
-    }
-
     function setStatus(mode){
       onlineMode = mode;
       if(mode === 'cloud'){
@@ -1909,20 +1887,20 @@
     async function setupPush(){
       if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
-        const prefRes = await apiFetch('/notification-settings/' + encodeURIComponent(store.user));
+        const prefRes = await fetch('/notification-settings/' + encodeURIComponent(store.user));
         const pref = await prefRes.json().catch(()=>({}));
         if(!pref.push) return;
         const perm = await Notification.requestPermission();
         if(perm !== 'granted') return;
         const reg = await navigator.serviceWorker.register('/sw.js');
-        const res = await apiFetch('/push/key');
+        const res = await fetch('/push/key');
         const data = await res.json().catch(()=>({}));
         if(!data.key) return;
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(data.key)
         });
-        await apiFetch('/push/subscribe', {
+        await fetch('/push/subscribe', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ username: store.user, subscription: sub })
@@ -1945,7 +1923,7 @@
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      const res = await apiFetch('/login', {
+      const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ username: name, password: pass })
@@ -1974,7 +1952,7 @@
         return;
       }
 
-      const res = await apiFetch('/forgot-password', {
+      const res = await fetch('/forgot-password', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ username: name, contact, newPassword })
@@ -2008,7 +1986,7 @@
       if(backupEmail) fd.append('backupEmail', backupEmail);
       if(backupPhone) fd.append('backupPhone', backupPhone);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
-      const res = await apiFetch('/register', { method:'POST', body: fd });
+      const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){ await doLogin(); }
       else {
         const data = await res.json().catch(()=>({}));
@@ -2991,7 +2969,7 @@
 
       async function hydrateIndexPostsFromDatabase(){
         try{
-          const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
+          const res = await fetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
           if(!res.ok) return;
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
