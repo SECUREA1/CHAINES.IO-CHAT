@@ -2997,7 +2997,6 @@
         }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
