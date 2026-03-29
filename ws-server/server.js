@@ -15,6 +15,12 @@ import {
   isDirectVendorEnabled,
   vendGhostTokenDirect,
 } from "./hologhostVendor.js";
+import {
+  MASTER_HISTORY_KEY,
+  buildStableRoomMeta,
+  shouldIncludeMessageInHistory,
+  sortMessagesStable,
+} from "./chatPersistence.js";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -53,6 +59,10 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
     room TEXT,
+    room_key TEXT,
+    room_type TEXT,
+    transport_room_id TEXT,
+    legacy_room_id TEXT,
     message TEXT,
     image TEXT,
     file TEXT,
@@ -137,6 +147,10 @@ db.exec(`
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_key TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_type TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN transport_room_id TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN legacy_room_id TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
@@ -177,7 +191,11 @@ if (
 function loadChatMemory() {
   try {
     const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.messages)) {
+      return parsed.messages;
+    }
+    return [];
   } catch {
     return [];
   }
@@ -185,16 +203,25 @@ function loadChatMemory() {
 
 function saveChatMemory(items = []) {
   fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.writeFileSync(CHAT_MEMORY_PATH, JSON.stringify(items, null, 2));
+  fs.writeFileSync(
+    CHAT_MEMORY_PATH,
+    JSON.stringify({ key: MASTER_HISTORY_KEY, version: 2, messages: items }, null, 2)
+  );
 }
 
 function storeChatMemory(message = {}) {
   const items = loadChatMemory();
   const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
+  const roomMeta = buildStableRoomMeta(message);
   const entry = {
     id: Number(message.id),
+    messageId: Number(message.id),
     user: message.user || "",
-    room: message.room || null,
+    room: roomMeta.transportRoomId || null,
+    roomKey: roomMeta.roomKey,
+    roomType: roomMeta.roomType,
+    transportRoomId: roomMeta.transportRoomId,
+    legacyRoomId: roomMeta.legacyRoomId,
     message: message.text ?? message.message ?? "",
     image: message.image || null,
     file: message.file || null,
@@ -219,15 +246,20 @@ function hydrateChatMessagesFromMemory() {
   const items = loadChatMemory();
   if (!items.length) return;
   const insert = db.prepare(
-    "INSERT OR IGNORE INTO chat_messages (id, user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
+    "INSERT OR IGNORE INTO chat_messages (id, user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
   );
   const tx = db.transaction((entries) => {
     for (const item of entries) {
       if (!Number.isFinite(Number(item.id))) continue;
+      const roomMeta = buildStableRoomMeta(item);
       insert.run(
         Number(item.id),
         item.user || "",
-        item.room || null,
+        roomMeta.transportRoomId || null,
+        roomMeta.roomKey,
+        roomMeta.roomType,
+        roomMeta.transportRoomId || null,
+        roomMeta.legacyRoomId || null,
         item.message || "",
         item.image || null,
         item.file || null,
@@ -240,18 +272,35 @@ function hydrateChatMessagesFromMemory() {
   tx(items);
 }
 
-function loadHistoryFromMemory(room = null) {
+function loadHistoryFromMemory(filters = {}) {
   const commentsByMessage = {};
   for (const item of loadChatMemory()) {
-    if (room ? item.room !== room : false) continue;
+    const roomMeta = buildStableRoomMeta(item);
+    if (
+      !shouldIncludeMessageInHistory(
+        { ...item, ...roomMeta },
+        {
+          roomKey: filters.roomKey || null,
+          transportRoomId: filters.transportRoomId || null,
+        }
+      )
+    ) {
+      continue;
+    }
     const id = Number(item.id);
     if (!Number.isFinite(id)) continue;
     commentsByMessage[id] = {
       type: "chat",
       id,
+      messageId: id,
       user: item.user || "",
       profilePic: resolveUserProfilePic(item.user || ""),
-      room: item.room || null,
+      room: roomMeta.transportRoomId || null,
+      roomKey: roomMeta.roomKey,
+      roomType: roomMeta.roomType,
+      transportRoomId: roomMeta.transportRoomId,
+      legacyRoomId: roomMeta.legacyRoomId,
+      createdAt: Number(item.ts) || Date.now(),
       text: item.message || "",
       image: item.image || null,
       file: item.file || null,
@@ -280,6 +329,41 @@ function saveProfiles() {
 
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
+
+function backfillChatRoomMetadata() {
+  // Persistence identity must stay durable across reconnects/redeploys.
+  // Never use websocket client ids as persisted room keys.
+  const rows = db
+    .prepare(
+      "SELECT id, room, room_key, room_type, transport_room_id, legacy_room_id FROM chat_messages"
+    )
+    .all();
+  if (!rows.length) return;
+  const update = db.prepare(
+    "UPDATE chat_messages SET room = ?, room_key = ?, room_type = ?, transport_room_id = ?, legacy_room_id = ? WHERE id = ?"
+  );
+  const tx = db.transaction((items) => {
+    for (const row of items) {
+      const roomMeta = buildStableRoomMeta({
+        room: row.transport_room_id || row.room || null,
+        roomKey: row.room_key || null,
+        roomType: row.room_type || null,
+        legacyRoomId: row.legacy_room_id || null,
+      });
+      update.run(
+        roomMeta.transportRoomId || null,
+        roomMeta.roomKey,
+        roomMeta.roomType,
+        roomMeta.transportRoomId || null,
+        roomMeta.legacyRoomId || null,
+        row.id
+      );
+    }
+  });
+  tx(rows);
+}
+
+backfillChatRoomMetadata();
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
@@ -1007,7 +1091,7 @@ app.get("/profile/:username", (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const allPublicHistory = loadHistory(null);
+  const allPublicHistory = loadHistory();
   const posts = allPublicHistory
     .filter((post) => post.user === targetUser)
     .map((post) => ({
@@ -1232,13 +1316,32 @@ app.post("/notifications/:username/read", (req, res) => {
 
 const server = http.createServer(app);
 
-function loadHistory(room = null) {
+function loadHistory(filters = {}) {
+  filters = filters || {};
   hydrateChatMessagesFromMemory();
-  const where = room ? "c.room = ?" : "1=1";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.room_key, c.room_type, c.transport_room_id, c.legacy_room_id, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
   );
-  const rows = room ? stmt.all(room) : stmt.all();
+  const rows = stmt
+    .all()
+    .map((row) => {
+      const roomMeta = buildStableRoomMeta({
+        room: row.transport_room_id || row.room || null,
+        roomKey: row.room_key || null,
+        roomType: row.room_type || null,
+        legacyRoomId: row.legacy_room_id || null,
+      });
+      return {
+        ...row,
+        ...roomMeta,
+      };
+    })
+    .filter((row) =>
+      shouldIncludeMessageInHistory(row, {
+        roomKey: filters.roomKey || null,
+        transportRoomId: filters.transportRoomId || null,
+      })
+    );
   const commentRows = db
     .prepare(
       `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
@@ -1261,9 +1364,15 @@ function loadHistory(room = null) {
   const fromDb = rows.map((r) => ({
     type: "chat",
     id: r.id,
+    messageId: r.id,
     user: r.user,
     profilePic: r.profile_pic,
-    room: r.room,
+    room: r.transportRoomId || null,
+    roomKey: r.roomKey,
+    roomType: r.roomType,
+    transportRoomId: r.transportRoomId,
+    legacyRoomId: r.legacyRoomId,
+    createdAt: r.ts,
     text: r.message,
     image: r.image,
     file: r.file,
@@ -1273,9 +1382,9 @@ function loadHistory(room = null) {
     likes: likes[r.id] || 0,
     comments: comments[r.id] || [],
   }));
-  const merged = loadHistoryFromMemory(room);
+  const merged = loadHistoryFromMemory(filters);
   for (const row of fromDb) merged[row.id] = row;
-  return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
+  return sortMessagesStable(Object.values(merged));
 }
 
 function mergeMessageLists(...lists) {
@@ -1584,8 +1693,8 @@ wss.on("connection", (ws) => {
           watching.get(ws.id).add(msg.id);
           sendListenerCount(msg.id);
           const history = mergeMessageLists(
-            loadHistory("cloud"),
-            loadHistory(msg.id)
+            loadHistory({ roomKey: "cloud" }),
+            loadHistory({ transportRoomId: msg.id })
           );
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
@@ -1778,14 +1887,22 @@ wss.on("connection", (ws) => {
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
     const transportRoom = msg.room || null;
-    const persistedRoom = transportRoom ? "cloud" : null;
+    const roomMeta = buildStableRoomMeta({
+      ...msg,
+      room: transportRoom,
+      transportRoomId: transportRoom,
+    });
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
-        persistedRoom,
+        roomMeta.transportRoomId || null,
+        roomMeta.roomKey,
+        roomMeta.roomType,
+        roomMeta.transportRoomId || null,
+        roomMeta.legacyRoomId || null,
         text,
         msg.image || null,
         msg.file || null,
@@ -1793,8 +1910,14 @@ wss.on("connection", (ws) => {
         fileType
     );
     msg.id = info.lastInsertRowid;
+    msg.messageId = msg.id;
     msg.message = text;
-    msg.room = persistedRoom;
+    msg.room = transportRoom;
+    msg.roomKey = roomMeta.roomKey;
+    msg.roomType = roomMeta.roomType;
+    msg.transportRoomId = roomMeta.transportRoomId;
+    msg.legacyRoomId = roomMeta.legacyRoomId;
+    msg.createdAt = msg.ts;
     msg.likes = 0;
     msg.comments = [];
     storeChatMemory(msg);
