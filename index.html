@@ -1984,17 +1984,15 @@
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
             const msgs = data.messages || [];
-            if(msgs.some(m => m.room)){
-              msgs.forEach(m => receive(m));
-            } else {
-              if(msgs.length === 0){
-                systemNote('Server history is empty. Showing locally cached posts.');
-              } else {
-                feed.innerHTML = '';
-                seen.clear();
-                msgs.forEach(m => receive(m));
-              }
+            feed.innerHTML = '';
+            seen.clear();
+            if(msgs.length === 0){
+              systemNote('Server history is empty. Showing locally cached posts.');
             }
+            msgs
+              .slice()
+              .sort((a, b) => (Number(a.ts || a.createdAt || 0) - Number(b.ts || b.createdAt || 0)) || (Number(a.id || a.messageId || 0) - Number(b.id || b.messageId || 0)))
+              .forEach(m => receive(m));
           }
           if(data && data.type === 'id') clientId = data.id;
           if(data && data.type === 'listeners') updateListenerCount(data.id, data.count);
@@ -3172,6 +3170,7 @@
     }
 
       function receive(m, isLocal=false){
+        const runtimeRoomId = m && (m.transportRoomId || m.room || m.legacyRoomId || null);
         if(!isLocal && m && m.clientNonce){
           const pendingEl = feed.querySelector(`li[data-client-nonce="${m.clientNonce}"]`);
           if(pendingEl){
@@ -3185,12 +3184,12 @@
         }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
-        if(m.room){
-          const isLiveRoom = userCache.some(u => (typeof u === 'object' && u) ? (u.id === m.room && !!u.live) : false);
+        if(activeRooms.size > 0 && !runtimeRoomId) return;
+        if(runtimeRoomId){
+          const isLiveRoom = userCache.some(u => (typeof u === 'object' && u) ? (u.id === runtimeRoomId && !!u.live) : false);
           if(isLiveRoom){
-            if(!streams[m.room]) ensureStreamThumb(m.room, m.user || m.room);
-            if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
+            if(!streams[runtimeRoomId]) ensureStreamThumb(runtimeRoomId, m.user || runtimeRoomId);
+            if(streams[runtimeRoomId]) appendMessage(m, false, streams[runtimeRoomId].feed);
           } else {
             // Archived room-scoped posts should remain visible after reconnect/redeploy,
             // even when the original broadcaster websocket id no longer exists.
@@ -3310,8 +3309,9 @@
       bubble.appendChild(text);
       const plain = text.textContent.trim();
       if (broadcasting && plain) {
-        const isMyRoom = (m.room === clientId);
-        const isHostRoomWhileGuest = (pendingJoinHost && m.room === pendingJoinHost);
+        const runtimeRoomId = m.transportRoomId || m.room || m.legacyRoomId;
+        const isMyRoom = (runtimeRoomId === clientId);
+        const isHostRoomWhileGuest = (pendingJoinHost && runtimeRoomId === pendingJoinHost);
         if (isMyRoom || isHostRoomWhileGuest) {
           const overlayText = `@${m.user}: ${plain}`;
           overlayMessages.push({ text: overlayText, ts: Date.now() });
