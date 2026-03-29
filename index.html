@@ -2986,7 +2986,10 @@
       feed.innerHTML = '';
       seen.clear();
       const items = store.loadMsgs();
-      items.slice().reverse().forEach(m => appendMessage(m, true));
+      items
+        .slice()
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+        .forEach(m => appendMessage(m, true));
       scrollToTop();
       hydrateIndexPostsFromDatabase();
     }
