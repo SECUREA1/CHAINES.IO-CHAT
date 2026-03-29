@@ -17,7 +17,11 @@ import {
 } from "./hologhostVendor.js";
 import {
   MASTER_HISTORY_KEY,
+  CLOUD_ROOM_KEY,
+  CLOUD_ROOM_TYPE,
   buildStableRoomMeta,
+  buildRestoreHistoryBundle,
+  resolveActiveRoomForRestore,
   shouldIncludeMessageInHistory,
   sortMessagesStable,
 } from "./chatPersistence.js";
@@ -145,6 +149,17 @@ db.exec(`
     iv TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS chat_room_sessions (
+    session_key TEXT PRIMARY KEY,
+    user_key TEXT,
+    active_room_key TEXT NOT NULL,
+    active_room_type TEXT NOT NULL,
+    active_transport_room_id TEXT,
+    last_message_id INTEGER,
+    last_message_ts INTEGER,
+    overlay_state TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_key TEXT"); } catch {}
@@ -156,6 +171,11 @@ try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
+} catch {}
+try {
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS chat_room_sessions_user_key_idx ON chat_room_sessions(user_key)"
+  );
 } catch {}
 
 const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
@@ -1398,6 +1418,132 @@ function mergeMessageLists(...lists) {
   return Array.from(byId.values()).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
 
+const roomAlias = {
+  keyToTransport: new Map(),
+  transportToKey: new Map(),
+  legacyToKey: new Map(),
+};
+
+function upsertRoomAlias(roomKey, transportRoomId, legacyRoomId = null) {
+  const key = (roomKey || "").toString().trim();
+  const transport = (transportRoomId || "").toString().trim();
+  const legacy = (legacyRoomId || "").toString().trim();
+  if (key && transport) {
+    roomAlias.keyToTransport.set(key, transport);
+    roomAlias.transportToKey.set(transport, key);
+  }
+  if (key && legacy) roomAlias.legacyToKey.set(legacy, key);
+}
+
+function seedRoomAliasFromHistory() {
+  const rows = db
+    .prepare("SELECT room_key, transport_room_id, legacy_room_id FROM chat_messages")
+    .all();
+  for (const row of rows) {
+    upsertRoomAlias(row.room_key, row.transport_room_id, row.legacy_room_id);
+  }
+}
+
+function saveActiveRoomSession(payload = {}) {
+  const sessionKey = (payload.sessionKey || "").toString().trim();
+  if (!sessionKey) return;
+  const userKey = (payload.userKey || "").toString().trim() || null;
+  const activeRoomKey =
+    (payload.activeRoomKey || "").toString().trim() || CLOUD_ROOM_KEY;
+  const activeRoomType = (payload.activeRoomType || "").toString().trim()
+    ? payload.activeRoomType
+    : CLOUD_ROOM_TYPE;
+  const activeTransportRoomId =
+    (payload.activeTransportRoomId || "").toString().trim() || null;
+  const overlayState = payload.overlayState
+    ? JSON.stringify(payload.overlayState)
+    : null;
+  db.prepare(
+    `INSERT INTO chat_room_sessions (
+      session_key, user_key, active_room_key, active_room_type, active_transport_room_id,
+      last_message_id, last_message_ts, overlay_state, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(session_key) DO UPDATE SET
+      user_key=excluded.user_key,
+      active_room_key=excluded.active_room_key,
+      active_room_type=excluded.active_room_type,
+      active_transport_room_id=excluded.active_transport_room_id,
+      last_message_id=excluded.last_message_id,
+      last_message_ts=excluded.last_message_ts,
+      overlay_state=excluded.overlay_state,
+      updated_at=CURRENT_TIMESTAMP`
+  ).run(
+    sessionKey,
+    userKey,
+    activeRoomKey,
+    activeRoomType,
+    activeTransportRoomId,
+    payload.lastMessageId || null,
+    payload.lastMessageTs || null,
+    overlayState
+  );
+}
+
+function loadActiveRoomSession({ sessionKey = "", userKey = "" } = {}) {
+  const normalizedSession = (sessionKey || "").toString().trim();
+  const normalizedUser = (userKey || "").toString().trim();
+  let row = null;
+  if (normalizedSession) {
+    row = db
+      .prepare("SELECT * FROM chat_room_sessions WHERE session_key=?")
+      .get(normalizedSession);
+  }
+  if (!row && normalizedUser) {
+    row = db
+      .prepare(
+        "SELECT * FROM chat_room_sessions WHERE user_key=? ORDER BY updated_at DESC, session_key DESC LIMIT 1"
+      )
+      .get(normalizedUser);
+  }
+  if (!row) return null;
+  return {
+    ...row,
+    overlay_state: (() => {
+      try {
+        return row.overlay_state ? JSON.parse(row.overlay_state) : null;
+      } catch {
+        return null;
+      }
+    })(),
+  };
+}
+
+function buildRestoreHistoryBundleForRoom({ roomKey, transportRoomId }) {
+  const canonical = loadHistory({ roomKey });
+  const transportIds = new Set();
+  const legacyIds = new Set();
+  if (transportRoomId) transportIds.add(transportRoomId);
+  const aliasedTransport = roomAlias.keyToTransport.get(roomKey);
+  if (aliasedTransport) transportIds.add(aliasedTransport);
+  for (const [transport, key] of roomAlias.transportToKey.entries()) {
+    if (key === roomKey) transportIds.add(transport);
+  }
+  for (const [legacy, key] of roomAlias.legacyToKey.entries()) {
+    if (key === roomKey) legacyIds.add(legacy);
+  }
+  const legacyRows = [];
+  for (const id of transportIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
+  for (const id of legacyIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
+  const history = buildRestoreHistoryBundle({
+    canonicalMessages: canonical,
+    legacyMessages: legacyRows,
+  });
+  return {
+    history,
+    aliases: {
+      legacyRoomIds: Array.from(legacyIds),
+      transportRoomIds: Array.from(transportIds),
+    },
+  };
+}
+
+seedRoomAliasFromHistory();
+
 app.get("/api/index-posts", (req, res) => {
   res.json({ messages: loadHistory() });
 });
@@ -1471,9 +1617,9 @@ function loadDirectHistory(a, b) {
 
 wss.on("connection", (ws) => {
   ws.id = uid();
+  ws.restoredSession = false;
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
-  ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
   broadcastUsers();
   for(const [id, thumb] of thumbnails.entries()){
@@ -1519,16 +1665,90 @@ wss.on("connection", (ws) => {
         .prepare("SELECT profile_pic FROM users WHERE username=?")
         .get(ws.username);
       ws.profilePic = u?.profile_pic || null;
+      if (!ws.restoredSession) {
+        const bundle = buildRestoreHistoryBundleForRoom({
+          roomKey: CLOUD_ROOM_KEY,
+          transportRoomId: null,
+        });
+        ws.send(
+          JSON.stringify({
+            type: "restore-session-result",
+            resolvedRoomKey: CLOUD_ROOM_KEY,
+            resolvedRoomType: CLOUD_ROOM_TYPE,
+            resolvedTransportRoomId: null,
+            overlayState: null,
+            history: bundle.history,
+            aliases: bundle.aliases,
+          })
+        );
+      }
       broadcastUsers();
       return;
     }
     switch (msg?.type) {
+      case "persist-active-room-session": {
+        saveActiveRoomSession({
+          sessionKey: msg.sessionKey,
+          userKey: msg.userKey || ws.username || null,
+          activeRoomKey: msg.activeRoomKey,
+          activeRoomType: msg.activeRoomType,
+          activeTransportRoomId: msg.activeTransportRoomId,
+          lastMessageId: msg.lastMessageId,
+          lastMessageTs: msg.lastMessageTs,
+          overlayState: msg.overlayState || null,
+        });
+        upsertRoomAlias(
+          msg.activeRoomKey,
+          msg.activeTransportRoomId,
+          msg.activeTransportRoomId
+        );
+        return;
+      }
+      case "restore-session": {
+        const persistedSession = loadActiveRoomSession({
+          sessionKey: msg.sessionKey,
+          userKey: msg.userKey || ws.username || null,
+        });
+        const resolved = resolveActiveRoomForRestore({
+          persistedSession,
+          requested: msg,
+          aliasMaps: roomAlias,
+        });
+        const bundle = buildRestoreHistoryBundleForRoom({
+          roomKey: resolved.resolvedRoomKey,
+          transportRoomId: resolved.resolvedTransportRoomId,
+        });
+        ws.restoredSession = true;
+        saveActiveRoomSession({
+          sessionKey: msg.sessionKey,
+          userKey: msg.userKey || ws.username || null,
+          activeRoomKey: resolved.resolvedRoomKey,
+          activeRoomType: resolved.resolvedRoomType,
+          activeTransportRoomId: resolved.resolvedTransportRoomId,
+          lastMessageId: msg.lastSeenMessageId || null,
+          lastMessageTs: msg.lastSeenTs || null,
+          overlayState: persistedSession?.overlay_state || null,
+        });
+        ws.send(
+          JSON.stringify({
+            type: "restore-session-result",
+            resolvedRoomKey: resolved.resolvedRoomKey,
+            resolvedRoomType: resolved.resolvedRoomType,
+            resolvedTransportRoomId: resolved.resolvedTransportRoomId,
+            overlayState: persistedSession?.overlay_state || null,
+            history: bundle.history,
+            aliases: bundle.aliases,
+          })
+        );
+        return;
+      }
       case "broadcaster":
         if (broadcasters.size > 0 && ws.id !== guestApproved) {
           ws.send(JSON.stringify({ type: "join-denied" }));
           return;
         }
         broadcasters.set(ws.id, ws);
+        upsertRoomAlias(ws.id, ws.id, ws.id);
         broadcastUsers();
         const followers = db
           .prepare("SELECT follower FROM follows WHERE following = ?")
@@ -1562,6 +1782,7 @@ wss.on("connection", (ws) => {
         return;
       case "mic-broadcaster":
         broadcasters.set(ws.id, ws);
+        upsertRoomAlias(ws.id, ws.id, ws.id);
         micGuests.add(ws.id);
         broadcastUsers();
         return;
@@ -1686,6 +1907,7 @@ wss.on("connection", (ws) => {
       case "watcher": {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
+          upsertRoomAlias(msg.id, msg.id, msg.id);
           host.send(JSON.stringify({ type: "watcher", id: ws.id }));
           if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
           listeners.get(msg.id).add(ws.id);
@@ -1917,6 +2139,7 @@ wss.on("connection", (ws) => {
     msg.roomType = roomMeta.roomType;
     msg.transportRoomId = roomMeta.transportRoomId;
     msg.legacyRoomId = roomMeta.legacyRoomId;
+    upsertRoomAlias(roomMeta.roomKey, roomMeta.transportRoomId, roomMeta.legacyRoomId);
     msg.createdAt = msg.ts;
     msg.likes = 0;
     msg.comments = [];
