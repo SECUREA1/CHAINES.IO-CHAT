@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "build": "echo no-build",
-    "verify:index-persistence": "python3 scripts/verify_index_persistence.py"
+    "build": "echo no-build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
