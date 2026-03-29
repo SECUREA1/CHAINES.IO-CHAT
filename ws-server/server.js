@@ -1040,6 +1040,21 @@ app.get("/profile/:username", (req, res) => {
     .prepare("SELECT following FROM follows WHERE follower=?")
     .all(targetUser)
     .map((r) => r.following);
+  const likesReceived = db
+    .prepare(
+      `SELECT COUNT(*) as total
+       FROM likes l
+       INNER JOIN chat_messages m ON m.id = l.message_id
+       WHERE m.user = ?`
+    )
+    .get(targetUser)?.total || 0;
+  const directMessages = db
+    .prepare(
+      `SELECT COUNT(*) as total
+       FROM private_messages
+       WHERE sender = ? OR recipient = ?`
+    )
+    .get(targetUser, targetUser)?.total || 0;
   const isFollowing = viewer
     ? !!db
         .prepare(
@@ -1057,6 +1072,14 @@ app.get("/profile/:username", (req, res) => {
     following,
     followerCount: followers.length,
     followingCount: following.length,
+    stats: {
+      posts: hydratedPosts.length,
+      replies: replies.length,
+      followers: followers.length,
+      following: following.length,
+      likesReceived: Number(likesReceived) || 0,
+      directMessages: Number(directMessages) || 0,
+    },
     isFollowing,
   });
 });
