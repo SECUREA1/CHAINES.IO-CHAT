@@ -48,13 +48,11 @@ if (
   fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
 }
 const db = new Database(DB_PATH);
-console.log(`[startup] SQLite DB path: ${DB_PATH}`);
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
     room TEXT,
-    is_public_index INTEGER DEFAULT 0,
     message TEXT,
     image TEXT,
     file TEXT,
@@ -139,43 +137,12 @@ db.exec(`
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN is_public_index INTEGER DEFAULT 0"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
-try {
-  db.exec("CREATE INDEX IF NOT EXISTS chat_messages_public_idx ON chat_messages(is_public_index)");
-} catch {}
-
-function normalizePublicIndexValue(value, fallback = 0) {
-  if (value === true || value === 1 || value === "1") return 1;
-  if (value === false || value === 0 || value === "0") return 0;
-  return fallback ? 1 : 0;
-}
-
-function derivePublicIndexFlag(message = {}) {
-  const explicit = message.isPublicIndex ?? message.is_public_index ?? message.publicIndex;
-  if (explicit !== undefined && explicit !== null) {
-    return normalizePublicIndexValue(explicit, 0);
-  }
-  return message.room ? 0 : 1;
-}
-
-function runChatMessageMigrations() {
-  const normalized = db
-    .prepare(
-      `UPDATE chat_messages
-       SET is_public_index = CASE WHEN room IS NULL THEN 1 ELSE 0 END
-       WHERE is_public_index IS NULL`
-    )
-    .run();
-  console.log(
-    `[startup] chat_messages migration normalized legacy visibility rows=${normalized.changes}`
-  );
-}
 
 const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 const PROFILE_MEMORY_PATH =
@@ -224,24 +191,15 @@ function saveChatMemory(items = []) {
 function storeChatMemory(message = {}) {
   const items = loadChatMemory();
   const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
-  const normalizedFile =
-    message.file || message.video || null;
-  const normalizedFileType =
-    message.file_type ||
-    message.fileType ||
-    message.video_type ||
-    message.videoType ||
-    null;
   const entry = {
     id: Number(message.id),
     user: message.user || "",
     room: message.room || null,
-    is_public_index: derivePublicIndexFlag(message),
     message: message.text ?? message.message ?? "",
     image: message.image || null,
-    file: normalizedFile,
+    file: message.file || null,
     file_name: message.file_name || message.fileName || null,
-    file_type: normalizedFileType,
+    file_type: message.file_type || message.fileType || null,
     ts: Number(message.ts) || Date.now(),
   };
   if (idx >= 0) {
@@ -261,7 +219,7 @@ function hydrateChatMessagesFromMemory() {
   const items = loadChatMemory();
   if (!items.length) return;
   const insert = db.prepare(
-    "INSERT OR IGNORE INTO chat_messages (id, user, room, is_public_index, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
+    "INSERT OR IGNORE INTO chat_messages (id, user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
   );
   const tx = db.transaction((entries) => {
     for (const item of entries) {
@@ -270,7 +228,6 @@ function hydrateChatMessagesFromMemory() {
         Number(item.id),
         item.user || "",
         item.room || null,
-        derivePublicIndexFlag(item),
         item.message || "",
         item.image || null,
         item.file || null,
@@ -283,47 +240,10 @@ function hydrateChatMessagesFromMemory() {
   tx(items);
 }
 
-function backfillChatMemoryFromDatabase() {
-  const rows = db
-    .prepare(
-      "SELECT id, user, room, is_public_index, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages ORDER BY id"
-    )
-    .all();
-  if (!rows.length) return;
-  const items = loadChatMemory();
-  const byId = new Map();
-  for (const item of items) {
-    const id = Number(item.id);
-    if (!Number.isFinite(id)) continue;
-    byId.set(id, item);
-  }
-  for (const row of rows) {
-    const id = Number(row.id);
-    if (!Number.isFinite(id)) continue;
-    byId.set(id, {
-      id,
-      user: row.user || "",
-      room: row.room || null,
-      is_public_index: normalizePublicIndexValue(row.is_public_index, row.room ? 0 : 1),
-      message: row.message || "",
-      image: row.image || null,
-      file: row.file || null,
-      file_name: row.file_name || null,
-      file_type: row.file_type || null,
-      ts: Number(row.ts) || Date.now(),
-    });
-  }
-  saveChatMemory(
-    Array.from(byId.values()).sort(
-      (a, b) => Number(a.id || 0) - Number(b.id || 0)
-    )
-  );
-}
-
 function loadHistoryFromMemory(room = null) {
   const commentsByMessage = {};
   for (const item of loadChatMemory()) {
-    if (room && item.room !== room) continue;
+    if (room ? item.room !== room : item.room) continue;
     const id = Number(item.id);
     if (!Number.isFinite(id)) continue;
     commentsByMessage[id] = {
@@ -332,7 +252,6 @@ function loadHistoryFromMemory(room = null) {
       user: item.user || "",
       profilePic: resolveUserProfilePic(item.user || ""),
       room: item.room || null,
-      isPublicIndex: derivePublicIndexFlag(item),
       text: item.message || "",
       image: item.image || null,
       file: item.file || null,
@@ -360,21 +279,7 @@ function saveProfiles() {
 }
 
 let profiles = loadProfiles();
-runChatMessageMigrations();
 hydrateChatMessagesFromMemory();
-backfillChatMemoryFromDatabase();
-const startupChatCounts = db
-  .prepare(
-    `SELECT
-      COUNT(*) as total,
-      SUM(CASE WHEN is_public_index = 1 THEN 1 ELSE 0 END) as publicIndex,
-      SUM(CASE WHEN room IS NOT NULL THEN 1 ELSE 0 END) as roomPosts
-     FROM chat_messages`
-  )
-  .get();
-console.log(
-  `[startup] chat_messages counts total=${startupChatCounts?.total || 0} publicIndex=${startupChatCounts?.publicIndex || 0} roomPosts=${startupChatCounts?.roomPosts || 0}`
-);
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
@@ -1329,17 +1234,10 @@ const server = http.createServer(app);
 
 function loadHistory(room = null) {
   hydrateChatMessagesFromMemory();
-  const query = room
-    ? `SELECT c.id, c.user, u.profile_pic, c.room, c.is_public_index, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts
-       FROM chat_messages c
-       LEFT JOIN users u ON c.user = u.username
-       WHERE c.room = ?
-       ORDER BY c.id`
-    : `SELECT c.id, c.user, u.profile_pic, c.room, c.is_public_index, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts
-       FROM chat_messages c
-       LEFT JOIN users u ON c.user = u.username
-       ORDER BY c.id`;
-  const stmt = db.prepare(query);
+  const where = room ? "c.room = ?" : "c.room IS NULL";
+  const stmt = db.prepare(
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+  );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
@@ -1366,7 +1264,6 @@ function loadHistory(room = null) {
     user: r.user,
     profilePic: r.profile_pic,
     room: r.room,
-    isPublicIndex: normalizePublicIndexValue(r.is_public_index, r.room ? 0 : 1),
     text: r.message,
     image: r.image,
     file: r.file,
@@ -1381,63 +1278,8 @@ function loadHistory(room = null) {
   return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
 
-function loadIndexHistory() {
-  hydrateChatMessagesFromMemory();
-  const rows = db
-    .prepare(
-      `SELECT c.id, c.user, u.profile_pic, c.room, c.is_public_index, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts
-       FROM chat_messages c
-       LEFT JOIN users u ON c.user = u.username
-       WHERE c.is_public_index = 1
-       ORDER BY c.id`
-    )
-    .all();
-  const commentRows = db
-    .prepare(
-      `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
-    )
-    .all();
-  const likeRows = db
-    .prepare(`SELECT message_id, COUNT(*) as c FROM likes GROUP BY message_id`)
-    .all();
-  const comments = {};
-  for (const c of commentRows) {
-    (comments[c.message_id] ||= []).push({
-      id: c.id,
-      user: c.user,
-      text: c.text,
-      ts: c.ts,
-    });
-  }
-  const likes = {};
-  for (const l of likeRows) likes[l.message_id] = l.c;
-  const messages = rows.map((r) => ({
-    type: "chat",
-    id: r.id,
-    user: r.user,
-    profilePic: r.profile_pic,
-    room: r.room,
-    isPublicIndex: normalizePublicIndexValue(r.is_public_index, r.room ? 0 : 1),
-    text: r.message,
-    image: r.image,
-    file: r.file,
-    fileName: r.file_name,
-    fileType: r.file_type,
-    ts: r.ts,
-    likes: likes[r.id] || 0,
-    comments: comments[r.id] || [],
-  }));
-  const merged = loadHistoryFromMemory(null);
-  for (const row of messages) merged[row.id] = row;
-  return Object.values(merged)
-    .filter((row) => derivePublicIndexFlag(row) === 1)
-    .sort((a, b) => (a.id || 0) - (b.id || 0));
-}
-
 app.get("/api/index-posts", (req, res) => {
-  const messages = loadIndexHistory();
-  console.log(`[api] /api/index-posts count=${messages.length}`);
-  res.json({ messages });
+  res.json({ messages: loadHistory() });
 });
 
 const wss = new WebSocketServer({ server, path: "/ws" });
@@ -1911,54 +1753,30 @@ wss.on("connection", (ws) => {
     // higher than the desired byte thresholds.
     if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
     if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
-    if (msg.video && msg.video.length > 50_000_000) return; // legacy video field
-    if (!msg.file && msg.video) msg.file = msg.video;
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
-    const fileType =
-      msg.file_type ||
-      msg.fileType ||
-      msg.video_type ||
-      msg.videoType ||
-      null;
-    const isPublicIndex = derivePublicIndexFlag(msg);
-    msg.isPublicIndex = isPublicIndex;
+    const fileType = msg.file_type || msg.fileType || null;
     ensureUserRecord(msg.user || "");
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
-    let info;
-    try {
-      info = db
-        .prepare(
-          "INSERT INTO chat_messages (user, room, is_public_index, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        )
-        .run(
-          msg.user || "",
-          msg.room || null,
-          isPublicIndex,
-          text,
-          msg.image || null,
-          msg.file || null,
-          fileName,
-          fileType
-      );
-    } catch (err) {
-      console.error("[chat] insert failed", {
-        user: msg.user || "",
-        room: msg.room || null,
-        isPublicIndex,
-        error: err?.message || err,
-      });
-      return;
-    }
-    msg.id = info.lastInsertRowid;
-    console.log(
-      `[chat] inserted id=${msg.id} user=${msg.user || ""} room=${msg.room || "null"} isPublicIndex=${isPublicIndex}`
+    const info = db
+      .prepare(
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        msg.user || "",
+        msg.room || null,
+        text,
+        msg.image || null,
+        msg.file || null,
+        fileName,
+        fileType
     );
+    msg.id = info.lastInsertRowid;
     msg.message = text;
     msg.likes = 0;
     msg.comments = [];

@@ -193,8 +193,8 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #notif-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #notif-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -684,7 +684,7 @@
       font-size: 1rem;
     }
 
-    .download-btn{
+      .download-btn{
       display:inline-block;
       margin-top:4px;
       padding:4px 8px;
@@ -695,6 +695,76 @@
       text-decoration:none;
       font-size:12px;
       box-shadow: var(--shadow);
+    }
+    .notif-btn{
+      position: relative;
+      overflow: visible;
+    }
+    .notif-btn__badge{
+      position:absolute;
+      top:-6px;
+      right:-6px;
+      min-width:18px;
+      height:18px;
+      border-radius:999px;
+      background:#ef4444;
+      color:#fff;
+      border:2px solid var(--panel);
+      font-size:11px;
+      line-height:1;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0 4px;
+    }
+    .notif-panel{
+      position: fixed;
+      right: 14px;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      width: min(92vw, 360px);
+      max-height: min(60vh, 460px);
+      overflow: auto;
+      border: 1px solid var(--lining);
+      border-radius: 14px;
+      background: color-mix(in oklab, var(--panel), transparent 6%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+      padding: 10px;
+    }
+    .notif-panel h3{
+      margin: 2px 4px 8px;
+      font-size: 14px;
+    }
+    .notif-list{
+      list-style:none;
+      margin:0;
+      padding:0;
+      display:grid;
+      gap:8px;
+    }
+    .notif-item{
+      border:1px solid var(--lining);
+      border-radius:10px;
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      padding:8px 10px;
+      cursor:pointer;
+      font-size:13px;
+    }
+    .notif-item:hover{
+      border-color: color-mix(in oklab, var(--gold), transparent 45%);
+    }
+    .notif-item__time{
+      display:block;
+      margin-top:4px;
+      color:var(--muted);
+      font-size:11px;
+    }
+    .notif-empty{
+      margin: 4px;
+      color: var(--muted);
+      font-size:13px;
     }
 
     /* ✅ make hidden actually hide, even with .auth display rules */
@@ -816,6 +886,10 @@
       </form>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
+        <button class="chip notif-btn" id="notif-btn" title="Notifications" aria-label="Notifications">
+          🔔
+          <span id="notif-badge" class="notif-btn__badge" hidden>0</span>
+        </button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
@@ -836,6 +910,11 @@
       <p id="popup-text"></p>
       <div id="popup-actions" class="popup-actions"></div>
     </div>
+  </div>
+  <div id="notif-panel" class="notif-panel" hidden>
+    <h3>New notifications</h3>
+    <ul id="notif-list" class="notif-list"></ul>
+    <p id="notif-empty" class="notif-empty" hidden>No new notifications.</p>
   </div>
 
   <div id="omconsole-modal" class="omconsole-modal" hidden>
@@ -906,9 +985,15 @@
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
+    const notifBtn = el('#notif-btn');
+    const notifBadge = el('#notif-badge');
+    const notifPanel = el('#notif-panel');
+    const notifList = el('#notif-list');
+    const notifEmpty = el('#notif-empty');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
+    let notificationPollTimer = null;
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
@@ -928,6 +1013,88 @@
         autoResize(input);
         input.focus();
       }
+    });
+
+    function describeNotification(n){
+      if(n.type === 'like') return `${n.data?.from || 'Someone'} liked your post #${n.data?.messageId || ''}`.trim();
+      if(n.type === 'follow') return `${n.data?.from || 'Someone'} started following you`;
+      if(n.type === 'broadcast') return `${n.data?.from || 'Someone'} requested to ${n.data?.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`;
+      if(n.type === 'dm') return `${n.data?.from || 'Someone'} sent you a private encrypted message`;
+      if(n.type === 'self-destruct') return `Your post #${n.data?.messageId || ''} self-destructed`.trim();
+      return 'You have a new notification';
+    }
+
+    function notificationDestination(n){
+      if(n.type === 'follow' && n.data?.from) return '/profile.html?user=' + encodeURIComponent(n.data.from);
+      if(n.type === 'dm' && n.data?.from) return '/private-chat.html?user=' + encodeURIComponent(n.data.from);
+      return '/profile.html?user=' + encodeURIComponent(store.user || '');
+    }
+
+    async function fetchNotifications(){
+      if(!store.user) return [];
+      try {
+        const res = await apiFetch('/notifications/' + encodeURIComponent(store.user));
+        if(!res.ok) return [];
+        const list = await res.json().catch(()=>[]);
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    }
+
+    async function refreshNotificationBadge(){
+      const all = await fetchNotifications();
+      const unread = all.filter(n => !n.read);
+      const count = unread.length;
+      notifBadge.hidden = count === 0;
+      notifBadge.textContent = String(Math.min(count, 99));
+      return unread;
+    }
+
+    async function openNotifications(){
+      const unread = await refreshNotificationBadge();
+      notifList.innerHTML = '';
+      if(!unread.length){
+        notifEmpty.hidden = false;
+      } else {
+        notifEmpty.hidden = true;
+        unread.forEach((n) => {
+          const li = document.createElement('li');
+          li.className = 'notif-item';
+          li.tabIndex = 0;
+          li.textContent = describeNotification(n);
+          const tm = document.createElement('span');
+          tm.className = 'notif-item__time';
+          tm.textContent = n.ts ? new Date(n.ts).toLocaleString() : '';
+          li.appendChild(tm);
+          const go = () => { window.location.href = notificationDestination(n); };
+          li.addEventListener('click', go);
+          li.addEventListener('keydown', (ev) => {
+            if(ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault();
+              go();
+            }
+          });
+          notifList.appendChild(li);
+        });
+      }
+      notifPanel.hidden = false;
+      try {
+        await apiFetch('/notifications/' + encodeURIComponent(store.user) + '/read', { method:'POST' });
+      } catch {}
+      notifBadge.hidden = true;
+    }
+
+    notifBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      if(notifPanel.hidden) await openNotifications();
+      else notifPanel.hidden = true;
+    });
+
+    document.addEventListener('click', (ev) => {
+      if(notifPanel.hidden) return;
+      if(notifPanel.contains(ev.target) || notifBtn.contains(ev.target)) return;
+      notifPanel.hidden = true;
     });
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
@@ -1236,81 +1403,50 @@
       get indexPostsKey(){
         return 'chaines_index_posts';
       },
-      get localPostsKey(){
-        return 'chaines_local_posts';
-      },
-      get cloudPostsKey(){
-        return 'chaines_cloud_posts';
-      },
-      loadRawPosts(key){
+      loadRawPosts(){
         try{
-          const raw = localStorage.getItem(key);
+          const raw = localStorage.getItem(this.indexPostsKey);
           if(raw) return JSON.parse(raw) || [];
-          if(key === this.localPostsKey){
-            const legacy = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-            if(Array.isArray(legacy) && legacy.length){
-              localStorage.setItem(this.localPostsKey, JSON.stringify(legacy));
-              localStorage.removeItem('chaines_messages');
-              return legacy;
-            }
+          const legacy = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
+          if(Array.isArray(legacy) && legacy.length){
+            localStorage.setItem(this.indexPostsKey, JSON.stringify(legacy));
+            localStorage.removeItem('chaines_messages');
+            return legacy;
           }
           return [];
         } catch { return []; }
       },
-      savePosts(key, items){
-        try { localStorage.setItem(key, JSON.stringify(items)); }
+      savePosts(items){
+        try { localStorage.setItem(this.indexPostsKey, JSON.stringify(items)); }
         catch {}
       },
-      pushLocalMsg(m) {
+      pushMsg(m) {
         try {
-          const items = this.loadRawPosts(this.localPostsKey);
+          const items = this.loadRawPosts();
           const idx = items.findIndex(x => x.id === m.id);
           if(idx >= 0) items[idx] = m;
           else items.push(m);
           while (items.length > 200) items.shift();
-          this.savePosts(this.localPostsKey, items);
-        } catch {}
-      },
-      pushCloudMsg(m) {
-        try {
-          const items = this.loadRawPosts(this.cloudPostsKey);
-          const idx = items.findIndex(x => x.id === m.id);
-          if(idx >= 0) items[idx] = m;
-          else items.push(m);
-          while (items.length > 200) items.shift();
-          this.savePosts(this.cloudPostsKey, items);
+          this.savePosts(items);
         } catch {}
       },
       removeMsg(id){
         try{
-          const localItems = this.loadRawPosts(this.localPostsKey).filter(x => x.id !== id);
-          const cloudItems = this.loadRawPosts(this.cloudPostsKey).filter(x => x.id !== id);
-          this.savePosts(this.localPostsKey, localItems);
-          this.savePosts(this.cloudPostsKey, cloudItems);
+          const items = this.loadRawPosts().filter(x => x.id !== id);
+          this.savePosts(items);
         } catch{}
       },
-      loadLocalMsgs() {
+      loadMsgs() {
         try {
-          const items = this.loadRawPosts(this.localPostsKey);
+          const items = this.loadRawPosts();
           const now = Date.now();
           const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          this.savePosts(this.localPostsKey, valid);
-          return valid;
-        } catch { return []; }
-      },
-      loadCloudMsgs() {
-        try {
-          const items = this.loadRawPosts(this.cloudPostsKey);
-          const now = Date.now();
-          const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          this.savePosts(this.cloudPostsKey, valid);
+          this.savePosts(valid);
           return valid;
         } catch { return []; }
       },
       clearMsgs() {
         try {
-          localStorage.removeItem(this.localPostsKey);
-          localStorage.removeItem(this.cloudPostsKey);
           localStorage.removeItem(this.indexPostsKey);
           localStorage.removeItem('chaines_messages');
         } catch {}
@@ -1526,9 +1662,6 @@
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
     const seenComments = new Set();
-    let historyHydrationPromise = null;
-    let didAttemptApiHistoryHydration = false;
-    let hasWarnedEmptyServerHistory = false;
 
     // --- WebRTC state ---
       const peerConnections = {};
@@ -1774,33 +1907,11 @@
     }
 
     function defaultWS(){
-      const hostMap = {
-        'chaines-chat-site.onrender.com': 'chaines-chat-ws.onrender.com',
-      };
-      const isLocalhost = /^(localhost|127\\.0\\.0\\.1)$/i.test(location.hostname || '');
-      const host = isLocalhost ? location.host : (hostMap[location.hostname] || location.host);
+      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
+        ? 'chaines-io-chat.onrender.com'
+        : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
       return proto + host + '/ws';
-    }
-
-    function noteEmptyServerHistoryFallback(){
-      renderCloudCachedFeed();
-      if(hasWarnedEmptyServerHistory) return;
-      hasWarnedEmptyServerHistory = true;
-      systemNote('Server history is empty. Showing locally cached cloud posts.');
-    }
-
-    function mergeCloudIndexMessages(messages){
-      const incoming = (Array.isArray(messages) ? messages : []).filter(m => m && isPublicIndexPost(m));
-      if(!incoming.length) return [];
-      const merged = store.loadCloudMsgs().slice();
-      incoming.forEach((m) => {
-        const idx = merged.findIndex(x => x.id === m.id);
-        if(idx >= 0) merged[idx] = m;
-        else merged.push(m);
-      });
-      store.savePosts(store.cloudPostsKey, merged);
-      return merged;
     }
 
     function apiBaseURL(){
@@ -1823,17 +1934,6 @@
 
     function apiFetch(path, options){
       return fetch(apiURL(path), options);
-    }
-
-    function isPublicIndexPost(message){
-      if(!message) return false;
-      if(typeof message.isPublicIndex === 'boolean') return message.isPublicIndex;
-      if(message.isPublicIndex === 1 || message.isPublicIndex === '1') return true;
-      if(message.isPublicIndex === 0 || message.isPublicIndex === '0') return false;
-      if(typeof message.publicIndex === 'boolean') return message.publicIndex;
-      if(message.publicIndex === 1 || message.publicIndex === '1') return true;
-      if(message.publicIndex === 0 || message.publicIndex === '0') return false;
-      return !message.room;
     }
 
     function setStatus(mode){
@@ -1861,10 +1961,7 @@
       } catch { setStatus('off'); return; }
 
       socket.addEventListener('open', () => {
-        didAttemptApiHistoryHydration = false;
-        hasWarnedEmptyServerHistory = false;
         setStatus('cloud');
-        renderCloudCachedFeed();
         sendJoin();
         setTimeout(syncOfflineLocalPostsToCloud, 300);
       });
@@ -1881,23 +1978,16 @@
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
           if(data && data.type === 'history') {
-            const msgs = Array.isArray(data.messages) ? data.messages.filter(Boolean) : [];
-            const roomMsgs = msgs.filter(m => m.room && !isPublicIndexPost(m));
-            const indexMsgs = msgs.filter(m => isPublicIndexPost(m));
-            roomMsgs.forEach(m => receive(m));
-            if(indexMsgs.length === 0){
-              hydrateIndexPostsFromDatabase({ force: true }).then((hydrated) => {
-                if(!hydrated) noteEmptyServerHistoryFallback();
-              });
+            const msgs = data.messages || [];
+            if(msgs.some(m => m.room)){
+              msgs.forEach(m => receive(m));
             } else {
-              hasWarnedEmptyServerHistory = false;
-              const merged = mergeCloudIndexMessages(indexMsgs);
-              feed.innerHTML = '';
-              seen.clear();
-              (merged.length ? merged : indexMsgs)
-                .slice()
-                .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-                .forEach(m => receive(m));
+              if(msgs.length === 0){
+                systemNote('Server history is empty. Showing locally cached posts.');
+              } else {
+                feed.innerHTML = '';
+                msgs.forEach(m => receive(m));
+              }
             }
           }
           if(data && data.type === 'id') clientId = data.id;
@@ -1985,6 +2075,12 @@
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
       setupPush();
+      refreshNotificationBadge();
+      if(notificationPollTimer) clearInterval(notificationPollTimer);
+      notificationPollTimer = setInterval(() => {
+        if(document.hidden) return;
+        refreshNotificationBadge();
+      }, 30000);
     }
 
     async function setupPush(){
@@ -2228,8 +2324,6 @@
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
-      const mediaPayload = file || video || null;
-      const normalizedFileType = fileType || (video ? 'video/webm' : undefined);
       const clientNonce = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
@@ -2240,9 +2334,9 @@
           text: text,
           room: room,
         image: image,
-        file: mediaPayload,
+        file: file,
         fileName: fileName || name,
-        fileType: normalizedFileType,
+        fileType: fileType,
         name: fileName || name,
         isAction,
         broadcast,
@@ -2251,15 +2345,12 @@
         likes: 0,
         comments: []
       };
-      msg.publicIndex = !room || Boolean(broadcast);
-      msg.isPublicIndex = msg.publicIndex;
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
       msg.localOnly = (onlineMode !== 'cloud' || !socket || socket.readyState !== 1);
 
       // Push to UI + storage immediately
         receive(msg, true);
-        if(msg.localOnly) store.pushLocalMsg(msg);
-        else store.pushCloudMsg(msg);
+        if(!room && msg.localOnly) store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -3079,25 +3170,20 @@
         }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        const showInIndex = isPublicIndexPost(m);
-        if(activeRooms.size > 0 && showInIndex) return;
+        if(activeRooms.size > 0 && !m.room) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
-        }
-        if(showInIndex){
+        } else {
           appendMessage(m);
-          if(m){
-            if(onlineMode === 'cloud') store.pushCloudMsg(m);
-            else store.pushLocalMsg(m);
-          }
+          if(!isLocal && m && m.localOnly) store.pushMsg(m);
         }
       }
 
-      function renderLocalCachedFeed(){
+      function renderCachedFeed(){
       feed.innerHTML = '';
       seen.clear();
-      const items = store.loadLocalMsgs();
+      const items = store.loadMsgs();
       items
         .slice()
         .sort((a, b) => (a.ts || 0) - (b.ts || 0))
@@ -3108,58 +3194,30 @@
       scrollToTop();
     }
 
-      function renderCloudCachedFeed(){
-      feed.innerHTML = '';
-      seen.clear();
-      const items = store.loadCloudMsgs();
-      items
-        .slice()
-        .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-        .forEach(m => {
-          seen.add(m.id);
-          appendMessage(m, true);
-        });
-      scrollToTop();
-    }
-
-      async function hydrateIndexPostsFromDatabase({ force = false } = {}){
-        if(historyHydrationPromise) return historyHydrationPromise;
-        if(didAttemptApiHistoryHydration && !force) return false;
-        didAttemptApiHistoryHydration = true;
-        historyHydrationPromise = (async () => {
-          try{
-            const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
-            if(!res.ok) return false;
-            const data = await res.json();
-            const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-            const merged = mergeCloudIndexMessages(dbMessages);
-            if(!merged.length) return false;
-            hasWarnedEmptyServerHistory = false;
-            feed.innerHTML = '';
-            seen.clear();
-            merged
-              .slice()
-              .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-              .forEach(m => {
-                if(!m) return;
-                seen.add(m.id);
-                appendMessage(m, true);
-              });
-            scrollToTop();
-            return true;
-          } catch {
-            return false;
-          } finally {
-            historyHydrationPromise = null;
-          }
-        })();
-        return historyHydrationPromise;
+      async function hydrateIndexPostsFromDatabase(){
+        try{
+          const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
+          if(!res.ok) return;
+          const data = await res.json();
+          const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
+          if(!dbMessages.length) return;
+          feed.innerHTML = '';
+          seen.clear();
+          dbMessages
+            .slice()
+            .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+            .forEach(m => {
+              seen.add(m.id);
+              appendMessage(m, true);
+            });
+          scrollToTop();
+        } catch {}
       }
 
       function syncOfflineLocalPostsToCloud(){
         if(onlineMode !== 'cloud' || !socket || socket.readyState !== 1) return;
-        const localItems = store.loadLocalMsgs();
-        const offlineOnly = localItems.filter(m => (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
+        const localItems = store.loadMsgs();
+        const offlineOnly = localItems.filter(m => !m.room && (m.localOnly || !/^\d+$/.test(String(m.id || ''))));
         if(!offlineOnly.length) return;
         offlineOnly.forEach((m) => {
           const outbound = {
@@ -3171,16 +3229,14 @@
           };
           try { socket.send(JSON.stringify(outbound)); } catch {}
         });
-        const syncedIds = new Set(offlineOnly.map(m => String(m.id)));
-        store.savePosts(store.localPostsKey, localItems.filter(m => !syncedIds.has(String(m.id))));
+        store.clearMsgs();
       }
 
       function renderHistory(){
       if(onlineMode === 'cloud'){
-        renderCloudCachedFeed();
         hydrateIndexPostsFromDatabase();
       } else {
-        renderLocalCachedFeed();
+        renderCachedFeed();
       }
     }
 
