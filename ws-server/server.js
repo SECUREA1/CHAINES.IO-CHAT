@@ -293,6 +293,40 @@ function followsEachOther(userA = "", userB = "") {
   return aFollowsB && bFollowsA;
 }
 
+function ensureUserProfile(username = "") {
+  const clean = (username || "").toString().trim();
+  if (!clean) return null;
+  let row = db
+    .prepare("SELECT username, profile_pic, description FROM users WHERE username=?")
+    .get(clean);
+  if (row) return row;
+  const mem = profiles[clean] || {};
+  const hasMemProfile = Boolean(mem.password || mem.profilePic || mem.description);
+  const hasChatActivity = !!db
+    .prepare("SELECT 1 FROM chat_messages WHERE user=? LIMIT 1")
+    .get(clean);
+  if (!hasMemProfile && !hasChatActivity) return null;
+  try {
+    db.prepare(
+      "INSERT INTO users (username, password, profile_pic, description) VALUES (?, ?, ?, ?)"
+    ).run(clean, mem.password || null, mem.profilePic || null, mem.description || null);
+  } catch {}
+  row = db
+    .prepare("SELECT username, profile_pic, description FROM users WHERE username=?")
+    .get(clean);
+  if (!profiles[clean]) {
+    profiles[clean] = {
+      password: mem.password || null,
+      profilePic: row?.profile_pic || mem.profilePic || null,
+      description: row?.description || mem.description || null,
+      backupEmail: mem.backupEmail || null,
+      backupPhone: mem.backupPhone || null,
+    };
+    saveProfiles();
+  }
+  return row || null;
+}
+
 function resolveDmKey() {
   const raw = (process.env.DM_ENCRYPTION_KEY || "").trim();
   if (raw) {
@@ -1006,11 +1040,7 @@ app.get(["/profile.html"], (req, res) =>
 
 app.get("/profile/:username", (req, res) => {
   const viewer = req.query.viewer || "";
-  const dbUser = db
-    .prepare(
-      "SELECT username, profile_pic, description FROM users WHERE username=?"
-    )
-    .get(req.params.username);
+  const dbUser = ensureUserProfile(req.params.username);
   const memUser = profiles[req.params.username] || {};
   if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
@@ -1030,7 +1060,10 @@ app.get("/profile/:username", (req, res) => {
         )
         .all(req.params.username)
     : [];
-  const images = posts.filter((post) => !!post.image);
+  const images = posts.filter((post) => {
+    const type = (post.file_type || "").toLowerCase();
+    return !!post.image || (!!post.file && type.startsWith("image/"));
+  });
   const videos = posts.filter((post) => {
     const type = (post.file_type || "").toLowerCase();
     return !!post.file && type.startsWith("video/");
@@ -1103,40 +1136,56 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
 
 app.post("/profile/:username/follow", (req, res) => {
   const { follower } = req.body || {};
-  if (!follower) {
+  const following = (req.params.username || "").toString().trim();
+  const cleanFollower = (follower || "").toString().trim();
+  if (!cleanFollower) {
     res.status(400).json({ error: "Missing follower" });
+    return;
+  }
+  if (!following) {
+    res.status(400).json({ error: "Missing profile user" });
+    return;
+  }
+  if (cleanFollower === following) {
+    res.status(400).json({ error: "You cannot follow yourself" });
+    return;
+  }
+  const followerProfile = ensureUserProfile(cleanFollower);
+  const followingProfile = ensureUserProfile(following);
+  if (!followerProfile || !followingProfile) {
+    res.status(404).json({ error: "Profile not found" });
     return;
   }
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(follower, req.params.username);
+    .get(cleanFollower, following);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(follower, req.params.username);
+      .run(cleanFollower, following);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(follower, req.params.username);
-    createNotification(req.params.username, "follow", { from: follower });
+      .run(cleanFollower, following);
+    createNotification(following, "follow", { from: cleanFollower });
     sendPush(
-      req.params.username,
+      following,
       "New Follower",
-      `${follower} started following you`
+      `${cleanFollower} started following you`
     );
-    if (followsEachOther(follower, req.params.username)) {
-      createNotification(req.params.username, "dm-unlocked", { with: follower });
-      createNotification(follower, "dm-unlocked", { with: req.params.username });
+    if (followsEachOther(cleanFollower, following)) {
+      createNotification(following, "dm-unlocked", { with: cleanFollower });
+      createNotification(cleanFollower, "dm-unlocked", { with: following });
       sendPush(
-        req.params.username,
+        following,
         "Private chat unlocked",
-        `You and ${follower} can now send private messages`
+        `You and ${cleanFollower} can now send private messages`
       );
       sendPush(
-        follower,
+        cleanFollower,
         "Private chat unlocked",
-        `You and ${req.params.username} can now send private messages`
+        `You and ${following} can now send private messages`
       );
     }
     res.json({ following: true });
