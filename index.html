@@ -1009,8 +1009,6 @@
         renderUnreadNotifications();
         if(unreadNotifications.length){
           await markNotificationsRead();
-          unreadNotifications = [];
-          renderUnreadNotifications();
           setNotificationBadge(0);
         }
       }
@@ -1990,6 +1988,7 @@
                 feed.innerHTML = '';
                 msgs.forEach(m => receive(m));
               }
+              setTimeout(syncOfflineLocalPostsToCloud, 0);
             }
           }
           if(data && data.type === 'id') clientId = data.id;
