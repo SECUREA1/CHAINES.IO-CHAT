@@ -1278,6 +1278,17 @@ function loadHistory(room = null) {
   return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
 
+function mergeMessageLists(...lists) {
+  const byId = new Map();
+  for (const list of lists) {
+    for (const item of list || []) {
+      const key = Number(item?.id);
+      if (Number.isFinite(key)) byId.set(key, item);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => (a.id || 0) - (b.id || 0));
+}
+
 app.get("/api/index-posts", (req, res) => {
   res.json({ messages: loadHistory() });
 });
@@ -1572,7 +1583,10 @@ wss.on("connection", (ws) => {
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
           watching.get(ws.id).add(msg.id);
           sendListenerCount(msg.id);
-          const history = loadHistory(msg.id);
+          const history = mergeMessageLists(
+            loadHistory("cloud"),
+            loadHistory(msg.id)
+          );
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
@@ -1763,13 +1777,15 @@ wss.on("connection", (ws) => {
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
+    const transportRoom = msg.room || null;
+    const persistedRoom = transportRoom ? "cloud" : null;
     const info = db
       .prepare(
         "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
-        msg.room || null,
+        persistedRoom,
         text,
         msg.image || null,
         msg.file || null,
@@ -1778,6 +1794,7 @@ wss.on("connection", (ws) => {
     );
     msg.id = info.lastInsertRowid;
     msg.message = text;
+    msg.room = persistedRoom;
     msg.likes = 0;
     msg.comments = [];
     storeChatMemory(msg);
@@ -1790,11 +1807,11 @@ wss.on("connection", (ws) => {
       msg.fileType = fileType;
     }
     // broadcast
-    if (msg.room) {
+    if (transportRoom) {
       const targets = new Set();
-      const host = broadcasters.get(msg.room);
+      const host = broadcasters.get(transportRoom);
       if (host && host.readyState === 1) targets.add(host);
-      const set = listeners.get(msg.room);
+      const set = listeners.get(transportRoom);
       if (set) {
         for (const id of set) {
           const c = clients.get(id);
