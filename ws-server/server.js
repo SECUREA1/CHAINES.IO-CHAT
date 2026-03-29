@@ -303,6 +303,18 @@ function normalizeBackupPhone(value = "") {
 
 // express setup
 const app = express();
+app.use((req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  res.setHeader("Access-Control-Allow-Origin", requestOrigin || "*");
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");

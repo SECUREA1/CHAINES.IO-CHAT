@@ -107,6 +107,38 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const tabMemoryKey = user ? ('chaines_profile_feed_tab_' + user) : '';
   const allowedTabs = new Set(['posts', 'replies', 'images', 'videos']);
 
+  function defaultWS(){
+    const saved = localStorage.getItem('chaines_ws_url');
+    if(saved) return saved;
+    const host = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
+      ? 'chaines-io-chat.onrender.com'
+      : location.host;
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    return proto + host + '/ws';
+  }
+
+  function apiBaseURL(){
+    try{
+      const u = new URL(defaultWS(), location.href);
+      u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:';
+      u.pathname = '';
+      u.search = '';
+      u.hash = '';
+      return u.origin;
+    }catch{
+      return location.origin;
+    }
+  }
+
+  function apiURL(path){
+    if(/^https?:\/\//i.test(path || '')) return path;
+    return apiBaseURL() + path;
+  }
+
+  function apiFetch(path, options){
+    return fetch(apiURL(path), options);
+  }
+
   let profileData = null;
   const rememberedTab = tabMemoryKey ? (localStorage.getItem(tabMemoryKey) || '') : '';
   let activeTab = allowedTabs.has(rememberedTab) ? rememberedTab : 'posts';
@@ -239,7 +271,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     likeBtn.textContent = '❤️ ' + (post.likes || 0);
     likeBtn.addEventListener('click', async () => {
       if(!storeUser){ alert('Log in to like posts.'); return; }
-      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/like', {
+      const res = await apiFetch('/messages/' + encodeURIComponent(post.id) + '/like', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ user: storeUser })
@@ -268,7 +300,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       if(!storeUser){ alert('Log in to reply.'); return; }
       const textValue = (input.value || '').trim();
       if(!textValue) return;
-      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/reply', {
+      const res = await apiFetch('/messages/' + encodeURIComponent(post.id) + '/reply', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ user: storeUser, text: textValue })
@@ -329,19 +361,19 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') { pushToggle.checked = false; return; }
         const reg = await navigator.serviceWorker.register('/sw.js');
-        const res = await fetch('/push/key');
+        const res = await apiFetch('/push/key');
         const data = await res.json().catch(()=>({}));
         if (!data.key) { pushToggle.checked = false; return; }
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(data.key)
         });
-        await fetch('/push/subscribe', {
+        await apiFetch('/push/subscribe', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ username: storeUser, subscription: sub })
         });
-        await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+        await apiFetch('/notification-settings/' + encodeURIComponent(storeUser), {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ push: true })
@@ -355,12 +387,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         const sub = await reg.pushManager.getSubscription();
         if (sub) await sub.unsubscribe();
       }
-      await fetch('/push/unsubscribe', {
+      await apiFetch('/push/unsubscribe', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ username: storeUser })
       });
-      await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+      await apiFetch('/notification-settings/' + encodeURIComponent(storeUser), {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ push: false })
@@ -369,7 +401,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   });
 
   liveToggle.addEventListener('change', async () => {
-    await fetch('/notification-settings/' + encodeURIComponent(storeUser), {
+    await apiFetch('/notification-settings/' + encodeURIComponent(storeUser), {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ live: liveToggle.checked })
@@ -385,7 +417,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         renderFeed();
       }
     }
-    const res = await fetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
+    const res = await apiFetch('/profile/' + encodeURIComponent(user) + '?viewer=' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = normalizeProfileData(await res.json());
     profileData = data;
@@ -402,7 +434,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       followBtn.textContent = data.isFollowing ? 'Unfollow' : 'Follow';
       messageBtn.textContent = 'Message';
       followBtn.onclick = async () => {
-        const res = await fetch('/profile/' + encodeURIComponent(user) + '/follow', {
+        const res = await apiFetch('/profile/' + encodeURIComponent(user) + '/follow', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ follower: storeUser })
@@ -434,7 +466,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         const form = new FormData();
         form.append('description', descInput.value);
         if (picInput.files[0]) form.append('profile', picInput.files[0]);
-        await fetch('/profile/' + encodeURIComponent(storeUser), {
+        await apiFetch('/profile/' + encodeURIComponent(storeUser), {
           method:'POST',
           body: form
         });
@@ -460,7 +492,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   }
 
   async function loadNotifs(){
-    const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
+    const res = await apiFetch('/notifications/' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = await res.json();
     notifsEl.innerHTML = '';
@@ -488,7 +520,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   }
 
   async function loadSettings(){
-    const res = await fetch('/notification-settings/' + encodeURIComponent(storeUser));
+    const res = await apiFetch('/notification-settings/' + encodeURIComponent(storeUser));
     if(!res.ok) return;
     const data = await res.json().catch(()=>({}));
     pushToggle.checked = !!data.push;
