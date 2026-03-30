@@ -330,7 +330,6 @@
       width:100%;
       height:100%;
       display:block;
-      touch-action:none;
     }
     .panel{
       border-radius: var(--radius-xl);
@@ -3023,59 +3022,6 @@ function updateHoverClick(){
   }
 }
 
-
-function syncCursorFromPointer(clientX, clientY){
-  if(!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
-  state.cursor.x = clamp(clientX, 0, window.innerWidth);
-  state.cursor.y = clamp(clientY, 0, window.innerHeight);
-  state.cursor.hoverTarget = null;
-  state.cursor.hoverStartMs = 0;
-  updateCursorUI();
-}
-
-function wirePointerFallback(){
-  const opts = { passive:true };
-
-  window.addEventListener("pointermove", (e)=>{
-    syncCursorFromPointer(e.clientX, e.clientY);
-  }, opts);
-
-  window.addEventListener("pointerdown", (e)=>{
-    syncCursorFromPointer(e.clientX, e.clientY);
-  }, opts);
-
-  // Keyboard fallback for desktop accessibility.
-  window.addEventListener("keydown", (e)=>{
-    const ae = document.activeElement;
-    const typing = ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable);
-    if(typing) return;
-
-    if(state.ui.modalOpen && ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Enter"].includes(e.key)){
-      // keep keyboard usage in overlays predictable
-      e.preventDefault();
-    }
-
-    const step = e.shiftKey ? 36 : 18;
-    let moved = false;
-    if(e.key === "ArrowUp"){ state.cursor.y -= step; moved = true; }
-    if(e.key === "ArrowDown"){ state.cursor.y += step; moved = true; }
-    if(e.key === "ArrowLeft"){ state.cursor.x -= step; moved = true; }
-    if(e.key === "ArrowRight"){ state.cursor.x += step; moved = true; }
-
-    if(moved){
-      state.cursor.x = clamp(state.cursor.x, 0, window.innerWidth);
-      state.cursor.y = clamp(state.cursor.y, 0, window.innerHeight);
-      state.cursor.hoverTarget = null;
-      state.cursor.hoverStartMs = 0;
-      updateCursorUI();
-    }
-
-    if(e.key === " " || e.key === "Enter"){
-      performClickAtCursor();
-    }
-  });
-}
-
 // -----------------------------
 // Dashboard / Nav actions
 // -----------------------------
@@ -3500,7 +3446,6 @@ function tick(){
 function boot(){
   resizeCanvas();
   wireNav();
-  wirePointerFallback();
 
   // initialize top toggles from settings
   state.runtime.hoverEnabled = !!state.settings.ui.hoverClick;
