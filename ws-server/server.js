@@ -26,33 +26,12 @@ const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-function resolveDurableRoot() {
-  const explicit = (process.env.PERSISTENT_DATA_DIR || "").trim();
-  if (explicit) return explicit;
-  const renderDisk = (process.env.RENDER_DISK_PATH || "").trim();
-  if (renderDisk) return renderDisk;
-  if (fs.existsSync("/var/data")) return "/var/data";
-  return ROOT;
-}
-
-const DURABLE_ROOT = resolveDurableRoot();
-fs.mkdirSync(DURABLE_ROOT, { recursive: true });
-
-const LEGACY_DB_PATH = path.join(ROOT, "app.db");
-const DB_PATH = process.env.DB_PATH || path.join(DURABLE_ROOT, "app.db");
-if (
-  DB_PATH !== LEGACY_DB_PATH &&
-  !fs.existsSync(DB_PATH) &&
-  fs.existsSync(LEGACY_DB_PATH)
-) {
-  fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
-}
+const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
 const db = new Database(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
-    client_nonce TEXT,
     room TEXT,
     message TEXT,
     image TEXT,
@@ -80,9 +59,7 @@ db.exec(`
     username TEXT UNIQUE,
     password TEXT,
     profile_pic TEXT,
-    description TEXT,
-    backup_email TEXT,
-    backup_phone TEXT
+    description TEXT
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -128,149 +105,14 @@ db.exec(`
     dropper_tokens_left INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
-  CREATE TABLE IF NOT EXISTS private_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender TEXT NOT NULL,
-    recipient TEXT NOT NULL,
-    ciphertext TEXT NOT NULL,
-    iv TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN client_nonce TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
-try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
-try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
-try {
-  db.exec(
-    "CREATE UNIQUE INDEX IF NOT EXISTS chat_messages_user_nonce_idx ON chat_messages(user, client_nonce) WHERE client_nonce IS NOT NULL"
-  );
-} catch {}
 
-const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
-const PROFILE_MEMORY_PATH =
-  process.env.PROFILE_MEMORY_PATH ||
-  path.join(DURABLE_ROOT, "profile_memory", "main.json");
-if (
-  PROFILE_MEMORY_PATH !== LEGACY_PROFILE_MEMORY_PATH &&
-  !fs.existsSync(PROFILE_MEMORY_PATH) &&
-  fs.existsSync(LEGACY_PROFILE_MEMORY_PATH)
-) {
-  fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
-  fs.copyFileSync(LEGACY_PROFILE_MEMORY_PATH, PROFILE_MEMORY_PATH);
-}
-
-const LEGACY_CHAT_MEMORY_PATH = path.join(
-  ROOT,
-  "profile_memory",
-  "chat_messages.json"
-);
-const CHAT_MEMORY_PATH =
-  process.env.CHAT_MEMORY_PATH ||
-  path.join(DURABLE_ROOT, "profile_memory", "chat_messages.json");
-if (
-  CHAT_MEMORY_PATH !== LEGACY_CHAT_MEMORY_PATH &&
-  !fs.existsSync(CHAT_MEMORY_PATH) &&
-  fs.existsSync(LEGACY_CHAT_MEMORY_PATH)
-) {
-  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.copyFileSync(LEGACY_CHAT_MEMORY_PATH, CHAT_MEMORY_PATH);
-}
-
-function loadChatMemory() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveChatMemory(items = []) {
-  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.writeFileSync(CHAT_MEMORY_PATH, JSON.stringify(items, null, 2));
-}
-
-function storeChatMemory(message = {}) {
-  const items = loadChatMemory();
-  const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
-  const entry = {
-    id: Number(message.id),
-    user: message.user || "",
-    room: message.room || null,
-    message: message.text ?? message.message ?? "",
-    image: message.image || null,
-    file: message.file || null,
-    file_name: message.file_name || message.fileName || null,
-    file_type: message.file_type || message.fileType || null,
-    ts: Number(message.ts) || Date.now(),
-  };
-  if (idx >= 0) {
-    items[idx] = entry;
-  } else {
-    items.push(entry);
-  }
-  saveChatMemory(items);
-}
-
-function removeFromChatMemory(messageId) {
-  const id = Number(messageId);
-  saveChatMemory(loadChatMemory().filter((item) => Number(item.id) !== id));
-}
-
-function hydrateChatMessagesFromMemory() {
-  const items = loadChatMemory();
-  if (!items.length) return;
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO chat_messages (id, user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
-  );
-  const tx = db.transaction((entries) => {
-    for (const item of entries) {
-      if (!Number.isFinite(Number(item.id))) continue;
-      insert.run(
-        Number(item.id),
-        item.user || "",
-        item.room || null,
-        item.message || "",
-        item.image || null,
-        item.file || null,
-        item.file_name || null,
-        item.file_type || null,
-        Number(item.ts) || Date.now()
-      );
-    }
-  });
-  tx(items);
-}
-
-function loadHistoryFromMemory(room = null) {
-  const commentsByMessage = {};
-  for (const item of loadChatMemory()) {
-    if (room ? item.room !== room : item.room) continue;
-    const id = Number(item.id);
-    if (!Number.isFinite(id)) continue;
-    commentsByMessage[id] = {
-      type: "chat",
-      id,
-      user: item.user || "",
-      profilePic: resolveUserProfilePic(item.user || ""),
-      room: item.room || null,
-      text: item.message || "",
-      image: item.image || null,
-      file: item.file || null,
-      fileName: item.file_name || null,
-      fileType: item.file_type || null,
-      ts: Number(item.ts) || Date.now(),
-      likes: 0,
-      comments: [],
-    };
-  }
-  return commentsByMessage;
-}
+const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
 function loadProfiles() {
   try {
@@ -286,52 +128,9 @@ function saveProfiles() {
 }
 
 let profiles = loadProfiles();
-hydrateChatMessagesFromMemory();
-
-function resolveUserProfilePic(username = "") {
-  const clean = (username || "").toString().trim();
-  if (!clean) return null;
-  const dbPic = db
-    .prepare("SELECT profile_pic FROM users WHERE username=?")
-    .get(clean)?.profile_pic;
-  if (dbPic) return dbPic;
-  return profiles[clean]?.profilePic || null;
-}
-
-function ensureUserRecord(username = "") {
-  const clean = (username || "").toString().trim();
-  if (!clean) return;
-  db.prepare("INSERT OR IGNORE INTO users (username) VALUES (?)").run(clean);
-}
-
-function normalizeBackupEmail(value = "") {
-  const email = (value || "").toString().trim().toLowerCase();
-  if (!email) return null;
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  return emailOk ? email : null;
-}
-
-function normalizeBackupPhone(value = "") {
-  const raw = (value || "").toString().trim();
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, "");
-  return digits.length >= 10 ? digits : null;
-}
 
 // express setup
 const app = express();
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin;
-  res.setHeader("Access-Control-Allow-Origin", requestOrigin || "*");
-  res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");
@@ -414,9 +213,6 @@ app.get("/favicon.svg", (req, res) =>
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
-);
-app.get(["/private-chat.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "private-chat.html"))
 );
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
@@ -855,17 +651,9 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", upload.single("profile"), async (req, res) => {
-  const { username, password, backupEmail, backupPhone } = req.body || {};
+  const { username, password } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
-    return;
-  }
-  const normalizedBackupEmail = normalizeBackupEmail(backupEmail);
-  const normalizedBackupPhone = normalizeBackupPhone(backupPhone);
-  if (!normalizedBackupEmail && !normalizedBackupPhone) {
-    res.status(400).json({
-      error: "A backup email or phone number is required for password recovery.",
-    });
     return;
   }
   if (profiles[username]) {
@@ -877,21 +665,9 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
     db.prepare(
-      "INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)"
-    ).run(
-      username,
-      hash,
-      pic,
-      normalizedBackupEmail,
-      normalizedBackupPhone
-    );
-    profiles[username] = {
-      password: hash,
-      profilePic: pic,
-      description: null,
-      backupEmail: normalizedBackupEmail,
-      backupPhone: normalizedBackupPhone,
-    };
+      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
+    ).run(username, hash, pic);
+    profiles[username] = { password: hash, profilePic: pic, description: null };
     saveProfiles();
     res.json({ success: true });
   } catch (e) {
@@ -906,7 +682,7 @@ app.post("/login", async (req, res) => {
     return;
   }
   const dbUser = db
-    .prepare("SELECT username, password, profile_pic, backup_email, backup_phone FROM users WHERE username=?")
+    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
     .get(username);
   const memUser = profiles[username];
   const hash = dbUser?.password || memUser?.password;
@@ -920,67 +696,14 @@ app.post("/login", async (req, res) => {
     return;
   }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-  const backupEmail = dbUser?.backup_email || memUser?.backupEmail || null;
-  const backupPhone = dbUser?.backup_phone || memUser?.backupPhone || null;
   if (!dbUser) {
     try {
-      db.prepare("INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)").run(
-        username,
-        hash,
-        profilePic,
-        backupEmail,
-        backupPhone
-      );
+      db.prepare("INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)").run(username, hash, profilePic);
     } catch {}
   }
-  profiles[username] = { ...(memUser || {}), password: hash, profilePic, backupEmail, backupPhone };
+  profiles[username] = { ...(memUser || {}), password: hash, profilePic };
   saveProfiles();
   res.json({ success: true, username, profilePic });
-});
-
-app.post("/forgot-password", async (req, res) => {
-  const { username, contact, newPassword } = req.body || {};
-  const cleanUsername = (username || "").toString().trim();
-  const cleanPassword = (newPassword || "").toString();
-  if (!cleanUsername || !cleanPassword) {
-    res.status(400).json({ error: "Username and new password are required." });
-    return;
-  }
-  const normalizedEmail = normalizeBackupEmail(contact);
-  const normalizedPhone = normalizeBackupPhone(contact);
-  if (!normalizedEmail && !normalizedPhone) {
-    res.status(400).json({ error: "Enter a valid backup email or phone number." });
-    return;
-  }
-
-  const dbUser = db
-    .prepare("SELECT username, backup_email, backup_phone, profile_pic FROM users WHERE username=?")
-    .get(cleanUsername);
-  const memUser = profiles[cleanUsername] || {};
-  const storedEmail = normalizeBackupEmail(dbUser?.backup_email || memUser?.backupEmail);
-  const storedPhone = normalizeBackupPhone(dbUser?.backup_phone || memUser?.backupPhone);
-  const emailMatch = normalizedEmail && storedEmail && normalizedEmail === storedEmail;
-  const phoneMatch = normalizedPhone && storedPhone && normalizedPhone === storedPhone;
-
-  if (!emailMatch && !phoneMatch) {
-    res.status(401).json({ error: "Backup contact did not match our records." });
-    return;
-  }
-
-  const hash = await bcrypt.hash(cleanPassword, 10);
-  const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-
-  db.prepare("UPDATE users SET password=? WHERE username=?").run(hash, cleanUsername);
-  profiles[cleanUsername] = {
-    ...(memUser || {}),
-    password: hash,
-    profilePic,
-    backupEmail: storedEmail,
-    backupPhone: storedPhone,
-  };
-  saveProfiles();
-
-  res.json({ success: true, message: "Password reset successful. You can now log in." });
 });
 
 app.get(["/profile.html"], (req, res) =>
@@ -988,105 +711,52 @@ app.get(["/profile.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
-  hydrateChatMessagesFromMemory();
-  const targetUser = (req.params.username || "").toString().trim();
   const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
     )
-    .get(targetUser);
-  const memUser = profiles[targetUser] || {};
-  const hasPosts = !!db
-    .prepare("SELECT 1 FROM chat_messages WHERE user=? LIMIT 1")
-    .get(targetUser);
-  const hasMemProfile = !!(
-    memUser &&
-    (
-      memUser.password ||
-      memUser.profilePic ||
-      memUser.description ||
-      memUser.backupEmail ||
-      memUser.backupPhone
-    )
-  );
-  if (!dbUser && !hasMemProfile && !hasPosts) {
+    .get(req.params.username);
+  const memUser = profiles[req.params.username] || {};
+  if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const allPublicHistory = loadHistory(null);
-  const posts = allPublicHistory
-    .filter((post) => post.user === targetUser)
-    .map((post) => ({
-      id: post.id,
-      message: post.text || "",
-      image: post.image || null,
-      file: post.file || null,
-      file_name: post.fileName || null,
-      file_type: post.fileType || null,
-      ts: post.ts || Date.now(),
-      likes: Number(post.likes) || 0,
-      comments: Array.isArray(post.comments) ? post.comments : [],
-    }))
-    .sort((a, b) => (b.id || 0) - (a.id || 0));
-  const hydratedPosts = posts.map((post) => ({
-    ...post,
-    likes: Number(post.likes) || 0,
-    comments: Array.isArray(post.comments) ? post.comments : [],
-  }));
-  const replies = db
-    .prepare(
-      "SELECT c.id, c.message_id, c.user, c.text, strftime('%s', c.timestamp) * 1000 as ts, m.user as post_user, m.message as post_message FROM comments c LEFT JOIN chat_messages m ON c.message_id = m.id WHERE c.user=? ORDER BY c.id DESC"
-    )
-    .all(targetUser);
-  const followers = db
-    .prepare("SELECT follower FROM follows WHERE following=?")
-    .all(targetUser)
-    .map((r) => r.follower);
-  const following = db
-    .prepare("SELECT following FROM follows WHERE follower=?")
-    .all(targetUser)
-    .map((r) => r.following);
-  const likesReceived = db
-    .prepare(
-      `SELECT COUNT(*) as total
-       FROM likes l
-       INNER JOIN chat_messages m ON m.id = l.message_id
-       WHERE m.user = ?`
-    )
-    .get(targetUser)?.total || 0;
-  const directMessages = db
-    .prepare(
-      `SELECT COUNT(*) as total
-       FROM private_messages
-       WHERE sender = ? OR recipient = ?`
-    )
-    .get(targetUser, targetUser)?.total || 0;
-  const isFollowing = viewer
-    ? !!db
+  const posts = dbUser
+    ? db
         .prepare(
-          "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
-        .get(viewer, targetUser)
+        .all(req.params.username)
+    : [];
+  const followers = dbUser
+    ? db
+        .prepare("SELECT follower FROM follows WHERE following=?")
+        .all(req.params.username)
+        .map((r) => r.follower)
+    : [];
+  const following = dbUser
+    ? db
+        .prepare("SELECT following FROM follows WHERE follower=?")
+        .all(req.params.username)
+        .map((r) => r.following)
+    : [];
+  const isFollowing = viewer
+    ? dbUser
+      ? !!db
+          .prepare(
+            "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          )
+          .get(viewer, req.params.username)
+      : false
     : false;
   res.json({
-    username: targetUser,
-    profilePic: dbUser?.profile_pic || memUser.profilePic || resolveUserProfilePic(targetUser),
+    username: req.params.username,
+    profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
-    posts: hydratedPosts,
-    replies,
+    posts,
     followers,
     following,
-    followerCount: followers.length,
-    followingCount: following.length,
-    stats: {
-      posts: hydratedPosts.length,
-      replies: replies.length,
-      followers: followers.length,
-      following: following.length,
-      likesReceived: Number(likesReceived) || 0,
-      directMessages: Number(directMessages) || 0,
-    },
     isFollowing,
   });
 });
@@ -1122,96 +792,37 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
 
 app.post("/profile/:username/follow", (req, res) => {
   const { follower } = req.body || {};
-  const cleanFollower = (follower || "").toString().trim();
-  const cleanFollowing = (req.params.username || "").toString().trim();
-  if (!cleanFollower || !cleanFollowing) {
+  if (!follower) {
     res.status(400).json({ error: "Missing follower" });
     return;
   }
-  if (cleanFollower === cleanFollowing) {
-    res.status(400).json({ error: "You cannot follow yourself." });
-    return;
-  }
-  ensureUserRecord(cleanFollower);
-  ensureUserRecord(cleanFollowing);
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(cleanFollower, cleanFollowing);
+    .get(follower, req.params.username);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(cleanFollower, cleanFollowing);
+      .run(follower, req.params.username);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(cleanFollower, cleanFollowing);
+      .run(follower, req.params.username);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        cleanFollowing,
-        JSON.stringify({ from: cleanFollower })
+        req.params.username,
+        JSON.stringify({ from: follower })
       );
     sendPush(
-      cleanFollowing,
+      req.params.username,
       "New Follower",
-      `${cleanFollower} started following you`
+      `${follower} started following you`
     );
     res.json({ following: true });
   }
-});
-
-app.post("/messages/:messageId/like", (req, res) => {
-  const messageId = Number(req.params.messageId);
-  const user = (req.body?.user || "").toString().trim();
-  if (!Number.isFinite(messageId) || !user) {
-    res.status(400).json({ error: "Message id and user are required." });
-    return;
-  }
-  ensureUserRecord(user);
-  db
-    .prepare("INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)")
-    .run(messageId, user);
-  const count = db
-    .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
-    .get(messageId)?.c || 0;
-  const owner = db
-    .prepare("SELECT user FROM chat_messages WHERE id=?")
-    .get(messageId)?.user;
-  if (owner && owner !== user) {
-    db
-      .prepare(
-        "INSERT INTO notifications (username, type, data) VALUES (?, 'like', ?)"
-      )
-      .run(owner, JSON.stringify({ from: user, messageId }));
-  }
-  res.json({ success: true, likes: count });
-});
-
-app.post("/messages/:messageId/reply", (req, res) => {
-  const messageId = Number(req.params.messageId);
-  const user = (req.body?.user || "").toString().trim();
-  const text = (req.body?.text || "").toString().trim();
-  if (!Number.isFinite(messageId) || !user || !text) {
-    res.status(400).json({ error: "Message id, user, and text are required." });
-    return;
-  }
-  ensureUserRecord(user);
-  const info = db
-    .prepare("INSERT INTO comments (message_id, user, text) VALUES (?, ?, ?)")
-    .run(messageId, user, text);
-  res.json({
-    success: true,
-    reply: {
-      id: info.lastInsertRowid,
-      messageId,
-      user,
-      text,
-      ts: Date.now(),
-    },
-  });
 });
 
 app.get("/notifications/:username", (req, res) => {
@@ -1240,10 +851,9 @@ app.post("/notifications/:username/read", (req, res) => {
 const server = http.createServer(app);
 
 function loadHistory(room = null) {
-  hydrateChatMessagesFromMemory();
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, c.client_nonce, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
@@ -1265,11 +875,10 @@ function loadHistory(room = null) {
   }
   const likes = {};
   for (const l of likeRows) likes[l.message_id] = l.c;
-  const fromDb = rows.map((r) => ({
+  return rows.map((r) => ({
     type: "chat",
     id: r.id,
     user: r.user,
-    clientNonce: r.client_nonce || null,
     profilePic: r.profile_pic,
     room: r.room,
     text: r.message,
@@ -1281,14 +890,7 @@ function loadHistory(room = null) {
     likes: likes[r.id] || 0,
     comments: comments[r.id] || [],
   }));
-  const merged = loadHistoryFromMemory(room);
-  for (const row of fromDb) merged[row.id] = row;
-  return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
-
-app.get("/api/index-posts", (req, res) => {
-  res.json({ messages: loadHistory() });
-});
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
@@ -1330,31 +932,6 @@ function sendListenerCount(id){
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(payload);
   }
-}
-
-function dmChannelId(a = "", b = "") {
-  return [a || "", b || ""].map((v) => v.toLowerCase()).sort().join("|");
-}
-
-function loadDirectHistory(a, b) {
-  return db
-    .prepare(
-      `SELECT id, sender, recipient, ciphertext, iv, strftime('%s', timestamp) * 1000 as ts
-       FROM private_messages
-       WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)
-       ORDER BY id`
-    )
-    .all(a, b, b, a)
-    .map((row) => ({
-      type: "dm",
-      id: row.id,
-      from: row.sender,
-      to: row.recipient,
-      ciphertext: row.ciphertext,
-      iv: row.iv,
-      ts: row.ts,
-      channel: dmChannelId(row.sender, row.recipient),
-    }));
 }
 
 wss.on("connection", (ws) => {
@@ -1690,129 +1267,39 @@ wss.on("connection", (ws) => {
         }
         return;
       }
-      case "dm-history": {
-        const user = ws.username || msg.user || "";
-        const peer = (msg.with || "").toString().trim();
-        if (!user || !peer) return;
-        ws.send(
-          JSON.stringify({
-            type: "dm-history",
-            channel: dmChannelId(user, peer),
-            with: peer,
-            messages: loadDirectHistory(user, peer),
-          })
-        );
-        return;
-      }
-      case "dm": {
-        const from = ws.username || msg.from || "";
-        const to = (msg.to || "").toString().trim();
-        const ciphertext = (msg.ciphertext || "").toString();
-        const iv = (msg.iv || "").toString();
-        if (!from || !to || !ciphertext || !iv) return;
-        const info = db
-          .prepare(
-            "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
-          )
-          .run(from, to, ciphertext, iv);
-        if (from !== to) {
-          db
-            .prepare(
-              "INSERT INTO notifications (username, type, data) VALUES (?, 'dm', ?)"
-            )
-            .run(
-              to,
-              JSON.stringify({
-                from,
-                preview: "Sent you a private encrypted message",
-              })
-            );
-          sendPush(
-            to,
-            "New Private Message",
-            `${from} sent you a private encrypted message`
-          );
-        }
-        const payload = JSON.stringify({
-          type: "dm",
-          id: info.lastInsertRowid,
-          from,
-          to,
-          ciphertext,
-          iv,
-          ts: Date.now(),
-          channel: dmChannelId(from, to),
-        });
-        for (const client of wss.clients) {
-          if (
-            client.readyState === 1 &&
-            client.username &&
-            (client.username === from || client.username === to)
-          ) {
-            client.send(payload);
-          }
-        }
-        return;
-      }
     }
     if (msg?.type !== "chat") return;
     // Allow larger uploads so mobile devices can share photos and videos
     // Data URLs grow ~33% over the original binary size, so these limits are
     // higher than the desired byte thresholds.
-    if (msg.image && msg.image.length > 35_000_000) return; // limit ~26MB per image
-    if (msg.file && msg.file.length > 120_000_000) return; // limit ~90MB per file
+    if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
+    if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
-    const clientNonce = (msg.clientNonce || "").toString().trim() || null;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
-    ensureUserRecord(msg.user || "");
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
-    let existing = null;
-    if (clientNonce && msg.user) {
-      existing = db
-        .prepare(
-          "SELECT id, message, image, file, file_name, file_type, room, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user = ? AND client_nonce = ?"
-        )
-        .get(msg.user, clientNonce);
-    }
-    if (existing) {
-      msg.id = existing.id;
-      msg.text = existing.message ?? text;
-      msg.message = msg.text;
-      msg.image = existing.image || null;
-      msg.file = existing.file || null;
-      msg.room = existing.room || msg.room || null;
-      msg.file_name = existing.file_name || fileName;
-      msg.fileName = msg.file_name;
-      msg.file_type = existing.file_type || fileType;
-      msg.fileType = msg.file_type;
-      msg.ts = existing.ts || msg.ts;
-    } else {
-      const info = db
-        .prepare(
-          "INSERT INTO chat_messages (user, client_nonce, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        )
-        .run(
-          msg.user || "",
-          clientNonce,
-          msg.room || null,
-          text,
-          msg.image || null,
-          msg.file || null,
-          fileName,
-          fileType
-      );
-      msg.id = info.lastInsertRowid;
-    }
-    msg.message = msg.text;
+    const info = db
+      .prepare(
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        msg.user || "",
+        msg.room || null,
+        text,
+        msg.image || null,
+        msg.file || null,
+        fileName,
+        fileType
+    );
+    msg.id = info.lastInsertRowid;
+    msg.message = text;
     msg.likes = 0;
     msg.comments = [];
-    storeChatMemory(msg);
     if (fileName) {
       msg.file_name = fileName;
       msg.fileName = fileName;
@@ -1847,7 +1334,6 @@ wss.on("connection", (ws) => {
         db.prepare("DELETE FROM chat_messages WHERE id = ?").run(msg.id);
         db.prepare("DELETE FROM comments WHERE message_id = ?").run(msg.id);
         db.prepare("DELETE FROM likes WHERE message_id = ?").run(msg.id);
-        removeFromChatMemory(msg.id);
         const payload = JSON.stringify({ type: "delete", id: msg.id });
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(payload);

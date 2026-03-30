@@ -20,12 +20,3 @@ services:
     buildCommand: npm ci
     startCommand: node server.js
     healthCheckPath: /healthz
-    disk:
-      name: chaines-chat-data
-      mountPath: /var/data
-      sizeGB: 1
-    envVars:
-      - key: DB_PATH
-        value: /var/data/app.db
-      - key: PROFILE_MEMORY_PATH
-        value: /var/data/profile_memory/main.json
