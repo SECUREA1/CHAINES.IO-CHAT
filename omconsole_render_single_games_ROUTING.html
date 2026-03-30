@@ -330,7 +330,6 @@
       width:100%;
       height:100%;
       display:block;
-      touch-action:none;
     }
     .panel{
       border-radius: var(--radius-xl);
@@ -340,20 +339,6 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
-    }
-    .app.games-active .stage{
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
-    }
-    .app:not(.games-active) .stage{
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
-    }
-    .app:not(.games-active) .viewport{
-      display:none;
-    }
-    .app.games-active .panel{
-      display:none;
     }
     .panel .ph{
       padding: 14px 14px 12px 14px;
@@ -565,85 +550,17 @@
     .key.danger{background: rgba(255,77,77,.18); border-color: rgba(255,77,77,.22)}
     .key.gold{background: linear-gradient(180deg, rgba(212,175,55,.90), rgba(165,129,25,.88)); color:#061022; border-color: rgba(255,255,255,.12)}
     .hidden{display:none !important}
-    .games-quicklist{
-      margin-top: 8px;
-      padding: 8px;
-      border-radius: 14px;
-      border:1px solid rgba(140,180,255,.16);
-      background: rgba(7,20,40,.30);
-    }
-    .games-quicklist .hint{
-      margin-bottom: 8px;
-    }
-    .games-quicklist__scroll{
-      display:flex;
-      flex-direction:column;
-      gap: 8px;
-      max-height: 220px;
-      overflow-y:auto;
-      padding-right: 4px;
-    }
-    .mobile-menu-toggle{
-      position: fixed;
-      top: calc(env(safe-area-inset-top, 0px) + 10px);
-      right: calc(env(safe-area-inset-right, 0px) + 10px);
-      z-index: 50;
-      font-size: 12px;
-      padding: 10px 12px;
-    }
 
     /* Responsive */
     @media (max-width: 1200px){
       .app{grid-template-columns: 320px 1fr;}
       .stage{grid-template-columns: 1fr; grid-template-rows: 1fr 360px;}
       .panel{height: 360px}
-      .app.games-active .stage{grid-template-rows: 1fr;}
     }
     @media (max-width: 900px){
       body{overflow:auto}
       .app{grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "topbar" "sidebar" "main";}
       .sidebar{max-height: 520px}
-      .app.mobile-game-focus{
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100dvh;
-        padding: 0;
-        gap: 0;
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr;
-        grid-template-areas: "main";
-        z-index: 30;
-      }
-      .app.mobile-game-focus .topbar,
-      .app.mobile-game-focus .sidebar,
-      .app.mobile-game-focus .panel{
-        display:none;
-      }
-      .app.mobile-game-focus .main{
-        border-radius: 0;
-        border: none;
-      }
-      .app.mobile-game-focus .stage{
-        position:absolute;
-        inset: 0;
-        padding: 0;
-        gap: 0;
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr;
-      }
-      .app.mobile-game-focus .viewport{
-        border-radius: 0;
-        border: none;
-      }
-      .app.mobile-game-focus #cursor{
-        display:none;
-      }
-    }
-    @media (min-width: 901px){
-      .mobile-menu-toggle{
-        display:none !important;
-      }
     }
   </style>
 </head>
@@ -668,8 +585,8 @@
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="white" opacity=".9" stroke-width="1.7"/><path d="M3 12h18" stroke="white" opacity=".8" stroke-width="1.7"/><path d="M12 3c2.6 2.5 4.2 5.6 4.2 9s-1.6 6.5-4.2 9c-2.6-2.5-4.2-5.6-4.2-9S9.4 5.5 12 3Z" stroke="white" opacity=".8" stroke-width="1.7"/></svg>
             </div>
             <div>
-              <div class="label">Browser</div>
-              <div class="sublabel">Open CHAINES.IO in console</div>
+              <div class="label">Internet</div>
+              <div class="sublabel">Open web in new tab</div>
             </div>
           </div>
           <div class="right"><span>⌘</span><span>ALT+I</span></div>
@@ -687,10 +604,6 @@
           </div>
           <div class="right"><span>⌘</span><span>ALT+G</span></div>
         </button>
-        <div class="games-quicklist hidden" id="gamesQuickList" aria-live="polite">
-          <div class="hint">Choose a game, then play in the main viewport.</div>
-          <div class="games-quicklist__scroll" id="gamesQuickListItems"></div>
-        </div>
 
         <button class="navbtn" data-open="notepad" id="btnNotepad">
           <div class="left">
@@ -911,7 +824,6 @@
     </div>
   </main>
 </div>
-<button class="btn ghost mobile-menu-toggle hidden" id="btnMobileMenus" type="button" aria-label="Toggle console menus">Show Menus</button>
 
 <div id="cursor"></div>
 
@@ -1454,9 +1366,6 @@ const defaultSettings = {
       reactionBestMs: null
     }
   },
-  internet: {
-    url: "https://chaines.io"
-  },
   routing: {
     Gesture: { target: "cursor_ui" },
     Retina: { target: "cursor_ui" },
@@ -1495,8 +1404,7 @@ const state = {
   settings: loadSettings(),
   ui: {
     mode: "dashboard", // dashboard | app:<name> | tuner:<name>
-    modalOpen: false,
-    mobileGameMenusVisible: false
+    modalOpen: false
   },
   runtime: {
     camReady: false,
@@ -1538,7 +1446,6 @@ const $ = (sel) => document.querySelector(sel);
 const cursorEl = $("#cursor");
 const viz = $("#viz");
 const viewportEl = $("#viewport");
-const appEl = $(".app");
 const panelTitle = $("#panelTitle");
 const panelSub = $("#panelSub");
 const panelContent = $("#panelContent");
@@ -1560,7 +1467,6 @@ const modalSave = $("#modalSave");
 const modalBody = $("#modalBody");
 
 const camVideo = $("#cam");
-const btnMobileMenus = $("#btnMobileMenus");
 
 // -----------------------------
 // Canvas / HiDPI
@@ -1573,38 +1479,7 @@ function resizeCanvas(){
   const ctx = viz.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-window.addEventListener("resize", ()=>{
-  resizeCanvas();
-  applyMobileGameFocus();
-});
-
-function isMobileViewport(){
-  return window.matchMedia("(max-width: 900px)").matches;
-}
-
-function applyMobileGameFocus(){
-  const inGames = state.ui.mode === "app:games";
-  const mobile = isMobileViewport();
-  const shouldFocus = mobile && inGames && !state.ui.mobileGameMenusVisible;
-
-  appEl?.classList.toggle("mobile-game-focus", shouldFocus);
-
-  if(btnMobileMenus){
-    btnMobileMenus.classList.toggle("hidden", !(mobile && inGames));
-    btnMobileMenus.textContent = state.ui.mobileGameMenusVisible ? "Hide Menus" : "Show Menus";
-  }
-}
-
-async function requestGameFullscreen(){
-  if(state.ui.mode !== "app:games") return;
-  if(document.fullscreenElement) return;
-  if(!viewportEl?.requestFullscreen) return;
-  try{
-    await viewportEl.requestFullscreen({ navigationUI:"hide" });
-  }catch(_e){
-    // Browser may block fullscreen in some contexts (e.g. iframe policy/user settings).
-  }
-}
+window.addEventListener("resize", resizeCanvas);
 
 // -----------------------------
 // Control Manager (mixes active systems)
@@ -2368,18 +2243,6 @@ class EEGController{
 // -----------------------------
 // App Modules
 // -----------------------------
-class InternetApp{
-  constructor(){
-    this.home = "https://chaines.io";
-  }
-  open(){
-    setMode("app:internet");
-    panelTitle.textContent = "BROWSER";
-    panelSub.textContent = "Embedded web view • CHAINES.IO platform";
-    renderPanel_Internet();
-  }
-}
-
 class NotepadApp{
   constructor(){
     this.name = "notepad";
@@ -2526,18 +2389,14 @@ class GamesApp{
     if(!state.settings.games){
       state.settings.games = {
         last: "pong",
-        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null }
+        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null }
       };
       saveSettings();
     }
     if(!state.settings.games.highs){
-      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
+      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
       saveSettings();
     }
-    state.settings.games.highs = {
-      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null,
-      ...state.settings.games.highs
-    };
 
     this.catalog = [
       { key:"pong",     title:"Pong",          desc:"Cursor Y controls your paddle. AI on the right." },
@@ -2546,11 +2405,6 @@ class GamesApp{
       { key:"catch",    title:"Star Catch",    desc:"Cursor X controls catcher. Catch the falling stars." },
       { key:"reaction", title:"Reaction Test", desc:"Click/pinch as soon as it turns green." },
       { key:"paint",    title:"Zen Paint",     desc:"Paint with particles. Click/pinch to clear." },
-      { key:"neon",     title:"Neon Blaster '86", desc:"80s-style arcade shooter. Cursor aims ship, click/pinch fires." },
-      { key:"sports",   title:"Penalty Pro",   desc:"Sports challenge: aim then click/pinch to shoot against the keeper." },
-      { key:"hoops",    title:"Street Hoops",  desc:"Sports shooting game: move to aim, click/pinch to shoot at a moving hoop." },
-      { key:"runner",   title:"Lane Runner",   desc:"Standardized endless runner. Cursor chooses lane, click/pinch dashes." },
-      { key:"memory",   title:"Memory Match",  desc:"Standardized memory game. Cursor + click to flip matching cards." },
     ];
 
     this.games = {
@@ -2559,12 +2413,7 @@ class GamesApp{
       bubbles: new BubblePopGame(),
       catch: new StarCatchGame(),
       reaction: new ReactionTestGame(),
-      paint: new ZenPaintGame(),
-      neon: new NeonBlasterGame(),
-      sports: new PenaltyProGame(),
-      hoops: new StreetHoopsGame(),
-      runner: new LaneRunnerGame(),
-      memory: new MemoryMatchGame()
+      paint: new ZenPaintGame()
     };
 
     this.current = state.settings.games.last || "pong";
@@ -2578,7 +2427,7 @@ class GamesApp{
     setMode("app:games");
     panelTitle.textContent = "GAMES";
     this.ensureWired();
-    this.select(state.settings.games.last || this.current || "pong", {reset:true, fullscreen:false});
+    this.select(state.settings.games.last || this.current || "pong", {reset:true});
     renderPanel_Games();
   }
 
@@ -2616,7 +2465,7 @@ class GamesApp{
     }
   }
 
-  select(key, opts={reset:true, fullscreen:true}){
+  select(key, opts={reset:true}){
     if(!this.games[key]) key = "pong";
     this.stop();
 
@@ -2628,12 +2477,6 @@ class GamesApp{
     saveSettings();
 
     if(opts.reset) g.reset?.();
-    if(state.ui.mode === "app:games" && isMobileViewport()){
-      state.ui.mobileGameMenusVisible = false;
-      applyMobileGameFocus();
-    }
-    if(opts.fullscreen) requestGameFullscreen();
-    requestAnimationFrame(resizeCanvas);
 
     const m = this.meta(key);
     panelSub.textContent = `${m.title} • Cursor + Click`;
@@ -2670,7 +2513,7 @@ class GamesApp{
   }
 
   clearScores(){
-    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
+    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null };
     saveSettings();
     toast("Game scores cleared");
   }
@@ -3351,274 +3194,6 @@ class ReactionTestGame{
   }
 }
 
-class NeonBlasterGame{
-  constructor(){ this.active = false; this.reset(); }
-  helpText(){ return "Move cursor to pilot the neon ship. Click/pinch to fire and clear enemy waves."; }
-  reset(){ this.player={x:0.5,y:0.9}; this.shots=[]; this.enemies=[]; this.score=0; this.lives=3; this.running=true; this.spawnCd=0; this.fireCd=0; }
-  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.neon||0) < this.score){ highs.neon = this.score; saveSettings(); toast(`New Neon Blaster best: ${this.score}`);} }
-  update(dt, cur){
-    if(!this.active) return;
-    const t = dt/1000;
-    this.player.x = clamp(cur?.x ?? 0.5, 0.06, 0.94);
-    this.player.y = clamp((cur?.y ?? 0.9)*0.75 + 0.22, 0.56, 0.94);
-    if(!this.running) return;
-    this.spawnCd -= dt;
-    this.fireCd = Math.max(0, this.fireCd - dt);
-    if(this.spawnCd <= 0){
-      const count = 1 + Math.floor(Math.random()*2);
-      for(let i=0;i<count;i++) this.enemies.push({x:0.08+Math.random()*0.84, y:-0.08 - i*0.06, vy:0.18+Math.random()*0.18 + this.score*0.0009, hp:1});
-      this.spawnCd = Math.max(260, 840 - this.score*4);
-    }
-    for(let i=this.shots.length-1;i>=0;i--){ const s = this.shots[i]; s.y -= s.vy*t; if(s.y < -0.1) this.shots.splice(i,1); }
-    for(let i=this.enemies.length-1;i>=0;i--){ const e = this.enemies[i]; e.y += e.vy*t; if(e.y > 1.06){ this.enemies.splice(i,1); this.lives--; if(this.lives<=0){ this.running=false; this.setBestIfNeeded(); } } }
-    for(let i=this.enemies.length-1;i>=0;i--){
-      const e = this.enemies[i];
-      for(let j=this.shots.length-1;j>=0;j--){
-        const s = this.shots[j];
-        if((s.x-e.x)**2 + (s.y-e.y)**2 < 0.0018){
-          this.shots.splice(j,1); this.enemies.splice(i,1); this.score += 25; break;
-        }
-      }
-    }
-  }
-  onClick(nx){
-    if(!this.active) return;
-    if(!this.running){ this.reset(); return; }
-    if(this.fireCd > 0) return;
-    this.fireCd = 130;
-    this.shots.push({x:clamp(nx ?? this.player.x, 0.04, 0.96), y:this.player.y-0.03, vy:1.05});
-  }
-  draw(ctx,w,h){
-    if(!this.active) return;
-    ctx.save();
-    ctx.fillStyle = "rgba(255,50,190,.10)"; ctx.fillRect(0,0,w,h);
-    for(const s of this.shots){ ctx.fillStyle="rgba(242,213,122,.95)"; ctx.fillRect(s.x*w-2, s.y*h-10, 4, 16); }
-    for(const e of this.enemies){ ctx.fillStyle="rgba(255,77,77,.82)"; roundRect(ctx, e.x*w-12, e.y*h-10, 24, 20, 8); ctx.fill(); }
-    ctx.fillStyle="rgba(140,180,255,.9)"; roundRect(ctx, this.player.x*w-18, this.player.y*h-8, 36, 16, 8); ctx.fill();
-    const best = state.settings.games.highs.neon || 0;
-    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`SCORE ${this.score}   LIVES ${this.lives}   BEST ${best}`, 18, 28);
-    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(255,77,77,.86)"; ctx.fillText("GAME OVER — CLICK TO RESTART", w/2, h*0.58); }
-    ctx.restore();
-  }
-}
-
-class PenaltyProGame{
-  constructor(){ this.active = false; this.reset(); }
-  helpText(){ return "Aim with cursor and click/pinch to take penalty kicks. Beat the moving keeper."; }
-  reset(){ this.score=0; this.shots=0; this.rounds=10; this.ball={x:0.5,y:0.86,flying:false,t:0}; this.target={x:0.5,y:0.45}; this.keeper={x:0.5,v:0.24}; this.running=true; }
-  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.sports||0) < this.score){ highs.sports = this.score; saveSettings(); toast(`New Penalty Pro best: ${this.score}`);} }
-  update(dt, cur){
-    if(!this.active) return;
-    const t = dt/1000;
-    this.target.x = clamp(cur?.x ?? 0.5, 0.16, 0.84);
-    this.target.y = clamp(cur?.y ?? 0.45, 0.18, 0.60);
-    if(!this.running) return;
-    this.keeper.x += this.keeper.v * t;
-    if(this.keeper.x < 0.24 || this.keeper.x > 0.76) this.keeper.v *= -1;
-    if(this.ball.flying){
-      this.ball.t += t*1.8;
-      this.ball.x = lerp(0.5, this.target.x, this.ball.t);
-      this.ball.y = lerp(0.86, this.target.y, this.ball.t);
-      if(this.ball.t >= 1){
-        const saved = Math.abs(this.ball.x - this.keeper.x) < 0.12 && this.ball.y < 0.55;
-        if(!saved) this.score += 1;
-        this.shots += 1;
-        this.ball = {x:0.5,y:0.86,flying:false,t:0};
-        if(this.shots >= this.rounds){ this.running = false; this.setBestIfNeeded(); }
-      }
-    }
-  }
-  onClick(){ if(!this.active) return; if(!this.running){ this.reset(); return; } if(!this.ball.flying) this.ball.flying = true; }
-  draw(ctx,w,h){
-    if(!this.active) return;
-    ctx.save();
-    ctx.strokeStyle="rgba(234,242,255,.3)"; ctx.strokeRect(w*0.2, h*0.12, w*0.6, h*0.46);
-    ctx.fillStyle="rgba(234,242,255,.75)"; roundRect(ctx, this.keeper.x*w-42, h*0.48, 84, 12, 8); ctx.fill();
-    ctx.strokeStyle="rgba(242,213,122,.45)"; ctx.beginPath(); ctx.arc(this.target.x*w, this.target.y*h, 13, 0, Math.PI*2); ctx.stroke();
-    ctx.fillStyle="rgba(212,175,55,.96)"; ctx.beginPath(); ctx.arc(this.ball.x*w, this.ball.y*h, 10, 0, Math.PI*2); ctx.fill();
-    const best = state.settings.games.highs.sports || 0;
-    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`GOALS ${this.score}/${this.rounds}   SHOT ${Math.min(this.shots+1,this.rounds)}   BEST ${best}`, 18, 28);
-    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(242,213,122,.9)"; ctx.fillText("ROUND COMPLETE — CLICK TO PLAY AGAIN", w/2, h*0.62); }
-    ctx.restore();
-  }
-}
-
-class StreetHoopsGame{
-  constructor(){ this.active = false; this.reset(); }
-  helpText(){ return "Sports mode: move cursor to set shot angle, click/pinch to shoot. Hit the moving hoop streak for bonus."; }
-  reset(){
-    this.ball = null;
-    this.score = 0;
-    this.streak = 0;
-    this.shotsLeft = 12;
-    this.running = true;
-    this.aimX = 0.5;
-    this.hoop = {x:0.70, y:0.26, vx:0.18};
-  }
-  setBestIfNeeded(){
-    const highs = state.settings.games.highs;
-    if((highs.hoops||0) < this.score){
-      highs.hoops = this.score;
-      saveSettings();
-      toast(`New Street Hoops best: ${this.score}`);
-    }
-  }
-  onClick(nx){
-    if(!this.active) return;
-    if(!this.running){ this.reset(); return; }
-    if(this.ball || this.shotsLeft <= 0) return;
-    const aim = clamp(nx ?? this.aimX, 0.14, 0.86);
-    this.ball = {x:0.1, y:0.86, vx:0.55 + aim*0.35, vy:-0.92 + (0.5-aim)*0.35, g:1.08};
-    this.shotsLeft -= 1;
-  }
-  update(dt, cur){
-    if(!this.active) return;
-    const t = dt/1000;
-    this.aimX = clamp(cur?.x ?? this.aimX, 0.1, 0.9);
-    if(!this.running) return;
-    this.hoop.x += this.hoop.vx*t;
-    if(this.hoop.x < 0.56 || this.hoop.x > 0.88) this.hoop.vx *= -1;
-    if(this.ball){
-      this.ball.vy += this.ball.g*t;
-      this.ball.x += this.ball.vx*t;
-      this.ball.y += this.ball.vy*t;
-      const dx = this.ball.x - this.hoop.x;
-      const dy = this.ball.y - this.hoop.y;
-      if(Math.abs(dx) < 0.05 && Math.abs(dy) < 0.03 && this.ball.vy > 0){
-        this.streak += 1;
-        this.score += 2 + Math.min(5, this.streak);
-        this.ball = null;
-      }else if(this.ball.y > 1.05 || this.ball.x > 1.15){
-        this.streak = 0;
-        this.ball = null;
-      }
-    }
-    if(this.shotsLeft <= 0 && !this.ball){
-      this.running = false;
-      this.setBestIfNeeded();
-    }
-  }
-  draw(ctx,w,h){
-    if(!this.active) return;
-    ctx.save();
-    const best = state.settings.games.highs.hoops || 0;
-    ctx.strokeStyle = "rgba(234,242,255,.82)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo((this.hoop.x-0.06)*w, this.hoop.y*h);
-    ctx.lineTo((this.hoop.x+0.06)*w, this.hoop.y*h);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(242,213,122,.32)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect((this.hoop.x-0.09)*w, (this.hoop.y-0.11)*h, 0.18*w, 0.18*h);
-    if(this.ball){
-      ctx.fillStyle = "rgba(212,175,55,.94)";
-      ctx.beginPath();
-      ctx.arc(this.ball.x*w, this.ball.y*h, 9, 0, Math.PI*2);
-      ctx.fill();
-    }else if(this.running){
-      ctx.strokeStyle = "rgba(140,180,255,.45)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0.1*w, 0.86*h);
-      ctx.quadraticCurveTo((0.28+this.aimX*0.35)*w, (0.22+Math.abs(this.aimX-0.5)*0.2)*h, this.hoop.x*w, this.hoop.y*h);
-      ctx.stroke();
-    }
-    ctx.fillStyle = "rgba(234,242,255,.88)";
-    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-    ctx.fillText(`SCORE ${this.score}   STREAK ${this.streak}   SHOTS ${this.shotsLeft}   BEST ${best}`, 18, 30);
-    if(!this.running){
-      ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(242,213,122,.86)";
-      ctx.font = "900 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-      ctx.fillText("ROUND OVER — CLICK TO PLAY AGAIN", w/2, h*0.56);
-    }
-    ctx.restore();
-  }
-}
-
-class LaneRunnerGame{
-  constructor(){ this.active = false; this.reset(); }
-  helpText(){ return "Standardized runner: move between lanes with cursor and click/pinch for a short dash shield."; }
-  reset(){ this.lane=1; this.obstacles=[]; this.spawnCd=0; this.score=0; this.running=true; this.dashMs=0; }
-  setBestIfNeeded(){ const highs = state.settings.games.highs; if((highs.runner||0) < this.score){ highs.runner = this.score; saveSettings(); toast(`New Lane Runner best: ${this.score}`);} }
-  update(dt, cur){
-    if(!this.active) return;
-    const x = cur?.x ?? 0.5;
-    this.lane = x < 0.33 ? 0 : (x < 0.66 ? 1 : 2);
-    if(!this.running) return;
-    this.dashMs = Math.max(0, this.dashMs - dt);
-    this.spawnCd -= dt;
-    if(this.spawnCd <= 0){ this.obstacles.push({lane:Math.floor(Math.random()*3), y:-0.1, vy:0.36 + this.score*0.0007}); this.spawnCd = Math.max(220, 760 - this.score*6); }
-    for(let i=this.obstacles.length-1;i>=0;i--){
-      const o=this.obstacles[i]; o.y += o.vy*(dt/1000);
-      if(o.y > 1.06){ this.obstacles.splice(i,1); this.score += 1; continue; }
-      if(o.lane===this.lane && o.y > 0.78 && o.y < 0.96){
-        if(this.dashMs<=0){ this.running=false; this.setBestIfNeeded(); break; }
-      }
-    }
-  }
-  onClick(){ if(!this.active) return; if(!this.running){ this.reset(); return; } this.dashMs = 520; }
-  draw(ctx,w,h){
-    if(!this.active) return;
-    ctx.save();
-    for(let i=1;i<3;i++){ ctx.strokeStyle="rgba(140,180,255,.2)"; ctx.beginPath(); ctx.moveTo((w/3)*i,0); ctx.lineTo((w/3)*i,h); ctx.stroke(); }
-    const laneX = (this.lane+0.5)*(w/3);
-    ctx.fillStyle = this.dashMs>0 ? "rgba(50,213,131,.88)" : "rgba(234,242,255,.88)";
-    roundRect(ctx, laneX-30, h*0.86, 60, 26, 10); ctx.fill();
-    for(const o of this.obstacles){ ctx.fillStyle="rgba(255,77,77,.8)"; roundRect(ctx, (o.lane+0.5)*(w/3)-24, o.y*h, 48, 20, 8); ctx.fill(); }
-    const best = state.settings.games.highs.runner || 0;
-    ctx.fillStyle="rgba(234,242,255,.9)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.fillText(`DIST ${this.score}   BEST ${best}   DASH ${this.dashMs>0?'ON':'READY'}`, 18, 28);
-    if(!this.running){ ctx.textAlign="center"; ctx.fillStyle="rgba(255,77,77,.86)"; ctx.fillText("CRASHED — CLICK TO RESTART", w/2, h*0.56); }
-    ctx.restore();
-  }
-}
-
-class MemoryMatchGame{
-  constructor(){ this.active = false; this.reset(); }
-  helpText(){ return "Standardized memory puzzle. Click/pinch cards to match all pairs as quickly as possible."; }
-  reset(){
-    const vals = ["▲","◆","●","■","★","✦"];
-    const deck = [...vals, ...vals].sort(()=>Math.random()-0.5);
-    this.cards = deck.map((v,i)=>({v, i, open:false, done:false}));
-    this.first = null;
-    this.lockMs = 0;
-    this.startMs = nowMs();
-    this.completeMs = null;
-  }
-  setBestIfNeeded(ms){ const highs = state.settings.games.highs; const prev = highs.memoryBestMs; if(prev === null || ms < prev){ highs.memoryBestMs = ms; saveSettings(); toast(`New Memory Match best: ${ms} ms`);} }
-  onClick(nx, ny){
-    if(!this.active) return;
-    if(this.completeMs !== null){ this.reset(); return; }
-    if(this.lockMs > 0) return;
-    const col = clamp(Math.floor(nx*4),0,3);
-    const row = clamp(Math.floor((ny-0.12)/0.20),0,2);
-    const idx = row*4 + col;
-    const c = this.cards[idx];
-    if(!c || c.done || c.open) return;
-    c.open = true;
-    if(this.first === null){ this.first = idx; return; }
-    const a = this.cards[this.first];
-    if(a.v === c.v){ a.done = c.done = true; this.first = null; if(this.cards.every(k=>k.done)){ this.completeMs = Math.round(nowMs()-this.startMs); this.setBestIfNeeded(this.completeMs);} }
-    else{ this.lockMs = 550; this.second = idx; }
-  }
-  update(dt){
-    if(!this.active) return;
-    if(this.lockMs > 0){ this.lockMs -= dt; if(this.lockMs <= 0 && this.first !== null && this.second !== undefined){ this.cards[this.first].open=false; this.cards[this.second].open=false; this.first=null; this.second=undefined; } }
-  }
-  draw(ctx,w,h){
-    if(!this.active) return;
-    ctx.save();
-    const cw = w*0.20, ch = h*0.16, gx = w*0.04, gy = h*0.04, sx = w*0.06, sy = h*0.14;
-    this.cards.forEach((c,i)=>{ const col=i%4,row=(i/4)|0,x=sx+col*(cw+gx),y=sy+row*(ch+gy); ctx.fillStyle=(c.open||c.done)?"rgba(140,180,255,.5)":"rgba(7,20,40,.6)"; roundRect(ctx,x,y,cw,ch,12); ctx.fill(); ctx.strokeStyle="rgba(242,213,122,.24)"; ctx.stroke(); if(c.open||c.done){ ctx.fillStyle="rgba(234,242,255,.95)"; ctx.font="900 26px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.textAlign="center"; ctx.fillText(c.v,x+cw/2,y+ch*0.62);} });
-    const flips = this.cards.filter(c=>c.done).length/2;
-    const best = state.settings.games.highs.memoryBestMs;
-    ctx.fillStyle="rgba(234,242,255,.88)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.textAlign="left"; ctx.fillText(`MATCHED ${flips}/6   BEST ${best===null?'--':best+'ms'}`, 18, 28);
-    if(this.completeMs !== null){ ctx.textAlign="center"; ctx.fillStyle="rgba(242,213,122,.92)"; ctx.fillText(`CLEARED IN ${this.completeMs} ms — CLICK TO RESTART`, w/2, h*0.9); }
-    ctx.restore();
-  }
-}
-
 class ZenPaintGame{
   constructor(){
     this.active = false;
@@ -3629,38 +3204,23 @@ class ZenPaintGame{
   }
   reset(){
     this.particles = [];
-    this.ribbons = [];
-    this.bursts = [];
     this.hue = Math.random()*360;
-    this.prev = null;
-    this.quality = 1;
   }
   onClick(){
     if(!this.active) return;
-    this.bursts.push({
-      x: this.prev?.x ?? 0.5,
-      y: this.prev?.y ?? 0.5,
-      life: 0,
-      ttl: 520,
-      hue: this.hue
-    });
-    this.particles = [];
-    this.ribbons = [];
+    this.reset();
   }
   update(dt, cur){
     if(!this.active) return;
     const t = dt/1000;
-    const dtNorm = clamp(dt / 16.67, 0.6, 2.1);
-    this.quality = lerp(this.quality, dt > 22 ? 0.65 : 1, 0.08);
 
     // Add a few particles at cursor
     const x = cur?.x ?? 0.5;
     const y = cur?.y ?? 0.5;
-    const cap = isMobileViewport() ? 900 : 2200;
-    const n = Math.max(1, Math.round(3 * this.quality));
+    const n = 2;
     for(let i=0; i<n; i++){
       const a = Math.random()*Math.PI*2;
-      const sp = (0.06 + Math.random()*0.16) * (2 - this.quality*0.7);
+      const sp = 0.06 + Math.random()*0.16;
       this.particles.push({
         x, y,
         vx: Math.cos(a)*sp,
@@ -3671,56 +3231,27 @@ class ZenPaintGame{
         hue: (this.hue + Math.random()*50) % 360
       });
     }
-    if(this.prev){
-      this.ribbons.push({
-        x1: this.prev.x, y1: this.prev.y,
-        x2: x, y2: y,
-        life: 0,
-        ttl: 420 + Math.random()*220,
-        hue: this.hue
-      });
-    }
-    this.prev = {x,y};
     this.hue = (this.hue + 0.6) % 360;
 
     // Integrate + decay
     for(let i=this.particles.length-1; i>=0; i--){
       const p = this.particles[i];
       p.life += dt;
-      p.x += p.vx * t * dtNorm;
-      p.y += p.vy * t * dtNorm;
-      p.vx *= (0.985 - (1-this.quality)*0.01);
-      p.vy *= (0.985 - (1-this.quality)*0.01);
+      p.x += p.vx * t;
+      p.y += p.vy * t;
+      p.vx *= 0.985; p.vy *= 0.985;
       if(p.life >= p.ttl || p.x < -0.1 || p.x > 1.1 || p.y < -0.1 || p.y > 1.1){
         this.particles.splice(i,1);
       }
     }
-    for(let i=this.ribbons.length-1; i>=0; i--){
-      this.ribbons[i].life += dt;
-      if(this.ribbons[i].life >= this.ribbons[i].ttl) this.ribbons.splice(i,1);
-    }
-    for(let i=this.bursts.length-1; i>=0; i--){
-      this.bursts[i].life += dt;
-      if(this.bursts[i].life >= this.bursts[i].ttl) this.bursts.splice(i,1);
-    }
 
     // keep bounded
-    if(this.particles.length > cap) this.particles.splice(0, this.particles.length-cap);
-    if(this.ribbons.length > cap/3) this.ribbons.splice(0, this.ribbons.length - Math.floor(cap/3));
+    if(this.particles.length > 2200) this.particles.splice(0, this.particles.length-2200);
   }
   draw(ctx, w, h){
     if(!this.active) return;
     ctx.save();
     ctx.globalAlpha = 0.95;
-    for(const r of this.ribbons){
-      const t = clamp(1 - (r.life/r.ttl), 0, 1);
-      ctx.strokeStyle = `hsla(${r.hue}, 96%, 68%, ${0.22*t})`;
-      ctx.lineWidth = 1 + t*3;
-      ctx.beginPath();
-      ctx.moveTo(r.x1*w, r.y1*h);
-      ctx.lineTo(r.x2*w, r.y2*h);
-      ctx.stroke();
-    }
 
     // particles
     for(const p of this.particles){
@@ -3730,20 +3261,12 @@ class ZenPaintGame{
       ctx.arc(p.x*w, p.y*h, p.r*Math.min(w,h), 0, Math.PI*2);
       ctx.fill();
     }
-    for(const b of this.bursts){
-      const t = clamp(b.life / b.ttl, 0, 1);
-      ctx.strokeStyle = `hsla(${b.hue}, 90%, 70%, ${0.45*(1-t)})`;
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.arc(b.x*w, b.y*h, (0.02 + 0.14*t)*Math.min(w,h), 0, Math.PI*2);
-      ctx.stroke();
-    }
 
     // HUD
     ctx.fillStyle = "rgba(234,242,255,.82)";
     ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
     ctx.textAlign = "left";
-    ctx.fillText(`PARTICLES ${this.particles.length}   QUALITY ${(this.quality*100|0)}%`, 18, 30);
+    ctx.fillText(`PARTICLES ${this.particles.length}`, 18, 30);
 
     ctx.textAlign = "center";
     ctx.fillStyle = "rgba(242,213,122,.58)";
@@ -4264,43 +3787,6 @@ function sparkline(title, id, minV=0, maxV=100){
   ]);
 }
 
-function renderGamesQuickList(){
-  const wrap = $("#gamesQuickList");
-  const items = $("#gamesQuickListItems");
-  const g = apps.games;
-  if(!wrap || !items || !g) return;
-
-  wrap.classList.toggle("hidden", state.ui.mode !== "app:games");
-  if(state.ui.mode !== "app:games") return;
-
-  items.innerHTML = "";
-  for(const meta of g.catalog){
-    const selected = meta.key === g.current;
-    const btn = el("button",{
-      class: "navbtn " + (selected ? "active" : ""),
-      onclick: ()=>{
-        g.select(meta.key, {reset:true, fullscreen:false});
-        renderPanel_Games();
-        renderGamesQuickList();
-      }
-    },[
-      el("div",{class:"left"},[
-        el("div",{class:"icon"},[
-          el("div",{style:"font-family:var(--mono);font-weight:1000;font-size:10px;letter-spacing:.4px;opacity:.92;"},[(meta.title || "").slice(0,2).toUpperCase()])
-        ]),
-        el("div",{},[
-          el("div",{class:"label"},[meta.title]),
-          el("div",{class:"sublabel"},[meta.desc])
-        ])
-      ]),
-      el("div",{class:"right"},[
-        el("span",{},[selected ? "ON" : "OPEN"])
-      ])
-    ]);
-    items.append(btn);
-  }
-}
-
 // -----------------------------
 // Panel Rendering (right side telemetry + apps)
 // -----------------------------
@@ -4308,11 +3794,9 @@ function setMode(mode){
   const prev = state.ui.mode;
   state.ui.mode = mode;
   badgeMode.textContent = mode.toUpperCase();
-  appEl?.classList.toggle("games-active", mode === "app:games");
   // update active nav button styling
   document.querySelectorAll(".navbtn").forEach(b=>b.classList.remove("active"));
   const map = {
-    "app:internet":"btnInternet",
     "app:notepad":"btnNotepad",
     "app:audio":"btnAudio",
     "app:video":"btnVideo",
@@ -4322,25 +3806,11 @@ function setMode(mode){
   };
   const id = map[mode];
   if(id) $("#"+id).classList.add("active");
-  renderGamesQuickList();
 
   // Ensure games don't keep drawing/updating after you switch apps.
   if(prev === "app:games" && mode !== "app:games"){
     apps.games.stop();
-    state.ui.mobileGameMenusVisible = true;
-    if(document.fullscreenElement && document.exitFullscreen){
-      document.exitFullscreen().catch(()=>{});
-    }
   }
-
-  if(mode === "app:games"){
-    if(isMobileViewport()) state.ui.mobileGameMenusVisible = false;
-    viewportEl?.scrollIntoView({ block:"start", behavior:"smooth" });
-    const list = $("#gamesQuickListItems");
-    if(list) list.scrollTop = 0;
-    requestAnimationFrame(resizeCanvas);
-  }
-  applyMobileGameFocus();
 }
 
 function renderPanelTelemetry(){
@@ -4380,64 +3850,6 @@ function renderPanelTelemetry(){
       el("div",{class:"kv2"},[el("span",{},["Connected"]), el("b",{id:"tEegConn"},[state.telemetry.eeg.connected ? "YES":"NO"])]),
     ])
   );
-}
-
-function normalizeInternetUrl(input){
-  const raw = (input || "").trim();
-  if(!raw) return "https://chaines.io";
-  if(/^https?:\/\//i.test(raw)) return raw;
-  return `https://${raw}`;
-}
-
-function renderPanel_Internet(){
-  panelContent.innerHTML = "";
-  const savedUrl = normalizeInternetUrl(state.settings.internet?.url);
-
-  panelContent.append(
-    makeCard("Embedded Browser", [
-      el("div",{class:"hint"},["Use CHAINES.IO directly inside OMConsole. Enter a URL to navigate if needed."]),
-      el("div",{class:"row"},[
-        el("input",{
-          id:"webUrl",
-          value: savedUrl,
-          placeholder:"https://chaines.io",
-          style:"flex:1;padding:10px 12px;border-radius:14px;border:1px solid rgba(140,180,255,.14);background:rgba(7,20,40,.30);color:var(--text);outline:none;font-weight:800;"
-        }),
-        el("button",{class:"smallbtn gold", id:"webGo"},["Go"]),
-        el("button",{class:"smallbtn", id:"webHome"},["CHAINES.IO"]),
-        el("button",{class:"smallbtn ghost", id:"webBack"},["Back"]),
-      ]),
-      el("iframe",{
-        id:"webFrame",
-        src: savedUrl,
-        title:"OMConsole Browser",
-        style:"width:100%;height:70vh;min-height:520px;border-radius:14px;border:1px solid rgba(140,180,255,.20);background:#061022;",
-        allow:"clipboard-read *; clipboard-write *",
-        loading:"eager",
-        referrerpolicy:"no-referrer-when-downgrade"
-      })
-    ])
-  );
-
-  const navigate = (nextUrl) => {
-    const finalUrl = normalizeInternetUrl(nextUrl || $("#webUrl").value);
-    $("#webUrl").value = finalUrl;
-    $("#webFrame").src = finalUrl;
-    state.settings.internet = { ...(state.settings.internet || {}), url: finalUrl };
-    saveSettings();
-  };
-
-  $("#webGo").onclick = ()=>navigate();
-  $("#webHome").onclick = ()=>navigate("https://chaines.io");
-  $("#webUrl").addEventListener("keydown", (event)=>{
-    if(event.key === "Enter") navigate();
-  });
-  $("#webBack").onclick = ()=>{
-    setMode("dashboard");
-    panelTitle.textContent = "LIVE TELEMETRY";
-    panelSub.textContent = "Cursor • Click • Signals";
-    renderPanelTelemetry();
-  };
 }
 
 function renderPanel_Notepad(){
@@ -4741,7 +4153,6 @@ class CalendarUI{
 function renderPanel_Games(){
   panelContent.innerHTML = "";
   const g = apps.games;
-  renderGamesQuickList();
 
   // Ensure a game is selected/active
   if(!g.games[g.current]) g.select("pong", {reset:true});
@@ -4804,21 +4215,10 @@ function renderPanel_Games(){
       el("div",{class:"kv2"},[el("span",{},["Breakout"]), el("b",{},[String(hs.breakout || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Bubble Pop"]), el("b",{},[String(hs.bubbles || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Star Catch"]), el("b",{},[String(hs.catch || 0)])]),
-      el("div",{class:"kv2"},[el("span",{},["Neon Blaster '86"]), el("b",{},[String(hs.neon || 0)])]),
-      el("div",{class:"kv2"},[el("span",{},["Penalty Pro"]), el("b",{},[String(hs.sports || 0)])]),
-      el("div",{class:"kv2"},[el("span",{},["Street Hoops"]), el("b",{},[String(hs.hoops || 0)])]),
-      el("div",{class:"kv2"},[el("span",{},["Lane Runner"]), el("b",{},[String(hs.runner || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Reaction Best"]), el("b",{},[reactionBest])]),
-      el("div",{class:"kv2"},[el("span",{},["Memory Match Best"]), el("b",{},[(hs.memoryBestMs == null ? "--" : `${hs.memoryBestMs} ms`)])]),
       el("div",{class:"row"},[
         el("button",{class:"smallbtn ghost", onclick:()=>{ g.clearScores(); renderPanel_Games(); }},["Clear Scores"])
       ])
-    ]),
-    makeCard("Standard Controls", [
-      el("div",{class:"kv2"},[el("span",{},["Move"]), el("b",{},["Cursor X/Y"])]),
-      el("div",{class:"kv2"},[el("span",{},["Action"]), el("b",{},["Click / Pinch"])]),
-      el("div",{class:"kv2"},[el("span",{},["Reset"]), el("b",{},["Restart button"])]),
-      el("div",{class:"hint"},["All games use the same move/action logic across Gesture, Retina, Tone, EMG, and EEG routes."])
     ])
   );
 }
@@ -4843,7 +4243,6 @@ const controllers = {
   EEG: new EEGController()
 };
 const apps = {
-  internet: new InternetApp(),
   notepad: new NotepadApp(),
   audio: new AudioApp(),
   video: new VideoApp(),
@@ -4919,65 +4318,12 @@ function updateHoverClick(){
   }
 }
 
-
-function syncCursorFromPointer(clientX, clientY){
-  if(!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
-  state.cursor.x = clamp(clientX, 0, window.innerWidth);
-  state.cursor.y = clamp(clientY, 0, window.innerHeight);
-  state.cursor.hoverTarget = null;
-  state.cursor.hoverStartMs = 0;
-  updateCursorUI();
-}
-
-function wirePointerFallback(){
-  const opts = { passive:true };
-
-  window.addEventListener("pointermove", (e)=>{
-    syncCursorFromPointer(e.clientX, e.clientY);
-  }, opts);
-
-  window.addEventListener("pointerdown", (e)=>{
-    syncCursorFromPointer(e.clientX, e.clientY);
-  }, opts);
-
-  // Keyboard fallback for desktop accessibility.
-  window.addEventListener("keydown", (e)=>{
-    const ae = document.activeElement;
-    const typing = ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable);
-    if(typing) return;
-
-    if(state.ui.modalOpen && ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Enter"].includes(e.key)){
-      // keep keyboard usage in overlays predictable
-      e.preventDefault();
-    }
-
-    const step = e.shiftKey ? 36 : 18;
-    let moved = false;
-    if(e.key === "ArrowUp"){ state.cursor.y -= step; moved = true; }
-    if(e.key === "ArrowDown"){ state.cursor.y += step; moved = true; }
-    if(e.key === "ArrowLeft"){ state.cursor.x -= step; moved = true; }
-    if(e.key === "ArrowRight"){ state.cursor.x += step; moved = true; }
-
-    if(moved){
-      state.cursor.x = clamp(state.cursor.x, 0, window.innerWidth);
-      state.cursor.y = clamp(state.cursor.y, 0, window.innerHeight);
-      state.cursor.hoverTarget = null;
-      state.cursor.hoverStartMs = 0;
-      updateCursorUI();
-    }
-
-    if(e.key === " " || e.key === "Enter"){
-      performClickAtCursor();
-    }
-  });
-}
-
 // -----------------------------
 // Dashboard / Nav actions
 // -----------------------------
 function wireNav(){
   const openMap = {
-    internet: ()=>apps.internet.open(),
+    internet: ()=>window.open("https://www.google.com", "_blank", "noopener"),
     games: ()=>apps.games.open(),
     notepad: ()=>apps.notepad.open(),
     audio: ()=>apps.audio.open(),
@@ -5012,13 +4358,6 @@ function wireNav(){
     dotCtl.classList.toggle("ok", state.runtime.osEnabled);
     dotCtl.classList.toggle("bad", !state.runtime.osEnabled);
   };
-  if(btnMobileMenus){
-    btnMobileMenus.onclick = ()=>{
-      state.ui.mobileGameMenusVisible = !state.ui.mobileGameMenusVisible;
-      applyMobileGameFocus();
-      requestAnimationFrame(resizeCanvas);
-    };
-  }
 
   // hotkeys
   window.addEventListener("keydown", (e)=>{
@@ -5095,10 +4434,8 @@ function draw(ctx, dt){
     updateModalLiveLabels();
   }
 
-  // Games overlay (strictly hidden unless Games app is selected)
-  if(state.ui.mode === "app:games"){
-    apps.games.draw(ctx, w, h);
-  }
+  // Games overlay
+  apps.games.draw(ctx, w, h);
 
   // Draw status watermark
   ctx.save();
@@ -5408,7 +4745,6 @@ function tick(){
 function boot(){
   resizeCanvas();
   wireNav();
-  wirePointerFallback();
 
   // initialize top toggles from settings
   state.runtime.hoverEnabled = !!state.settings.ui.hoverClick;

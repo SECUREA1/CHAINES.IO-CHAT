@@ -15,16 +15,6 @@ import {
   isDirectVendorEnabled,
   vendGhostTokenDirect,
 } from "./hologhostVendor.js";
-import {
-  MASTER_HISTORY_KEY,
-  CLOUD_ROOM_KEY,
-  CLOUD_ROOM_TYPE,
-  buildStableRoomMeta,
-  buildRestoreHistoryBundle,
-  resolveActiveRoomForRestore,
-  shouldIncludeMessageInHistory,
-  sortMessagesStable,
-} from "./chatPersistence.js";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -36,37 +26,13 @@ const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-function resolveDurableRoot() {
-  const explicit = (process.env.PERSISTENT_DATA_DIR || "").trim();
-  if (explicit) return explicit;
-  const renderDisk = (process.env.RENDER_DISK_PATH || "").trim();
-  if (renderDisk) return renderDisk;
-  if (fs.existsSync("/var/data")) return "/var/data";
-  return ROOT;
-}
-
-const DURABLE_ROOT = resolveDurableRoot();
-fs.mkdirSync(DURABLE_ROOT, { recursive: true });
-
-const LEGACY_DB_PATH = path.join(ROOT, "app.db");
-const DB_PATH = process.env.DB_PATH || path.join(DURABLE_ROOT, "app.db");
-if (
-  DB_PATH !== LEGACY_DB_PATH &&
-  !fs.existsSync(DB_PATH) &&
-  fs.existsSync(LEGACY_DB_PATH)
-) {
-  fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
-}
+const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
 const db = new Database(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
     room TEXT,
-    room_key TEXT,
-    room_type TEXT,
-    transport_room_id TEXT,
-    legacy_room_id TEXT,
     message TEXT,
     image TEXT,
     file TEXT,
@@ -93,9 +59,7 @@ db.exec(`
     username TEXT UNIQUE,
     password TEXT,
     profile_pic TEXT,
-    description TEXT,
-    backup_email TEXT,
-    backup_phone TEXT
+    description TEXT
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -141,198 +105,14 @@ db.exec(`
     dropper_tokens_left INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
-  CREATE TABLE IF NOT EXISTS private_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender TEXT NOT NULL,
-    recipient TEXT NOT NULL,
-    ciphertext TEXT NOT NULL,
-    iv TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS chat_room_sessions (
-    session_key TEXT PRIMARY KEY,
-    user_key TEXT,
-    active_room_key TEXT NOT NULL,
-    active_room_type TEXT NOT NULL,
-    active_transport_room_id TEXT,
-    last_message_id INTEGER,
-    last_message_ts INTEGER,
-    overlay_state TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_key TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_type TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN transport_room_id TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN legacy_room_id TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
-try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
-try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
-try {
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS chat_room_sessions_user_key_idx ON chat_room_sessions(user_key)"
-  );
-} catch {}
 
-const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
-const PROFILE_MEMORY_PATH =
-  process.env.PROFILE_MEMORY_PATH ||
-  path.join(DURABLE_ROOT, "profile_memory", "main.json");
-if (
-  PROFILE_MEMORY_PATH !== LEGACY_PROFILE_MEMORY_PATH &&
-  !fs.existsSync(PROFILE_MEMORY_PATH) &&
-  fs.existsSync(LEGACY_PROFILE_MEMORY_PATH)
-) {
-  fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
-  fs.copyFileSync(LEGACY_PROFILE_MEMORY_PATH, PROFILE_MEMORY_PATH);
-}
-
-const LEGACY_CHAT_MEMORY_PATH = path.join(
-  ROOT,
-  "profile_memory",
-  "chat_messages.json"
-);
-const CHAT_MEMORY_PATH =
-  process.env.CHAT_MEMORY_PATH ||
-  path.join(DURABLE_ROOT, "profile_memory", "chat_messages.json");
-if (
-  CHAT_MEMORY_PATH !== LEGACY_CHAT_MEMORY_PATH &&
-  !fs.existsSync(CHAT_MEMORY_PATH) &&
-  fs.existsSync(LEGACY_CHAT_MEMORY_PATH)
-) {
-  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.copyFileSync(LEGACY_CHAT_MEMORY_PATH, CHAT_MEMORY_PATH);
-}
-
-function loadChatMemory() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && Array.isArray(parsed.messages)) {
-      return parsed.messages;
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-function saveChatMemory(items = []) {
-  fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.writeFileSync(
-    CHAT_MEMORY_PATH,
-    JSON.stringify({ key: MASTER_HISTORY_KEY, version: 2, messages: items }, null, 2)
-  );
-}
-
-function storeChatMemory(message = {}) {
-  const items = loadChatMemory();
-  const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
-  const roomMeta = buildStableRoomMeta(message);
-  const entry = {
-    id: Number(message.id),
-    messageId: Number(message.id),
-    user: message.user || "",
-    room: roomMeta.transportRoomId || null,
-    roomKey: roomMeta.roomKey,
-    roomType: roomMeta.roomType,
-    transportRoomId: roomMeta.transportRoomId,
-    legacyRoomId: roomMeta.legacyRoomId,
-    message: message.text ?? message.message ?? "",
-    image: message.image || null,
-    file: message.file || null,
-    file_name: message.file_name || message.fileName || null,
-    file_type: message.file_type || message.fileType || null,
-    ts: Number(message.ts) || Date.now(),
-  };
-  if (idx >= 0) {
-    items[idx] = entry;
-  } else {
-    items.push(entry);
-  }
-  saveChatMemory(items);
-}
-
-function removeFromChatMemory(messageId) {
-  const id = Number(messageId);
-  saveChatMemory(loadChatMemory().filter((item) => Number(item.id) !== id));
-}
-
-function hydrateChatMessagesFromMemory() {
-  const items = loadChatMemory();
-  if (!items.length) return;
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO chat_messages (id, user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
-  );
-  const tx = db.transaction((entries) => {
-    for (const item of entries) {
-      if (!Number.isFinite(Number(item.id))) continue;
-      const roomMeta = buildStableRoomMeta(item);
-      insert.run(
-        Number(item.id),
-        item.user || "",
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
-        item.message || "",
-        item.image || null,
-        item.file || null,
-        item.file_name || null,
-        item.file_type || null,
-        Number(item.ts) || Date.now()
-      );
-    }
-  });
-  tx(items);
-}
-
-function loadHistoryFromMemory(filters = {}) {
-  const commentsByMessage = {};
-  for (const item of loadChatMemory()) {
-    const roomMeta = buildStableRoomMeta(item);
-    if (
-      !shouldIncludeMessageInHistory(
-        { ...item, ...roomMeta },
-        {
-          roomKey: filters.roomKey || null,
-          transportRoomId: filters.transportRoomId || null,
-        }
-      )
-    ) {
-      continue;
-    }
-    const id = Number(item.id);
-    if (!Number.isFinite(id)) continue;
-    commentsByMessage[id] = {
-      type: "chat",
-      id,
-      messageId: id,
-      user: item.user || "",
-      profilePic: resolveUserProfilePic(item.user || ""),
-      room: roomMeta.transportRoomId || null,
-      roomKey: roomMeta.roomKey,
-      roomType: roomMeta.roomType,
-      transportRoomId: roomMeta.transportRoomId,
-      legacyRoomId: roomMeta.legacyRoomId,
-      createdAt: Number(item.ts) || Date.now(),
-      text: item.message || "",
-      image: item.image || null,
-      file: item.file || null,
-      fileName: item.file_name || null,
-      fileType: item.file_type || null,
-      ts: Number(item.ts) || Date.now(),
-      likes: 0,
-      comments: [],
-    };
-  }
-  return commentsByMessage;
-}
+const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
 function loadProfiles() {
   try {
@@ -348,87 +128,9 @@ function saveProfiles() {
 }
 
 let profiles = loadProfiles();
-hydrateChatMessagesFromMemory();
-
-function backfillChatRoomMetadata() {
-  // Persistence identity must stay durable across reconnects/redeploys.
-  // Never use websocket client ids as persisted room keys.
-  const rows = db
-    .prepare(
-      "SELECT id, room, room_key, room_type, transport_room_id, legacy_room_id FROM chat_messages"
-    )
-    .all();
-  if (!rows.length) return;
-  const update = db.prepare(
-    "UPDATE chat_messages SET room = ?, room_key = ?, room_type = ?, transport_room_id = ?, legacy_room_id = ? WHERE id = ?"
-  );
-  const tx = db.transaction((items) => {
-    for (const row of items) {
-      const roomMeta = buildStableRoomMeta({
-        room: row.transport_room_id || row.room || null,
-        roomKey: row.room_key || null,
-        roomType: row.room_type || null,
-        legacyRoomId: row.legacy_room_id || null,
-      });
-      update.run(
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
-        row.id
-      );
-    }
-  });
-  tx(rows);
-}
-
-backfillChatRoomMetadata();
-
-function resolveUserProfilePic(username = "") {
-  const clean = (username || "").toString().trim();
-  if (!clean) return null;
-  const dbPic = db
-    .prepare("SELECT profile_pic FROM users WHERE username=?")
-    .get(clean)?.profile_pic;
-  if (dbPic) return dbPic;
-  return profiles[clean]?.profilePic || null;
-}
-
-function ensureUserRecord(username = "") {
-  const clean = (username || "").toString().trim();
-  if (!clean) return;
-  db.prepare("INSERT OR IGNORE INTO users (username) VALUES (?)").run(clean);
-}
-
-function normalizeBackupEmail(value = "") {
-  const email = (value || "").toString().trim().toLowerCase();
-  if (!email) return null;
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  return emailOk ? email : null;
-}
-
-function normalizeBackupPhone(value = "") {
-  const raw = (value || "").toString().trim();
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, "");
-  return digits.length >= 10 ? digits : null;
-}
 
 // express setup
 const app = express();
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin;
-  res.setHeader("Access-Control-Allow-Origin", requestOrigin || "*");
-  res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");
@@ -511,9 +213,6 @@ app.get("/favicon.svg", (req, res) =>
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
-);
-app.get(["/private-chat.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "private-chat.html"))
 );
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
@@ -952,17 +651,9 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", upload.single("profile"), async (req, res) => {
-  const { username, password, backupEmail, backupPhone } = req.body || {};
+  const { username, password } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
-    return;
-  }
-  const normalizedBackupEmail = normalizeBackupEmail(backupEmail);
-  const normalizedBackupPhone = normalizeBackupPhone(backupPhone);
-  if (!normalizedBackupEmail && !normalizedBackupPhone) {
-    res.status(400).json({
-      error: "A backup email or phone number is required for password recovery.",
-    });
     return;
   }
   if (profiles[username]) {
@@ -974,21 +665,9 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
     db.prepare(
-      "INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)"
-    ).run(
-      username,
-      hash,
-      pic,
-      normalizedBackupEmail,
-      normalizedBackupPhone
-    );
-    profiles[username] = {
-      password: hash,
-      profilePic: pic,
-      description: null,
-      backupEmail: normalizedBackupEmail,
-      backupPhone: normalizedBackupPhone,
-    };
+      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
+    ).run(username, hash, pic);
+    profiles[username] = { password: hash, profilePic: pic, description: null };
     saveProfiles();
     res.json({ success: true });
   } catch (e) {
@@ -1003,7 +682,7 @@ app.post("/login", async (req, res) => {
     return;
   }
   const dbUser = db
-    .prepare("SELECT username, password, profile_pic, backup_email, backup_phone FROM users WHERE username=?")
+    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
     .get(username);
   const memUser = profiles[username];
   const hash = dbUser?.password || memUser?.password;
@@ -1017,176 +696,67 @@ app.post("/login", async (req, res) => {
     return;
   }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-  const backupEmail = dbUser?.backup_email || memUser?.backupEmail || null;
-  const backupPhone = dbUser?.backup_phone || memUser?.backupPhone || null;
   if (!dbUser) {
     try {
-      db.prepare("INSERT INTO users (username, password, profile_pic, backup_email, backup_phone) VALUES (?,?,?,?,?)").run(
-        username,
-        hash,
-        profilePic,
-        backupEmail,
-        backupPhone
-      );
+      db.prepare("INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)").run(username, hash, profilePic);
     } catch {}
   }
-  profiles[username] = { ...(memUser || {}), password: hash, profilePic, backupEmail, backupPhone };
+  profiles[username] = { ...(memUser || {}), password: hash, profilePic };
   saveProfiles();
   res.json({ success: true, username, profilePic });
-});
-
-app.post("/forgot-password", async (req, res) => {
-  const { username, contact, newPassword } = req.body || {};
-  const cleanUsername = (username || "").toString().trim();
-  const cleanPassword = (newPassword || "").toString();
-  if (!cleanUsername || !cleanPassword) {
-    res.status(400).json({ error: "Username and new password are required." });
-    return;
-  }
-  const normalizedEmail = normalizeBackupEmail(contact);
-  const normalizedPhone = normalizeBackupPhone(contact);
-  if (!normalizedEmail && !normalizedPhone) {
-    res.status(400).json({ error: "Enter a valid backup email or phone number." });
-    return;
-  }
-
-  const dbUser = db
-    .prepare("SELECT username, backup_email, backup_phone, profile_pic FROM users WHERE username=?")
-    .get(cleanUsername);
-  const memUser = profiles[cleanUsername] || {};
-  const storedEmail = normalizeBackupEmail(dbUser?.backup_email || memUser?.backupEmail);
-  const storedPhone = normalizeBackupPhone(dbUser?.backup_phone || memUser?.backupPhone);
-  const emailMatch = normalizedEmail && storedEmail && normalizedEmail === storedEmail;
-  const phoneMatch = normalizedPhone && storedPhone && normalizedPhone === storedPhone;
-
-  if (!emailMatch && !phoneMatch) {
-    res.status(401).json({ error: "Backup contact did not match our records." });
-    return;
-  }
-
-  const hash = await bcrypt.hash(cleanPassword, 10);
-  const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-
-  db.prepare("UPDATE users SET password=? WHERE username=?").run(hash, cleanUsername);
-  profiles[cleanUsername] = {
-    ...(memUser || {}),
-    password: hash,
-    profilePic,
-    backupEmail: storedEmail,
-    backupPhone: storedPhone,
-  };
-  saveProfiles();
-
-  res.json({ success: true, message: "Password reset successful. You can now log in." });
 });
 
 app.get(["/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
-app.get(["/private-chat.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "private-chat.html"))
-);
 
 app.get("/profile/:username", (req, res) => {
-  hydrateChatMessagesFromMemory();
-  const targetUser = (req.params.username || "").toString().trim();
   const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
     )
-    .get(targetUser);
-  const memUser = profiles[targetUser] || {};
-  const hasPosts = !!db
-    .prepare("SELECT 1 FROM chat_messages WHERE user=? LIMIT 1")
-    .get(targetUser);
-  const hasMemProfile = !!(
-    memUser &&
-    (
-      memUser.password ||
-      memUser.profilePic ||
-      memUser.description ||
-      memUser.backupEmail ||
-      memUser.backupPhone
-    )
-  );
-  if (!dbUser && !hasMemProfile && !hasPosts) {
+    .get(req.params.username);
+  const memUser = profiles[req.params.username] || {};
+  if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const allPublicHistory = loadHistory();
-  const posts = allPublicHistory
-    .filter((post) => post.user === targetUser)
-    .map((post) => ({
-      id: post.id,
-      message: post.text || "",
-      image: post.image || null,
-      file: post.file || null,
-      file_name: post.fileName || null,
-      file_type: post.fileType || null,
-      ts: post.ts || Date.now(),
-      likes: Number(post.likes) || 0,
-      comments: Array.isArray(post.comments) ? post.comments : [],
-    }))
-    .sort((a, b) => (b.id || 0) - (a.id || 0));
-  const hydratedPosts = posts.map((post) => ({
-    ...post,
-    likes: Number(post.likes) || 0,
-    comments: Array.isArray(post.comments) ? post.comments : [],
-  }));
-  const replies = db
-    .prepare(
-      "SELECT c.id, c.message_id, c.user, c.text, strftime('%s', c.timestamp) * 1000 as ts, m.user as post_user, m.message as post_message FROM comments c LEFT JOIN chat_messages m ON c.message_id = m.id WHERE c.user=? ORDER BY c.id DESC"
-    )
-    .all(targetUser);
-  const followers = db
-    .prepare("SELECT follower FROM follows WHERE following=?")
-    .all(targetUser)
-    .map((r) => r.follower);
-  const following = db
-    .prepare("SELECT following FROM follows WHERE follower=?")
-    .all(targetUser)
-    .map((r) => r.following);
-  const likesReceived = db
-    .prepare(
-      `SELECT COUNT(*) as total
-       FROM likes l
-       INNER JOIN chat_messages m ON m.id = l.message_id
-       WHERE m.user = ?`
-    )
-    .get(targetUser)?.total || 0;
-  const directMessages = db
-    .prepare(
-      `SELECT COUNT(*) as total
-       FROM private_messages
-       WHERE sender = ? OR recipient = ?`
-    )
-    .get(targetUser, targetUser)?.total || 0;
-  const isFollowing = viewer
-    ? !!db
+  const posts = dbUser
+    ? db
         .prepare(
-          "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
-        .get(viewer, targetUser)
+        .all(req.params.username)
+    : [];
+  const followers = dbUser
+    ? db
+        .prepare("SELECT follower FROM follows WHERE following=?")
+        .all(req.params.username)
+        .map((r) => r.follower)
+    : [];
+  const following = dbUser
+    ? db
+        .prepare("SELECT following FROM follows WHERE follower=?")
+        .all(req.params.username)
+        .map((r) => r.following)
+    : [];
+  const isFollowing = viewer
+    ? dbUser
+      ? !!db
+          .prepare(
+            "SELECT 1 FROM follows WHERE follower=? AND following=?"
+          )
+          .get(viewer, req.params.username)
+      : false
     : false;
   res.json({
-    username: targetUser,
-    profilePic: dbUser?.profile_pic || memUser.profilePic || resolveUserProfilePic(targetUser),
+    username: req.params.username,
+    profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
-    posts: hydratedPosts,
-    replies,
+    posts,
     followers,
     following,
-    followerCount: followers.length,
-    followingCount: following.length,
-    stats: {
-      posts: hydratedPosts.length,
-      replies: replies.length,
-      followers: followers.length,
-      following: following.length,
-      likesReceived: Number(likesReceived) || 0,
-      directMessages: Number(directMessages) || 0,
-    },
     isFollowing,
   });
 });
@@ -1222,96 +792,37 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
 
 app.post("/profile/:username/follow", (req, res) => {
   const { follower } = req.body || {};
-  const cleanFollower = (follower || "").toString().trim();
-  const cleanFollowing = (req.params.username || "").toString().trim();
-  if (!cleanFollower || !cleanFollowing) {
+  if (!follower) {
     res.status(400).json({ error: "Missing follower" });
     return;
   }
-  if (cleanFollower === cleanFollowing) {
-    res.status(400).json({ error: "You cannot follow yourself." });
-    return;
-  }
-  ensureUserRecord(cleanFollower);
-  ensureUserRecord(cleanFollowing);
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(cleanFollower, cleanFollowing);
+    .get(follower, req.params.username);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(cleanFollower, cleanFollowing);
+      .run(follower, req.params.username);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(cleanFollower, cleanFollowing);
+      .run(follower, req.params.username);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        cleanFollowing,
-        JSON.stringify({ from: cleanFollower })
+        req.params.username,
+        JSON.stringify({ from: follower })
       );
     sendPush(
-      cleanFollowing,
+      req.params.username,
       "New Follower",
-      `${cleanFollower} started following you`
+      `${follower} started following you`
     );
     res.json({ following: true });
   }
-});
-
-app.post("/messages/:messageId/like", (req, res) => {
-  const messageId = Number(req.params.messageId);
-  const user = (req.body?.user || "").toString().trim();
-  if (!Number.isFinite(messageId) || !user) {
-    res.status(400).json({ error: "Message id and user are required." });
-    return;
-  }
-  ensureUserRecord(user);
-  db
-    .prepare("INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)")
-    .run(messageId, user);
-  const count = db
-    .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
-    .get(messageId)?.c || 0;
-  const owner = db
-    .prepare("SELECT user FROM chat_messages WHERE id=?")
-    .get(messageId)?.user;
-  if (owner && owner !== user) {
-    db
-      .prepare(
-        "INSERT INTO notifications (username, type, data) VALUES (?, 'like', ?)"
-      )
-      .run(owner, JSON.stringify({ from: user, messageId }));
-  }
-  res.json({ success: true, likes: count });
-});
-
-app.post("/messages/:messageId/reply", (req, res) => {
-  const messageId = Number(req.params.messageId);
-  const user = (req.body?.user || "").toString().trim();
-  const text = (req.body?.text || "").toString().trim();
-  if (!Number.isFinite(messageId) || !user || !text) {
-    res.status(400).json({ error: "Message id, user, and text are required." });
-    return;
-  }
-  ensureUserRecord(user);
-  const info = db
-    .prepare("INSERT INTO comments (message_id, user, text) VALUES (?, ?, ?)")
-    .run(messageId, user, text);
-  res.json({
-    success: true,
-    reply: {
-      id: info.lastInsertRowid,
-      messageId,
-      user,
-      text,
-      ts: Date.now(),
-    },
-  });
 });
 
 app.get("/notifications/:username", (req, res) => {
@@ -1339,32 +850,12 @@ app.post("/notifications/:username/read", (req, res) => {
 
 const server = http.createServer(app);
 
-function loadHistory(filters = {}) {
-  filters = filters || {};
-  hydrateChatMessagesFromMemory();
+function loadHistory(room = null) {
+  const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.room_key, c.room_type, c.transport_room_id, c.legacy_room_id, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
-  const rows = stmt
-    .all()
-    .map((row) => {
-      const roomMeta = buildStableRoomMeta({
-        room: row.transport_room_id || row.room || null,
-        roomKey: row.room_key || null,
-        roomType: row.room_type || null,
-        legacyRoomId: row.legacy_room_id || null,
-      });
-      return {
-        ...row,
-        ...roomMeta,
-      };
-    })
-    .filter((row) =>
-      shouldIncludeMessageInHistory(row, {
-        roomKey: filters.roomKey || null,
-        transportRoomId: filters.transportRoomId || null,
-      })
-    );
+  const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
       `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
@@ -1384,18 +875,12 @@ function loadHistory(filters = {}) {
   }
   const likes = {};
   for (const l of likeRows) likes[l.message_id] = l.c;
-  const fromDb = rows.map((r) => ({
+  return rows.map((r) => ({
     type: "chat",
     id: r.id,
-    messageId: r.id,
     user: r.user,
     profilePic: r.profile_pic,
-    room: r.transportRoomId || null,
-    roomKey: r.roomKey,
-    roomType: r.roomType,
-    transportRoomId: r.transportRoomId,
-    legacyRoomId: r.legacyRoomId,
-    createdAt: r.ts,
+    room: r.room,
     text: r.message,
     image: r.image,
     file: r.file,
@@ -1405,151 +890,7 @@ function loadHistory(filters = {}) {
     likes: likes[r.id] || 0,
     comments: comments[r.id] || [],
   }));
-  const merged = loadHistoryFromMemory(filters);
-  for (const row of fromDb) merged[row.id] = row;
-  return sortMessagesStable(Object.values(merged));
 }
-
-function mergeMessageLists(...lists) {
-  const byId = new Map();
-  for (const list of lists) {
-    for (const item of list || []) {
-      const key = Number(item?.id);
-      if (Number.isFinite(key)) byId.set(key, item);
-    }
-  }
-  return Array.from(byId.values()).sort((a, b) => (a.id || 0) - (b.id || 0));
-}
-
-const roomAlias = {
-  keyToTransport: new Map(),
-  transportToKey: new Map(),
-  legacyToKey: new Map(),
-};
-
-function upsertRoomAlias(roomKey, transportRoomId, legacyRoomId = null) {
-  const key = (roomKey || "").toString().trim();
-  const transport = (transportRoomId || "").toString().trim();
-  const legacy = (legacyRoomId || "").toString().trim();
-  if (key && transport) {
-    roomAlias.keyToTransport.set(key, transport);
-    roomAlias.transportToKey.set(transport, key);
-  }
-  if (key && legacy) roomAlias.legacyToKey.set(legacy, key);
-}
-
-function seedRoomAliasFromHistory() {
-  const rows = db
-    .prepare("SELECT room_key, transport_room_id, legacy_room_id FROM chat_messages")
-    .all();
-  for (const row of rows) {
-    upsertRoomAlias(row.room_key, row.transport_room_id, row.legacy_room_id);
-  }
-}
-
-function saveActiveRoomSession(payload = {}) {
-  const sessionKey = (payload.sessionKey || "").toString().trim();
-  if (!sessionKey) return;
-  const userKey = (payload.userKey || "").toString().trim() || null;
-  const activeRoomKey =
-    (payload.activeRoomKey || "").toString().trim() || CLOUD_ROOM_KEY;
-  const activeRoomType = (payload.activeRoomType || "").toString().trim()
-    ? payload.activeRoomType
-    : CLOUD_ROOM_TYPE;
-  const activeTransportRoomId =
-    (payload.activeTransportRoomId || "").toString().trim() || null;
-  const overlayState = payload.overlayState
-    ? JSON.stringify(payload.overlayState)
-    : null;
-  db.prepare(
-    `INSERT INTO chat_room_sessions (
-      session_key, user_key, active_room_key, active_room_type, active_transport_room_id,
-      last_message_id, last_message_ts, overlay_state, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(session_key) DO UPDATE SET
-      user_key=excluded.user_key,
-      active_room_key=excluded.active_room_key,
-      active_room_type=excluded.active_room_type,
-      active_transport_room_id=excluded.active_transport_room_id,
-      last_message_id=excluded.last_message_id,
-      last_message_ts=excluded.last_message_ts,
-      overlay_state=excluded.overlay_state,
-      updated_at=CURRENT_TIMESTAMP`
-  ).run(
-    sessionKey,
-    userKey,
-    activeRoomKey,
-    activeRoomType,
-    activeTransportRoomId,
-    payload.lastMessageId || null,
-    payload.lastMessageTs || null,
-    overlayState
-  );
-}
-
-function loadActiveRoomSession({ sessionKey = "", userKey = "" } = {}) {
-  const normalizedSession = (sessionKey || "").toString().trim();
-  const normalizedUser = (userKey || "").toString().trim();
-  let row = null;
-  if (normalizedSession) {
-    row = db
-      .prepare("SELECT * FROM chat_room_sessions WHERE session_key=?")
-      .get(normalizedSession);
-  }
-  if (!row && normalizedUser) {
-    row = db
-      .prepare(
-        "SELECT * FROM chat_room_sessions WHERE user_key=? ORDER BY updated_at DESC, session_key DESC LIMIT 1"
-      )
-      .get(normalizedUser);
-  }
-  if (!row) return null;
-  return {
-    ...row,
-    overlay_state: (() => {
-      try {
-        return row.overlay_state ? JSON.parse(row.overlay_state) : null;
-      } catch {
-        return null;
-      }
-    })(),
-  };
-}
-
-function buildRestoreHistoryBundleForRoom({ roomKey, transportRoomId }) {
-  const canonical = loadHistory({ roomKey });
-  const transportIds = new Set();
-  const legacyIds = new Set();
-  if (transportRoomId) transportIds.add(transportRoomId);
-  const aliasedTransport = roomAlias.keyToTransport.get(roomKey);
-  if (aliasedTransport) transportIds.add(aliasedTransport);
-  for (const [transport, key] of roomAlias.transportToKey.entries()) {
-    if (key === roomKey) transportIds.add(transport);
-  }
-  for (const [legacy, key] of roomAlias.legacyToKey.entries()) {
-    if (key === roomKey) legacyIds.add(legacy);
-  }
-  const legacyRows = [];
-  for (const id of transportIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
-  for (const id of legacyIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
-  const history = buildRestoreHistoryBundle({
-    canonicalMessages: canonical,
-    legacyMessages: legacyRows,
-  });
-  return {
-    history,
-    aliases: {
-      legacyRoomIds: Array.from(legacyIds),
-      transportRoomIds: Array.from(transportIds),
-    },
-  };
-}
-
-seedRoomAliasFromHistory();
-
-app.get("/api/index-posts", (req, res) => {
-  res.json({ messages: loadHistory() });
-});
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
@@ -1593,36 +934,11 @@ function sendListenerCount(id){
   }
 }
 
-function dmChannelId(a = "", b = "") {
-  return [a || "", b || ""].map((v) => v.toLowerCase()).sort().join("|");
-}
-
-function loadDirectHistory(a, b) {
-  return db
-    .prepare(
-      `SELECT id, sender, recipient, ciphertext, iv, strftime('%s', timestamp) * 1000 as ts
-       FROM private_messages
-       WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)
-       ORDER BY id`
-    )
-    .all(a, b, b, a)
-    .map((row) => ({
-      type: "dm",
-      id: row.id,
-      from: row.sender,
-      to: row.recipient,
-      ciphertext: row.ciphertext,
-      iv: row.iv,
-      ts: row.ts,
-      channel: dmChannelId(row.sender, row.recipient),
-    }));
-}
-
 wss.on("connection", (ws) => {
   ws.id = uid();
-  ws.restoredSession = false;
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
+  ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
   broadcastUsers();
   for(const [id, thumb] of thumbnails.entries()){
@@ -1668,90 +984,16 @@ wss.on("connection", (ws) => {
         .prepare("SELECT profile_pic FROM users WHERE username=?")
         .get(ws.username);
       ws.profilePic = u?.profile_pic || null;
-      if (!ws.restoredSession) {
-        const bundle = buildRestoreHistoryBundleForRoom({
-          roomKey: CLOUD_ROOM_KEY,
-          transportRoomId: null,
-        });
-        ws.send(
-          JSON.stringify({
-            type: "restore-session-result",
-            resolvedRoomKey: CLOUD_ROOM_KEY,
-            resolvedRoomType: CLOUD_ROOM_TYPE,
-            resolvedTransportRoomId: null,
-            overlayState: null,
-            history: bundle.history,
-            aliases: bundle.aliases,
-          })
-        );
-      }
       broadcastUsers();
       return;
     }
     switch (msg?.type) {
-      case "persist-active-room-session": {
-        saveActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-          activeRoomKey: msg.activeRoomKey,
-          activeRoomType: msg.activeRoomType,
-          activeTransportRoomId: msg.activeTransportRoomId,
-          lastMessageId: msg.lastMessageId,
-          lastMessageTs: msg.lastMessageTs,
-          overlayState: msg.overlayState || null,
-        });
-        upsertRoomAlias(
-          msg.activeRoomKey,
-          msg.activeTransportRoomId,
-          msg.activeTransportRoomId
-        );
-        return;
-      }
-      case "restore-session": {
-        const persistedSession = loadActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-        });
-        const resolved = resolveActiveRoomForRestore({
-          persistedSession,
-          requested: msg,
-          aliasMaps: roomAlias,
-        });
-        const bundle = buildRestoreHistoryBundleForRoom({
-          roomKey: resolved.resolvedRoomKey,
-          transportRoomId: resolved.resolvedTransportRoomId,
-        });
-        ws.restoredSession = true;
-        saveActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-          activeRoomKey: resolved.resolvedRoomKey,
-          activeRoomType: resolved.resolvedRoomType,
-          activeTransportRoomId: resolved.resolvedTransportRoomId,
-          lastMessageId: msg.lastSeenMessageId || null,
-          lastMessageTs: msg.lastSeenTs || null,
-          overlayState: persistedSession?.overlay_state || null,
-        });
-        ws.send(
-          JSON.stringify({
-            type: "restore-session-result",
-            resolvedRoomKey: resolved.resolvedRoomKey,
-            resolvedRoomType: resolved.resolvedRoomType,
-            resolvedTransportRoomId: resolved.resolvedTransportRoomId,
-            overlayState: persistedSession?.overlay_state || null,
-            history: bundle.history,
-            aliases: bundle.aliases,
-          })
-        );
-        return;
-      }
       case "broadcaster":
         if (broadcasters.size > 0 && ws.id !== guestApproved) {
           ws.send(JSON.stringify({ type: "join-denied" }));
           return;
         }
         broadcasters.set(ws.id, ws);
-        upsertRoomAlias(ws.id, ws.id, ws.id);
         broadcastUsers();
         const followers = db
           .prepare("SELECT follower FROM follows WHERE following = ?")
@@ -1785,7 +1027,6 @@ wss.on("connection", (ws) => {
         return;
       case "mic-broadcaster":
         broadcasters.set(ws.id, ws);
-        upsertRoomAlias(ws.id, ws.id, ws.id);
         micGuests.add(ws.id);
         broadcastUsers();
         return;
@@ -1910,17 +1151,13 @@ wss.on("connection", (ws) => {
       case "watcher": {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
-          upsertRoomAlias(msg.id, msg.id, msg.id);
           host.send(JSON.stringify({ type: "watcher", id: ws.id }));
           if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
           listeners.get(msg.id).add(ws.id);
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
           watching.get(ws.id).add(msg.id);
           sendListenerCount(msg.id);
-          const history = mergeMessageLists(
-            loadHistory({ roomKey: "cloud" }),
-            loadHistory({ transportRoomId: msg.id })
-          );
+          const history = loadHistory(msg.id);
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
@@ -2030,70 +1267,6 @@ wss.on("connection", (ws) => {
         }
         return;
       }
-      case "dm-history": {
-        const user = ws.username || msg.user || "";
-        const peer = (msg.with || "").toString().trim();
-        if (!user || !peer) return;
-        ws.send(
-          JSON.stringify({
-            type: "dm-history",
-            channel: dmChannelId(user, peer),
-            with: peer,
-            messages: loadDirectHistory(user, peer),
-          })
-        );
-        return;
-      }
-      case "dm": {
-        const from = ws.username || msg.from || "";
-        const to = (msg.to || "").toString().trim();
-        const ciphertext = (msg.ciphertext || "").toString();
-        const iv = (msg.iv || "").toString();
-        if (!from || !to || !ciphertext || !iv) return;
-        const info = db
-          .prepare(
-            "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
-          )
-          .run(from, to, ciphertext, iv);
-        if (from !== to) {
-          db
-            .prepare(
-              "INSERT INTO notifications (username, type, data) VALUES (?, 'dm', ?)"
-            )
-            .run(
-              to,
-              JSON.stringify({
-                from,
-                preview: "Sent you a private encrypted message",
-              })
-            );
-          sendPush(
-            to,
-            "New Private Message",
-            `${from} sent you a private encrypted message`
-          );
-        }
-        const payload = JSON.stringify({
-          type: "dm",
-          id: info.lastInsertRowid,
-          from,
-          to,
-          ciphertext,
-          iv,
-          ts: Date.now(),
-          channel: dmChannelId(from, to),
-        });
-        for (const client of wss.clients) {
-          if (
-            client.readyState === 1 &&
-            client.username &&
-            (client.username === from || client.username === to)
-          ) {
-            client.send(payload);
-          }
-        }
-        return;
-      }
     }
     if (msg?.type !== "chat") return;
     // Allow larger uploads so mobile devices can share photos and videos
@@ -2106,28 +1279,17 @@ wss.on("connection", (ws) => {
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
-    ensureUserRecord(msg.user || "");
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
-    const transportRoom = msg.room || null;
-    const roomMeta = buildStableRoomMeta({
-      ...msg,
-      room: transportRoom,
-      transportRoomId: transportRoom,
-    });
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
+        msg.room || null,
         text,
         msg.image || null,
         msg.file || null,
@@ -2135,18 +1297,9 @@ wss.on("connection", (ws) => {
         fileType
     );
     msg.id = info.lastInsertRowid;
-    msg.messageId = msg.id;
     msg.message = text;
-    msg.room = transportRoom;
-    msg.roomKey = roomMeta.roomKey;
-    msg.roomType = roomMeta.roomType;
-    msg.transportRoomId = roomMeta.transportRoomId;
-    msg.legacyRoomId = roomMeta.legacyRoomId;
-    upsertRoomAlias(roomMeta.roomKey, roomMeta.transportRoomId, roomMeta.legacyRoomId);
-    msg.createdAt = msg.ts;
     msg.likes = 0;
     msg.comments = [];
-    storeChatMemory(msg);
     if (fileName) {
       msg.file_name = fileName;
       msg.fileName = fileName;
@@ -2156,11 +1309,11 @@ wss.on("connection", (ws) => {
       msg.fileType = fileType;
     }
     // broadcast
-    if (transportRoom) {
+    if (msg.room) {
       const targets = new Set();
-      const host = broadcasters.get(transportRoom);
+      const host = broadcasters.get(msg.room);
       if (host && host.readyState === 1) targets.add(host);
-      const set = listeners.get(transportRoom);
+      const set = listeners.get(msg.room);
       if (set) {
         for (const id of set) {
           const c = clients.get(id);
@@ -2181,7 +1334,6 @@ wss.on("connection", (ws) => {
         db.prepare("DELETE FROM chat_messages WHERE id = ?").run(msg.id);
         db.prepare("DELETE FROM comments WHERE message_id = ?").run(msg.id);
         db.prepare("DELETE FROM likes WHERE message_id = ?").run(msg.id);
-        removeFromChatMemory(msg.id);
         const payload = JSON.stringify({ type: "delete", id: msg.id });
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(payload);
