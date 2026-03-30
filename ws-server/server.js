@@ -52,6 +52,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
+    client_nonce TEXT,
     room TEXT,
     message TEXT,
     image TEXT,
@@ -137,11 +138,17 @@ db.exec(`
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN client_nonce TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
+} catch {}
+try {
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS chat_messages_user_nonce_idx ON chat_messages(user, client_nonce) WHERE client_nonce IS NOT NULL"
+  );
 } catch {}
 
 const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
@@ -1236,7 +1243,7 @@ function loadHistory(room = null) {
   hydrateChatMessagesFromMemory();
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, c.client_nonce, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
@@ -1262,6 +1269,7 @@ function loadHistory(room = null) {
     type: "chat",
     id: r.id,
     user: r.user,
+    clientNonce: r.client_nonce || null,
     profilePic: r.profile_pic,
     room: r.room,
     text: r.message,
@@ -1751,11 +1759,12 @@ wss.on("connection", (ws) => {
     // Allow larger uploads so mobile devices can share photos and videos
     // Data URLs grow ~33% over the original binary size, so these limits are
     // higher than the desired byte thresholds.
-    if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
-    if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
+    if (msg.image && msg.image.length > 35_000_000) return; // limit ~26MB per image
+    if (msg.file && msg.file.length > 120_000_000) return; // limit ~90MB per file
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
+    const clientNonce = (msg.clientNonce || "").toString().trim() || null;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
     ensureUserRecord(msg.user || "");
@@ -1763,21 +1772,44 @@ wss.on("connection", (ws) => {
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
-    const info = db
-      .prepare(
-        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      )
-      .run(
-        msg.user || "",
-        msg.room || null,
-        text,
-        msg.image || null,
-        msg.file || null,
-        fileName,
-        fileType
-    );
-    msg.id = info.lastInsertRowid;
-    msg.message = text;
+    let existing = null;
+    if (clientNonce && msg.user) {
+      existing = db
+        .prepare(
+          "SELECT id, message, image, file, file_name, file_type, room, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user = ? AND client_nonce = ?"
+        )
+        .get(msg.user, clientNonce);
+    }
+    if (existing) {
+      msg.id = existing.id;
+      msg.text = existing.message ?? text;
+      msg.message = msg.text;
+      msg.image = existing.image || null;
+      msg.file = existing.file || null;
+      msg.room = existing.room || msg.room || null;
+      msg.file_name = existing.file_name || fileName;
+      msg.fileName = msg.file_name;
+      msg.file_type = existing.file_type || fileType;
+      msg.fileType = msg.file_type;
+      msg.ts = existing.ts || msg.ts;
+    } else {
+      const info = db
+        .prepare(
+          "INSERT INTO chat_messages (user, client_nonce, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(
+          msg.user || "",
+          clientNonce,
+          msg.room || null,
+          text,
+          msg.image || null,
+          msg.file || null,
+          fileName,
+          fileType
+      );
+      msg.id = info.lastInsertRowid;
+    }
+    msg.message = msg.text;
     msg.likes = 0;
     msg.comments = [];
     storeChatMemory(msg);
