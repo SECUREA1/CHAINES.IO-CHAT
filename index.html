@@ -220,68 +220,6 @@
   height: 28px;
   display: block;
 }
-    #notif-btn {
-      position: relative;
-      min-width: 36px;
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      justify-content: center;
-      border-radius: 12px;
-      font-size: 18px;
-      line-height: 1;
-    }
-    #notif-badge {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
-      border-radius: 999px;
-      background: var(--danger);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid color-mix(in oklab, #fff, transparent 70%);
-    }
-    .notif-panel {
-      position: fixed;
-      right: 16px;
-      bottom: calc(84px + env(safe-area-inset-bottom));
-      width: min(360px, calc(100vw - 24px));
-      max-height: min(60vh, 420px);
-      overflow: auto;
-      border-radius: 14px;
-      border: 1px solid var(--lining);
-      background: color-mix(in oklab, var(--panel), transparent 10%);
-      box-shadow: var(--shadow);
-      z-index: 25;
-      padding: 10px;
-    }
-    .notif-panel h3 { margin: 0 0 8px; font-size: 14px; }
-    .notif-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 6px;
-    }
-    .notif-list button {
-      width: 100%;
-      text-align: left;
-      border: 1px solid var(--lining);
-      background: color-mix(in oklab, var(--panel), transparent 25%);
-      color: var(--fg);
-      border-radius: 10px;
-      padding: 8px 10px;
-      cursor: pointer;
-      font: inherit;
-    }
-    .notif-empty { margin: 0; color: var(--muted); font-size: 13px; }
 
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
@@ -878,7 +816,6 @@
       </form>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
-        <button class="chip" id="notif-btn" title="New notifications" aria-label="New notifications">🔔<span id="notif-badge" hidden>0</span></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
@@ -899,11 +836,6 @@
       <p id="popup-text"></p>
       <div id="popup-actions" class="popup-actions"></div>
     </div>
-  </div>
-  <div id="notif-panel" class="notif-panel" hidden>
-    <h3>New notifications</h3>
-    <ul id="notif-list" class="notif-list"></ul>
-    <p id="notif-empty" class="notif-empty" hidden>No new notifications.</p>
   </div>
 
   <div id="omconsole-modal" class="omconsole-modal" hidden>
@@ -974,11 +906,6 @@
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
-    const notifBtn = el('#notif-btn');
-    const notifBadge = el('#notif-badge');
-    const notifPanel = el('#notif-panel');
-    const notifList = el('#notif-list');
-    const notifEmpty = el('#notif-empty');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -1001,24 +928,6 @@
         autoResize(input);
         input.focus();
       }
-    });
-    notifBtn.addEventListener('click', async () => {
-      const willShow = notifPanel.hidden;
-      notifPanel.hidden = !notifPanel.hidden;
-      if(willShow){
-        renderUnreadNotifications();
-        if(unreadNotifications.length){
-          await markNotificationsRead();
-          unreadNotifications = [];
-          renderUnreadNotifications();
-          setNotificationBadge(0);
-        }
-      }
-    });
-    document.addEventListener('click', (ev) => {
-      if(notifPanel.hidden) return;
-      if(notifPanel.contains(ev.target) || notifBtn.contains(ev.target)) return;
-      notifPanel.hidden = true;
     });
     const actionCommands = {
       wave:      { text: 'waves \u{1F44B}', icon: '👋' },
@@ -1125,8 +1034,6 @@
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
-    let unreadNotifications = [];
-    let notificationPollTimer = null;
     const videoToggle = el('#video-toggle');
     function showStream(){
       videoContainer.removeAttribute('hidden');
@@ -1134,7 +1041,6 @@
       if(form) form.setAttribute('hidden','');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(videoToggle) videoToggle.textContent = 'Show Chat';
-      setActiveRoomState({ overlayState: { pane: 'stream', mode: broadcasting ? 'broadcaster' : 'watcher' } }, 'overlay-stream');
     }
     function showChat(){
       videoContainer.setAttribute('hidden','');
@@ -1142,12 +1048,6 @@
       if(form) form.removeAttribute('hidden');
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       if(videoToggle) videoToggle.textContent = 'Show Feed';
-      setActiveRoomState({
-        roomKey: 'cloud',
-        roomType: 'broadcast',
-        transportRoomId: null,
-        overlayState: { pane: 'chat', mode: 'cloud' }
-      }, 'overlay-chat');
     }
     let currentHost = null;
     let broadcastThumb = null;
@@ -1333,48 +1233,10 @@
         try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
         catch {}
       },
-      get sessionKey(){
-        try{
-          let key = localStorage.getItem('chaines_session_key') || '';
-          if(!key){
-            key = `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
-            localStorage.setItem('chaines_session_key', key);
-          }
-          return key;
-        } catch {
-          return 'sess-ephemeral';
-        }
-      },
-      get browserKey(){
-        try{
-          let key = localStorage.getItem('chaines_browser_key') || '';
-          if(!key){
-            key = `browser-${Math.random().toString(36).slice(2,12)}`;
-            localStorage.setItem('chaines_browser_key', key);
-          }
-          return key;
-        } catch {
-          return 'browser-anon';
-        }
-      },
-      get activeRoomSession(){
-        try{
-          const raw = localStorage.getItem('chaines_active_room_session');
-          return raw ? JSON.parse(raw) : null;
-        } catch {
-          return null;
-        }
-      },
-      set activeRoomSession(value){
-        try{
-          if(value) localStorage.setItem('chaines_active_room_session', JSON.stringify(value));
-          else localStorage.removeItem('chaines_active_room_session');
-        } catch {}
-      },
       get indexPostsKey(){
         return 'chaines_index_posts';
       },
-      recallIndexMessages(){
+      loadRawPosts(){
         try{
           const raw = localStorage.getItem(this.indexPostsKey);
           if(raw) return JSON.parse(raw) || [];
@@ -1387,38 +1249,32 @@
           return [];
         } catch { return []; }
       },
-      saveIndexMessages(items){
+      savePosts(items){
         try { localStorage.setItem(this.indexPostsKey, JSON.stringify(items)); }
         catch {}
       },
-      loadRawPosts(){
-        return this.recallIndexMessages();
-      },
-      savePosts(items){
-        this.saveIndexMessages(items);
-      },
       pushMsg(m) {
         try {
-          const items = this.recallIndexMessages();
+          const items = this.loadRawPosts();
           const idx = items.findIndex(x => x.id === m.id);
           if(idx >= 0) items[idx] = m;
           else items.push(m);
           while (items.length > 200) items.shift();
-          this.saveIndexMessages(items);
+          this.savePosts(items);
         } catch {}
       },
       removeMsg(id){
         try{
-          const items = this.recallIndexMessages().filter(x => x.id !== id);
-          this.saveIndexMessages(items);
+          const items = this.loadRawPosts().filter(x => x.id !== id);
+          this.savePosts(items);
         } catch{}
       },
       loadMsgs() {
         try {
-          const items = this.recallIndexMessages();
+          const items = this.loadRawPosts();
           const now = Date.now();
           const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          this.saveIndexMessages(valid);
+          this.savePosts(valid);
           return valid;
         } catch { return []; }
       },
@@ -1639,21 +1495,6 @@
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
     const seenComments = new Set();
-    let pendingLiveMessages = [];
-    let restoreHydrated = false;
-    const roomAlias = {
-      keyToTransport: new Map(),
-      transportToKey: new Map(),
-      legacyToKey: new Map()
-    };
-    let activeRoomState = {
-      roomKey: 'cloud',
-      roomType: 'broadcast',
-      transportRoomId: null,
-      overlayState: { pane: 'chat', mode: 'cloud' },
-      lastMessageId: null,
-      lastMessageTs: null
-    };
 
     // --- WebRTC state ---
       const peerConnections = {};
@@ -1673,53 +1514,6 @@
     let drawHandle = null;
     let recordMime = 'video/webm';
     let overlayMessages = [];
-
-    function setActiveRoomState(next = {}, reason = 'ui-change'){
-      activeRoomState = {
-        ...activeRoomState,
-        ...next,
-        roomKey: (next.roomKey || activeRoomState.roomKey || 'cloud'),
-        roomType: (next.roomType || activeRoomState.roomType || 'broadcast')
-      };
-      const manifest = {
-        sessionKey: store.sessionKey,
-        userKey: store.user || store.browserKey,
-        activeRoomKey: activeRoomState.roomKey,
-        activeRoomType: activeRoomState.roomType,
-        activeTransportRoomId: activeRoomState.transportRoomId || null,
-        lastMessageId: activeRoomState.lastMessageId || null,
-        lastMessageTs: activeRoomState.lastMessageTs || null,
-        overlayState: activeRoomState.overlayState || null,
-        updatedAt: Date.now(),
-        reason
-      };
-      store.activeRoomSession = manifest;
-      persistActiveRoomSession(manifest);
-    }
-
-    function persistActiveRoomSession(manifest = null){
-      const payload = manifest || store.activeRoomSession;
-      if(!payload || !socket || socket.readyState !== 1) return;
-      try{
-        socket.send(JSON.stringify({
-          type: 'persist-active-room-session',
-          ...payload
-        }));
-      } catch {}
-    }
-
-    function applyAliases(aliases = {}){
-      (aliases.transportRoomIds || []).forEach((id) => {
-        if(id) roomAlias.transportToKey.set(id, activeRoomState.roomKey);
-      });
-      (aliases.legacyRoomIds || []).forEach((id) => {
-        if(id) roomAlias.legacyToKey.set(id, activeRoomState.roomKey);
-      });
-      if(activeRoomState.roomKey && activeRoomState.transportRoomId){
-        roomAlias.keyToTransport.set(activeRoomState.roomKey, activeRoomState.transportRoomId);
-        roomAlias.transportToKey.set(activeRoomState.transportRoomId, activeRoomState.roomKey);
-      }
-    }
 
     function showOverlayMessage({ user, text, profilePic }){
       if(!overlayChat) return;
@@ -1815,11 +1609,8 @@
           usersEl.appendChild(li);
         });
         for(const id in streams){
-          const stream = streams[id];
-          if(!stream) continue;
-          const hasHistory = !!(stream.feed && stream.feed.children && stream.feed.children.length);
-          if(!liveIds.has(id) && !hasHistory){
-            stream.container.remove();
+          if(!liveIds.has(id)){
+            streams[id].container.remove();
             delete streams[id];
           }
         }
@@ -1978,82 +1769,6 @@
       return fetch(apiURL(path), options);
     }
 
-    function formatNotificationText(n){
-      if(!n || !n.type) return 'New notification';
-      const data = n.data || {};
-      if(n.type === 'like') return `${data.from || 'Someone'} liked your post #${data.messageId || ''}`.trim();
-      if(n.type === 'follow') return `${data.from || 'Someone'} started following you`;
-      if(n.type === 'broadcast') return `${data.from || 'Someone'} requested to ${data.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`;
-      if(n.type === 'dm') return `${data.from || 'Someone'} sent you a private encrypted message`;
-      if(n.type === 'self-destruct') return `Your post #${data.messageId || ''} self-destructed`;
-      return 'New notification';
-    }
-
-    function selectNotification(n){
-      if(!n) return;
-      const data = n.data || {};
-      if(n.type === 'dm' && data.from){
-        window.location.href = '/private-chat.html?user=' + encodeURIComponent(data.from);
-        return;
-      }
-      if(n.type === 'follow' && data.from){
-        window.location.href = '/profile.html?user=' + encodeURIComponent(data.from);
-        return;
-      }
-      if((n.type === 'like' || n.type === 'self-destruct') && data.messageId){
-        showChat();
-        const target = feed.querySelector(`li[data-id="${data.messageId}"]`);
-        if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      if(n.type === 'broadcast' && data.from){
-        showPopup(`${data.from} requested to join your broadcast.`, [{ label: 'OK', onClick: () => hidePopup() }]);
-      }
-    }
-
-    function renderUnreadNotifications(){
-      notifList.innerHTML = '';
-      if(!unreadNotifications.length){
-        notifEmpty.hidden = false;
-        return;
-      }
-      notifEmpty.hidden = true;
-      unreadNotifications.forEach((n) => {
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = formatNotificationText(n);
-        btn.addEventListener('click', () => selectNotification(n));
-        li.appendChild(btn);
-        notifList.appendChild(li);
-      });
-    }
-
-    function setNotificationBadge(count){
-      const safeCount = Number.isFinite(count) ? count : 0;
-      notifBadge.hidden = safeCount <= 0;
-      notifBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
-    }
-
-    async function markNotificationsRead(){
-      if(!store.user) return;
-      try {
-        await apiFetch('/notifications/' + encodeURIComponent(store.user) + '/read', { method:'POST' });
-      } catch {}
-    }
-
-    async function refreshUnreadNotifications(){
-      if(!store.user) return;
-      try {
-        const res = await apiFetch('/notifications/' + encodeURIComponent(store.user));
-        if(!res.ok) return;
-        const list = await res.json().catch(() => []);
-        unreadNotifications = Array.isArray(list) ? list.filter(n => !n.read) : [];
-        setNotificationBadge(unreadNotifications.length);
-        if(!notifPanel.hidden) renderUnreadNotifications();
-      } catch {}
-    }
-
     function setStatus(mode){
       onlineMode = mode;
       if(mode === 'cloud'){
@@ -2071,63 +1786,6 @@
       if(mode !== 'cloud') renderHistory();
     }
 
-    function sendRestoreSession(){
-      if(!socket || socket.readyState !== 1) return;
-      const saved = store.activeRoomSession || {};
-      try{
-        socket.send(JSON.stringify({
-          type: 'restore-session',
-          sessionKey: store.sessionKey,
-          userKey: store.user || store.browserKey,
-          lastKnownActiveRoomKey: saved.activeRoomKey || 'cloud',
-          lastKnownRoomType: saved.activeRoomType || 'broadcast',
-          lastKnownTransportRoomId: saved.activeTransportRoomId || null,
-          lastSeenMessageId: saved.lastMessageId || null,
-          lastSeenTs: saved.lastMessageTs || null
-        }));
-      } catch {}
-    }
-
-    function hydrateRestoredRoom(result = {}){
-      restoreHydrated = false;
-      pendingLiveMessages = [];
-      feed.innerHTML = '';
-      seen.clear();
-      seenComments.clear();
-      const resolvedRoomKey = result.resolvedRoomKey || 'cloud';
-      const resolvedTransportRoomId = result.resolvedTransportRoomId || null;
-      setActiveRoomState({
-        roomKey: resolvedRoomKey,
-        roomType: result.resolvedRoomType || 'broadcast',
-        transportRoomId: resolvedTransportRoomId,
-        overlayState: result.overlayState || activeRoomState.overlayState
-      }, 'restore-session-result');
-      applyAliases(result.aliases || {});
-      const sorted = (result.history || [])
-        .slice()
-        .sort((a, b) => (Number(a.createdAt || 0) - Number(b.createdAt || 0)) || (Number(a.ts || 0) - Number(b.ts || 0)) || (Number(a.id || a.messageId || 0) - Number(b.id || b.messageId || 0)));
-      sorted.forEach((m) => {
-        seen.add(m.id);
-        appendMessage(m, true);
-        activeRoomState.lastMessageId = m.id || activeRoomState.lastMessageId;
-        activeRoomState.lastMessageTs = m.ts || m.createdAt || activeRoomState.lastMessageTs;
-      });
-      if(activeRoomState.overlayState?.pane === 'stream' && activeRoomState.transportRoomId){
-        watchLive(activeRoomState.transportRoomId, activeRoomState.transportRoomId);
-      } else {
-        showChat();
-      }
-      restoreHydrated = true;
-      setActiveRoomState({
-        lastMessageId: activeRoomState.lastMessageId,
-        lastMessageTs: activeRoomState.lastMessageTs
-      }, 'restore-hydrated');
-      if(activeRoomState.transportRoomId){
-        sendSignal({ type: 'watcher', id: activeRoomState.transportRoomId });
-      }
-      pendingLiveMessages.splice(0).forEach((item) => receive(item));
-    }
-
     function connectWS(){
       const url = store.wsURL;
       if(!('WebSocket' in window)) return setStatus('off');
@@ -2137,9 +1795,6 @@
 
       socket.addEventListener('open', () => {
         setStatus('cloud');
-        restoreHydrated = false;
-        pendingLiveMessages = [];
-        sendRestoreSession();
         sendJoin();
         setTimeout(syncOfflineLocalPostsToCloud, 300);
       });
@@ -2155,8 +1810,19 @@
           if(data && data.type === 'system') systemNote(data.text);
           if(data && data.type === 'users') updateUsers(data.users || []);
           if(data && data.type === 'count') liveCount.textContent = data.count;
-          if(data && data.type === 'history') return;
-          if(data && data.type === 'restore-session-result') hydrateRestoredRoom(data);
+          if(data && data.type === 'history') {
+            const msgs = data.messages || [];
+            if(msgs.some(m => m.room)){
+              msgs.forEach(m => receive(m));
+            } else {
+              if(msgs.length === 0){
+                systemNote('Server history is empty. Showing locally cached posts.');
+              } else {
+                feed.innerHTML = '';
+                msgs.forEach(m => receive(m));
+              }
+            }
+          }
           if(data && data.type === 'id') clientId = data.id;
           if(data && data.type === 'listeners') updateListenerCount(data.id, data.count);
           if(data && data.type === 'watcher') handleWatcher(data.id);
@@ -2180,9 +1846,6 @@
           }
           if(data && data.type === 'self-destruct') {
             systemNote(`Your post #${data.messageId} self-destructed`);
-          }
-          if(data && ['dm','like','self-destruct','broadcast'].includes(data.type)) {
-            refreshUnreadNotifications();
           }
         } catch {}
       });
@@ -2245,9 +1908,6 @@
       input && input.focus();
       systemNote(`You are signed in as @${store.user}.`);
       setupPush();
-      refreshUnreadNotifications();
-      if(notificationPollTimer) clearInterval(notificationPollTimer);
-      notificationPollTimer = setInterval(refreshUnreadNotifications, 20000);
     }
 
     async function setupPush(){
@@ -2371,16 +2031,7 @@
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if(notificationPollTimer){
-        clearInterval(notificationPollTimer);
-        notificationPollTimer = null;
-      }
-      store.user='';
-      store.profilePic='';
-      location.reload();
-    });
+    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
@@ -2542,12 +2193,6 @@
         cameraOff = false;
         blankTrack = null;
         broadcasting = true;
-        setActiveRoomState({
-          roomKey: clientId || activeRoomState.roomKey,
-          roomType: 'broadcast',
-          transportRoomId: clientId || null,
-          overlayState: { pane: 'stream', mode: audioOnly ? 'mic-broadcaster' : 'broadcaster' }
-        }, 'enter-broadcaster-mode');
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
           localStream = stream;
@@ -2955,12 +2600,6 @@
       function startWatching(id){
         activeRooms.add(id);
         currentHost = id;
-        setActiveRoomState({
-          roomKey: id || 'cloud',
-          roomType: 'broadcast',
-          transportRoomId: id || null,
-          overlayState: { pane: 'stream', mode: 'watcher' }
-        }, 'enter-watcher-mode');
         if(!broadcasting){
           showStream();
         }
@@ -2974,11 +2613,6 @@
           currentHost = null;
         } else if(currentHost === id){
           currentHost = [...activeRooms][0];
-          setActiveRoomState({
-            roomKey: currentHost,
-            roomType: 'broadcast',
-            transportRoomId: currentHost
-          }, 'switch-watcher-room');
         }
         sendSignal({ type: 'unwatcher', id });
       }
@@ -3350,11 +2984,6 @@
     }
 
       function receive(m, isLocal=false){
-        if(!restoreHydrated && !isLocal){
-          pendingLiveMessages.push(m);
-          return;
-        }
-        const runtimeRoomId = m && (m.transportRoomId || m.room || m.legacyRoomId || null);
         if(!isLocal && m && m.clientNonce){
           const pendingEl = feed.querySelector(`li[data-client-nonce="${m.clientNonce}"]`);
           if(pendingEl){
@@ -3368,29 +2997,13 @@
         }
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        if(activeRoomState.roomKey && m.roomKey && m.roomKey !== activeRoomState.roomKey){
-          return;
-        }
-        if(activeRooms.size > 0 && !runtimeRoomId) return;
-        if(runtimeRoomId){
-          const isLiveRoom = userCache.some(u => (typeof u === 'object' && u) ? (u.id === runtimeRoomId && !!u.live) : false);
-          if(isLiveRoom){
-            if(!streams[runtimeRoomId]) ensureStreamThumb(runtimeRoomId, m.user || runtimeRoomId);
-            if(streams[runtimeRoomId]) appendMessage(m, false, streams[runtimeRoomId].feed);
-          } else {
-            // Archived room-scoped posts should remain visible after reconnect/redeploy,
-            // even when the original broadcaster websocket id no longer exists.
-            appendMessage(m);
-          }
+        if(activeRooms.size > 0 && !m.room) return;
+        if(m.room){
+          if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
+          if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal && m && !m.room) store.pushMsg({ ...m, localOnly: false });
-        }
-        if(!isLocal){
-          setActiveRoomState({
-            lastMessageId: m.id || m.messageId || activeRoomState.lastMessageId,
-            lastMessageTs: m.ts || m.createdAt || activeRoomState.lastMessageTs
-          }, 'message-received');
+          if(!isLocal && m && m.localOnly) store.pushMsg(m);
         }
       }
 
@@ -3402,6 +3015,7 @@
         .slice()
         .sort((a, b) => (a.ts || 0) - (b.ts || 0))
         .forEach(m => {
+          seen.add(m.id);
           appendMessage(m, true);
         });
       scrollToTop();
@@ -3410,17 +3024,10 @@
       async function hydrateIndexPostsFromDatabase(){
         try{
           const res = await apiFetch('/api/index-posts', { headers: { 'accept': 'application/json' } });
-          if(!res.ok){
-            renderCachedFeed();
-            return;
-          }
+          if(!res.ok) return;
           const data = await res.json();
           const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
-          if(!dbMessages.length){
-            renderCachedFeed();
-            return;
-          }
-          store.saveIndexMessages(dbMessages);
+          if(!dbMessages.length) return;
           feed.innerHTML = '';
           seen.clear();
           dbMessages
@@ -3431,9 +3038,7 @@
               appendMessage(m, true);
             });
           scrollToTop();
-        } catch {
-          renderCachedFeed();
-        }
+        } catch {}
       }
 
       function syncOfflineLocalPostsToCloud(){
@@ -3511,9 +3116,8 @@
       bubble.appendChild(text);
       const plain = text.textContent.trim();
       if (broadcasting && plain) {
-        const runtimeRoomId = m.transportRoomId || m.room || m.legacyRoomId;
-        const isMyRoom = (runtimeRoomId === clientId);
-        const isHostRoomWhileGuest = (pendingJoinHost && runtimeRoomId === pendingJoinHost);
+        const isMyRoom = (m.room === clientId);
+        const isHostRoomWhileGuest = (pendingJoinHost && m.room === pendingJoinHost);
         if (isMyRoom || isHostRoomWhileGuest) {
           const overlayText = `@${m.user}: ${plain}`;
           overlayMessages.push({ text: overlayText, ts: Date.now() });
