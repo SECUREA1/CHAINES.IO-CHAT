@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Private Chat</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
+<style>
+:root { --bg:#0f172a; --panel:#1e293b; --fg:#f1f5f9; --muted:#94a3b8; --accent:#00c6ff; --line:#334155; }
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+main{max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;}
+.top{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+button{border:0;border-radius:10px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#031623;font-weight:700;}
+#status{color:var(--muted);font-size:13px;}
+#feed{list-style:none;padding:10px;margin:0;flex:1;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);}
+.msg{margin-bottom:10px;padding:8px;border-radius:10px;background:#0b1220;border:1px solid #1f2c42;}
+.msg.mine{border-color:#0ea5e9;background:#082236;}
+.meta{font-size:12px;color:var(--muted);margin-bottom:4px;}
+form{display:flex;gap:8px;margin-top:10px;}
+input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--fg);}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <button id="back" type="button">Back</button>
+    <h2 id="title" style="margin:0"></h2>
+  </div>
+  <div id="status">Connecting…</div>
+  <ul id="feed"></ul>
+  <form id="composer">
+    <input id="text" placeholder="Send encrypted message…" autocomplete="off" />
+    <button type="submit">Send</button>
+  </form>
+</main>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const peer = (params.get('user') || '').trim();
+  const me = localStorage.getItem('chaines_username') || '';
+  const title = document.getElementById('title');
+  const statusEl = document.getElementById('status');
+  const feed = document.getElementById('feed');
+  const form = document.getElementById('composer');
+  const text = document.getElementById('text');
+  const back = document.getElementById('back');
+
+  back.onclick = () => history.length > 1 ? history.back() : (location.href = '/');
+
+  if(!me){
+    alert('Please sign in first.');
+    location.href = '/';
+    return;
+  }
+  if(!peer || peer === me){
+    alert('Select another user profile to message.');
+    location.href = '/';
+    return;
+  }
+
+  title.textContent = `Private chat with @${peer}`;
+
+  const channel = [me.toLowerCase(), peer.toLowerCase()].sort().join('|');
+  const seen = new Set();
+  let socket = null;
+  let cryptoKeyPromise = null;
+
+  function wsURL(){
+    const saved = localStorage.getItem('chaines_ws_url');
+    if(saved) return saved;
+    const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
+      ? 'chaines-io-chat.onrender.com'
+      : location.host;
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    return proto + host + '/ws';
+  }
+
+  function toB64(bytes){
+    const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    let s = '';
+    arr.forEach(b => s += String.fromCharCode(b));
+    return btoa(s);
+  }
+
+  function fromB64(str){
+    const raw = atob(str);
+    const out = new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  async function getKey(){
+    if(cryptoKeyPromise) return cryptoKeyPromise;
+    const enc = new TextEncoder();
+    cryptoKeyPromise = (async () => {
+      const base = await crypto.subtle.importKey('raw', enc.encode(`chaines-dm:${channel}`), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name:'PBKDF2', salt: enc.encode('chaines-private-chat-v1'), iterations:120000, hash:'SHA-256' },
+        base,
+        { name:'AES-GCM', length:256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    })();
+    return cryptoKeyPromise;
+  }
+
+  async function encrypt(plain){
+    const key = await getKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const cipher = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(plain));
+    return { ciphertext: toB64(cipher), iv: toB64(iv) };
+  }
+
+  async function decrypt(ciphertext, iv){
+    const key = await getKey();
+    const decoded = await crypto.subtle.decrypt({ name:'AES-GCM', iv: fromB64(iv) }, key, fromB64(ciphertext));
+    return new TextDecoder().decode(decoded);
+  }
+
+  function fmt(ts){
+    const d = new Date(ts || Date.now());
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  }
+
+  async function renderMessage(m){
+    if(!m || seen.has(m.id) || m.channel !== channel) return;
+    seen.add(m.id);
+    const li = document.createElement('li');
+    li.className = 'msg' + (m.from === me ? ' mine' : '');
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `@${m.from} · ${fmt(m.ts)}`;
+    const body = document.createElement('div');
+    try {
+      body.textContent = await decrypt(m.ciphertext, m.iv);
+    } catch {
+      body.textContent = '[Unable to decrypt this message]';
+    }
+    li.appendChild(meta);
+    li.appendChild(body);
+    feed.appendChild(li);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function connect(){
+    socket = new WebSocket(wsURL());
+    socket.addEventListener('open', () => {
+      statusEl.textContent = `Encrypted channel ready: ${channel}`;
+      socket.send(JSON.stringify({ type:'join', user: me }));
+      socket.send(JSON.stringify({ type:'dm-history', with: peer, user: me }));
+    });
+    socket.addEventListener('close', () => { statusEl.textContent = 'Disconnected. Reconnecting…'; setTimeout(connect, 1200); });
+    socket.addEventListener('error', () => { statusEl.textContent = 'Connection error.'; });
+    socket.addEventListener('message', async (ev) => {
+      let data;
+      try { data = JSON.parse(ev.data); } catch { return; }
+      if(data && data.type === 'dm-history'){
+        (data.messages || []).forEach(m => renderMessage(m));
+      }
+      if(data && data.type === 'dm'){
+        renderMessage(data);
+      }
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const plain = text.value.trim();
+    if(!plain || !socket || socket.readyState !== 1) return;
+    const payload = await encrypt(plain);
+    socket.send(JSON.stringify({ type:'dm', from: me, to: peer, ...payload }));
+    text.value = '';
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>
