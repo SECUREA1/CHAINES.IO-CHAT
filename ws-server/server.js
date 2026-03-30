@@ -105,6 +105,14 @@ db.exec(`
     dropper_tokens_left INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS private_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender TEXT NOT NULL,
+    recipient TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -709,6 +717,9 @@ app.post("/login", async (req, res) => {
 app.get(["/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
+app.get(["/private-chat.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "private-chat.html"))
+);
 
 app.get("/profile/:username", (req, res) => {
   const viewer = req.query.viewer || "";
@@ -849,6 +860,33 @@ app.post("/notifications/:username/read", (req, res) => {
 });
 
 const server = http.createServer(app);
+
+function dmChannelId(userA = "", userB = "") {
+  return [String(userA).toLowerCase(), String(userB).toLowerCase()].sort().join("|");
+}
+
+function loadDirectHistory(userA = "", userB = "") {
+  const cleanA = String(userA || "").trim();
+  const cleanB = String(userB || "").trim();
+  if (!cleanA || !cleanB) return [];
+  return db
+    .prepare(
+      `SELECT id, sender, recipient, ciphertext, iv, strftime('%s', timestamp) * 1000 as ts
+       FROM private_messages
+       WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)
+       ORDER BY id ASC`
+    )
+    .all(cleanA, cleanB, cleanB, cleanA)
+    .map((row) => ({
+      id: row.id,
+      from: row.sender,
+      to: row.recipient,
+      ciphertext: row.ciphertext,
+      iv: row.iv,
+      ts: row.ts || Date.now(),
+      channel: dmChannelId(row.sender, row.recipient),
+    }));
+}
 
 function loadHistory(room = null) {
   const where = room ? "c.room = ?" : "c.room IS NULL";
@@ -1264,6 +1302,70 @@ wss.on("connection", (ws) => {
           if (msg.sdp) payload.sdp = msg.sdp;
           if (msg.candidate) payload.candidate = msg.candidate;
           dest.send(JSON.stringify(payload));
+        }
+        return;
+      }
+      case "dm-history": {
+        const user = ws.username || msg.user || "";
+        const peer = (msg.with || "").toString().trim();
+        if (!user || !peer) return;
+        ws.send(
+          JSON.stringify({
+            type: "dm-history",
+            channel: dmChannelId(user, peer),
+            with: peer,
+            messages: loadDirectHistory(user, peer),
+          })
+        );
+        return;
+      }
+      case "dm": {
+        const from = ws.username || msg.from || "";
+        const to = (msg.to || "").toString().trim();
+        const ciphertext = (msg.ciphertext || "").toString();
+        const iv = (msg.iv || "").toString();
+        if (!from || !to || !ciphertext || !iv) return;
+        const info = db
+          .prepare(
+            "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
+          )
+          .run(from, to, ciphertext, iv);
+        if (from !== to) {
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'dm', ?)"
+            )
+            .run(
+              to,
+              JSON.stringify({
+                from,
+                preview: "Sent you a private encrypted message",
+              })
+            );
+          sendPush(
+            to,
+            "New Private Message",
+            `${from} sent you a private encrypted message`
+          );
+        }
+        const payload = JSON.stringify({
+          type: "dm",
+          id: info.lastInsertRowid,
+          from,
+          to,
+          ciphertext,
+          iv,
+          ts: Date.now(),
+          channel: dmChannelId(from, to),
+        });
+        for (const client of wss.clients) {
+          if (
+            client.readyState === 1 &&
+            client.username &&
+            (client.username === from || client.username === to)
+          ) {
+            client.send(payload);
+          }
         }
         return;
       }
