@@ -1083,6 +1083,9 @@ app.post("/forgot-password", async (req, res) => {
 app.get(["/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
+app.get(["/private-chat.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "private-chat.html"))
+);
 
 app.get("/profile/:username", (req, res) => {
   hydrateChatMessagesFromMemory();
