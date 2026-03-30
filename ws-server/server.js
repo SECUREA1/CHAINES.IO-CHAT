@@ -15,16 +15,6 @@ import {
   isDirectVendorEnabled,
   vendGhostTokenDirect,
 } from "./hologhostVendor.js";
-import {
-  MASTER_HISTORY_KEY,
-  CLOUD_ROOM_KEY,
-  CLOUD_ROOM_TYPE,
-  buildStableRoomMeta,
-  buildRestoreHistoryBundle,
-  resolveActiveRoomForRestore,
-  shouldIncludeMessageInHistory,
-  sortMessagesStable,
-} from "./chatPersistence.js";
 
 const PORT = process.env.PORT || 10000; // Render provides PORT
 
@@ -63,10 +53,6 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
     room TEXT,
-    room_key TEXT,
-    room_type TEXT,
-    transport_room_id TEXT,
-    legacy_room_id TEXT,
     message TEXT,
     image TEXT,
     file TEXT,
@@ -149,33 +135,13 @@ db.exec(`
     iv TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
-  CREATE TABLE IF NOT EXISTS chat_room_sessions (
-    session_key TEXT PRIMARY KEY,
-    user_key TEXT,
-    active_room_key TEXT NOT NULL,
-    active_room_type TEXT NOT NULL,
-    active_transport_room_id TEXT,
-    last_message_id INTEGER,
-    last_message_ts INTEGER,
-    overlay_state TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_key TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN room_type TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN transport_room_id TEXT"); } catch {}
-try { db.exec("ALTER TABLE chat_messages ADD COLUMN legacy_room_id TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_email TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN backup_phone TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
-} catch {}
-try {
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS chat_room_sessions_user_key_idx ON chat_room_sessions(user_key)"
-  );
 } catch {}
 
 const LEGACY_PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
@@ -211,11 +177,7 @@ if (
 function loadChatMemory() {
   try {
     const parsed = JSON.parse(fs.readFileSync(CHAT_MEMORY_PATH, "utf8"));
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && Array.isArray(parsed.messages)) {
-      return parsed.messages;
-    }
-    return [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -223,25 +185,16 @@ function loadChatMemory() {
 
 function saveChatMemory(items = []) {
   fs.mkdirSync(path.dirname(CHAT_MEMORY_PATH), { recursive: true });
-  fs.writeFileSync(
-    CHAT_MEMORY_PATH,
-    JSON.stringify({ key: MASTER_HISTORY_KEY, version: 2, messages: items }, null, 2)
-  );
+  fs.writeFileSync(CHAT_MEMORY_PATH, JSON.stringify(items, null, 2));
 }
 
 function storeChatMemory(message = {}) {
   const items = loadChatMemory();
   const idx = items.findIndex((item) => Number(item.id) === Number(message.id));
-  const roomMeta = buildStableRoomMeta(message);
   const entry = {
     id: Number(message.id),
-    messageId: Number(message.id),
     user: message.user || "",
-    room: roomMeta.transportRoomId || null,
-    roomKey: roomMeta.roomKey,
-    roomType: roomMeta.roomType,
-    transportRoomId: roomMeta.transportRoomId,
-    legacyRoomId: roomMeta.legacyRoomId,
+    room: message.room || null,
     message: message.text ?? message.message ?? "",
     image: message.image || null,
     file: message.file || null,
@@ -266,20 +219,15 @@ function hydrateChatMessagesFromMemory() {
   const items = loadChatMemory();
   if (!items.length) return;
   const insert = db.prepare(
-    "INSERT OR IGNORE INTO chat_messages (id, user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
+    "INSERT OR IGNORE INTO chat_messages (id, user, room, message, image, file, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(? / 1000, 'unixepoch'))"
   );
   const tx = db.transaction((entries) => {
     for (const item of entries) {
       if (!Number.isFinite(Number(item.id))) continue;
-      const roomMeta = buildStableRoomMeta(item);
       insert.run(
         Number(item.id),
         item.user || "",
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
+        item.room || null,
         item.message || "",
         item.image || null,
         item.file || null,
@@ -292,35 +240,18 @@ function hydrateChatMessagesFromMemory() {
   tx(items);
 }
 
-function loadHistoryFromMemory(filters = {}) {
+function loadHistoryFromMemory(room = null) {
   const commentsByMessage = {};
   for (const item of loadChatMemory()) {
-    const roomMeta = buildStableRoomMeta(item);
-    if (
-      !shouldIncludeMessageInHistory(
-        { ...item, ...roomMeta },
-        {
-          roomKey: filters.roomKey || null,
-          transportRoomId: filters.transportRoomId || null,
-        }
-      )
-    ) {
-      continue;
-    }
+    if (room ? item.room !== room : item.room) continue;
     const id = Number(item.id);
     if (!Number.isFinite(id)) continue;
     commentsByMessage[id] = {
       type: "chat",
       id,
-      messageId: id,
       user: item.user || "",
       profilePic: resolveUserProfilePic(item.user || ""),
-      room: roomMeta.transportRoomId || null,
-      roomKey: roomMeta.roomKey,
-      roomType: roomMeta.roomType,
-      transportRoomId: roomMeta.transportRoomId,
-      legacyRoomId: roomMeta.legacyRoomId,
-      createdAt: Number(item.ts) || Date.now(),
+      room: item.room || null,
       text: item.message || "",
       image: item.image || null,
       file: item.file || null,
@@ -349,41 +280,6 @@ function saveProfiles() {
 
 let profiles = loadProfiles();
 hydrateChatMessagesFromMemory();
-
-function backfillChatRoomMetadata() {
-  // Persistence identity must stay durable across reconnects/redeploys.
-  // Never use websocket client ids as persisted room keys.
-  const rows = db
-    .prepare(
-      "SELECT id, room, room_key, room_type, transport_room_id, legacy_room_id FROM chat_messages"
-    )
-    .all();
-  if (!rows.length) return;
-  const update = db.prepare(
-    "UPDATE chat_messages SET room = ?, room_key = ?, room_type = ?, transport_room_id = ?, legacy_room_id = ? WHERE id = ?"
-  );
-  const tx = db.transaction((items) => {
-    for (const row of items) {
-      const roomMeta = buildStableRoomMeta({
-        room: row.transport_room_id || row.room || null,
-        roomKey: row.room_key || null,
-        roomType: row.room_type || null,
-        legacyRoomId: row.legacy_room_id || null,
-      });
-      update.run(
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
-        row.id
-      );
-    }
-  });
-  tx(rows);
-}
-
-backfillChatRoomMetadata();
 
 function resolveUserProfilePic(username = "") {
   const clean = (username || "").toString().trim();
@@ -1111,7 +1007,7 @@ app.get("/profile/:username", (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const allPublicHistory = loadHistory();
+  const allPublicHistory = loadHistory(null);
   const posts = allPublicHistory
     .filter((post) => post.user === targetUser)
     .map((post) => ({
@@ -1336,32 +1232,13 @@ app.post("/notifications/:username/read", (req, res) => {
 
 const server = http.createServer(app);
 
-function loadHistory(filters = {}) {
-  filters = filters || {};
+function loadHistory(room = null) {
   hydrateChatMessagesFromMemory();
+  const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.room_key, c.room_type, c.transport_room_id, c.legacy_room_id, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username ORDER BY c.id`
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
-  const rows = stmt
-    .all()
-    .map((row) => {
-      const roomMeta = buildStableRoomMeta({
-        room: row.transport_room_id || row.room || null,
-        roomKey: row.room_key || null,
-        roomType: row.room_type || null,
-        legacyRoomId: row.legacy_room_id || null,
-      });
-      return {
-        ...row,
-        ...roomMeta,
-      };
-    })
-    .filter((row) =>
-      shouldIncludeMessageInHistory(row, {
-        roomKey: filters.roomKey || null,
-        transportRoomId: filters.transportRoomId || null,
-      })
-    );
+  const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
       `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
@@ -1384,15 +1261,9 @@ function loadHistory(filters = {}) {
   const fromDb = rows.map((r) => ({
     type: "chat",
     id: r.id,
-    messageId: r.id,
     user: r.user,
     profilePic: r.profile_pic,
-    room: r.transportRoomId || null,
-    roomKey: r.roomKey,
-    roomType: r.roomType,
-    transportRoomId: r.transportRoomId,
-    legacyRoomId: r.legacyRoomId,
-    createdAt: r.ts,
+    room: r.room,
     text: r.message,
     image: r.image,
     file: r.file,
@@ -1402,147 +1273,10 @@ function loadHistory(filters = {}) {
     likes: likes[r.id] || 0,
     comments: comments[r.id] || [],
   }));
-  const merged = loadHistoryFromMemory(filters);
+  const merged = loadHistoryFromMemory(room);
   for (const row of fromDb) merged[row.id] = row;
-  return sortMessagesStable(Object.values(merged));
+  return Object.values(merged).sort((a, b) => (a.id || 0) - (b.id || 0));
 }
-
-function mergeMessageLists(...lists) {
-  const byId = new Map();
-  for (const list of lists) {
-    for (const item of list || []) {
-      const key = Number(item?.id);
-      if (Number.isFinite(key)) byId.set(key, item);
-    }
-  }
-  return Array.from(byId.values()).sort((a, b) => (a.id || 0) - (b.id || 0));
-}
-
-const roomAlias = {
-  keyToTransport: new Map(),
-  transportToKey: new Map(),
-  legacyToKey: new Map(),
-};
-
-function upsertRoomAlias(roomKey, transportRoomId, legacyRoomId = null) {
-  const key = (roomKey || "").toString().trim();
-  const transport = (transportRoomId || "").toString().trim();
-  const legacy = (legacyRoomId || "").toString().trim();
-  if (key && transport) {
-    roomAlias.keyToTransport.set(key, transport);
-    roomAlias.transportToKey.set(transport, key);
-  }
-  if (key && legacy) roomAlias.legacyToKey.set(legacy, key);
-}
-
-function seedRoomAliasFromHistory() {
-  const rows = db
-    .prepare("SELECT room_key, transport_room_id, legacy_room_id FROM chat_messages")
-    .all();
-  for (const row of rows) {
-    upsertRoomAlias(row.room_key, row.transport_room_id, row.legacy_room_id);
-  }
-}
-
-function saveActiveRoomSession(payload = {}) {
-  const sessionKey = (payload.sessionKey || "").toString().trim();
-  if (!sessionKey) return;
-  const userKey = (payload.userKey || "").toString().trim() || null;
-  const activeRoomKey =
-    (payload.activeRoomKey || "").toString().trim() || CLOUD_ROOM_KEY;
-  const activeRoomType = (payload.activeRoomType || "").toString().trim()
-    ? payload.activeRoomType
-    : CLOUD_ROOM_TYPE;
-  const activeTransportRoomId =
-    (payload.activeTransportRoomId || "").toString().trim() || null;
-  const overlayState = payload.overlayState
-    ? JSON.stringify(payload.overlayState)
-    : null;
-  db.prepare(
-    `INSERT INTO chat_room_sessions (
-      session_key, user_key, active_room_key, active_room_type, active_transport_room_id,
-      last_message_id, last_message_ts, overlay_state, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(session_key) DO UPDATE SET
-      user_key=excluded.user_key,
-      active_room_key=excluded.active_room_key,
-      active_room_type=excluded.active_room_type,
-      active_transport_room_id=excluded.active_transport_room_id,
-      last_message_id=excluded.last_message_id,
-      last_message_ts=excluded.last_message_ts,
-      overlay_state=excluded.overlay_state,
-      updated_at=CURRENT_TIMESTAMP`
-  ).run(
-    sessionKey,
-    userKey,
-    activeRoomKey,
-    activeRoomType,
-    activeTransportRoomId,
-    payload.lastMessageId || null,
-    payload.lastMessageTs || null,
-    overlayState
-  );
-}
-
-function loadActiveRoomSession({ sessionKey = "", userKey = "" } = {}) {
-  const normalizedSession = (sessionKey || "").toString().trim();
-  const normalizedUser = (userKey || "").toString().trim();
-  let row = null;
-  if (normalizedSession) {
-    row = db
-      .prepare("SELECT * FROM chat_room_sessions WHERE session_key=?")
-      .get(normalizedSession);
-  }
-  if (!row && normalizedUser) {
-    row = db
-      .prepare(
-        "SELECT * FROM chat_room_sessions WHERE user_key=? ORDER BY updated_at DESC, session_key DESC LIMIT 1"
-      )
-      .get(normalizedUser);
-  }
-  if (!row) return null;
-  return {
-    ...row,
-    overlay_state: (() => {
-      try {
-        return row.overlay_state ? JSON.parse(row.overlay_state) : null;
-      } catch {
-        return null;
-      }
-    })(),
-  };
-}
-
-function buildRestoreHistoryBundleForRoom({ roomKey, transportRoomId }) {
-  const canonical = loadHistory({ roomKey });
-  const transportIds = new Set();
-  const legacyIds = new Set();
-  if (transportRoomId) transportIds.add(transportRoomId);
-  const aliasedTransport = roomAlias.keyToTransport.get(roomKey);
-  if (aliasedTransport) transportIds.add(aliasedTransport);
-  for (const [transport, key] of roomAlias.transportToKey.entries()) {
-    if (key === roomKey) transportIds.add(transport);
-  }
-  for (const [legacy, key] of roomAlias.legacyToKey.entries()) {
-    if (key === roomKey) legacyIds.add(legacy);
-  }
-  const legacyRows = [];
-  for (const id of transportIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
-  for (const id of legacyIds) legacyRows.push(...loadHistory({ transportRoomId: id }));
-  const history = buildRestoreHistoryBundle({
-    canonicalMessages: canonical,
-    legacyMessages: legacyRows,
-  });
-  return {
-    history,
-    aliases: {
-      legacyRoomIds: Array.from(legacyIds),
-      transportRoomIds: Array.from(transportIds),
-    },
-  };
-}
-
-seedRoomAliasFromHistory();
 
 app.get("/api/index-posts", (req, res) => {
   res.json({ messages: loadHistory() });
@@ -1617,9 +1351,9 @@ function loadDirectHistory(a, b) {
 
 wss.on("connection", (ws) => {
   ws.id = uid();
-  ws.restoredSession = false;
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
+  ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
   broadcastUsers();
   for(const [id, thumb] of thumbnails.entries()){
@@ -1665,90 +1399,16 @@ wss.on("connection", (ws) => {
         .prepare("SELECT profile_pic FROM users WHERE username=?")
         .get(ws.username);
       ws.profilePic = u?.profile_pic || null;
-      if (!ws.restoredSession) {
-        const bundle = buildRestoreHistoryBundleForRoom({
-          roomKey: CLOUD_ROOM_KEY,
-          transportRoomId: null,
-        });
-        ws.send(
-          JSON.stringify({
-            type: "restore-session-result",
-            resolvedRoomKey: CLOUD_ROOM_KEY,
-            resolvedRoomType: CLOUD_ROOM_TYPE,
-            resolvedTransportRoomId: null,
-            overlayState: null,
-            history: bundle.history,
-            aliases: bundle.aliases,
-          })
-        );
-      }
       broadcastUsers();
       return;
     }
     switch (msg?.type) {
-      case "persist-active-room-session": {
-        saveActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-          activeRoomKey: msg.activeRoomKey,
-          activeRoomType: msg.activeRoomType,
-          activeTransportRoomId: msg.activeTransportRoomId,
-          lastMessageId: msg.lastMessageId,
-          lastMessageTs: msg.lastMessageTs,
-          overlayState: msg.overlayState || null,
-        });
-        upsertRoomAlias(
-          msg.activeRoomKey,
-          msg.activeTransportRoomId,
-          msg.activeTransportRoomId
-        );
-        return;
-      }
-      case "restore-session": {
-        const persistedSession = loadActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-        });
-        const resolved = resolveActiveRoomForRestore({
-          persistedSession,
-          requested: msg,
-          aliasMaps: roomAlias,
-        });
-        const bundle = buildRestoreHistoryBundleForRoom({
-          roomKey: resolved.resolvedRoomKey,
-          transportRoomId: resolved.resolvedTransportRoomId,
-        });
-        ws.restoredSession = true;
-        saveActiveRoomSession({
-          sessionKey: msg.sessionKey,
-          userKey: msg.userKey || ws.username || null,
-          activeRoomKey: resolved.resolvedRoomKey,
-          activeRoomType: resolved.resolvedRoomType,
-          activeTransportRoomId: resolved.resolvedTransportRoomId,
-          lastMessageId: msg.lastSeenMessageId || null,
-          lastMessageTs: msg.lastSeenTs || null,
-          overlayState: persistedSession?.overlay_state || null,
-        });
-        ws.send(
-          JSON.stringify({
-            type: "restore-session-result",
-            resolvedRoomKey: resolved.resolvedRoomKey,
-            resolvedRoomType: resolved.resolvedRoomType,
-            resolvedTransportRoomId: resolved.resolvedTransportRoomId,
-            overlayState: persistedSession?.overlay_state || null,
-            history: bundle.history,
-            aliases: bundle.aliases,
-          })
-        );
-        return;
-      }
       case "broadcaster":
         if (broadcasters.size > 0 && ws.id !== guestApproved) {
           ws.send(JSON.stringify({ type: "join-denied" }));
           return;
         }
         broadcasters.set(ws.id, ws);
-        upsertRoomAlias(ws.id, ws.id, ws.id);
         broadcastUsers();
         const followers = db
           .prepare("SELECT follower FROM follows WHERE following = ?")
@@ -1782,7 +1442,6 @@ wss.on("connection", (ws) => {
         return;
       case "mic-broadcaster":
         broadcasters.set(ws.id, ws);
-        upsertRoomAlias(ws.id, ws.id, ws.id);
         micGuests.add(ws.id);
         broadcastUsers();
         return;
@@ -1907,17 +1566,13 @@ wss.on("connection", (ws) => {
       case "watcher": {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
-          upsertRoomAlias(msg.id, msg.id, msg.id);
           host.send(JSON.stringify({ type: "watcher", id: ws.id }));
           if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
           listeners.get(msg.id).add(ws.id);
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
           watching.get(ws.id).add(msg.id);
           sendListenerCount(msg.id);
-          const history = mergeMessageLists(
-            loadHistory({ roomKey: "cloud" }),
-            loadHistory({ transportRoomId: msg.id })
-          );
+          const history = loadHistory(msg.id);
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
@@ -2108,23 +1763,13 @@ wss.on("connection", (ws) => {
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
-    const transportRoom = msg.room || null;
-    const roomMeta = buildStableRoomMeta({
-      ...msg,
-      room: transportRoom,
-      transportRoomId: transportRoom,
-    });
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, room, room_key, room_type, transport_room_id, legacy_room_id, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
-        roomMeta.transportRoomId || null,
-        roomMeta.roomKey,
-        roomMeta.roomType,
-        roomMeta.transportRoomId || null,
-        roomMeta.legacyRoomId || null,
+        msg.room || null,
         text,
         msg.image || null,
         msg.file || null,
@@ -2132,15 +1777,7 @@ wss.on("connection", (ws) => {
         fileType
     );
     msg.id = info.lastInsertRowid;
-    msg.messageId = msg.id;
     msg.message = text;
-    msg.room = transportRoom;
-    msg.roomKey = roomMeta.roomKey;
-    msg.roomType = roomMeta.roomType;
-    msg.transportRoomId = roomMeta.transportRoomId;
-    msg.legacyRoomId = roomMeta.legacyRoomId;
-    upsertRoomAlias(roomMeta.roomKey, roomMeta.transportRoomId, roomMeta.legacyRoomId);
-    msg.createdAt = msg.ts;
     msg.likes = 0;
     msg.comments = [];
     storeChatMemory(msg);
@@ -2153,11 +1790,11 @@ wss.on("connection", (ws) => {
       msg.fileType = fileType;
     }
     // broadcast
-    if (transportRoom) {
+    if (msg.room) {
       const targets = new Set();
-      const host = broadcasters.get(transportRoom);
+      const host = broadcasters.get(msg.room);
       if (host && host.readyState === 1) targets.add(host);
-      const set = listeners.get(transportRoom);
+      const set = listeners.get(msg.room);
       if (set) {
         for (const id of set) {
           const c = clients.get(id);
