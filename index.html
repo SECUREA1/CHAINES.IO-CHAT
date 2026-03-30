@@ -2983,7 +2983,32 @@
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
+      function normalizeIncomingMessage(raw){
+        if(!raw || typeof raw !== 'object') return raw;
+        const normalized = { ...raw };
+        if(normalized.text == null && normalized.message != null){
+          normalized.text = normalized.message;
+        }
+        if(!normalized.file && normalized.video){
+          normalized.file = normalized.video;
+        }
+        if(!normalized.fileName && normalized.file_name){
+          normalized.fileName = normalized.file_name;
+        }
+        if(!normalized.file_name && normalized.fileName){
+          normalized.file_name = normalized.fileName;
+        }
+        if(!normalized.fileType && normalized.file_type){
+          normalized.fileType = normalized.file_type;
+        }
+        if(!normalized.file_type && normalized.fileType){
+          normalized.file_type = normalized.fileType;
+        }
+        return normalized;
+      }
+
       function receive(m, isLocal=false){
+        m = normalizeIncomingMessage(m);
         if(!isLocal && m && m.clientNonce){
           const pendingEl = feed.querySelector(`li[data-client-nonce="${m.clientNonce}"]`);
           if(pendingEl){
@@ -3071,6 +3096,7 @@
     }
 
       function appendMessage(m, skipScroll=false, container=feed){
+        m = normalizeIncomingMessage(m);
         const mine = m.user === store.user;
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
@@ -3132,8 +3158,27 @@
       }
       const fileData = m.file || m.image;
       if(fileData){
-        const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
-        const filename = m.fileName || m.name || '';
+        const filename = m.fileName || m.file_name || m.name || '';
+        const fromDataUrl = (fileData.match(/^data:(.*?);/) || [])[1] || '';
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const extToMime = {
+          mp4: 'video/mp4',
+          webm: 'video/webm',
+          mov: 'video/quicktime',
+          m4v: 'video/mp4',
+          mp3: 'audio/mpeg',
+          wav: 'audio/wav',
+          m4a: 'audio/mp4',
+          ogg: 'audio/ogg',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          gif: 'image/gif',
+          webp: 'image/webp',
+          glb: 'model/gltf-binary',
+          gltf: 'model/gltf+json'
+        };
+        const mime = m.fileType || m.file_type || fromDataUrl || extToMime[ext] || '';
         const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
         if(mime.startsWith('video/')){
           const vid = document.createElement('video');
