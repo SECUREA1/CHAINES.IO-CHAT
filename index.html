@@ -3054,9 +3054,12 @@
             localOnly: false,
             clientNonce: m.clientNonce || (Date.now().toString(36) + Math.random().toString(36).slice(2,7))
           };
+          if(!m.clientNonce){
+            m.clientNonce = outbound.clientNonce;
+            store.pushMsg(m);
+          }
           try { socket.send(JSON.stringify(outbound)); } catch {}
         });
-        store.clearMsgs();
       }
 
       function renderHistory(){
