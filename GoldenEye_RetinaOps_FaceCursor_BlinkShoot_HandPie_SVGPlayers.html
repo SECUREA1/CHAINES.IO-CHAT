@@ -1,0 +1,3169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Golden Eye: Retina Ops — Full Upgrade (Blink + Hands + Raise Pie Menu)</title>
+
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; background:#0b0f16; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden; }
+    #wrap { position:fixed; inset:0; display:grid; place-items:center; }
+    #game {
+      background:#05070b; border:1px solid rgba(255,255,255,0.12); border-radius:14px;
+      box-shadow:0 20px 70px rgba(0,0,0,0.55); image-rendering:crisp-edges;
+      display:block;
+    }
+
+    #hud { position:fixed; left:14px; top:14px; display:grid; gap:8px; user-select:none; z-index:10; pointer-events:none; }
+    .hud-row {
+      background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; padding:8px 10px; font-size:13px; line-height:1.25;
+      backdrop-filter:blur(6px); white-space:pre-line;
+      max-width:min(720px, 94vw);
+    }
+
+    #overlay {
+      position:fixed; inset:0; display:grid; place-items:center;
+      background:radial-gradient(900px 500px at 50% 40%, rgba(255,215,0,0.10), rgba(0,0,0,0.78));
+      z-index:70;
+    }
+    #panel {
+      width:min(940px,92vw);
+      background:rgba(10,14,22,0.92);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 30px 90px rgba(0,0,0,0.7);
+    }
+    #panel h1 { margin:0 0 8px 0; font-weight:950; letter-spacing:0.2px; font-size:26px; }
+    #panel p { margin:8px 0; color:rgba(255,255,255,0.86); font-size:13px; line-height:1.45; }
+    .grid { margin-top:14px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .btn {
+      pointer-events:auto;
+      cursor:pointer; border:1px solid rgba(255,255,255,0.18);
+      background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.92);
+      border-radius:12px; padding:12px; font-weight:850; font-size:13px;
+      transition:transform 0.05s ease, background 0.15s ease, outline-color 0.12s ease;
+      text-align:left;
+    }
+    .btn:hover { background:rgba(255,255,255,0.10); }
+    .btn:active { transform:translateY(1px); }
+    .btn.primary { border-color:rgba(255,215,0,0.40); background:rgba(255,215,0,0.12); }
+    .btn.good { border-color:rgba(80,220,140,0.35); background:rgba(80,220,140,0.10); }
+    .btn.hovered {
+      outline: 3px solid rgba(90,167,255,0.70);
+      background: rgba(90,167,255,0.10);
+    }
+
+    .kv { display:grid; grid-template-columns:190px 1fr; gap:10px; margin-top:10px; font-size:12.5px; color:rgba(255,255,255,0.82); }
+    .tag { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.16);
+      background:rgba(255,255,255,0.06); margin-left:8px; font-size:12px; color:rgba(255,255,255,0.88); }
+    #status { margin-top:10px; font-size:12px; color:rgba(255,255,255,0.82); white-space:pre-line; }
+    #video {
+      position:fixed; right:10px; bottom:10px; width:220px; height:124px;
+      border-radius:12px; border:1px solid rgba(255,255,255,0.12);
+      opacity:0.0; pointer-events:none; background:#000;
+      z-index:6;
+      transform: scaleX(-1);
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* PIE MENU */
+    #pieWrap{
+      position:fixed; inset:0;
+      display:grid; place-items:center;
+      z-index:50; pointer-events:none;
+      opacity:0; transform: scale(.985);
+      transition: opacity .14s ease-out, transform .14s ease-out;
+    }
+    #pieWrap.open{ opacity:1; transform: scale(1); }
+    #pie{ width:min(460px, 88vmin); aspect-ratio: 1/1; filter: drop-shadow(0 18px 60px rgba(0,0,0,.55)); }
+    .wedge{ fill: rgba(20,30,55,.58); stroke: rgba(120,150,220,.22); stroke-width: 2; transition: fill .12s ease, stroke .12s ease, transform .12s ease; transform-origin: 210px 210px; }
+    .wedgeGroup{ transition: transform .12s ease; }
+    .wedgeGroup.active .wedge{ fill: rgba(90,167,255,.32); stroke: rgba(90,167,255,.80); }
+    .wedgeGroup.active{ transform: scale(1.02); }
+
+    #pieCenter{ fill: rgba(8,12,20,.72); stroke: rgba(120,150,220,.22); stroke-width: 2; transition: fill .12s ease, stroke .12s ease; }
+    #pieCenter.active{ fill: rgba(90,167,255,.22); stroke: rgba(90,167,255,.80); }
+
+    .label{ font-size: 13.5px; fill: rgba(255,255,255,.92); text-anchor: middle; dominant-baseline: middle; letter-spacing: .35px; font-weight: 900; }
+    .sub{ font-size: 10.8px; fill: rgba(155,176,214,.92); text-anchor: middle; dominant-baseline: middle; letter-spacing: .35px; font-weight: 700; }
+    .icon{ fill: rgba(232,240,255,.92); opacity: .95; }
+
+    #pieReticle{
+      position:fixed;
+      width:12px; height:12px;
+      border-radius:999px;
+      background: rgba(90,167,255,.95);
+      box-shadow: 0 0 0 6px rgba(90,167,255,.18), 0 0 28px rgba(90,167,255,.35);
+      z-index:51; opacity:0;
+      transition: opacity .14s ease; pointer-events:none;
+    }
+    #pieWrap.open #pieReticle{ opacity:1; }
+
+    /* Overlay cursor (blink-click) */
+    #uiCursor{
+      position:fixed;
+      width:14px; height:14px;
+      border-radius:999px;
+      background: rgba(90,167,255,.95);
+      box-shadow: 0 0 0 7px rgba(90,167,255,.16), 0 0 26px rgba(90,167,255,.28);
+      z-index:80; opacity:0; pointer-events:none;
+      transform: translateZ(0);
+      transition: opacity .12s ease;
+    }
+    #uiCursor.on{ opacity:1; }
+  </style>
+
+  <!-- MediaPipe optional (game works without webcam). -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div id="wrap"><canvas id="game"></canvas></div>
+
+  <div id="hud">
+    <div class="hud-row" id="hudTop">Ready.</div>
+    <div class="hud-row" id="hudHint">
+      Hands drive the cursor. Blink (or pinch) fires. Raise open palm opens the pie HUD. Aim assist is optional.
+      Pinch OR Blink shoots. Fist reload. Raise open palm = gadget pie menu (cursor selects, blink activates).
+      Center pie toggles Blink-to-Shoot. Lockpick uses blink/pinch/space/click.
+    </div>
+  </div>
+
+  <!-- Pie gadget menu -->
+  <div id="pieWrap" aria-hidden="true">
+    <div id="pieReticle"></div>
+    <svg id="pie" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- Overlay cursor (blink to click buttons) -->
+  <div id="uiCursor"></div>
+
+  <div id="overlay">
+    <div id="panel">
+      <h1>Golden Eye: Retina Ops <span class="tag">Lockpick • Stealth • Audio • Raise-Pie HUD • Blink Shoot</span></h1>
+      <p id="panelIntro">
+        Webcam mode: FACE cursor aims (mouse off), blink shoots. Raise open palm opens pie menu; palm cursor + pinch selects.
+        Includes lockpick mini-game, stealth heat/sound, smoke/EMP/coin gadgets, turrets/cameras, and 3-mission run.
+      </p>
+
+      <div class="grid">
+        <button class="btn primary" id="btnStart" type="button">Start / Continue</button>
+        <button class="btn" id="btnWebcam" type="button">Enable Webcam Controls</button>
+        <button class="btn" id="btnShowVideo" type="button">Preview Camera Feed: OFF</button>
+
+        <button class="btn" id="btnCalEye" type="button">Calibrate Blink (C)</button>
+        <button class="btn" id="btnCalBlink" type="button">Calibrate Blink (EAR)</button>
+        <button class="btn" id="btnBlinkShoot" type="button">Blink-to-Shoot: ON</button>
+
+        <button class="btn good" id="btnAudio" type="button">Audio: OFF (Click to enable)</button>
+        <button class="btn" id="btnMusic" type="button">Music: ON</button>
+        <button class="btn" id="btnSfx" type="button">SFX: ON</button>
+      </div>
+
+      <div class="kv">
+        <div>Camera-only</div>
+        <div>
+          Aim with your FACE cursor. Blink to shoot / confirm. Raise open palm for pie menu; palm cursor + pinch selects.
+          Pinch or Blink fires. Fist reloads. Raise open palm (high) opens gadget pie.
+        </div>
+        <div>Lockpick</div>
+        <div>
+          Intel is locked. Approach intel and press X (or Pie → Hack/Lock) to open lockpick.
+          Blink/Pinch/Space/Click to set pins when the dot is inside the gold window.
+        </div>
+        <div>Tip</div>
+        <div>
+          Webcam requires a secure context (https or http://localhost). If MediaPipe scripts are blocked, mouse/keyboard still works.
+        </div>
+      </div>
+
+      <div id="status" class="mono">Status: ready.</div>
+    </div>
+  </div>
+
+  <video id="video" playsinline muted></video>
+
+  <script>
+  /************************************************************
+   * Retina Ops — one-file game (no missing features)
+   ************************************************************/
+  const overlay = document.getElementById("overlay");
+  const statusEl = document.getElementById("status");
+  const hudTop = document.getElementById("hudTop");
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+    hudTop.textContent = (msg.split("\n")[0] || msg);
+  }
+  window.addEventListener("error", function (e) {
+    try {
+      overlay.style.display = "grid";
+      if (typeof state !== "undefined") state.paused = true;
+      setStatus("ERROR: " + (e && e.message ? e.message : "Unknown") + "\nLine " + (e && e.lineno ? e.lineno : "?"));
+    } catch(_){}
+  });
+
+  /***********************
+   * CANVAS
+   ***********************/
+  const GAME_W = 960, GAME_H = 540;
+  // World is larger than the viewport so the map can scroll
+  const WORLD_W = 2400, WORLD_H = 1400;
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  function layoutCanvas() {
+    canvas.width = Math.floor(GAME_W * DPR);
+    canvas.height = Math.floor(GAME_H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    const scale = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
+    canvas.style.width = Math.floor(GAME_W * scale) + "px";
+    canvas.style.height = Math.floor(GAME_H * scale) + "px";
+  }
+  window.addEventListener("resize", layoutCanvas);
+  layoutCanvas();
+
+  function now() { return performance.now(); }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function dist(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return Math.hypot(dx,dy); }
+
+  function getMissionBounds(missionId){
+    // Each mission plays in a different region of the larger world.
+    // Bounds are larger than the viewport so the camera can scroll.
+    const W=1800, H=1100;
+    if (missionId===1) return { x:140, y:140, w:W, h:H };
+    if (missionId===2) return { x:320, y:200, w:W, h:H };
+    return { x:520, y:160, w:W, h:H };
+  }
+
+  function setMissionBounds(missionId){
+    const b = getMissionBounds(missionId);
+    state.missionBounds = b;
+
+    // Spawn player roughly in the middle of the mission region
+    state.player.x = b.x + b.w*0.50 - state.player.w/2;
+    state.player.y = b.y + b.h*0.72 - state.player.h/2;
+
+    const pcx = state.player.x + state.player.w/2;
+    const pcy = state.player.y + state.player.h/2;
+    state.target.x = pcx; state.target.y = pcy;
+    state.moveTarget.sx = pcx; state.moveTarget.sy = pcy;
+    state.moveTarget.x = pcx; state.moveTarget.y = pcy;
+
+    // Exfil defaults to far corner of bounds (overridden by missions if needed)
+    state.exfilZone.x = b.x + b.w - 90;
+    state.exfilZone.y = b.y + 90;
+
+    // Initialize camera on player
+    state.camera.x = clamp(pcx - GAME_W/2, b.x, b.x + b.w - GAME_W);
+    state.camera.y = clamp(pcy - GAME_H/2, b.y, b.y + b.h - GAME_H);
+  }
+
+  function applyMissionOffset(){
+    // Original layouts were authored in viewport coordinates; we offset them into mission bounds.
+    const b = state.missionBounds;
+    const ox = b.x, oy = b.y;
+
+    const shiftObj = (o)=>{ if(!o) return; if('x' in o) o.x += ox; if('y' in o) o.y += oy; };
+    for (const o of state.obstacles) shiftObj(o);
+    for (const o of state.cameras) shiftObj(o);
+    for (const o of state.intel) shiftObj(o);
+    for (const o of state.chips) shiftObj(o);
+    for (const o of state.vipTables) shiftObj(o);
+    if (state.vip) shiftObj(state.vip);
+    if (state.boss) shiftObj(state.boss);
+    shiftObj(state.sniperGlint);
+    // Exfil zone already set in setMissionBounds, but keep any authored values relative to ox/oy
+    // (missions may overwrite later).
+  }
+
+  function rrPath(x, y, w, h, r) {
+    const rad = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.lineTo(x + w - rad, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+    ctx.lineTo(x + w, y + h - rad);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    ctx.lineTo(x + rad, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+    ctx.lineTo(x, y + rad);
+    ctx.quadraticCurveTo(x, y, x + rad, y);
+    ctx.closePath();
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+  function pointInCircle(px,py,cx,cy,r){ return dist(px,py,cx,cy) <= r; }
+
+  function canvasToGameCoords(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = (clientX - rect.left) / rect.width;
+    const sy = (clientY - rect.top) / rect.height;
+    return { x: clamp(sx * GAME_W, 0, GAME_W), y: clamp(sy * GAME_H, 0, GAME_H) };
+  }
+
+  /***********************
+   * PIE + UI CURSOR DOM
+   ***********************/
+  const pieWrap = document.getElementById("pieWrap");
+  const pieSvg = document.getElementById("pie");
+  const pieReticle = document.getElementById("pieReticle");
+  const uiCursor = document.getElementById("uiCursor");
+  function isOverlayOpen(){ return overlay.style.display !== "none"; }
+
+  /***********************
+   * AUDIO (compact but complete: music + sfx)
+   ***********************/
+
+
+  /***********************
+   * SVG SPRITES (player + enemies + props)
+   * Restores the character SVG art from the original working model.
+   ***********************/
+  function svgToImage(svgText){
+    const img = new Image();
+    const enc = encodeURIComponent(svgText).replace(/'/g, "%27").replace(/"/g, "%22");
+    img.src = "data:image/svg+xml;charset=utf-8," + enc;
+    return img;
+  }
+
+  // --- Player suits
+  const SVG_SPY_TUX = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe389"/><stop offset="0.45" stop-color="#ffd24a"/><stop offset="1" stop-color="#9c6a00"/></linearGradient><linearGradient id="tux" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2233"/><stop offset="1" stop-color="#070a10"/></linearGradient><linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe7ff"/></linearGradient></defs><circle cx="64" cy="26" r="18" fill="#f2d2b5" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M46 26c2-18 36-22 36 0 0-14-10-24-18-24S46 12 46 26z" fill="#20170f"/><circle cx="56" cy="32" r="3" fill="#111"/><circle cx="72" cy="32" r="3" fill="#111"/><path d="M56 44c7 4 14 4 21 0" stroke="#8a3e2e" stroke-width="4" stroke-linecap="round"/><path d="M34 156V74c0-18 14-32 32-32h-4c18 0 32 14 32 32v82H34z" fill="url(#tux)"/><path d="M56 52h16c10 0 18 8 18 18v86H38V70c0-10 8-18 18-18z" fill="url(#shirt)" opacity="0.95"/><path d="M40 70l20-24 4 8-12 18 12 20-8 6-18-28z" fill="#0b0f16" opacity="0.9"/><path d="M88 70l-20-24-4 8 12 18-12 20 8 6 18-28z" fill="#0b0f16" opacity="0.9"/><path d="M64 68l-10-6 10-6 10 6-10 6z" fill="#10131b"/><circle cx="64" cy="62" r="4" fill="rgba(0,0,0,0.45)"/><g transform="translate(78,98) rotate(-6)"><rect x="0" y="10" width="36" height="10" rx="4" fill="url(#gold)" stroke="rgba(0,0,0,0.25)" stroke-width="2"/><rect x="22" y="6" width="12" height="6" rx="3" fill="rgba(255,255,255,0.25)"/><rect x="8" y="20" width="10" height="20" rx="4" fill="url(#gold)" stroke="rgba(0,0,0,0.25)" stroke-width="2"/></g></svg>';
+  const SVG_SPY_CASINO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe389"/><stop offset="0.45" stop-color="#ffd24a"/><stop offset="1" stop-color="#9c6a00"/></linearGradient><linearGradient id="j" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c7df"/></linearGradient><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f1626"/><stop offset="1" stop-color="#05070b"/></linearGradient></defs><circle cx="64" cy="26" r="18" fill="#f2d2b5" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M44 26c2-16 40-18 40 0 0-12-11-22-20-22S44 14 44 26z" fill="#1c120a"/><circle cx="56" cy="32" r="3" fill="#111"/><circle cx="72" cy="32" r="3" fill="#111"/><path d="M56 44c7 4 14 4 21 0" stroke="#8a3e2e" stroke-width="4" stroke-linecap="round"/><path d="M34 156V74c0-18 14-32 32-32h-4c18 0 32 14 32 32v82H34z" fill="url(#j)"/><path d="M44 58h40v98H44z" fill="rgba(0,0,0,0.12)"/><path d="M34 92h60" stroke="rgba(0,0,0,0.22)" stroke-width="8" stroke-linecap="round"/><path d="M52 70h24" stroke="url(#s)" stroke-width="8" stroke-linecap="round"/><g transform="translate(78,98) rotate(-6)"><rect x="0" y="10" width="36" height="10" rx="4" fill="url(#gold)" stroke="rgba(0,0,0,0.25)" stroke-width="2"/><rect x="8" y="20" width="10" height="20" rx="4" fill="url(#gold)" stroke="rgba(0,0,0,0.25)" stroke-width="2"/></g></svg>';
+  const SVG_SPY_STEALTH = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="coat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#173026"/><stop offset="1" stop-color="#07140f"/></linearGradient><linearGradient id="night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e1417"/><stop offset="1" stop-color="#030608"/></linearGradient></defs><circle cx="64" cy="26" r="18" fill="#f0cfb3" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M44 28c2-18 40-22 40 0 0-16-10-26-20-26S44 12 44 28z" fill="#0b0f12"/><rect x="44" y="30" width="40" height="10" rx="5" fill="rgba(0,0,0,0.55)"/><circle cx="56" cy="32" r="3" fill="rgba(120,255,190,0.9)"/><circle cx="72" cy="32" r="3" fill="rgba(120,255,190,0.9)"/><path d="M34 156V70c0-16 12-28 28-30h4c16 2 28 14 28 30v86H34z" fill="url(#coat)"/><path d="M42 76h44v80H42z" fill="rgba(0,0,0,0.20)"/><path d="M44 62c10 10 30 10 40 0" stroke="url(#night)" stroke-width="10" stroke-linecap="round"/></svg>';
+
+  // --- Enemies / props
+  const SVG_THUG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="hood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a3a"/><stop offset="1" stop-color="#151515"/></linearGradient><linearGradient id="jacket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2f3a"/><stop offset="1" stop-color="#0b0f16"/></linearGradient></defs><path d="M40 62c-2-24 14-44 24-44s26 20 24 44c-6-10-14-16-24-16s-18 6-24 16z" fill="url(#hood)" stroke="rgba(0,0,0,0.35)" stroke-width="3"/><circle cx="64" cy="30" r="18" fill="#e9c7a8" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M46 34h36c-2 12-10 18-18 18s-16-6-18-18z" fill="rgba(220,80,80,0.85)"/><circle cx="56" cy="34" r="3" fill="#111"/><circle cx="72" cy="34" r="3" fill="#111"/><path d="M32 156V72c0-16 12-30 30-30h4c18 0 30 14 30 30v84H32z" fill="url(#jacket)"/><path d="M36 110c14-10 42-10 56 0" stroke="rgba(255,90,90,0.65)" stroke-width="6" stroke-linecap="round"/></svg>';
+  const SVG_GUARD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="suit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222a3a"/><stop offset="1" stop-color="#0a0d13"/></linearGradient><linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c0d6ff"/><stop offset="1" stop-color="#3a6bd6"/></linearGradient></defs><circle cx="64" cy="28" r="18" fill="#efd0b4" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><rect x="44" y="26" width="16" height="8" rx="4" fill="rgba(0,0,0,0.75)"/><rect x="68" y="26" width="16" height="8" rx="4" fill="rgba(0,0,0,0.75)"/><rect x="60" y="29" width="8" height="2" fill="rgba(0,0,0,0.75)"/><path d="M34 156V72c0-16 12-30 30-30h0c18 0 30 14 30 30v84H34z" fill="url(#suit)"/><path d="M64 70l-8-10 8-10 8 10-8 10z" fill="rgba(255,255,255,0.85)"/><path d="M78 86l12 8-12 8-12-8 12-8z" fill="url(#badge)"/></svg>';
+  const SVG_ASSASSIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="coat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3a34"/><stop offset="1" stop-color="#0b1411"/></linearGradient><linearGradient id="steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b7d3ff"/><stop offset="1" stop-color="#3568c9"/></linearGradient></defs><circle cx="64" cy="28" r="18" fill="#e6c4a7" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M44 28c2-18 40-22 40 0 0-16-10-26-20-26S44 12 44 28z" fill="#0e1417"/><path d="M48 36h32c-2 12-10 18-16 18s-14-6-16-18z" fill="rgba(0,0,0,0.55)"/><circle cx="56" cy="32" r="3" fill="rgba(120,255,190,0.9)"/><circle cx="72" cy="32" r="3" fill="rgba(120,255,190,0.9)"/><path d="M34 156V68c0-14 10-26 24-30h12c14 4 24 16 24 30v88H34z" fill="url(#coat)"/><g transform="translate(78,102) rotate(-6)"><rect x="0" y="10" width="34" height="10" rx="4" fill="rgba(0,0,0,0.55)"/><rect x="28" y="10" width="18" height="10" rx="4" fill="url(#steel)" opacity="0.9"/></g></svg>';
+
+  const SVG_CAMERA = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120"><defs><linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3446"/><stop offset="1" stop-color="#0b0f16"/></linearGradient><linearGradient id="lens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c0d6ff"/><stop offset="1" stop-color="#3557a8"/></linearGradient></defs><rect x="14" y="42" width="96" height="52" rx="10" fill="url(#m)" stroke="rgba(255,255,255,0.15)" stroke-width="4"/><circle cx="62" cy="68" r="18" fill="rgba(0,0,0,0.45)"/><circle cx="62" cy="68" r="12" fill="url(#lens)"/><rect x="100" y="54" width="46" height="28" rx="10" fill="url(#m)" stroke="rgba(255,255,255,0.15)" stroke-width="4"/><path d="M120 40l10-16" stroke="rgba(255,255,255,0.25)" stroke-width="6" stroke-linecap="round"/></svg>';
+  const SVG_INTEL = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160"><defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c7df"/></linearGradient></defs><path d="M22 10h68l28 28v112H22z" fill="url(#p)" stroke="rgba(0,0,0,0.25)" stroke-width="6"/><path d="M90 10v28h28" fill="rgba(0,0,0,0.08)"/><path d="M34 58h72" stroke="rgba(0,0,0,0.25)" stroke-width="8" stroke-linecap="round"/><path d="M34 82h62" stroke="rgba(0,0,0,0.22)" stroke-width="8" stroke-linecap="round"/><path d="M34 106h52" stroke="rgba(0,0,0,0.20)" stroke-width="8" stroke-linecap="round"/><circle cx="46" cy="132" r="10" fill="rgba(255,215,0,0.75)"/></svg>';
+  const SVG_CHIP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><defs><radialGradient id="c" cx="35%" cy="35%"><stop offset="0" stop-color="#fff0aa"/><stop offset="0.45" stop-color="#ffd24a"/><stop offset="1" stop-color="#8a5a00"/></radialGradient></defs><circle cx="80" cy="80" r="64" fill="url(#c)" stroke="rgba(0,0,0,0.25)" stroke-width="10"/><circle cx="80" cy="80" r="40" fill="rgba(0,0,0,0.15)" stroke="rgba(255,255,255,0.25)" stroke-width="6"/><text x="80" y="94" font-family="ui-monospace,monospace" font-size="44" text-anchor="middle" fill="rgba(0,0,0,0.45)">$</text></svg>';
+  const SVG_VIP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160"><defs><linearGradient id="dress" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a13c7a"/><stop offset="1" stop-color="#2b0f2a"/></linearGradient></defs><circle cx="64" cy="26" r="18" fill="#f2d2b5" stroke="rgba(0,0,0,0.35)" stroke-width="2"/><path d="M46 26c2-18 36-22 36 0 0-14-10-24-18-24S46 12 46 26z" fill="#3b1c2c"/><circle cx="56" cy="32" r="3" fill="#111"/><circle cx="72" cy="32" r="3" fill="#111"/><path d="M56 44c7 4 14 4 21 0" stroke="#8a3e2e" stroke-width="4" stroke-linecap="round"/><path d="M34 156V76c0-18 14-32 32-32h-4c18 0 32 14 32 32v80H34z" fill="url(#dress)"/><path d="M44 78h40v78H44z" fill="rgba(0,0,0,0.14)"/><circle cx="64" cy="70" r="7" fill="rgba(255,215,0,0.85)"/></svg>';
+  const SVG_HELI = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 120"><defs><linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a445a"/><stop offset="1" stop-color="#0b0f16"/></linearGradient></defs><rect x="40" y="44" width="120" height="40" rx="16" fill="url(#h)" stroke="rgba(255,255,255,0.12)" stroke-width="4"/><rect x="142" y="52" width="40" height="24" rx="10" fill="rgba(255,255,255,0.10)"/><rect x="16" y="56" width="34" height="16" rx="8" fill="url(#h)"/><path d="M70 44l-18-18" stroke="rgba(255,255,255,0.14)" stroke-width="8" stroke-linecap="round"/><path d="M60 26h120" stroke="rgba(255,255,255,0.20)" stroke-width="10" stroke-linecap="round"/><path d="M152 38h50" stroke="rgba(255,255,255,0.16)" stroke-width="8" stroke-linecap="round"/></svg>';
+
+  const sprites = {
+    spy: [svgToImage(SVG_SPY_TUX), svgToImage(SVG_SPY_CASINO), svgToImage(SVG_SPY_STEALTH)],
+    thug: svgToImage(SVG_THUG),
+    guard: svgToImage(SVG_GUARD),
+    assassin: svgToImage(SVG_ASSASSIN),
+    camera: svgToImage(SVG_CAMERA),
+    intel: svgToImage(SVG_INTEL),
+    chip: svgToImage(SVG_CHIP),
+    vip: svgToImage(SVG_VIP),
+    heli: svgToImage(SVG_HELI),
+  };
+
+  function drawSprite(img, x, y, w, h, alpha=1){
+    if (!img || !img.complete) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+  }
+
+  class AudioEngine {
+    constructor(){
+      this.enabled=false;
+      this.musicOn=true;
+      this.sfxOn=true;
+      this.masterVol=0.85;
+      this.ctx=null; this.master=null; this.music=null; this.sfx=null; this.comp=null;
+      this.tempo=92; this.step=0; this.nextT=0; this.timer=null;
+      this.intensity=0;
+      this._noiseBuf=null;
+    }
+    async enable(){
+      if (this.enabled) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) throw new Error("WebAudio unsupported");
+      this.ctx = new AC({ latencyHint:"interactive" });
+      this.master = this.ctx.createGain(); this.master.gain.value=this.masterVol;
+
+      this.music = this.ctx.createGain(); this.music.gain.value = this.musicOn ? 0.85 : 0.0;
+      this.sfx   = this.ctx.createGain(); this.sfx.gain.value   = this.sfxOn ? 0.95 : 0.0;
+
+      this.comp = this.ctx.createDynamicsCompressor();
+      this.comp.threshold.value=-16; this.comp.knee.value=24; this.comp.ratio.value=8;
+      this.comp.attack.value=0.003; this.comp.release.value=0.18;
+
+      this.music.connect(this.comp);
+      this.sfx.connect(this.comp);
+      this.comp.connect(this.master);
+      this.master.connect(this.ctx.destination);
+
+      this.step=0;
+      this.nextT=this.ctx.currentTime+0.06;
+      this.timer=setInterval(()=>this._sched(), 25);
+      this.enabled=true;
+    }
+    setIntensity(x){ this.intensity=clamp(x,0,1); }
+    setMasterVolume(v){ this.masterVol=clamp(v,0,1); if(this.master) this.master.gain.value=this.masterVol; }
+    toggleMusic(){ this.musicOn=!this.musicOn; if(this.music) this.music.gain.value=this.musicOn?0.85:0.0; }
+    toggleSfx(){ this.sfxOn=!this.sfxOn; if(this.sfx) this.sfx.gain.value=this.sfxOn?0.95:0.0; }
+    toggleMute(){ if(!this.enabled) return; this.master.gain.value = (this.master.gain.value<0.001)?this.masterVol:0.0; }
+
+    _stepDur(){ return (60/this.tempo)/4; }
+    _noise(){
+      if (this._noiseBuf) return this._noiseBuf;
+      const len = Math.floor(this.ctx.sampleRate*0.25);
+      const b = this.ctx.createBuffer(1,len,this.ctx.sampleRate);
+      const d=b.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+      this._noiseBuf=b; return b;
+    }
+
+    _sched(){
+      if(!this.enabled || !this.ctx || !this.musicOn) return;
+      const la=0.12, dur=this._stepDur();
+      while(this.nextT < this.ctx.currentTime+la){
+        this._play(this.step, this.nextT);
+        this.nextT += dur;
+        this.step = (this.step+1)%64;
+      }
+    }
+    _play(step,t){
+      const i=this.intensity;
+      const root=146.83; // D3
+      const scale=[0,2,3,5,7,8,10];
+      const hz=(deg,oct)=> root*Math.pow(2,(scale[((deg%7)+7)%7]+12*oct)/12);
+
+      if(step%16===0||step%16===8) this._kick(t,0.18,0.55);
+      if(i>0.65 && step%16===12) this._kick(t,0.15,0.35);
+
+      if(step%4===0 || (i>0.65 && step%2===0)) this._hat(t,0.010,4200+i*1400,0.09);
+      if(i>0.45 && (step%16===4||step%16===12)) this._snare(t,0.12,0.22+i*0.25);
+
+      if(step%2===0){
+        const bar=Math.floor(step/16);
+        const pat=[[0,0,4,3,0,0,4,3],[0,2,4,5,0,2,1,0],[0,0,4,3,0,0,4,3],[0,2,1,0,0,2,1,0]][bar%4];
+        const idx=(step%16)/2;
+        const deg=pat[idx];
+        this._bass(t,hz(deg,-1),0.13,0.10+i*0.10);
+      }
+      if(step%8===6){
+        const bar=Math.floor(step/16);
+        const deg=[5,3,6,2][bar%4];
+        this._pluck(t,hz(deg,0),0.07,0.06+i*0.07);
+      }
+    }
+
+    _hat(t,dur,freq,amp){
+      const n=this.ctx.createBufferSource(); n.buffer=this._noise();
+      const hp=this.ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.setValueAtTime(freq,t);
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      n.connect(hp); hp.connect(g); g.connect(this.music); n.start(t); n.stop(t+dur);
+    }
+    _kick(t,dur,amp){
+      const o=this.ctx.createOscillator(); o.type="sine";
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.frequency.setValueAtTime(130,t); o.frequency.exponentialRampToValueAtTime(45,t+dur);
+      o.connect(g); g.connect(this.music); o.start(t); o.stop(t+dur);
+    }
+    _snare(t,dur,amp){
+      const n=this.ctx.createBufferSource(); n.buffer=this._noise();
+      const bp=this.ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.setValueAtTime(1800,t); bp.Q.setValueAtTime(0.9,t);
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      n.connect(bp); bp.connect(g); g.connect(this.music); n.start(t); n.stop(t+dur);
+    }
+    _bass(t,freq,dur,amp){
+      const o=this.ctx.createOscillator(); o.type="triangle";
+      const lp=this.ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.setValueAtTime(220+this.intensity*320,t);
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.frequency.setValueAtTime(freq,t);
+      o.connect(lp); lp.connect(g); g.connect(this.music); o.start(t); o.stop(t+dur);
+    }
+    _pluck(t,freq,dur,amp){
+      const o=this.ctx.createOscillator(); o.type="square";
+      const bp=this.ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.setValueAtTime(900+this.intensity*1100,t); bp.Q.setValueAtTime(2.2,t);
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.frequency.setValueAtTime(freq,t);
+      o.connect(bp); bp.connect(g); g.connect(this.music); o.start(t); o.stop(t+dur);
+    }
+
+    _osc(type,f0,f1,dur,amp){
+      if(!this.enabled||!this.sfxOn) return;
+      const t=this.ctx.currentTime;
+      const o=this.ctx.createOscillator(); o.type=type;
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.frequency.setValueAtTime(f0,t); if(f1 && f1!==f0) o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+      o.connect(g); g.connect(this.sfx); o.start(t); o.stop(t+dur);
+    }
+    _noiseSfx(dur,amp,hpFreq=1200){
+      if(!this.enabled||!this.sfxOn) return;
+      const t=this.ctx.currentTime;
+      const n=this.ctx.createBufferSource(); n.buffer=this._noise();
+      const hp=this.ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.setValueAtTime(hpFreq,t);
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(amp,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      n.connect(hp); hp.connect(g); g.connect(this.sfx); n.start(t); n.stop(t+dur);
+    }
+    sfxUiSelect(){ this._osc("sine",1100,1400,0.05,0.05); }
+    sfxUiConfirm(){ this._osc("triangle",520,860,0.12,0.07); }
+    sfxUiError(){ this._osc("sawtooth",240,160,0.14,0.06); this._noiseSfx(0.06,0.05,1800); }
+    sfxShoot(supp=false){
+      if(supp){ this._noiseSfx(0.05,0.18,2400); this._osc("triangle",220,150,0.06,0.12); }
+      else { this._noiseSfx(0.08,0.28,1200); this._osc("sawtooth",420,120,0.08,0.14); }
+    }
+    sfxReload(){ this._osc("square",700,520,0.05,0.08); setTimeout(()=>this._osc("square",520,420,0.07,0.07),60); }
+    sfxDash(){ this._noiseSfx(0.11,0.16,800); this._osc("sine",240,120,0.10,0.06); }
+    sfxEmp(){ this._osc("sine",220,40,0.25,0.12); this._noiseSfx(0.22,0.10,2000); }
+    sfxSmoke(){ this._noiseSfx(0.18,0.10,600); }
+    sfxCoin(){ this._osc("triangle",1200,800,0.10,0.08); setTimeout(()=>this._osc("triangle",900,620,0.12,0.07),40); }
+    sfxPickup(){ this._osc("sine",740,980,0.12,0.08); }
+    sfxCameraDown(){ this._osc("square",320,160,0.12,0.09); this._noiseSfx(0.08,0.07,900); }
+    sfxHit(){ this._noiseSfx(0.10,0.16,500); this._osc("triangle",160,90,0.10,0.08); }
+    sfxLockTick(){ this._osc("square",900,700,0.03,0.06); }
+    sfxLockMiss(){ this._osc("sawtooth",260,190,0.10,0.07); this._noiseSfx(0.06,0.06,1400); }
+    sfxLockSuccess(){ this._osc("sine",520,1040,0.16,0.08); setTimeout(()=>this._osc("sine",660,1320,0.18,0.07),60); }
+    sfxLockFail(){ this._osc("square",180,90,0.22,0.10); this._noiseSfx(0.14,0.12,900); }
+  }
+  const audio = new AudioEngine();
+
+  /***********************
+   * GAME CONSTANTS
+   ***********************/
+  const MAG_SIZE = 12;
+  const START_RESERVE = 48;
+  const BASE_RELOAD_MS = 900;
+  const BASE_FIRE_COOLDOWN_MS = 150; // slightly faster
+  const BULLET_SPEED = 980;
+  const ENEMY_BULLET_SPEED = 560;
+
+  const DASH_MS = 140;
+  const DASH_SPEED = 1250;
+
+  const SMOKE_MS = 3600;
+  const SMOKE_RADIUS = 110;
+
+  const EMP_MS = 2800;
+  const EMP_COOLDOWN_MS = 7000;
+
+  const COIN_MS = 4200;
+  const COIN_PULL_RADIUS = 320;
+
+  const SOUND_MS = 850;
+  const SOUND_RADIUS_LOUD = 320;
+  const SOUND_RADIUS_SUPP = 170;
+
+  const HEAT_MAX = 100;
+  const EXFIL_MS = 20000;
+
+  const COMBO_WINDOW_MS = 1300;
+  const COMBO_STEP = 0.25;
+  const COMBO_MAX = 3.0;
+
+  // EASY AIM feel
+  const PLAYER_MOVE_SPEED     = 480;  // px/s
+  const PLAYER_ARRIVE_RADIUS  = 70;   // slows near target
+  const MOVE_TARGET_LAG       = 9.5;  // 1/s
+  const AIM_ASSIST_RADIUS     = 140;  // px
+  const AIM_ASSIST_STRENGTH  = 0.90; // 0..1
+
+  /***********************
+   * GAME STATE
+   ***********************/
+  const state = {
+    paused: true,
+
+    // Scrolling map camera + mission bounds
+    camera: { x:0, y:0 },
+    missionBounds: { x:0, y:0, w: WORLD_W, h: WORLD_H },
+
+    suitIndex: 0,
+    modPierce: 0,
+    modRicochet: 0,
+    perkReload: 0,
+    perkDash: 0,
+    perkShield: 0,
+
+    stage: "briefing", // briefing | playing | dead | lockpick
+    missionId: 1,
+    missionText: "",
+    objectives: null,
+    exfilActive: false,
+    exfilUntil: 0,
+    exfilZone: { x: GAME_W - 90, y: 90, r: 42 },
+
+    player: { x: GAME_W/2, y: GAME_H*0.70, w: 54, h: 72, vx:0, vy:0 },
+
+    target: { x: GAME_W/2, y: GAME_H*0.70 },           // reticle aim
+    moveTarget: { x: GAME_W/2, y: GAME_H*0.70, sx: GAME_W/2, sy: GAME_H*0.70 }, // lagged move
+    aimDir: { x: 0, y: -1 },
+
+    controls: {
+      moveSpeed: PLAYER_MOVE_SPEED,
+      arriveRadius: PLAYER_ARRIVE_RADIUS,
+      moveLag: MOVE_TARGET_LAG,
+      aimAssist: true,
+      aimAssistRadius: AIM_ASSIST_RADIUS,
+      aimAssistStrength: AIM_ASSIST_STRENGTH
+    },
+
+    health: 100,
+    shieldUntil: 0,
+
+    mag: MAG_SIZE,
+    reserve: START_RESERVE,
+    reloading: false,
+    reloadUntil: 0,
+    lastFire: 0,
+
+    score: 0,
+    combo: 1.0,
+    lastKill: 0,
+    chipMult: 1.0,
+
+    heat: 0,
+    lastSoundAt: 0,
+    sound: null,
+
+    smoke: [],
+    empUntil: 0,
+    lastEmp: -99999,
+    coin: null,
+
+    bullets: [],
+    enemies: [],
+    enemyBullets: [],
+    cameras: [],
+    intel: [],
+    chips: [],
+    vipTables: [],
+    obstacles: [],
+
+    vip: null,
+    vipProtectUntil: 0,
+
+    bossPhase: 0,
+    boss: null,
+    sniperWindowUntil: 0,
+    sniperVuln: false,
+    sniperGlint: {x: GAME_W/2, y: 70, r: 14},
+
+    mouse: { x: GAME_W/2, y: GAME_H/2, down:false },
+    keys: new Set(),
+    pressed: new Set(),
+    dashing: false,
+    dashUntil: 0,
+    lastDash: -99999,
+
+    lockpick: {
+      active:false,
+      target:null,
+      pin:0,
+      pins:[],
+      stress:0,
+      maxStress:100,
+      hint:"",
+      resolved:false,
+      fail:false,
+      startedAt:0
+    },
+
+    pie: { open:false, idx:0, center:false, lastIdx:-1 }
+  };
+
+  /***********************
+   * STEALTH / HELPERS
+   ***********************/
+  function lineOfSight(ax, ay, bx, by) {
+    const steps = 12;
+    for (let i=1;i<=steps;i++){
+      const t = i/steps;
+      const x = lerp(ax,bx,t);
+      const y = lerp(ay,by,t);
+      for (const o of state.obstacles){
+        if (x >= o.x && x <= o.x+o.w && y >= o.y && y <= o.y+o.h) return false;
+      }
+    }
+    return true;
+  }
+  function inSmoke(px,py){
+    for (const s of state.smoke){
+      if (now() < s.until && pointInCircle(px,py,s.x,s.y,SMOKE_RADIUS)) return true;
+    }
+    return false;
+  }
+
+  function addHeat(amount){ state.heat = clamp(state.heat + amount, 0, HEAT_MAX); }
+  function coolHeat(amount){ state.heat = clamp(state.heat - amount, 0, HEAT_MAX); }
+
+  function comboBump(){
+    const t = now();
+    if (t - state.lastKill <= COMBO_WINDOW_MS) state.combo = Math.min(COMBO_MAX, state.combo + COMBO_STEP);
+    else state.combo = 1.0;
+    state.lastKill = t;
+  }
+
+  function reloadMs(){
+    const mult = 1 - 0.10*state.perkReload;
+    return BASE_RELOAD_MS * mult;
+  }
+  function fireCooldownMs(){
+    return clamp(BASE_FIRE_COOLDOWN_MS - (state.missionId-1)*8, 115, 180);
+  }
+  function dashCooldownMs(){
+    const base = 900;
+    const mult = 1 - 0.12*state.perkDash;
+    return base * mult;
+  }
+  function shieldDurationMs(){
+    const base = 4200;
+    const mult = 1 + 0.18*state.perkShield;
+    return base * mult;
+  }
+
+  /***********************
+   * INPUT (mouse/keyboard)
+   ***********************/
+  window.addEventListener("mousemove", (e) => {
+    // When face drives the pointer, physical mouse is ignored (unless pie menu is open).
+    if (mp.enabled && mp.facePointer.valid && !state.pie.open) return;
+    const p = canvasToGameCoords(e.clientX, e.clientY);
+    state.mouse.x = p.x; state.mouse.y = p.y;
+  });
+  window.addEventListener("mousedown", () => {
+    if (mp.enabled && mp.facePointer.valid && !state.pie.open) return;
+    state.mouse.down = true;
+    if (state.stage==="lockpick") lockpickAttempt();
+  });
+  window.addEventListener("mouseup", () => {
+    if (mp.enabled && mp.facePointer.valid && !state.pie.open) return;
+    state.mouse.down = false;
+  });
+
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (!state.keys.has(k)) state.pressed.add(k);
+    state.keys.add(k);
+
+    if (e.key === "Escape") {
+      overlay.style.display = (overlay.style.display === "none") ? "grid" : "none";
+      state.paused = (overlay.style.display !== "none");
+      if (state.paused) renderOverlayText();
+    }
+
+    if (k === "m") { if (audio.enabled) audio.toggleMute(); }
+    if (k === "1") { if (audio.enabled) audio.toggleMusic(); syncAudioButtons(); }
+    if (k === "2") { if (audio.enabled) audio.toggleSfx(); syncAudioButtons(); }
+    if (k === "+" || k === "=") { if (audio.enabled) audio.setMasterVolume(audio.masterVol + 0.05); syncAudioButtons(); }
+    if (k === "-" || k === "_") { if (audio.enabled) audio.setMasterVolume(audio.masterVol - 0.05); syncAudioButtons(); }
+
+    if (state.stage === "lockpick") {
+      if (k === " " || k === "space" || k === "enter") lockpickAttempt();
+      if (k === "backspace" || k === "escape") lockpickAbort();
+      return;
+    }
+
+    if (k === "c") startBlinkCalibration();
+    if (k === "r") tryReload();
+    if (k === "shift") tryDash();
+    if (k === "q") trySmoke();
+    if (k === "e") tryEmp();
+    if (k === "f") tryCoin();
+    if (k === "x") { if (!tryHackCamera()) tryOpenLockpickIfNearIntel(); }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    state.keys.delete(e.key.toLowerCase());
+  });
+
+  /***********************
+   * WEAPON / SOUND
+   ***********************/
+  function tryReload() {
+    if (state.stage !== "playing") return false;
+    if (state.reloading) return false;
+    if (state.mag >= MAG_SIZE) return false;
+    if (state.reserve <= 0) return false;
+    state.reloading = true;
+    state.reloadUntil = now() + reloadMs();
+    audio.sfxReload();
+    return true;
+  }
+  function finishReload() {
+    const need = MAG_SIZE - state.mag;
+    const take = Math.min(need, state.reserve);
+    state.mag += take;
+    state.reserve -= take;
+    state.reloading = false;
+  }
+
+  function registerSound(isSuppressed){
+    const t = now();
+    const r = isSuppressed ? SOUND_RADIUS_SUPP : SOUND_RADIUS_LOUD;
+    state.sound = { x: state.player.x + state.player.w/2, y: state.player.y + state.player.h/2, r, until: t + SOUND_MS };
+    state.lastSoundAt = t;
+    addHeat(isSuppressed ? 1.0 : 2.2);
+  }
+
+  function fireBullet(fromX, fromY, vx, vy, dmg, enemy, pierceLeft, ricochetLeft) {
+    (enemy ? state.enemyBullets : state.bullets).push({
+      x: fromX, y: fromY, w: 7, h: 14, // slightly larger = easier hit feel
+      vx, vy, dmg,
+      enemy: !!enemy,
+      pierceLeft: pierceLeft || 0,
+      ricochetLeft: ricochetLeft || 0
+    });
+  }
+
+  function getAimPointForShot(tx, ty) {
+    const cfg = state.controls;
+    if (!cfg || !cfg.aimAssist) return { x: tx, y: ty };
+
+    const px = state.player.x + state.player.w / 2;
+    const py = state.player.y + state.player.h / 2;
+
+    let best = null;
+    let bestD = cfg.aimAssistRadius;
+
+    function consider(x, y) {
+      const d = dist(tx, ty, x, y);
+      if (d < bestD && lineOfSight(px, py, x, y)) {
+        bestD = d;
+        best = { x, y };
+      }
+    }
+
+    for (const e of state.enemies) {
+      consider(e.x + e.w * 0.50, e.y + e.h * 0.18);
+      consider(e.x + e.w * 0.50, e.y + e.h * 0.45);
+    }
+    for (const c of state.cameras) {
+      if (c.disabled) continue;
+      consider(c.x, c.y);
+    }
+    if (state.missionId === 3 && state.boss) {
+      const b = state.boss;
+      if (b.kind === "bruiser") {
+        const w = b.weak;
+        consider(w.x + w.w / 2, w.y + w.h / 2);
+        consider(b.x + b.w / 2, b.y + b.h * 0.35);
+      } else if (b.kind === "sniper") {
+        const g = state.sniperGlint;
+        consider(g.x, g.y);
+      } else if (b.kind === "heli") {
+        consider(b.x + b.w * 0.55, b.y + b.h * 0.65);
+      }
+    }
+
+    if (!best) return { x: tx, y: ty };
+    return { x: lerp(tx, best.x, cfg.aimAssistStrength), y: lerp(ty, best.y, cfg.aimAssistStrength) };
+  }
+
+  function tryFire() {
+    if (state.stage !== "playing") return false;
+    if (state.reloading) return false;
+    if (state.pie.open) return false;
+
+    const t = now();
+    if (t - state.lastFire < fireCooldownMs()) return false;
+    if (state.mag <= 0) return false;
+
+    state.lastFire = t;
+    state.mag -= 1;
+
+    const cx = state.player.x + state.player.w / 2;
+    const cy = state.player.y + state.player.h / 2;
+
+    const aim = getAimPointForShot(state.target.x, state.target.y);
+
+    let dx = aim.x - cx;
+    let dy = aim.y - cy;
+    const m = Math.hypot(dx, dy);
+
+    if (m > 8) {
+      dx /= m; dy /= m;
+      state.aimDir.x = dx;
+      state.aimDir.y = dy;
+    } else {
+      dx = state.aimDir.x;
+      dy = state.aimDir.y;
+    }
+
+    const muzzleX = cx + dx * (state.player.w * 0.26);
+    const muzzleY = cy + dy * (state.player.h * 0.18);
+
+    const pierce = state.modPierce ? 1 : 0;
+    const ric = state.modRicochet ? 1 : 0;
+
+    fireBullet(muzzleX, muzzleY, dx * BULLET_SPEED, dy * BULLET_SPEED, 1, false, pierce, ric);
+
+    const suppressed = (state.suitIndex === 2) || (state.objectives && state.objectives.suppressor);
+    registerSound(suppressed);
+    audio.sfxShoot(suppressed);
+    return true;
+  }
+
+  /***********************
+   * DASH / GADGETS
+   ***********************/
+  function tryDash() {
+    if (state.stage !== "playing") return false;
+    const t = now();
+    if (state.dashing) return false;
+    if (t - state.lastDash < dashCooldownMs()) return false;
+
+    state.lastDash = t;
+    state.dashing = true;
+    state.dashUntil = t + DASH_MS;
+
+    const cx = state.player.x + state.player.w / 2;
+    const cy = state.player.y + state.player.h / 2;
+
+    let dx = state.target.x - cx;
+    let dy = state.target.y - cy;
+    let m = Math.hypot(dx, dy);
+
+    if (m < 12) {
+      dx = state.aimDir.x;
+      dy = state.aimDir.y;
+      m = 1;
+    } else {
+      dx /= m; dy /= m;
+    }
+
+    state.player.vx = dx * DASH_SPEED;
+    state.player.vy = dy * DASH_SPEED;
+    audio.sfxDash();
+    return true;
+  }
+
+  function trySmoke(){
+    if (state.stage !== "playing") return false;
+    if (state.objectives && state.objectives.smokeCharges <= 0) return false;
+    state.objectives.smokeCharges -= 1;
+    state.smoke.push({ x: state.player.x + state.player.w/2, y: state.player.y + state.player.h/2, until: now() + SMOKE_MS });
+    coolHeat(12);
+    audio.sfxSmoke();
+    return true;
+  }
+  function tryEmp(){
+    if (state.stage !== "playing") return false;
+    const t = now();
+    if (t - state.lastEmp < EMP_COOLDOWN_MS) return false;
+    if (state.objectives && state.objectives.empCharges <= 0) return false;
+    state.objectives.empCharges -= 1;
+    state.lastEmp = t;
+    state.empUntil = t + EMP_MS;
+    coolHeat(18);
+    audio.sfxEmp();
+    return true;
+  }
+  function tryCoin(){
+    if (state.stage !== "playing") return false;
+    if (state.objectives && state.objectives.coinCharges <= 0) return false;
+    state.objectives.coinCharges -= 1;
+    state.coin = { x: state.target.x, y: state.target.y, until: now() + COIN_MS };
+    addHeat(1.5);
+    audio.sfxCoin();
+    return true;
+  }
+
+  /***********************
+   * CAMERAS
+   ***********************/
+  function tryHackCamera(){
+    if (state.stage !== "playing") return false;
+    const px = state.player.x + state.player.w/2;
+    const py = state.player.y + state.player.h/2;
+    let best=null, bd=1e9;
+    for (const c of state.cameras){
+      if (c.disabled) continue;
+      const d = dist(px,py,c.x,c.y);
+      if (d < 62 && d < bd) { bd=d; best=c; }
+    }
+    if (!best) return false;
+    best.disabled = true;
+    if (state.objectives) state.objectives.camerasDisabled += 1;
+    coolHeat(10);
+    state.score += Math.floor(40 * state.chipMult);
+    audio.sfxCameraDown();
+    return true;
+  }
+
+  /***********************
+   * LOCKPICK
+   ***********************/
+  function nearIntelLocked(){
+    if (state.stage !== "playing") return null;
+    const P = {x:state.player.x,y:state.player.y,w:state.player.w,h:state.player.h};
+    for (const it of state.intel){
+      if (it.taken || !it.locked) continue;
+      const ir = {x:it.x-16,y:it.y-20,w:32,h:40};
+      if (rectsOverlap(P,ir)) return it;
+    }
+    return null;
+  }
+  function tryOpenLockpickIfNearIntel(){
+    const it = nearIntelLocked();
+    if (!it) return false;
+    startLockpick(it);
+    return true;
+  }
+  function startLockpick(targetIntel){
+    setPieOpen(false);
+    state.stage="lockpick";
+    state.paused=false;
+    state.lockpick.active=true;
+    state.lockpick.target=targetIntel;
+    state.lockpick.pin=0;
+    state.lockpick.pins=[];
+    state.lockpick.stress=0;
+    state.lockpick.maxStress=100;
+    state.lockpick.resolved=false;
+    state.lockpick.fail=false;
+    state.lockpick.startedAt=now();
+
+    const basePins=4;
+    const speedBase=0.55 + 0.08*(state.missionId-1);
+    const zoneBase=0.16 - 0.02*(state.missionId-1);
+
+    for (let i=0;i<basePins;i++){
+      const zoneWidth = clamp(zoneBase - 0.012*i + (state.heat/HEAT_MAX)*0.01, 0.06, 0.18);
+      const zoneCenter = 0.18 + Math.random()*0.64;
+      const speed = speedBase + 0.10*i + Math.random()*0.08;
+      state.lockpick.pins.push({ zoneCenter, zoneWidth, speed, pos: Math.random(), dir: Math.random()<0.5?-1:1 });
+    }
+
+    state.lockpick.hint =
+      "LOCKPICK — Set Pins " + state.lockpick.pins.length + "\n" +
+      "Blink/Pinch/Space/Click to set current pin when dot is inside GOLD.\n" +
+      "Miss adds STRESS + HEAT.\n" +
+      "Backspace/Esc abort (costs heat).";
+
+    audio.sfxLockTick();
+  }
+  function lockpickAbort(){
+    if (state.stage !== "lockpick") return;
+    addHeat(8);
+    audio.sfxLockFail();
+    state.lockpick.active=false;
+    state.lockpick.target=null;
+    state.stage="playing";
+  }
+  function lockpickAttempt(){
+    if (state.stage !== "lockpick" || !state.lockpick.active) return;
+    const lp = state.lockpick;
+    const pin = lp.pins[lp.pin];
+    const inZone = Math.abs(pin.pos - pin.zoneCenter) <= pin.zoneWidth;
+
+    if (inZone) {
+      audio.sfxLockTick();
+      lp.pin += 1;
+      lp.stress = Math.max(0, lp.stress - 6);
+
+      if (lp.pin >= lp.pins.length) {
+        lp.resolved=true;
+        lp.active=false;
+        audio.sfxLockSuccess();
+
+        if (lp.target) {
+          lp.target.locked=false;
+          lp.target.taken=true;
+          state.objectives.intelCollected += 1;
+          state.score += Math.floor(60 * state.chipMult);
+          coolHeat(10);
+          audio.sfxPickup();
+        }
+
+        lp.target=null;
+        state.stage="playing";
+        return;
+      }
+    } else {
+      audio.sfxLockMiss();
+      lp.stress += 14;
+      addHeat(4);
+      if (Math.random() < 0.30 && lp.pin > 0) lp.pin -= 1;
+
+      if (lp.stress >= lp.maxStress) {
+        lp.fail=true;
+        lp.active=false;
+        audio.sfxLockFail();
+        addHeat(12);
+        const bb = state.missionBounds;
+        spawnEnemy("guard", clamp((lp.target?.x||(bb.x+bb.w*0.5)) + (Math.random()*120-60), bb.x+40, bb.x+bb.w-80), bb.y-60);
+        lp.target=null;
+        state.stage="playing";
+      }
+    }
+  }
+  function updateLockpick(dt){
+    const lp = state.lockpick;
+    if (!lp.active) return;
+    for (const p of lp.pins){
+      p.pos += p.dir * p.speed * dt;
+      if (p.pos > 1){ p.pos = 1; p.dir *= -1; }
+      if (p.pos < 0){ p.pos = 0; p.dir *= -1; }
+    }
+    lp.stress = Math.max(0, lp.stress - dt*2.0);
+  }
+
+  /***********************
+   * MISSION BUILD
+   ***********************/
+  function clearWorld(){
+    state.bullets=[]; state.enemyBullets=[];
+    state.enemies=[]; state.cameras=[]; state.intel=[]; state.chips=[];
+    state.vipTables=[]; state.obstacles=[]; state.smoke=[];
+    state.coin=null;
+
+    state.exfilActive=false; state.exfilUntil=0;
+    state.health=100; state.shieldUntil=0;
+
+    state.mag=MAG_SIZE; state.reserve=START_RESERVE;
+    state.reloading=false;
+
+    state.combo=1.0; state.chipMult=1.0;
+    state.heat=0; state.sound=null;
+
+    state.empUntil=0; state.lastEmp=-99999;
+    state.dashing=false; state.lastDash=-99999;
+    state.vip=null;
+
+    // player placement happens per-mission in setMissionBounds()
+
+    state.lockpick.active=false; state.lockpick.target=null;
+    setPieOpen(false);
+
+    // Reset aim dir; targets are set when mission starts
+    state.aimDir.x=0; state.aimDir.y=-1;
+  }
+
+  function setBriefingText(){
+    if (state.missionId === 1){
+      state.missionText =
+        "MISSION 1 — LAB RAID\n" +
+        "Collect locked intel, disable cameras, then exfil.\n\n" +
+        "Objectives:\n" +
+        "• Extract 3 Intel folders (LOCKPICK required)\n" +
+        "• Disable 2 cameras (Pie → Hack/Lock or X)\n" +
+        "• Exfil when objectives complete (20s timer)\n\n" +
+        "AIM ASSIST: shots snap to nearby targets.\n";
+    } else if (state.missionId === 2){
+      state.missionText =
+        "MISSION 2 — CASINO COVER\n" +
+        "Protect the VIP, collect chips for multiplier.\n\n" +
+        "Objectives:\n" +
+        "• Protect VIP for 30 seconds\n" +
+        "• Collect chips to boost multiplier\n" +
+        "• VIP tables reduce HEAT\n";
+    } else {
+      state.missionText =
+        "MISSION 3 — BOSS CHAIN\n" +
+        "Bruiser weak spot → Sniper glint windows → Helicopter sweep → Exfil.\n";
+    }
+  }
+
+  function buildMission(missionId){
+    clearWorld();
+    state.missionId = missionId;
+
+    setMissionBounds(missionId);
+
+    state.objectives = {
+      empCharges: 2,
+      smokeCharges: 2,
+      coinCharges: 2,
+      suppressor: false,
+      camerasDisabled: 0,
+      intelCollected: 0,
+      vipOk: true
+    };
+
+    if (missionId === 1){
+      state.obstacles.push({x: 120,y: 140,w: 220,h: 26,type:"wall"});
+      state.obstacles.push({x: 520,y: 160,w: 260,h: 26,type:"wall"});
+      state.obstacles.push({x: 240,y: 320,w: 160,h: 26,type:"wall"});
+      state.obstacles.push({x: 640,y: 340,w: 180,h: 26,type:"wall"});
+
+      state.cameras.push({x: 200,y: 90, w: 44, h: 28, disabled:false, scan:0});
+      state.cameras.push({x: 740,y: 110, w: 44, h: 28, disabled:false, scan:1.3});
+
+      state.intel.push({x: 170,y: 420,w: 34,h: 40, taken:false, locked:true});
+      state.intel.push({x: 490,y: 250,w: 34,h: 40, taken:false, locked:true});
+      state.intel.push({x: 810,y: 440,w: 34,h: 40, taken:false, locked:true});
+
+      state.chips.push({x: 80,y: 480,w: 32,h: 32, taken:false, kind:"suppressor"});
+
+    } else if (missionId === 2){
+      for (let i=0;i<5;i++){
+        state.obstacles.push({x: 150 + i*140, y: 180 + (i%2)*110, w: 96, h: 48, type:"table"});
+      }
+      state.vipTables.push({x: 140,y: 90,w: 120,h: 40});
+      state.vipTables.push({x: 720,y: 92,w: 120,h: 40});
+
+      state.vip = {x: GAME_W/2 - 30, y: 100, w: 54, h: 72, hp: 80};
+
+      for (let i=0;i<8;i++){
+        state.chips.push({x: 120 + Math.random()*(GAME_W-240), y: 160 + Math.random()*(GAME_H-230), w: 32, h: 32, taken:false, kind:"chip"});
+      }
+
+      state.cameras.push({x: 80,y: 80, w: 44, h: 28, disabled:false, scan:0.6});
+      state.cameras.push({x: GAME_W-80,y: 80, w: 44, h: 28, disabled:false, scan:2.2});
+
+      state.vipProtectUntil = now() + 30000;
+
+    } else {
+      state.obstacles.push({x: 220,y: 210,w: 140,h: 26,type:"wall"});
+      state.obstacles.push({x: 600,y: 250,w: 160,h: 26,type:"wall"});
+
+      state.bossPhase = 0;
+      spawnBruiserBoss();
+    }
+
+    applyMissionOffset();
+    // Move authored exfil/sniper markers (if any) into mission bounds
+    // and ensure exfil zone matches bounds corner.
+    const b = state.missionBounds;
+    state.exfilZone.x = b.x + b.w - 90;
+    state.exfilZone.y = b.y + 90;
+
+    setBriefingText();
+  }
+
+  function renderOverlayText(){
+    applyMissionOffset();
+    // Move authored exfil/sniper markers (if any) into mission bounds
+    // and ensure exfil zone matches bounds corner.
+    const b = state.missionBounds;
+    state.exfilZone.x = b.x + b.w - 90;
+    state.exfilZone.y = b.y + 90;
+
+    setBriefingText();
+    const blinkLine =
+      "Webcam: " + (mp.enabled ? "ON" : "OFF") +
+      (mp.enabled ? (" | BlinkCal " + (mp.blink.calibrated ? "OK" : (mp.blink.calPhase ? "CAL" : "—"))) : "");
+
+    const audioLine =
+      "Audio: " + (audio.enabled ? "ON" : "OFF") +
+      (audio.enabled ? (" | Music " + (audio.musicOn ? "ON" : "OFF") + " | SFX " + (audio.sfxOn ? "ON" : "OFF") + " | Vol " + audio.masterVol.toFixed(2)) : "");
+
+    statusEl.textContent =
+      state.missionText +
+      "\n\n" + blinkLine +
+      "\n" + audioLine +
+      "\n\nControls:\n" +
+      "Cursor aim (face), EAR blink fires, fist reload, open palm raised = pie (palm cursor + pinch)\n" +
+      "Keyboard: Q smoke | E EMP | F coin | X hack/lockpick | R reload | Shift dash | Esc overlay\n" +
+      "Audio: M mute | 1 music | 2 sfx | +/- volume\n";
+  }
+
+  /***********************
+   * ENEMIES + AI
+   ***********************/
+  function spawnEnemy(kind, x, y) {
+    const e = {
+      kind,
+      x: x ?? (state.missionBounds.x + 70 + Math.random()*(state.missionBounds.w-140)),
+      y: y ?? (-70),
+      w: 56, h: 74,
+      hp: 3,
+      speed: 140,
+      shoots: false,
+      shotCd: 1400,
+      lastShot: 0,
+      aim: 0,
+      fov: Math.PI/3,
+      view: 260,
+      state: "patrol",
+      tx: 0, ty: 0
+    };
+
+    if (kind === "thug"){
+      e.hp = 3 + Math.floor(state.missionId/2);
+      e.speed = 150 + state.missionId*18;
+      e.shoots = false;
+      e.view = 220;
+      e.fov = Math.PI/3;
+    } else if (kind === "guard"){
+      e.hp = 6 + state.missionId;
+      e.speed = 120 + state.missionId*14;
+      e.shoots = true;
+      e.shotCd = 1500 - state.missionId*80;
+      e.view = 280;
+      e.fov = Math.PI/2.4;
+    } else if (kind === "assassin"){
+      e.hp = 4 + state.missionId;
+      e.speed = 170 + state.missionId*22;
+      e.shoots = true;
+      e.shotCd = 1100 - state.missionId*70;
+      e.view = 320;
+      e.fov = Math.PI/2.8;
+    }
+
+    e.tx = e.x;
+    e.ty = 200 + Math.random()*(GAME_H-240);
+    state.enemies.push(e);
+  }
+
+  function spawnWave(){
+    const h = state.heat / HEAT_MAX;
+    const baseCount = (state.missionId===1?1:2);
+    const extra = (h > 0.55) ? 1 : 0;
+    const count = baseCount + extra;
+    for (let i=0;i<count;i++){
+      const r = Math.random();
+      const kind =
+        (state.missionId===1)
+          ? (r < 0.65 ? "thug" : "guard")
+          : (r < 0.40 ? "thug" : (r < 0.75 ? "guard" : "assassin"));
+      spawnEnemy(kind);
+    }
+  }
+
+  function enemySeesPlayer(e){
+    const px = state.player.x + state.player.w/2;
+    const py = state.player.y + state.player.h/2;
+    if (inSmoke(px,py)) return false;
+
+    const ex = e.x + e.w/2;
+    const ey = e.y + e.h/2;
+
+    const d = dist(ex,ey,px,py);
+    if (d > e.view) return false;
+
+    const a = Math.atan2(py-ey, px-ex);
+    let da = Math.atan2(Math.sin(a - e.aim), Math.cos(a - e.aim));
+    if (Math.abs(da) > e.fov/2) return false;
+
+    if (!lineOfSight(ex,ey,px,py)) return false;
+    return true;
+  }
+
+  function enemyInvestigateTarget(e, tx, ty){
+    e.state = "investigate";
+    e.tx = tx;
+    e.ty = ty;
+  }
+
+  function enemyUpdate(e, dt){
+    const px = state.player.x + state.player.w/2;
+    const py = state.player.y + state.player.h/2;
+    const ex = e.x + e.w/2;
+    const ey = e.y + e.h/2;
+
+    const t = now();
+
+    if (state.coin && t < state.coin.until){
+      const cd = dist(ex,ey,state.coin.x,state.coin.y);
+      if (cd < COIN_PULL_RADIUS) enemyInvestigateTarget(e, state.coin.x, state.coin.y);
+    } else if (state.sound && t < state.sound.until){
+      const sd = dist(ex,ey,state.sound.x,state.sound.y);
+      if (sd < state.sound.r) enemyInvestigateTarget(e, state.sound.x, state.sound.y);
+    }
+
+    const sees = enemySeesPlayer(e);
+    if (sees){
+      e.state = "chase";
+      e.tx = px; e.ty = py;
+      addHeat(0.8*dt*60);
+    } else if (e.state === "chase"){
+      e.state = "investigate";
+    }
+
+    const vx = e.tx - ex;
+    const vy = e.ty - ey;
+    const m = Math.hypot(vx,vy) || 1;
+    const dx = vx/m, dy = vy/m;
+    e.aim = Math.atan2(dy,dx);
+
+    const speed = e.speed * ((now() < state.empUntil) ? 0.65 : 1.0);
+    e.x += dx * speed * dt;
+    e.y += dy * speed * dt;
+
+    e.x = clamp(e.x, 10, GAME_W - e.w - 10);
+    e.y = clamp(e.y, -60, GAME_H - e.h - 10);
+
+    for (const o of state.obstacles){
+      const r = {x:e.x,y:e.y,w:e.w,h:e.h};
+      if (!rectsOverlap(r,o)) continue;
+      if (ey < o.y + o.h/2) e.y = o.y - e.h - 1;
+      else e.y = o.y + o.h + 1;
+    }
+
+    if (e.shoots && now() >= state.empUntil){
+      const range = (e.kind === "assassin") ? 360 : 300;
+      const dd = dist(ex,ey,px,py);
+      if (dd < range && lineOfSight(ex,ey,px,py) && !inSmoke(px,py)){
+        if (t - e.lastShot > e.shotCd){
+          e.lastShot = t;
+          fireBullet(ex, ey, dx*ENEMY_BULLET_SPEED, dy*ENEMY_BULLET_SPEED, 1, true, 0, 0);
+        }
+      }
+    }
+
+    if (state.missionId === 2 && state.vip && state.vip.hp > 0){
+      if (Math.random() < 0.006){
+        e.tx = state.vip.x + state.vip.w/2;
+        e.ty = state.vip.y + state.vip.h/2;
+      }
+    }
+  }
+
+  /***********************
+   * CAMERAS (turrets)
+   ***********************/
+  function cameraSeesPlayer(cam){
+    if (cam.disabled) return false;
+    if (now() < state.empUntil) return false;
+
+    const px = state.player.x + state.player.w/2;
+    const py = state.player.y + state.player.h/2;
+    if (inSmoke(px,py)) return false;
+
+    const d = dist(cam.x,cam.y,px,py);
+    if (d > 320) return false;
+
+    const a = cam.scan;
+    const dirx = Math.cos(a), diry = Math.sin(a);
+    const vx = px - cam.x, vy = py - cam.y;
+    const vm = Math.hypot(vx,vy) || 1;
+    const ndx = vx/vm, ndy = vy/vm;
+    const dot = dirx*ndx + diry*ndy;
+    if (dot < 0.86) return false;
+    if (!lineOfSight(cam.x,cam.y,px,py)) return false;
+    return true;
+  }
+
+  function cameraUpdate(cam, dt){
+    cam.scan += dt * 1.6 * (cam.scanDir || 1);
+    cam.scanDir = cam.scanDir || (Math.random()<0.5?-1:1);
+    if (cam.scan > 2.8) cam.scanDir = -1;
+    if (cam.scan < 0.3) cam.scanDir = 1;
+
+    if (cameraSeesPlayer(cam)){
+      addHeat(1.4*dt*60);
+      const px = state.player.x + state.player.w/2;
+      const py = state.player.y + state.player.h/2;
+      const vx = px - cam.x, vy = py - cam.y;
+      const m = Math.hypot(vx,vy) || 1;
+      const dx = vx/m, dy = vy/m;
+
+      if (!cam.lastShot) cam.lastShot = 0;
+      const t = now();
+      if (t - cam.lastShot > 700){
+        cam.lastShot = t;
+        fireBullet(cam.x, cam.y, dx*(ENEMY_BULLET_SPEED+60), dy*(ENEMY_BULLET_SPEED+60), 1, true, 0, 0);
+      }
+    }
+  }
+
+  /***********************
+   * BOSS CHAIN
+   ***********************/
+  function spawnBruiserBoss(){
+    state.boss = {
+      kind: "bruiser",
+      x: GAME_W/2 - 50, y: -90,
+      w: 100, h: 120,
+      hp: 80,
+      speed: 90,
+      weak: {x:0,y:0,w:0,h:0}
+    };
+  }
+  function updateBruiserBoss(dt){
+    const b = state.boss;
+    if (!b) return;
+    b.y = Math.min(b.y + dt*b.speed, 80);
+
+    const px = state.player.x + state.player.w/2;
+    const py = state.player.y + state.player.h/2;
+    const bx = b.x + b.w/2;
+    const by = b.y + b.h/2;
+    let dx = px - bx, dy = py - by;
+    const m = Math.hypot(dx,dy) || 1;
+    dx/=m; dy/=m;
+    b.x += dx * dt * (b.speed*0.9);
+
+    b.x = clamp(b.x, 40, GAME_W - b.w - 40);
+    b.weak = { x: b.x + b.w*0.34, y: b.y + b.h*0.06, w: b.w*0.32, h: b.h*0.22 };
+
+    const P = {x:state.player.x,y:state.player.y,w:state.player.w,h:state.player.h};
+    if (rectsOverlap(P, {x:b.x,y:b.y,w:b.w,h:b.h})){
+      if (now() >= state.shieldUntil) state.health -= 18*dt*3;
+    }
+  }
+
+  function startSniperDuel(){
+    state.boss = { kind:"sniper", hp: 16 };
+    state.sniperVuln = false;
+    state.sniperWindowUntil = now() + 1200;
+    const bb = state.missionBounds;
+    state.sniperGlint = {x: bb.x + bb.w*0.5, y: bb.y + 70, r: 14};
+  }
+  function updateSniperDuel(dt){
+    const t = now();
+    if (t >= state.sniperWindowUntil){
+      state.sniperVuln = true;
+      const bb = state.missionBounds;
+      state.sniperGlint.x = bb.x + 160 + Math.random()*(bb.w-320);
+      state.sniperGlint.y = 70 + Math.random()*40;
+      state.sniperWindowUntil = t + 850;
+      state.sniperPunishAt = t + 850;
+      state.sniperPunished = false;
+    }
+
+    if (state.sniperVuln && t > state.sniperPunishAt && !state.sniperPunished){
+      state.sniperPunished = true;
+      state.sniperVuln = false;
+      if (now() >= state.shieldUntil) state.health -= 18;
+      audio.sfxHit();
+    }
+
+    if (state.sniperPunished && t > state.sniperPunishAt + 450){
+      state.sniperPunished = false;
+      state.sniperVuln = false;
+      state.sniperWindowUntil = t + 900 + Math.random()*500;
+    }
+  }
+  function sniperHit(){
+    if (!state.boss || state.boss.kind !== "sniper") return false;
+    const g = state.sniperGlint;
+    if (!state.sniperVuln) return false;
+    if (dist(state.target.x, state.target.y, g.x, g.y) <= g.r + 16){
+      state.boss.hp -= 4;
+      state.sniperVuln = false;
+      state.sniperPunished = true;
+      state.sniperPunishAt = now();
+      state.score += 60;
+      return true;
+    }
+    return false;
+  }
+
+  function startHelicopter(){
+    state.boss = { kind:"heli", x: -240, y: 80, w: 170, h: 90, dir: 1, hp: 26, pass: 0, lastShot: 0 };
+    state.heliUntil = now() + 12000;
+  }
+  function updateHelicopter(dt){
+    const h = state.boss;
+    if (!h) return;
+
+    h.x += dt * 220 * h.dir;
+    const bb = state.missionBounds;
+    if (h.x > bb.x + bb.w + 220) { h.dir = -1; h.pass++; }
+    if (h.x < -260) { h.dir = 1; h.pass++; }
+
+    const t = now();
+    if (t - h.lastShot > 420){
+      h.lastShot = t;
+      const px = state.player.x + state.player.w/2;
+      const py = state.player.y + state.player.h/2;
+      const hx = h.x + h.w*0.55;
+      const hy = h.y + h.h*0.70;
+      let dx = px - hx, dy = py - hy;
+      const m = Math.hypot(dx,dy) || 1;
+      dx/=m; dy/=m;
+      fireBullet(hx, hy, dx*(ENEMY_BULLET_SPEED+140), dy*(ENEMY_BULLET_SPEED+140), 1, true, 0, 0);
+    }
+
+    if (t > state.heliUntil || h.hp <= 0){
+      state.bossPhase = 3;
+      state.exfilActive = true;
+      state.exfilUntil = now() + EXFIL_MS;
+    }
+  }
+
+  /***********************
+   * MEDIAPIPE (blink + hands)
+   ***********************/
+  const videoEl = document.getElementById("video");
+  const mp = {
+    enabled:false,
+    camera:null,
+    faceMesh:null,
+    hands:null,
+    nose:{ x:0.5, y:0.5 },
+
+    // Face-driven cursor (NO gaze). Pointer is derived from nose/head drift around screen center.
+    facePointer:{ x:0.5, y:0.5, sx:0.5, sy:0.5, gainX:2.2, gainY:2.0, dead:0.012, valid:false, lastSeen:0 },
+
+    calEye:{ active:false, until:0, samples:[], minx:0.20, maxx:0.80, miny:0.20, maxy:0.80, ready:false },
+
+    hand:{ pinch:false, fist:false, openPalm:false, raised:false, lastRaised:0, raiseSince:0, lastSeen:0 },
+    lastReloadGesture:0,
+
+    blink:{
+      shootEnabled:true,          // EASY MODE default
+      loginEnabled:false,         // EASY MODE: no start lock
+      loginActive:false,
+      loginPassed:true,
+      loginCount:0,
+      loginRequired:2,
+
+      calibrated:false,
+      calPhase:0,
+      calUntil:0,
+      samples:[],
+      ear:0.30,
+      openEar:0.30,
+      closedEar:0.18,
+      thresh:0.23,
+      consecFrames:2,
+      framesBelow:0,
+      lastBlinkMs:0,
+      debounceMs:280,
+      event:false
+    }
+  };
+
+  function median(arr) {
+    if (!arr || !arr.length) return 0;
+    const a = arr.slice().sort((x,y)=>x-y);
+    const mid = Math.floor(a.length/2);
+    return (a.length % 2) ? a[mid] : (a[mid-1] + a[mid]) / 2;
+  }
+
+  function startEyeCalibration(){ startBlinkCalibration(); }
+
+  function startBlinkCalibration(){
+    if (!mp.enabled) { setStatus("Blink calibration requires Webcam ON."); return; }
+    mp.blink.calibrated=false;
+    mp.blink.calPhase=1;
+    mp.blink.samples=[];
+    mp.blink.calUntil = now() + 1200;
+    setStatus("Blink calibration 1/2: keep eyes OPEN for 1.2s.");
+    audio.sfxUiSelect();
+  }
+
+  function applyEyeMapping(fx, fy) {
+    fx = clamp(fx, 0, 1);
+    fy = clamp(fy, 0, 1);
+    if (mp.calEye.ready) {
+      const x = (fx - mp.calEye.minx) / Math.max(1e-6, (mp.calEye.maxx - mp.calEye.minx));
+      const y = (fy - mp.calEye.miny) / Math.max(1e-6, (mp.calEye.maxy - mp.calEye.miny));
+      return { x: clamp(x,0,1), y: clamp(y,0,1) };
+    }
+    // Strong default expansion -> easy to move reticle full-screen
+    const x = clamp((fx - 0.16) / 0.68, 0, 1);
+    const y = clamp((fy - 0.18) / 0.64, 0, 1);
+    return { x, y };
+  }
+
+  function distLm(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+
+  function computeEAR(lm){
+    const l1 = distLm(lm[160], lm[144]);
+    const l2 = distLm(lm[158], lm[153]);
+    const l3 = distLm(lm[33],  lm[133]);
+    const left = (l1+l2)/(2*Math.max(1e-6,l3));
+
+    const r1 = distLm(lm[385], lm[380]);
+    const r2 = distLm(lm[387], lm[373]);
+    const r3 = distLm(lm[362], lm[263]);
+    const right = (r1+r2)/(2*Math.max(1e-6,r3));
+    return (left+right)/2;
+  }
+
+  function computeGazeFeatures(lm){
+    const Liris = lm[468], Riris = lm[473];
+    const Lout = lm[33], Lin = lm[133];
+    const Rin = lm[263], Rout = lm[362];
+    const Lup = lm[159], Llo = lm[145];
+    const Rup = lm[386], Rlo = lm[374];
+    if (!Liris || !Riris || !Lout || !Lin || !Rin || !Rout || !Lup || !Llo || !Rup || !Rlo) return null;
+
+    const lx = (Liris.x - Lout.x) / Math.max(1e-6, (Lin.x - Lout.x));
+    const rx = (Riris.x - Rin.x) / Math.max(1e-6, (Rout.x - Rin.x));
+    const ly = (Liris.y - Lup.y) / Math.max(1e-6, (Llo.y - Lup.y));
+    const ry = (Riris.y - Rup.y) / Math.max(1e-6, (Rlo.y - Rup.y));
+
+    return { fx: clamp((lx + rx) * 0.5, 0, 1), fy: clamp((ly + ry) * 0.5, 0, 1) };
+  }
+
+  function updateFromFaceMesh(results){
+    const faces = results.multiFaceLandmarks;
+    if (!faces || !faces.length) { return; }
+    const lm = faces[0];
+    if (lm[1]) { mp.nose.x=lm[1].x; mp.nose.y=lm[1].y; }
+
+    // Face cursor (no gaze): map nose drift around center into a normalized pointer.
+    const tNow = now();
+    const dx = (mp.nose.x - 0.5);
+    const dy = (mp.nose.y - 0.5);
+    // deadzone to reduce micro-jitter
+    const ddx = (Math.abs(dx) < mp.facePointer.dead) ? 0 : dx;
+    const ddy = (Math.abs(dy) < mp.facePointer.dead) ? 0 : dy;
+    let fx = 0.5 + ddx * mp.facePointer.gainX;
+    let fy = 0.5 + ddy * mp.facePointer.gainY;
+    fx = clamp(fx, 0, 1);
+    fy = clamp(fy, 0, 1);
+    // smooth normalized coords
+    mp.facePointer.sx = lerp(mp.facePointer.sx, fx, 0.25);
+    mp.facePointer.sy = lerp(mp.facePointer.sy, fy, 0.25);
+    mp.facePointer.x = mp.facePointer.sx;
+    mp.facePointer.y = mp.facePointer.sy;
+    mp.facePointer.valid = true;
+    mp.facePointer.lastSeen = tNow;
+
+    // Drive game cursor from face unless the pie menu is open (hand cursor overrides in pie).
+    if (!state.pie.open){
+      const vx = mp.facePointer.x * GAME_W;
+      const vy = mp.facePointer.y * GAME_H;
+      state.mouse.x = lerp(state.mouse.x, vx, 0.30);
+      state.mouse.y = lerp(state.mouse.y, vy, 0.30);
+    }
+
+
+    // Blink
+    // Blink
+    const needed=[33,133,160,144,158,153,362,263,385,380,387,373];
+    for(const idx of needed){ if(!lm[idx]) return; }
+
+    const ear = computeEAR(lm);
+    mp.blink.ear = ear;
+
+    if (mp.blink.calPhase === 1){
+      if (now() < mp.blink.calUntil) mp.blink.samples.push(ear);
+      else {
+        mp.blink.openEar = median(mp.blink.samples);
+        mp.blink.samples = [];
+        mp.blink.calPhase = 2;
+        mp.blink.calUntil = now() + 900;
+        setStatus("Blink calibration 2/2: close eyes and HOLD for ~0.9s.");
+      }
+      mp.blink.framesBelow = 0;
+      mp.blink.event = false;
+      return;
+    } else if (mp.blink.calPhase === 2){
+      if (now() < mp.blink.calUntil) mp.blink.samples.push(ear);
+      else {
+        const sorted = mp.blink.samples.slice().sort((a,b)=>a-b);
+        const cut = Math.max(3, Math.floor(sorted.length * 0.30));
+        const lowSlice = sorted.slice(0, cut);
+        mp.blink.closedEar = median(lowSlice);
+
+        const openE = mp.blink.openEar;
+        const closeE = mp.blink.closedEar;
+        const th = closeE + (openE - closeE)*0.45;
+        mp.blink.thresh = clamp(th, 0.12, 0.36);
+
+        mp.blink.calibrated = true;
+        mp.blink.calPhase = 0;
+        mp.blink.samples = [];
+
+        setStatus("Blink calibration complete.\nopen=" + openE.toFixed(3) + " closed=" + closeE.toFixed(3) + " thresh=" + mp.blink.thresh.toFixed(3));
+        audio.sfxUiConfirm();
+      }
+      mp.blink.framesBelow = 0;
+      mp.blink.event = false;
+      return;
+    }
+
+    const t = now();
+    if (ear < mp.blink.thresh) mp.blink.framesBelow += 1;
+    else {
+      if (mp.blink.framesBelow >= mp.blink.consecFrames){
+        if (t - mp.blink.lastBlinkMs > mp.blink.debounceMs){
+          mp.blink.lastBlinkMs = t;
+          mp.blink.event = true;
+        }
+      }
+      mp.blink.framesBelow = 0;
+    }
+  }
+
+  function pinchDistance(handLm){
+    const t = handLm[4], i = handLm[8];
+    return Math.hypot(t.x-i.x, t.y-i.y);
+  }
+  function isFist(handLm){
+    const tips=[8,12,16,20], pips=[6,10,14,18];
+    let curled=0;
+    for (let k=0;k<4;k++) if (handLm[tips[k]].y > handLm[pips[k]].y) curled++;
+    return curled>=3;
+  }
+  function isOpenPalm(handLm){
+    const tips=[8,12,16,20], pips=[6,10,14,18];
+    let extended=0;
+    for (let k=0;k<4;k++) if (handLm[tips[k]].y < handLm[pips[k]].y) extended++;
+    const thumb = handLm[4], index = handLm[8];
+    const spread = Math.hypot(thumb.x-index.x, thumb.y-index.y) > 0.055; // easier
+    return extended >= 3 && spread;
+  }
+  function isRaisedOpenPalm(handLm){
+    const wrist = handLm[0];
+    const midTip = handLm[12];
+    // easier raise thresholds
+    return isOpenPalm(handLm) && wrist.y < 0.80 && midTip.y < 0.62;
+  }
+
+  function updateHandFromResults(results){
+    const handsLm = results.multiHandLandmarks;
+    if (!handsLm || !handsLm.length) {
+      mp.hand.pinch=false; mp.hand.fist=false; mp.hand.openPalm=false; mp.hand.raised=false;
+      return;
+    }
+    const lm = handsLm[0];
+    const t = now();
+    mp.hand.lastSeen = t;
+
+    // Cursor override only while pie menu is open (palm cursor + pinch).
+    if (state.pie.open){
+      const tip = lm[8] || lm[9] || lm[0];
+      if (tip){
+        const vx = clamp(tip.x, 0, 1) * GAME_W;
+        const vy = clamp(tip.y, 0, 1) * GAME_H;
+        const a = 0.40;
+        state.mouse.x = lerp(state.mouse.x, vx, a);
+        state.mouse.y = lerp(state.mouse.y, vy, a);
+      }
+    }
+
+    // Scale-normalized pinch detection (more stable across distance)
+    const pd = pinchDistance(lm);
+    const scale = (lm[0] && lm[9]) ? Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y) : 0.001;
+    const pn = pd / Math.max(1e-6, scale);
+    mp.hand.pinch = (pd < 0.050) || (pn < 0.20); // easier pinch
+
+    mp.hand.fist = isFist(lm);
+    mp.hand.openPalm = isOpenPalm(lm);
+
+    const raisedNow = isRaisedOpenPalm(lm);
+    if (raisedNow && !mp.hand.raised) mp.hand.raiseSince = t;
+    mp.hand.raised = raisedNow;
+    if (raisedNow) mp.hand.lastRaised = t;
+  }
+
+  async function enableWebcamControls(){
+    if (mp.enabled) { setStatus("Webcam already enabled."); return; }
+    if (typeof FaceMesh === "undefined" || typeof Hands === "undefined" || typeof Camera === "undefined"){
+      setStatus("MediaPipe unavailable (network blocked). Webcam mode not available.");
+      return;
+    }
+    try {
+      mp.faceMesh = new FaceMesh({ locateFile: (f)=>"https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/"+f });
+      mp.faceMesh.setOptions({ selfieMode:true, maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
+      mp.faceMesh.onResults(updateFromFaceMesh);
+
+      mp.hands = new Hands({ locateFile: (f)=>"https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/"+f });
+      mp.hands.setOptions({ selfieMode:true, maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
+      mp.hands.onResults(updateHandFromResults);
+
+      mp.camera = new Camera(videoEl, {
+        width: 640, height: 480,
+        onFrame: async () => {
+          if (!mp.enabled) return;
+          await mp.faceMesh.send({ image: videoEl });
+          await mp.hands.send({ image: videoEl });
+        }
+      });
+      await mp.camera.start();
+      mp.enabled = true;
+
+      // Prevent movement snap on enable
+      const pcx = state.player.x + state.player.w/2;
+      const pcy = state.player.y + state.player.h/2;
+      state.moveTarget.sx = pcx; state.moveTarget.sy = pcy;
+      state.moveTarget.x = pcx; state.moveTarget.y = pcy;
+
+      setStatus("Webcam enabled.\nRecommended: Calibrate Blink (optional).\nAim assist is ON (shots snap near your cursor).");
+    } catch (err){
+      console.error(err);
+      setStatus("Webcam enable failed. Use http://localhost and allow camera permission.");
+    }
+  }
+
+  /***********************
+   * PIE MENU
+   ***********************/
+  const PIE_NS="http://www.w3.org/2000/svg";
+  const ICONS = {
+    smoke:"M14 2c-4 4-5 10-2 14 2 3 7 4 10 1 2-2 1-4-2-4-3 0-6-3-4-7 1-2 3-3 6-3 6 0 8 6 4 10-2 2-2 8 2 12 2 2 2 4 0 6-2 2-5 1-6-1-1-2-5-3-7 0-1 2-1 4 1 6 3 3 9 4 13 1 3-2 4-6 1-9-2-2-2-5 0-7 7-6 3-16-6-16-4 0-8 2-10 5z",
+    emp:"M14 2L4 14h7l-2 8 11-14h-7l1-6z",
+    coin:"M12 2C6 2 2 4.7 2 8v8c0 3.3 4 6 10 6s10-2.7 10-6V8c0-3.3-4-6-10-6zm0 4c4.6 0 7 1.7 7 2s-2.4 2-7 2-7-1.7-7-2 2.4-2 7-2zm-7 5.4C6.7 12.4 9.7 13 12 13s5.3-.6 7-1.6V16c0 .3-2.4 2-7 2s-7-1.7-7-2v-4.6z",
+    hack:"M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3zm-3 4a2 2 0 0 1 1 3.7V19h-2v-2.3A2 2 0 0 1 12 13z",
+    dash:"M4 12h9l-3-3 2-2 6 6-6 6-2-2 3-3H4z",
+    reload:"M12 6V2L7 7l5 5V8a4 4 0 1 1-4 4H6a6 6 0 1 0 6-6z",
+    eye:"M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zm11 4a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    blink:"M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12zm10 3c2 0 4-1.7 4-3s-2-3-4-3-4 1.7-4 3 2 3 4 3z M4 4l3 3 M20 4l-3 3",
+  };
+  const PIE_ITEMS = [
+    { key:"smoke", title:"SMOKE", action: () => trySmoke() },
+    { key:"emp",   title:"EMP",   action: () => tryEmp() },
+    { key:"coin",  title:"COIN",  action: () => tryCoin() },
+    { key:"hack",  title:"HACK/LOCK", action: () => { if (tryHackCamera()) return true; return tryOpenLockpickIfNearIntel(); } },
+    { key:"dash",  title:"DASH",  action: () => tryDash() },
+    { key:"reload",title:"RELOAD",action: () => tryReload() },
+    { key:"blink", title:"CAL BLINK",action: () => { startBlinkCalibration(); return true; } },
+    
+  ];
+
+  function polarToCartesian(cx, cy, r, angleDeg){
+    const a = angleDeg * Math.PI / 180;
+    return { x: cx + r*Math.cos(a), y: cy + r*Math.sin(a) };
+  }
+  function wedgePath(cx, cy, r, startDeg, endDeg){
+    const start = polarToCartesian(cx, cy, r, endDeg);
+    const end = polarToCartesian(cx, cy, r, startDeg);
+    const largeArc = (endDeg - startDeg) <= 180 ? "0" : "1";
+    return `M ${cx} ${cy} L ${end.x.toFixed(2)} ${end.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${start.x.toFixed(2)} ${start.y.toFixed(2)} Z`;
+  }
+
+  let pieCenterSub=null, pieCenterCircle=null;
+
+  function buildPieMenuSVG(){
+    while (pieSvg.firstChild) pieSvg.removeChild(pieSvg.firstChild);
+
+    const defs = document.createElementNS(PIE_NS,"defs");
+    const rg = document.createElementNS(PIE_NS,"radialGradient");
+    rg.setAttribute("id","pieGrad");
+    rg.setAttribute("cx","50%"); rg.setAttribute("cy","45%"); rg.setAttribute("r","65%");
+    const s1=document.createElementNS(PIE_NS,"stop"); s1.setAttribute("offset","0%"); s1.setAttribute("stop-color","rgba(90,167,255,.18)");
+    const s2=document.createElementNS(PIE_NS,"stop"); s2.setAttribute("offset","70%"); s2.setAttribute("stop-color","rgba(20,30,55,.10)");
+    const s3=document.createElementNS(PIE_NS,"stop"); s3.setAttribute("offset","100%"); s3.setAttribute("stop-color","rgba(10,14,22,.22)");
+    rg.appendChild(s1); rg.appendChild(s2); rg.appendChild(s3);
+    defs.appendChild(rg); pieSvg.appendChild(defs);
+
+    const base = document.createElementNS(PIE_NS,"circle");
+    base.setAttribute("cx","210"); base.setAttribute("cy","210"); base.setAttribute("r","186");
+    base.setAttribute("fill","url(#pieGrad)");
+    base.setAttribute("stroke","rgba(120,150,220,.18)");
+    base.setAttribute("stroke-width","2");
+    pieSvg.appendChild(base);
+
+    const N = PIE_ITEMS.length;
+    const CX=210, CY=210, R=186;
+    const step = 360 / N;
+
+    for (let i=0;i<N;i++){
+      const start = -90 + i*step;
+      const end = start + step;
+
+      const g = document.createElementNS(PIE_NS,"g");
+      g.setAttribute("class","wedgeGroup");
+      g.setAttribute("id","pieW"+i);
+
+      const p = document.createElementNS(PIE_NS,"path");
+      p.setAttribute("class","wedge");
+      p.setAttribute("d", wedgePath(CX,CY,R,start,end));
+      g.appendChild(p);
+
+      const mid = (start + end) * 0.5;
+      const midRad = mid * Math.PI / 180;
+
+      const ix = CX + Math.cos(midRad) * 112;
+      const iy = CY + Math.sin(midRad) * 112;
+
+      const icon = document.createElementNS(PIE_NS,"path");
+      icon.setAttribute("class","icon");
+      icon.setAttribute("d", ICONS[PIE_ITEMS[i].key] || ICONS.hack);
+      icon.setAttribute("transform", `translate(${(ix-12).toFixed(2)},${(iy-12).toFixed(2)}) scale(1.0)`);
+      g.appendChild(icon);
+
+      const tx = CX + Math.cos(midRad) * 152;
+      const ty = CY + Math.sin(midRad) * 152 + 24;
+
+      const label = document.createElementNS(PIE_NS,"text");
+      label.setAttribute("x", tx.toFixed(2));
+      label.setAttribute("y", ty.toFixed(2));
+      label.setAttribute("class","label");
+      label.textContent = PIE_ITEMS[i].title;
+      g.appendChild(label);
+
+      pieSvg.appendChild(g);
+    }
+
+    pieCenterCircle = document.createElementNS(PIE_NS,"circle");
+    pieCenterCircle.setAttribute("id","pieCenter");
+    pieCenterCircle.setAttribute("cx","210"); pieCenterCircle.setAttribute("cy","210"); pieCenterCircle.setAttribute("r","74");
+    pieSvg.appendChild(pieCenterCircle);
+
+    const title = document.createElementNS(PIE_NS,"text");
+    title.setAttribute("x","210"); title.setAttribute("y","204");
+    title.setAttribute("class","label");
+    title.textContent = "BLINK FIRE";
+    pieSvg.appendChild(title);
+
+    const sub = document.createElementNS(PIE_NS,"text");
+    sub.setAttribute("x","210"); sub.setAttribute("y","228");
+    sub.setAttribute("class","sub");
+    pieSvg.appendChild(sub);
+    pieCenterSub=sub;
+
+    const help = document.createElementNS(PIE_NS,"text");
+    help.setAttribute("x","210"); help.setAttribute("y","262");
+    help.setAttribute("class","sub");
+    help.textContent = "raise hand • cursor select • blink/pinch use";
+    pieSvg.appendChild(help);
+
+    refreshPieCenterLabel();
+    setPieIndex(0);
+  }
+
+  function refreshPieCenterLabel(){
+    if (!pieCenterSub) return;
+    pieCenterSub.textContent = mp.blink.shootEnabled ? "ON" : "OFF";
+  }
+
+  function setPieOpen(open){
+    state.pie.open = !!open;
+    pieWrap.classList.toggle("open", state.pie.open);
+    if (!state.pie.open){
+      state.pie.center=false;
+      state.pie.lastIdx=-1;
+      if (pieCenterCircle) pieCenterCircle.classList.remove("active");
+      for (let i=0;i<PIE_ITEMS.length;i++){
+        const el = document.getElementById("pieW"+i);
+        if (el) el.classList.remove("active");
+      }
+    } else {
+      audio.sfxUiSelect();
+    }
+  }
+
+  function setPieIndex(idx){
+    idx = ((idx % PIE_ITEMS.length) + PIE_ITEMS.length) % PIE_ITEMS.length;
+    state.pie.idx = idx;
+    for (let i=0;i<PIE_ITEMS.length;i++){
+      const el = document.getElementById("pieW"+i);
+      if (el) el.classList.toggle("active", i===state.pie.idx && state.pie.open && !state.pie.center);
+    }
+  }
+
+  function updatePieSelectionFromGaze(){
+    if (!state.pie.open) return;
+
+    // Selection is cursor-based (hand cursor -> state.mouse, or physical mouse)
+    const ax = clamp(state.mouse.x / GAME_W, 0, 1);
+    const ay = clamp(state.mouse.y / GAME_H, 0, 1);
+
+    const dx = ax - 0.5;
+    const dy = ay - 0.5;
+    const mag = Math.hypot(dx, dy);
+
+    const center = mag < 0.085; // slightly easier
+    state.pie.center = center;
+    if (pieCenterCircle) pieCenterCircle.classList.toggle("active", center);
+
+    const rawAng = Math.atan2(dy, dx);
+    const R = 150;
+    const cx = window.innerWidth/2;
+    const cy = window.innerHeight/2;
+    const rx = cx + Math.cos(rawAng) * R;
+    const ry = cy + Math.sin(rawAng) * R;
+    pieReticle.style.left = (rx - 6) + "px";
+    pieReticle.style.top  = (ry - 6) + "px";
+
+    if (center) {
+      for (let i=0;i<PIE_ITEMS.length;i++){
+        const el = document.getElementById("pieW"+i);
+        if (el) el.classList.remove("active");
+      }
+      return;
+    }
+
+    let ang = rawAng + Math.PI/2;
+    if (ang < 0) ang += Math.PI*2;
+    const idx = Math.floor(ang / (Math.PI*2/PIE_ITEMS.length));
+
+    if (idx !== state.pie.lastIdx){
+      state.pie.lastIdx = idx;
+      setPieIndex(idx);
+      audio.sfxUiSelect();
+    }
+  }
+
+  function activatePieSelection(){
+    if (!state.pie.open) return;
+
+    if (state.pie.center){
+      setBlinkShoot(!mp.blink.shootEnabled);
+      audio.sfxUiConfirm();
+      return;
+    }
+
+    const item = PIE_ITEMS[state.pie.idx];
+    if (!item) return;
+    const ok = !!item.action();
+    if (ok) audio.sfxUiConfirm();
+    else audio.sfxUiError();
+  }
+
+  buildPieMenuSVG();
+
+  /***********************
+   * OVERLAY BUTTONS
+   ***********************/
+  const btnStart = document.getElementById("btnStart");
+  const btnWebcam = document.getElementById("btnWebcam");
+  const btnShowVideo = document.getElementById("btnShowVideo");
+  const btnCalEye = document.getElementById("btnCalEye");
+  const btnCalBlink = document.getElementById("btnCalBlink");
+  const btnBlinkShoot = document.getElementById("btnBlinkShoot");
+  const btnAudio = document.getElementById("btnAudio");
+  const btnMusic = document.getElementById("btnMusic");
+  const btnSfx = document.getElementById("btnSfx");
+
+  function syncAudioButtons(){
+    btnAudio.textContent = "Audio: " + (audio.enabled ? "ON" : "OFF") + (audio.enabled ? (" (Vol " + audio.masterVol.toFixed(2) + ")") : " (Click to enable)");
+    btnMusic.textContent = "Music: " + (audio.musicOn ? "ON" : "OFF");
+    btnSfx.textContent = "SFX: " + (audio.sfxOn ? "ON" : "OFF");
+  }
+  syncAudioButtons();
+
+  function setBlinkShoot(on){
+    mp.blink.shootEnabled = !!on;
+    btnBlinkShoot.textContent = "Blink-to-Shoot: " + (mp.blink.shootEnabled ? "ON" : "OFF");
+    refreshPieCenterLabel();
+    renderOverlayText();
+  }
+
+  btnWebcam.addEventListener("click", async()=>{ await enableWebcamControls(); renderOverlayText(); });
+  btnShowVideo.addEventListener("click", ()=>{
+    const on = (videoEl.style.opacity !== "1");
+    videoEl.style.opacity = on ? "1" : "0";
+    btnShowVideo.textContent = "Preview Camera Feed: " + (on ? "ON" : "OFF");
+  });
+  btnCalEye.addEventListener("click", ()=> startEyeCalibration());
+  btnCalBlink.addEventListener("click", ()=> startBlinkCalibration());
+  btnBlinkShoot.addEventListener("click", ()=> setBlinkShoot(!mp.blink.shootEnabled));
+
+  btnAudio.addEventListener("click", async()=>{
+    try {
+      await audio.enable();
+      syncAudioButtons();
+      renderOverlayText();
+      setStatus("Audio enabled. Music responds to HEAT (stealth tension).");
+    } catch (e) {
+      setStatus("Audio enable failed: " + (e?.message || e));
+    }
+  });
+  btnMusic.addEventListener("click", ()=>{ if (audio.enabled) audio.toggleMusic(); syncAudioButtons(); });
+  btnSfx.addEventListener("click", ()=>{ if (audio.enabled) audio.toggleSfx(); syncAudioButtons(); });
+
+  btnStart.addEventListener("click", async()=>{
+    if (state.stage === "dead"){
+      state.score=0; state.missionId=1;
+      buildMission(1);
+      state.stage="briefing";
+      overlay.style.display="grid";
+      state.paused=true;
+      renderOverlayText();
+      return;
+    }
+
+    if (!state.objectives) buildMission(1);
+
+    if (state.stage === "briefing"){
+      state.stage="playing";
+      overlay.style.display="none";
+      state.paused=false;
+      return;
+    }
+
+    overlay.style.display="none";
+    state.paused=false;
+  });
+
+  /***********************
+   * MISSION TRANSITIONS
+   ***********************/
+  function startExfil(){
+    state.exfilActive=true;
+    state.exfilUntil=now()+EXFIL_MS;
+    setStatus("EXFIL ACTIVE: reach the green zone before timer ends.");
+  }
+
+  function missionComplete(){
+    if (state.missionId < 3) state.missionId += 1;
+    else {
+      state.stage="briefing";
+      overlay.style.display="grid";
+      state.paused=true;
+      state.missionText =
+        "RUN COMPLETE\n" +
+        "You cleared all missions.\n\n" +
+        "Final Score: " + state.score + "\n\n" +
+        "Press Start to replay.";
+      renderOverlayText();
+      return;
+    }
+
+    state.suitIndex = (state.suitIndex + 1) % 3;
+    if (!state.modPierce) state.modPierce = 1;
+    else state.modRicochet = 1;
+    state.perkReload = clamp(state.perkReload + 1, 0, 2);
+
+    buildMission(state.missionId);
+    state.stage="briefing";
+    overlay.style.display="grid";
+    state.paused=true;
+    renderOverlayText();
+  }
+
+  function takeDamage(dmg){
+    if (now() < state.shieldUntil) return;
+    state.health -= dmg;
+    audio.sfxHit();
+    if (state.health <= 0){
+      state.stage="dead";
+      overlay.style.display="grid";
+      state.paused=true;
+      state.missionText =
+        "MISSION FAILED\n\n" +
+        "Score: " + state.score + "\n\n" +
+        "Start to restart the run.";
+      renderOverlayText();
+    }
+  }
+
+  /***********************
+   * GLOBAL CAMERA ROUTING
+   ***********************/
+  let uiHoverBtn=null;
+
+  function updateOverlayGazeCursor(){
+    if (!isOverlayOpen()){
+      uiCursor.classList.remove("on");
+      if (uiHoverBtn) uiHoverBtn.classList.remove("hovered");
+      uiHoverBtn=null;
+      return;
+    }
+
+    // Overlay cursor uses the same cursor/click pipeline as gameplay.
+    // state.mouse is in viewport coords (0..GAME_W/H). Convert to window pixels.
+    const rect = canvas.getBoundingClientRect();
+    const x = rect.left + (state.mouse.x / GAME_W) * rect.width;
+    const y = rect.top  + (state.mouse.y / GAME_H) * rect.height;
+
+    uiCursor.classList.add("on");
+    uiCursor.style.left = (x - 7) + "px";
+    uiCursor.style.top  = (y - 7) + "px";
+
+    const el = document.elementFromPoint(x, y);
+    const btn = el ? el.closest("button.btn") : null;
+    if (btn !== uiHoverBtn){
+      if (uiHoverBtn) uiHoverBtn.classList.remove("hovered");
+      uiHoverBtn = btn;
+      if (uiHoverBtn) uiHoverBtn.classList.add("hovered");
+    }
+  }
+
+  function updatePieOpenFromHand(){
+    const t = now();
+    const allow = mp.enabled && !isOverlayOpen() && !state.paused && state.stage === "playing";
+    if (!allow || state.stage === "lockpick"){
+      if (state.pie.open) setPieOpen(false);
+      return;
+    }
+
+    if (mp.hand.raised){
+      if (!state.pie.open && (t - mp.hand.raiseSince) > 120){
+        setPieOpen(true);
+        setPieIndex(state.pie.idx);
+      }
+    } else {
+      if (state.pie.open && (t - mp.hand.lastRaised) > 260){
+        setPieOpen(false);
+      }
+    }
+
+    if (state.pie.open) updatePieSelectionFromGaze();
+  }
+
+  function consumeBlinkEvent(){
+    if (!mp.enabled || !mp.blink.event) return;
+    mp.blink.event=false;
+
+    // Overlay click
+    if (isOverlayOpen()){
+      if (uiHoverBtn){
+        uiHoverBtn.click();
+        audio.sfxUiConfirm();
+      } else {
+        audio.sfxUiError();
+      }
+      return;
+    }
+
+    // Lockpick
+    if (state.stage === "lockpick"){ lockpickAttempt(); return; }
+
+    // Pie menu activate
+    if (state.pie.open){ activatePieSelection(); return; }
+
+    // Blink-to-shoot
+    if (!state.paused && state.stage === "playing" && mp.blink.shootEnabled){
+      // Target is always cursor-based now (no gaze).
+      state.target.x = state.camera.x + state.mouse.x;
+      state.target.y = state.camera.y + state.mouse.y;
+
+      if (state.missionId === 3 && state.boss && state.boss.kind === "sniper"){
+        if (!sniperHit()) tryFire();
+      } else {
+        tryFire();
+      }
+    }
+  }
+
+  /***********************
+   * UPDATE LOOP
+   ***********************/
+  let lastT = now();
+  let spawnClock = 0;
+
+  function update(dt){
+    if (state.paused) return;
+
+    if (audio.enabled) audio.setIntensity(state.heat / HEAT_MAX);
+
+    if (state.stage === "lockpick"){
+      updateLockpick(dt);
+      state.pressed.clear();
+      return;
+    }
+    if (state.stage !== "playing") return;
+
+    // Aim target (reticle)
+    // Aim always comes from the cursor pipeline:
+    // - physical mouse updates state.mouse via mousemove
+    // - hand cursor updates state.mouse via MediaPipe Hands (index tip)
+    const aimX = state.mouse.x;
+    const aimY = state.mouse.y;
+
+    // Convert viewport aim to world coordinates using camera offset
+    const camX = state.camera.x, camY = state.camera.y;
+    const worldAimX = camX + aimX;
+    const worldAimY = camY + aimY;
+    state.target.x = worldAimX;
+    state.target.y = worldAimY;
+
+    // Movement target smoothing ("move lag")
+    const a = 1 - Math.exp(-state.controls.moveLag * dt);
+    state.moveTarget.sx += (worldAimX - state.moveTarget.sx) * a;
+    state.moveTarget.sy += (worldAimY - state.moveTarget.sy) * a;
+    state.moveTarget.x = state.moveTarget.sx;
+    state.moveTarget.y = state.moveTarget.sy;
+
+    // Update aimDir
+    {
+      const pcx = state.player.x + state.player.w/2;
+      const pcy = state.player.y + state.player.h/2;
+      const adx = worldAimX - pcx;
+      const ady = worldAimY - pcy;
+      const am = Math.hypot(adx, ady);
+      if (am > 8) { state.aimDir.x = adx/am; state.aimDir.y = ady/am; }
+    }
+
+    // Player movement (speed-limited, center-based)
+    if (state.dashing){
+      state.player.x += state.player.vx * dt;
+      state.player.y += state.player.vy * dt;
+      if (now() >= state.dashUntil){
+        state.dashing=false;
+        state.player.vx=0; state.player.vy=0;
+      }
+    } else {
+      const pcx = state.player.x + state.player.w/2;
+      const pcy = state.player.y + state.player.h/2;
+      const dx = state.moveTarget.x - pcx;
+      const dy = state.moveTarget.y - pcy;
+      const d = Math.hypot(dx, dy);
+
+      if (d > 0.5){
+        const ndx = dx / d;
+        const ndy = dy / d;
+        const speed = state.controls.moveSpeed * (d > state.controls.arriveRadius ? 1 : (d / state.controls.arriveRadius));
+        const step = speed * dt;
+        const mv = Math.min(step, d);
+        state.player.x += ndx * mv;
+        state.player.y += ndy * mv;
+      }
+    }
+    const bnd = state.missionBounds;
+    state.player.x = clamp(state.player.x, bnd.x, bnd.x + bnd.w - state.player.w);
+    state.player.y = clamp(state.player.y, bnd.y, bnd.y + bnd.h - state.player.h);
+
+    // obstacle collision
+    for (const o of state.obstacles){
+      const P = {x:state.player.x,y:state.player.y,w:state.player.w,h:state.player.h};
+      if (!rectsOverlap(P,o)) continue;
+      const pcx = P.x + P.w/2, pcy = P.y + P.h/2;
+      const ocx = o.x + o.w/2, ocy = o.y + o.h/2;
+      const dx = pcx - ocx, dy = pcy - ocy;
+      if (Math.abs(dx) > Math.abs(dy)){
+        if (dx < 0) state.player.x = o.x - P.w - 1;
+        else state.player.x = o.x + o.w + 1;
+      } else {
+        if (dy < 0) state.player.y = o.y - P.h - 1;
+        else state.player.y = o.y + o.h + 1;
+      }
+    }
+
+
+    // Camera follow (smooth). Keeps player centered while clamped to mission bounds.
+    {
+      const bb = state.missionBounds;
+      const pcx = state.player.x + state.player.w/2;
+      const pcy = state.player.y + state.player.h/2;
+      const tx = clamp(pcx - GAME_W/2, bb.x, bb.x + bb.w - GAME_W);
+      const ty = clamp(pcy - GAME_H/2, bb.y, bb.y + bb.h - GAME_H);
+      const a = 1 - Math.exp(-10.0 * dt);
+      state.camera.x += (tx - state.camera.x) * a;
+      state.camera.y += (ty - state.camera.y) * a;
+    }
+    // finish reload
+    if (state.reloading && now() >= state.reloadUntil) finishReload();
+
+    // EASY: auto reload when empty
+    if (!state.reloading && state.mag <= 0 && state.reserve > 0) tryReload();
+
+    // fire input (mouse / space / pinch)
+    const spaceDown = state.keys.has(" ") || state.keys.has("space");
+    const shouldFire = !state.pie.open && (state.mouse.down || spaceDown || (mp.enabled && mp.hand.pinch));
+    if (shouldFire) tryFire();
+
+    // gesture reload (fist)
+    if (mp.enabled && mp.hand.fist){
+      if (now() - mp.lastReloadGesture > 700){
+        mp.lastReloadGesture = now();
+        tryReload();
+      }
+    }
+
+    // smoke cleanup
+    for (let i=state.smoke.length-1;i>=0;i--){
+      if (now() >= state.smoke[i].until) state.smoke.splice(i,1);
+    }
+    if (state.coin && now() >= state.coin.until) state.coin = null;
+
+    // camera updates
+    for (const c of state.cameras) cameraUpdate(c, dt);
+
+    // spawns
+    spawnClock += dt*1000;
+    let spawnEvery = (state.missionId===1) ? 1150 : 980;
+    spawnEvery = spawnEvery * (1.0 - 0.40*(state.heat/HEAT_MAX));
+    if (state.missionId === 2 && state.vip && state.vip.hp > 0) spawnEvery *= 0.92;
+    if (now() < state.empUntil) spawnEvery *= 1.08;
+    spawnEvery = clamp(spawnEvery, 420, 1400);
+
+    if (spawnClock >= spawnEvery){
+      spawnWave();
+      spawnClock = 0;
+    }
+
+    // enemies update
+    for (let i=state.enemies.length-1;i>=0;i--){
+      const e = state.enemies[i];
+      enemyUpdate(e, dt);
+      if (e.y > GAME_H + 60){
+        state.enemies.splice(i,1);
+        addHeat(3);
+      }
+    }
+
+    // bullets update + ricochet
+    for (let i=state.bullets.length-1;i>=0;i--){
+      const b = state.bullets[i];
+      b.x += b.vx*dt; b.y += b.vy*dt;
+
+      let bounced=false;
+      for (const o of state.obstacles){
+        const br = {x:b.x,y:b.y,w:b.w,h:b.h};
+        if (!rectsOverlap(br,o)) continue;
+        if (b.ricochetLeft > 0){
+          b.ricochetLeft -= 1;
+          const cx = b.x + b.w/2, cy = b.y + b.h/2;
+          const ox = o.x + o.w/2, oy = o.y + o.h/2;
+          const dx = cx - ox, dy = cy - oy;
+          if (Math.abs(dx) > Math.abs(dy)) b.vx *= -1;
+          else b.vy *= -1;
+          bounced=true; break;
+        } else {
+          state.bullets.splice(i,1);
+          bounced=true; break;
+        }
+      }
+      if (bounced) continue;
+      const bb = state.missionBounds;
+      if (b.x < bb.x-60 || b.x > bb.x+bb.w+60 || b.y < bb.y-60 || b.y > bb.y+bb.h+60) state.bullets.splice(i,1);
+    }
+
+    for (let i=state.enemyBullets.length-1;i>=0;i--){
+      const b = state.enemyBullets[i];
+      b.x += b.vx*dt; b.y += b.vy*dt;
+      const bb = state.missionBounds;
+      if (b.x < bb.x-80 || b.x > bb.x+bb.w+80 || b.y < bb.y-80 || b.y > bb.y+bb.h+80) state.enemyBullets.splice(i,1);
+    }
+
+    // collisions: player bullets vs enemies
+    for (let ei=state.enemies.length-1;ei>=0;ei--){
+      const e = state.enemies[ei];
+      const er = {x:e.x,y:e.y,w:e.w,h:e.h};
+
+      for (let bi=state.bullets.length-1;bi>=0;bi--){
+        const b = state.bullets[bi];
+        const br = {x:b.x,y:b.y,w:b.w,h:b.h};
+        if (!rectsOverlap(er,br)) continue;
+
+        const head = {x:e.x+e.w*0.30,y:e.y+e.h*0.06,w:e.w*0.40,h:e.h*0.25};
+        const headshot = rectsOverlap(head, br);
+        const dmg = 1 + (headshot ? 1 : 0);
+
+        e.hp -= dmg;
+
+        if (b.pierceLeft > 0) b.pierceLeft -= 1;
+        else state.bullets.splice(bi,1);
+
+        if (e.hp <= 0){
+          state.enemies.splice(ei,1);
+          comboBump();
+          const base = (e.kind==="thug"?12:(e.kind==="guard"?24:20));
+          state.score += Math.floor(base * state.combo * state.chipMult);
+
+          if (Math.random() < 0.18) {
+            if (Math.random() < 0.5) state.reserve += 8;
+            else state.shieldUntil = now() + shieldDurationMs();
+          }
+        }
+        break;
+      }
+    }
+
+    // bullets vs cameras
+    for (const c of state.cameras){
+      if (c.disabled) continue;
+      const cr = {x:c.x-22,y:c.y-14,w:44,h:28};
+      for (let bi=state.bullets.length-1;bi>=0;bi--){
+        const b = state.bullets[bi];
+        const br = {x:b.x,y:b.y,w:b.w,h:b.h};
+        if (!rectsOverlap(cr,br)) continue;
+        c.disabled=true;
+        if (state.objectives) state.objectives.camerasDisabled += 1;
+        state.bullets.splice(bi,1);
+        coolHeat(8);
+        state.score += Math.floor(30 * state.chipMult);
+        audio.sfxCameraDown();
+        break;
+      }
+    }
+
+    // enemy bullets vs player
+    const P = {x:state.player.x,y:state.player.y,w:state.player.w,h:state.player.h};
+    for (let bi=state.enemyBullets.length-1;bi>=0;bi--){
+      const b = state.enemyBullets[bi];
+      const br = {x:b.x,y:b.y,w:b.w,h:b.h};
+      if (rectsOverlap(P,br)){
+        state.enemyBullets.splice(bi,1);
+        takeDamage(10);
+      }
+    }
+
+    // enemy vs player or vip
+    for (let ei=state.enemies.length-1;ei>=0;ei--){
+      const e = state.enemies[ei];
+      const er = {x:e.x,y:e.y,w:e.w,h:e.h};
+      if (rectsOverlap(P,er)){
+        state.enemies.splice(ei,1);
+        takeDamage(14);
+        continue;
+      }
+      if (state.missionId===2 && state.vip && state.vip.hp>0){
+        const vr = {x:state.vip.x,y:state.vip.y,w:state.vip.w,h:state.vip.h};
+        if (rectsOverlap(vr,er)){
+          state.enemies.splice(ei,1);
+          state.vip.hp -= 12;
+          if (state.vip.hp <= 0){
+            state.objectives.vipOk=false;
+            takeDamage(1000);
+          }
+        }
+      }
+    }
+
+    // pickups: chips/suppressor
+    for (const ch of state.chips){
+      if (ch.taken) continue;
+      const rr = {x:ch.x-16,y:ch.y-16,w:32,h:32};
+      if (rectsOverlap(P,rr)){
+        ch.taken=true;
+        if (ch.kind === "suppressor"){
+          state.objectives.suppressor=true;
+          state.score += 60;
+        } else {
+          const bump = (state.suitIndex===1) ? 0.12 : 0.10;
+          state.chipMult = clamp(state.chipMult + bump, 1.0, 2.6);
+          state.score += Math.floor(20 * state.combo);
+        }
+        coolHeat(3);
+        audio.sfxPickup();
+      }
+    }
+
+    // casino: vip tables cool heat
+    if (state.missionId===2){
+      for (const t of state.vipTables){
+        const tr = {x:t.x,y:t.y,w:t.w,h:t.h};
+        if (rectsOverlap(P,tr)){
+          coolHeat(0.9*dt*60);
+        }
+      }
+    }
+
+    // mission checks
+    if (state.missionId===1){
+      const intelOk = state.objectives.intelCollected >= 3;
+      const camsOk = state.objectives.camerasDisabled >= 2;
+      if (intelOk && camsOk && !state.exfilActive) startExfil();
+
+      if (state.exfilActive){
+        const remaining = state.exfilUntil - now();
+        if (remaining <= 0) takeDamage(9999);
+        const px = state.player.x + state.player.w/2;
+        const py = state.player.y + state.player.h/2;
+        if (pointInCircle(px,py,state.exfilZone.x,state.exfilZone.y,state.exfilZone.r)){
+          missionComplete();
+        }
+      }
+    }
+
+    if (state.missionId===2){
+      if (state.vip && state.vip.hp > 0){
+        if (now() >= state.vipProtectUntil) missionComplete();
+      }
+    }
+
+    if (state.missionId===3){
+      if (state.bossPhase === 0){
+        updateBruiserBoss(dt);
+        if (state.boss && state.boss.hp <= 0){ state.bossPhase=1; startSniperDuel(); }
+      } else if (state.bossPhase === 1){
+        updateSniperDuel(dt);
+        if (state.boss && state.boss.hp <= 0){ state.bossPhase=2; startHelicopter(); }
+      } else if (state.bossPhase === 2){
+        updateHelicopter(dt);
+      } else if (state.bossPhase === 3){
+        const remaining = state.exfilUntil - now();
+        if (remaining <= 0) takeDamage(9999);
+        const px = state.player.x + state.player.w/2;
+        const py = state.player.y + state.player.h/2;
+        if (pointInCircle(px,py,state.exfilZone.x,state.exfilZone.y,state.exfilZone.r)){
+          missionComplete();
+        }
+      }
+    }
+
+    // heat cool
+    coolHeat(0.18*dt*60);
+    state.pressed.clear();
+  }
+
+  /***********************
+   * BOSS BULLET COLLISIONS
+   ***********************/
+  function bossBulletCollisions(){
+    if (state.stage !== "playing" || state.missionId !== 3 || !state.boss) return;
+    const b = state.boss;
+
+    if (b.kind === "bruiser"){
+      const body = {x:b.x,y:b.y,w:b.w,h:b.h};
+      const weak = b.weak;
+      for (let i=state.bullets.length-1;i>=0;i--){
+        const bl = state.bullets[i];
+        const br = {x:bl.x,y:bl.y,w:bl.w,h:bl.h};
+        if (!rectsOverlap(body, br)) continue;
+
+        const headshot = rectsOverlap(weak, br);
+        b.hp -= headshot ? 6 : 1;
+
+        if (bl.pierceLeft > 0) bl.pierceLeft -= 1;
+        else state.bullets.splice(i,1);
+
+        if (b.hp <= 0){ state.score += 500; break; }
+      }
+    } else if (b.kind === "sniper"){
+      if (state.sniperVuln){
+        for (let i=state.bullets.length-1;i>=0;i--){
+          const bl = state.bullets[i];
+          const g = state.sniperGlint;
+          if (dist(bl.x,bl.y,g.x,g.y) < g.r + 18){
+            b.hp -= 3;
+            state.bullets.splice(i,1);
+            state.sniperVuln=false;
+            state.sniperPunished=true;
+            state.sniperPunishAt=now();
+            if (b.hp <= 0) state.score += 650;
+            break;
+          }
+        }
+      }
+    } else if (b.kind === "heli"){
+      const hr = {x:b.x,y:b.y,w:b.w,h:b.h};
+      for (let i=state.bullets.length-1;i>=0;i--){
+        const bl = state.bullets[i];
+        const br = {x:bl.x,y:bl.y,w:bl.w,h:bl.h};
+        if (!rectsOverlap(hr, br)) continue;
+        b.hp -= 1;
+        state.bullets.splice(i,1);
+        if (b.hp <= 0){ state.score += 450; break; }
+      }
+    }
+  }
+
+  /***********************
+   * RENDER (simple shapes: fast + compact)
+   ***********************/
+  function bgColors(){
+    if (state.missionId === 1) return ["#071018", "#0a1b2a"];
+    if (state.missionId === 2) return ["#16091f", "#2d1233"];
+    return ["#06141a", "#0a0c12"];
+  }
+  function drawBackground(){
+    const [c1,c2] = bgColors();
+    const g = ctx.createLinearGradient(0,0,GAME_W,GAME_H);
+    g.addColorStop(0,c1); g.addColorStop(1,c2);
+    ctx.fillStyle=g; ctx.fillRect(0,0,GAME_W,GAME_H);
+
+    ctx.globalAlpha=0.10;
+    ctx.strokeStyle="#fff"; ctx.lineWidth=1;
+    for (let x=0;x<=GAME_W;x+=48){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,GAME_H); ctx.stroke(); }
+    for (let y=0;y<=GAME_H;y+=48){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(GAME_W,y); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  }
+
+  function drawObstacles(){
+    for (const o of state.obstacles){
+      ctx.globalAlpha=0.92;
+      ctx.fillStyle = (o.type==="table") ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.08)";
+      rrPath(o.x,o.y,o.w,o.h,10); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  function drawVisionCone(e){
+    if (e.kind === "thug") return;
+    const ex=e.x+e.w/2, ey=e.y+e.h/2;
+    const r=e.view, a=e.aim, f=e.fov;
+    const alpha=(e.state==="chase")?0.18:0.10;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=(e.kind==="assassin")?"rgba(120,255,190,1)":"rgba(140,180,255,1)";
+    ctx.beginPath();
+    ctx.moveTo(ex,ey);
+    ctx.arc(ex,ey,r,a-f/2,a+f/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  function drawSmoke(){
+    for (const s of state.smoke){
+      if (now() >= s.until) continue;
+      const life = (s.until - now()) / SMOKE_MS;
+      ctx.globalAlpha = 0.10 + 0.25*life;
+      ctx.fillStyle = "rgba(180,180,255,1)";
+      ctx.beginPath();
+      ctx.arc(s.x,s.y, SMOKE_RADIUS*(0.85+0.15*(1-life)), 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawSound(){
+    if (!state.sound || now() >= state.sound.until) return;
+    const t = (state.sound.until - now()) / SOUND_MS;
+    ctx.globalAlpha = 0.08 + 0.10*t;
+    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(state.sound.x, state.sound.y, state.sound.r*(0.30+0.70*(1-t)), 0, Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawEntities(){
+    // cameras
+    for (const c of state.cameras){
+      const w=52, h=38;
+      drawSprite(sprites.camera, c.x - w/2, c.y - h/2, w, h, 0.95);
+
+      if (!c.disabled && now() >= state.empUntil){
+        ctx.save();
+        ctx.translate(c.x,c.y);
+        ctx.globalAlpha=0.12;
+        ctx.fillStyle="rgba(255,90,90,1)";
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0, 260, c.scan-0.22, c.scan+0.22);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (c.disabled){
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle="rgba(80,220,140,0.9)";
+        ctx.font="12px ui-monospace, monospace";
+        ctx.fillText("EMP", c.x-12, c.y-18);
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // intel
+    for (const it of state.intel){
+      if (it.taken) continue;
+      const w=40, h=46;
+      drawSprite(sprites.intel, it.x - w/2, it.y - h/2, w, h, 0.98);
+      if (it.locked){
+        ctx.globalAlpha=0.95;
+        ctx.fillStyle="rgba(255,215,0,0.95)";
+        ctx.font="12px ui-monospace, monospace";
+        ctx.fillText("LOCK", it.x-18, it.y-28);
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // chips/suppressor
+    for (const ch of state.chips){
+      if (ch.taken) continue;
+      const w=30, h=30;
+      drawSprite(sprites.chip, ch.x - w/2, ch.y - h/2, w, h, 0.95);
+      if (ch.kind === "suppressor"){
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle="rgba(0,0,0,0.55)";
+        rrPath(ch.x-18, ch.y-8, 36, 16, 8); ctx.fill();
+        ctx.fillStyle="rgba(255,255,255,0.92)";
+        ctx.font="11px ui-monospace, monospace";
+        ctx.fillText("SUP", ch.x-14, ch.y+4);
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // vip tables
+    if (state.missionId===2){
+      for (const t of state.vipTables){
+        ctx.globalAlpha=0.25;
+        ctx.fillStyle="rgba(255,215,0,1)";
+        rrPath(t.x,t.y,t.w,t.h,12); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // enemies
+    for (const e of state.enemies){
+      drawVisionCone(e);
+      const img = (e.kind==="thug") ? sprites.thug : (e.kind==="guard" ? sprites.guard : sprites.assassin);
+      drawSprite(img, e.x, e.y, e.w, e.h, 0.98);
+
+      // hp bar
+      ctx.globalAlpha=0.85;
+      ctx.fillStyle="rgba(0,0,0,0.55)";
+      ctx.fillRect(e.x, e.y-9, e.w, 6);
+      ctx.fillStyle="rgba(80,220,140,0.9)";
+      ctx.fillRect(e.x, e.y-9, e.w * clamp(e.hp/12,0,1), 6);
+      ctx.globalAlpha=1;
+    }
+
+    // boss (keep existing simple shapes for clarity)
+    if (state.missionId===3 && state.boss){
+      if (state.boss.kind==="bruiser"){
+        const b=state.boss;
+        ctx.globalAlpha=0.92;
+        ctx.fillStyle="rgba(255,90,90,0.32)";
+        rrPath(b.x,b.y,b.w,b.h,18); ctx.fill();
+        ctx.globalAlpha=1;
+
+        ctx.globalAlpha=0.90;
+        ctx.fillStyle="rgba(255,215,0,0.85)";
+        rrPath(b.weak.x,b.weak.y,b.weak.w,b.weak.h,10); ctx.fill();
+        ctx.globalAlpha=1;
+
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle="rgba(0,0,0,0.55)";
+        ctx.fillRect(GAME_W*0.20, 18, GAME_W*0.60, 10);
+        ctx.fillStyle="rgba(255,90,90,0.85)";
+        ctx.fillRect(GAME_W*0.20, 18, (GAME_W*0.60)*clamp(b.hp/80,0,1), 10);
+        ctx.globalAlpha=1;
+      }
+      if (state.boss.kind==="sniper"){
+        const g=state.sniperGlint;
+        ctx.globalAlpha = state.sniperVuln ? 0.95 : 0.35;
+        ctx.fillStyle="rgba(255,255,255,0.9)";
+        ctx.beginPath(); ctx.arc(g.x,g.y,g.r,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle="rgba(0,0,0,0.55)";
+        ctx.fillRect(GAME_W*0.20, 18, GAME_W*0.60, 10);
+        ctx.fillStyle="rgba(140,180,255,0.85)";
+        ctx.fillRect(GAME_W*0.20, 18, (GAME_W*0.60)*clamp(state.boss.hp/16,0,1), 10);
+        ctx.globalAlpha=1;
+      }
+      if (state.boss.kind==="heli"){
+        const h=state.boss;
+        drawSprite(sprites.heli, h.x, h.y, h.w, h.h, 0.98);
+
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle="rgba(0,0,0,0.55)";
+        ctx.fillRect(GAME_W*0.20, 18, GAME_W*0.60, 10);
+        ctx.fillStyle="rgba(255,215,0,0.85)";
+        ctx.fillRect(GAME_W*0.20, 18, (GAME_W*0.60)*clamp(h.hp/26,0,1), 10);
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // vip
+    if (state.vip){
+      drawSprite(sprites.vip, state.vip.x, state.vip.y, state.vip.w, state.vip.h, 0.98);
+
+      ctx.globalAlpha=0.85;
+      ctx.fillStyle="rgba(0,0,0,0.55)";
+      ctx.fillRect(state.vip.x, state.vip.y-9, state.vip.w, 6);
+      ctx.fillStyle="rgba(255,215,0,0.85)";
+      ctx.fillRect(state.vip.x, state.vip.y-9, state.vip.w * clamp(state.vip.hp/80,0,1), 6);
+      ctx.globalAlpha=1;
+    }
+
+    // bullets
+    for (const b of state.bullets){
+      ctx.fillStyle = (state.modRicochet ? "rgba(255,215,0,0.95)" : "rgba(255,255,255,0.92)");
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+    }
+    for (const b of state.enemyBullets){
+      ctx.fillStyle = "rgba(255,90,90,0.92)";
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+    }
+
+    if (state.coin){
+      ctx.globalAlpha=0.65;
+      ctx.fillStyle="rgba(255,215,0,0.95)";
+      ctx.beginPath(); ctx.arc(state.coin.x,state.coin.y,10,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+
+    // shield ring
+    if (now() < state.shieldUntil){
+      ctx.globalAlpha=0.75;
+      ctx.strokeStyle="rgba(180,200,255,0.9)";
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.arc(state.player.x + state.player.w/2, state.player.y + state.player.h/2, Math.max(state.player.w,state.player.h)*0.72, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha=1;
+    }
+
+    // player (SVG suit)
+    const px=state.player.x, py=state.player.y, pw=state.player.w, ph=state.player.h;
+    const suitImg = sprites.spy[clamp(state.suitIndex,0,2)|0] || sprites.spy[0];
+    drawSprite(suitImg, px, py, pw, ph, 0.99);
+  }
+
+  function drawCrosshair(){
+
+    const tx=state.target.x, ty=state.target.y;
+    ctx.globalAlpha=0.80;
+    ctx.strokeStyle="rgba(255,255,255,0.75)";
+    ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(tx,ty,12,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx-18,ty); ctx.lineTo(tx+18,ty);
+    ctx.moveTo(tx,ty-18); ctx.lineTo(tx,ty+18);
+    ctx.stroke();
+    ctx.globalAlpha=1;
+
+    if (state.exfilActive){
+      const r=state.exfilZone.r;
+      const remaining=Math.max(0, state.exfilUntil - now());
+      const t=remaining/EXFIL_MS;
+      ctx.globalAlpha=0.12 + 0.30*t;
+      ctx.fillStyle="rgba(80,220,140,1)";
+      ctx.beginPath(); ctx.arc(state.exfilZone.x,state.exfilZone.y,r,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  function drawLockpickOverlay(){
+    const lp = state.lockpick;
+    if (!lp.active) return;
+
+    ctx.globalAlpha=0.45; ctx.fillStyle="rgba(0,0,0,1)"; ctx.fillRect(0,0,GAME_W,GAME_H); ctx.globalAlpha=1;
+
+    const w=560,h=260;
+    const x=(GAME_W-w)/2, y=(GAME_H-h)/2;
+
+    ctx.fillStyle="rgba(10,14,22,0.94)";
+    rrPath(x,y,w,h,16); ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,0.14)";
+    ctx.lineWidth=2; rrPath(x,y,w,h,16); ctx.stroke();
+
+    ctx.fillStyle="rgba(255,255,255,0.92)";
+    ctx.font="18px ui-monospace, monospace";
+    ctx.fillText("LOCKPICK INTERFACE", x+18, y+32);
+
+    const stress = clamp(lp.stress / lp.maxStress, 0, 1);
+    ctx.globalAlpha=0.85;
+    ctx.fillStyle="rgba(0,0,0,0.55)";
+    ctx.fillRect(x+18, y+48, w-36, 12);
+    ctx.fillStyle="rgba(255,90,90,0.85)";
+    ctx.fillRect(x+18, y+48, (w-36)*stress, 12);
+    ctx.globalAlpha=1;
+
+    ctx.fillStyle="rgba(255,255,255,0.78)";
+    ctx.font="12px ui-monospace, monospace";
+    ctx.fillText("STRESS", x+18, y+75);
+
+    const pins = lp.pins.length;
+    const rowY = y + 104;
+    const rowW = w - 36;
+    const left = x + 18;
+
+    for (let i=0;i<pins;i++){
+      const p = lp.pins[i];
+      const yy = rowY + i*34;
+
+      ctx.globalAlpha=0.90;
+      ctx.fillStyle="rgba(0,0,0,0.55)";
+      rrPath(left, yy, rowW, 18, 9); ctx.fill();
+
+      const zc = left + p.zoneCenter * rowW;
+      const zw = p.zoneWidth * rowW;
+      ctx.fillStyle="rgba(255,215,0,0.22)";
+      rrPath(zc-zw, yy, zw*2, 18, 9); ctx.fill();
+
+      const px = left + p.pos * rowW;
+      ctx.fillStyle = (i === lp.pin) ? "rgba(255,255,255,0.92)" : "rgba(180,180,255,0.65)";
+      ctx.beginPath(); ctx.arc(px, yy+9, 6, 0, Math.PI*2); ctx.fill();
+
+      ctx.globalAlpha=0.95;
+      ctx.fillStyle = (i < lp.pin) ? "rgba(80,220,140,0.95)" : (i === lp.pin ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.55)");
+      ctx.font="12px ui-monospace, monospace";
+      const label = (i < lp.pin) ? "SET" : (i === lp.pin ? "ACTIVE" : "LOCKED");
+      ctx.fillText("PIN " + (i+1) + " — " + label, left + rowW + 10 - 120, yy+13);
+      ctx.globalAlpha=1;
+    }
+
+    ctx.fillStyle="rgba(255,255,255,0.80)";
+    ctx.font="12px ui-monospace, monospace";
+    ctx.fillText("Blink/Pinch/Space/Click to set. Miss raises HEAT. Backspace/Esc abort.", x+18, y+h-20);
+
+    ctx.fillStyle="rgba(255,215,0,0.85)";
+    ctx.font="14px ui-monospace, monospace";
+    ctx.fillText("Set all pins to extract Intel.", x+18, y+96);
+  }
+
+  function draw(){
+    drawBackground();
+
+    // World rendering happens in world-space, translated by the scrolling camera.
+    ctx.save();
+    ctx.translate(-state.camera.x, -state.camera.y);
+
+    drawObstacles();
+    drawSmoke();
+    drawSound();
+    drawEntities();
+    drawCrosshair();
+
+    ctx.restore();
+
+    if (state.stage === "lockpick") drawLockpickOverlay();
+  }
+
+  function drawHud(){
+    const t=now();
+    const flags=[];
+    if (t < state.shieldUntil) flags.push("SHIELD");
+    if (t < state.empUntil) flags.push("EMP");
+    if (state.reloading) flags.push("RELOADING");
+    if (state.dashing) flags.push("DASH");
+    if (mp.enabled && mp.blink.shootEnabled) flags.push("BLINK-FIRE");
+    if (state.objectives && state.objectives.suppressor) flags.push("SUPPRESSOR");
+    if (state.stage === "lockpick") flags.push("LOCKPICK");
+    if (state.pie.open) flags.push("PIE");
+    flags.push("AIM ASSIST");
+
+    let obj="";
+    if (state.objectives){
+      if (state.missionId===1){
+        obj = `Intel ${state.objectives.intelCollected}/3 | Cameras ${state.objectives.camerasDisabled}/2`;
+        if (state.exfilActive){
+          const sec = Math.ceil((state.exfilUntil-now())/1000);
+          obj += ` | EXFIL ${Math.max(0,sec)}s`;
+        }
+        const it = nearIntelLocked();
+        if (it && state.stage==="playing") obj += " | Near Intel: Pie→Hack/Lock or X";
+      } else if (state.missionId===2){
+        const sec = Math.max(0, Math.ceil((state.vipProtectUntil-now())/1000));
+        obj = `VIP ${Math.max(0,Math.round(state.vip?.hp||0))}hp | Hold ${sec}s`;
+      } else {
+        const phase = ["Bruiser","Sniper","Heli","Exfil"][state.bossPhase] || "Boss";
+        obj = `Boss Phase: ${phase}`;
+        if (state.exfilActive){
+          const sec = Math.ceil((state.exfilUntil-now())/1000);
+          obj += ` | EXFIL ${Math.max(0,sec)}s`;
+        }
+      }
+    }
+
+    const handLine = mp.enabled ? `Hand ${mp.hand.raised ? "RAISED" : (mp.hand.pinch ? "PINCH" : (mp.hand.fist ? "FIST" : "—"))}`
+      : "Webcam OFF";
+
+    hudTop.textContent =
+      `Mission ${state.missionId} | Health ${Math.max(0,Math.round(state.health))} | Mag ${state.mag}/${MAG_SIZE} | Reserve ${state.reserve}\n` +
+      `Score ${state.score} | Combo x${state.combo.toFixed(2)} | ChipMult x${state.chipMult.toFixed(2)} | Heat ${Math.round(state.heat)}\n` +
+      `${obj}${flags.length ? " ["+flags.join(" | ")+"]" : ""}\n` +
+      `${handLine}\n` +
+      `Gadgets: Smoke(${state.objectives?state.objectives.smokeCharges:0}) EMP(${state.objectives?state.objectives.empCharges:0}) Coin(${state.objectives?state.objectives.coinCharges:0})`;
+  }
+
+  /***********************
+   * MAIN LOOP
+   ***********************/
+  function loop(){
+    const t = now();
+    const dt = Math.min(0.05, (t - lastT)/1000);
+    lastT = t;
+
+    // If we haven't seen a face in a bit, drop back to non-face inputs (mouse/hand).
+    if (mp.enabled && mp.facePointer.valid && (t - mp.facePointer.lastSeen) > 350){
+      mp.facePointer.valid = false;
+    }
+
+    updateOverlayGazeCursor();
+    updatePieOpenFromHand();
+    consumeBlinkEvent();
+
+    update(dt);
+    bossBulletCollisions();
+    draw();
+    drawHud();
+
+    requestAnimationFrame(loop);
+  }
+
+  /***********************
+   * AUDIO BUTTON SYNC
+   ***********************/
+  function syncAudioButtons(){
+    btnAudio.textContent = "Audio: " + (audio.enabled ? "ON" : "OFF") + (audio.enabled ? (" (Vol " + audio.masterVol.toFixed(2) + ")") : " (Click to enable)");
+    btnMusic.textContent = "Music: " + (audio.musicOn ? "ON" : "OFF");
+    btnSfx.textContent = "SFX: " + (audio.sfxOn ? "ON" : "OFF");
+  }
+
+  /***********************
+   * BOOT
+   ***********************/
+  buildMission(1);
+  state.stage="briefing";
+  overlay.style.display="grid";
+  state.paused=true;
+  renderOverlayText();
+  setStatus("Status: ready. Start to begin Mission 1 briefing.\nBlink shooting + hand pie HUD are enabled.");
+
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
