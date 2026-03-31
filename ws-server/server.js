@@ -28,6 +28,7 @@ const ROOT = path.resolve(__dirname, "..");
 
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
 const db = new Database(DB_PATH);
+const POSTS_RESTORE_PATH = path.join(ROOT, "posts_restore.sql");
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +120,30 @@ try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
+
+function maybeRestorePostsFromSql() {
+  const hasPosts = db.prepare("SELECT 1 FROM chat_messages LIMIT 1").get();
+  if (hasPosts) return;
+  if (!fs.existsSync(POSTS_RESTORE_PATH)) return;
+  const restoreSql = fs.readFileSync(POSTS_RESTORE_PATH, "utf8").trim();
+  if (!restoreSql) return;
+  try {
+    db.exec(restoreSql);
+    const restoredCount =
+      db.prepare("SELECT COUNT(*) AS count FROM chat_messages").get()?.count || 0;
+    if (restoredCount > 0) {
+      console.log(
+        `[restore] Replayed ${restoredCount} posts from ${path.basename(
+          POSTS_RESTORE_PATH
+        )}`
+      );
+    }
+  } catch (error) {
+    console.error("[restore] Failed to replay posts_restore.sql", error);
+  }
+}
+
+maybeRestorePostsFromSql();
 
 const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
