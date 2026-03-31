@@ -1029,6 +1029,7 @@
     const guestMap = {};
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
+    const feedBtn = el('#feed-btn');
     function showStream(){
       videoContainer.removeAttribute('hidden');
       feed.setAttribute('hidden','');
@@ -1165,6 +1166,18 @@
           showStream();
         } else {
           showChat();
+        }
+      });
+    }
+
+    if(feedBtn){
+      feedBtn.addEventListener('click', () => {
+        showChat();
+        if(socket && socket.readyState === 1){
+          requestHistory();
+        } else {
+          renderHistory();
+          connectWS();
         }
       });
     }
@@ -1758,6 +1771,8 @@
               msgs.forEach(m => receive(m));
             } else {
               feed.innerHTML = '';
+              seen.clear();
+              seenComments.clear();
               msgs.forEach(m => receive(m));
             }
           }
@@ -2877,6 +2892,15 @@
 
     function sendSignal(data){
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
+    }
+
+    function requestHistory(room = null){
+      if(room == null){
+        feed.innerHTML = '';
+        seen.clear();
+        seenComments.clear();
+      }
+      sendSignal({ type: 'history-request', room });
     }
 
       function receive(m, isLocal=false){
