@@ -1752,7 +1752,11 @@
         socket = new WebSocket(url);
       } catch { setStatus('off'); return; }
 
-      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
+      socket.addEventListener('open', () => {
+        setStatus('cloud');
+        hydrateCloudFeedFromSnapshot();
+        sendJoin();
+      });
       socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('message', ev => {
@@ -1770,7 +1774,9 @@
             if(msgs.some(m => m.room)){
               msgs.forEach(m => receive(m));
             } else {
+              if(!msgs.length) return;
               feed.innerHTML = '';
+              seen.clear();
               msgs.forEach(m => receive(m));
             }
           }
