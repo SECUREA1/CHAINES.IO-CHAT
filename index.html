@@ -221,6 +221,15 @@
   display: block;
 }
 
+#gesture-games-btn {
+  border-color: color-mix(in oklab, #8ac8ff, var(--lining) 40%);
+  background: linear-gradient(180deg, rgba(29, 96, 206, 0.95), rgba(15, 52, 120, 0.95));
+}
+
+#gesture-games-btn:hover {
+  background: linear-gradient(180deg, rgba(58, 130, 255, 0.96), rgba(23, 69, 150, 0.96));
+}
+
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
 
       #camera-btn.off img { opacity:0.5; }
@@ -435,17 +444,17 @@
     .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
     .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
     .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
-    .gesture-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:25; padding:16px; }
-    .gesture-modal__dialog { width:min(680px, 96vw); max-height:min(760px, 92vh); overflow:auto; background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; }
-    .gesture-modal__header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid var(--lining); }
-    .gesture-modal__title { margin:0; font-size:16px; }
+    .gesture-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,18,43,0.75); z-index:25; padding:16px; }
+    .gesture-modal__dialog { width:min(680px, 96vw); max-height:min(760px, 92vh); overflow:auto; background:linear-gradient(155deg, #091735 0%, #0d2d67 56%, #163f91 100%); border:1px solid color-mix(in oklab, #71b7ff, transparent 35%); box-shadow:0 20px 55px rgba(6, 14, 34, 0.72); border-radius:16px; display:flex; flex-direction:column; color:#eaf3ff; }
+    .gesture-modal__header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid color-mix(in oklab, #7dc1ff, transparent 45%); background:rgba(6, 17, 40, 0.45); }
+    .gesture-modal__title { margin:0; font-size:16px; color:#f6fbff; letter-spacing:0.2px; }
     .gesture-modal__list { list-style:none; margin:0; padding:12px; display:grid; gap:10px; }
-    .gesture-modal__item { border:1px solid var(--lining); border-radius:12px; padding:10px 12px; background: color-mix(in oklab, var(--panel), transparent 22%); }
-    .gesture-modal__item h3 { margin:0; font-size:14px; }
-    .gesture-modal__item p { margin:4px 0 0; font-size:12px; color:var(--muted); }
+    .gesture-modal__item { border:1px solid color-mix(in oklab, #8ac8ff, transparent 50%); border-radius:12px; padding:10px 12px; background: color-mix(in oklab, #163f91, transparent 42%); }
+    .gesture-modal__item h3 { margin:0; font-size:14px; color:#f1f7ff; }
+    .gesture-modal__item p { margin:4px 0 0; font-size:12px; color:#bed9ff; }
     .gesture-modal__actions { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-    .gesture-modal__open { border:1px solid var(--lining); border-radius:999px; padding:7px 12px; color:var(--fg); text-decoration:none; font-size:12px; }
-    .gesture-modal__open:hover { background: color-mix(in oklab, var(--accent), transparent 45%); }
+    .gesture-modal__open { border:1px solid color-mix(in oklab, #9fd2ff, transparent 40%); border-radius:999px; padding:7px 12px; color:#f5faff; text-decoration:none; font-size:12px; background: color-mix(in oklab, #245fce, transparent 35%); }
+    .gesture-modal__open:hover { background: color-mix(in oklab, #2f77f3, transparent 20%); }
 
     .live-btn {
       display:inline-flex;
