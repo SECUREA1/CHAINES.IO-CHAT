@@ -1240,19 +1240,22 @@
         try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
         catch {}
       },
-      pushMsg(m) {
+      upsertMsg(m) {
         try {
+          const id = String(m?.id || '').trim();
+          if(!id) return;
           const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          const idx = items.findIndex(x => x.id === m.id);
-          if(idx >= 0) items[idx] = m;
-          else items.push(m);
-          while (items.length > 200) items.shift();
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
+          const byId = new Map(items.map(x => [String(x?.id || ''), x]).filter(([k]) => !!k));
+          byId.set(id, m);
+          const next = Array.from(byId.values())
+            .sort((a, b) => Number(a?.ts || 0) - Number(b?.ts || 0))
+            .slice(-200);
+          localStorage.setItem('chaines_messages', JSON.stringify(next));
         } catch {}
       },
       removeMsg(id){
         try{
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => x.id !== id);
+          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => String(x?.id) !== String(id));
           localStorage.setItem('chaines_messages', JSON.stringify(items));
         } catch{}
       },
@@ -1479,6 +1482,7 @@
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const seen = new Set();
     const seenComments = new Set();
+    const messageIndex = new Map();
 
     // --- WebRTC state ---
       const peerConnections = {};
@@ -1776,6 +1780,7 @@
               feed.innerHTML = '';
               seen.clear();
               seenComments.clear();
+              messageIndex.clear();
               msgs.forEach(m => receive(m));
             }
           }
@@ -1798,6 +1803,7 @@
           if(data && data.type === 'delete') {
             const el = feed.querySelector(`li[data-id="${data.id}"]`);
             if(el) el.remove();
+            messageIndex.delete(String(data.id));
             store.removeMsg(data.id);
           }
           if(data && data.type === 'self-destruct') {
@@ -2070,6 +2076,7 @@
       }
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+        clientPostId: Date.now().toString(36) + Math.random().toString(36).slice(2,10),
         type: 'chat',
         user: store.user,
         profilePic: store.profilePic,
@@ -2091,7 +2098,6 @@
 
       // Push to UI + storage immediately
         receive(msg, true);
-        if(!room) store.pushMsg(msg);
 
       // Broadcast locally
       try { bc && bc.postMessage(msg); } catch {}
@@ -2902,31 +2908,93 @@
         feed.innerHTML = '';
         seen.clear();
         seenComments.clear();
+        messageIndex.clear();
       }
       sendSignal({ type: 'history-request', room });
     }
 
+      function mergeContentValue(prev, next){
+        if(next == null) return prev;
+        if(typeof next === 'string' && next.trim() === '') return prev;
+        return next;
+      }
+
+      function mergeComments(prev = [], next = []){
+        const byId = new Map();
+        [...prev, ...next].forEach(c => {
+          const key = String(c?.id || `${c?.user || ''}:${c?.ts || ''}:${c?.text || ''}`);
+          if(!key) return;
+          byId.set(key, c);
+        });
+        return Array.from(byId.values());
+      }
+
+      function mergeMessageRecord(prev = {}, incoming = {}){
+        const merged = { ...prev, ...incoming };
+        const preserveFields = ['text', 'image', 'file', 'video', 'broadcast', 'fileName', 'fileType', 'file_name', 'file_type', 'name', 'room', 'profilePic', 'user', 'type', 'isAction', 'selfDestruct'];
+        preserveFields.forEach(field => {
+          merged[field] = mergeContentValue(prev[field], incoming[field]);
+        });
+        merged.likes = Number.isFinite(Number(incoming.likes)) ? Number(incoming.likes) : Number(prev.likes || 0);
+        merged.comments = mergeComments(prev.comments || [], incoming.comments || []);
+        merged.ts = Number(incoming.ts || 0) >= Number(prev.ts || 0) ? (incoming.ts || prev.ts || Date.now()) : (prev.ts || incoming.ts || Date.now());
+        return merged;
+      }
+
       function receive(m, isLocal=false){
-        if(!m || seen.has(m.id)) return;
-        seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
-        if(m.room){
-          if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
-          if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
+        if(!m) return;
+        const incoming = { ...m };
+        if(incoming.message && !incoming.text) incoming.text = incoming.message;
+        if(incoming.file_name && !incoming.fileName) incoming.fileName = incoming.file_name;
+        if(incoming.file_type && !incoming.fileType) incoming.fileType = incoming.file_type;
+        if(!incoming.file_name && incoming.fileName) incoming.file_name = incoming.fileName;
+        if(!incoming.file_type && incoming.fileType) incoming.file_type = incoming.fileType;
+        const incomingId = String(incoming.id || '').trim();
+        if(!incomingId) return;
+
+        let targetId = incomingId;
+        if(incoming.clientPostId){
+          for(const [id, existing] of messageIndex.entries()){
+            if(existing?.clientPostId && existing.clientPostId === incoming.clientPostId){
+              targetId = id;
+              break;
+            }
+          }
+        }
+        const existing = messageIndex.get(targetId);
+        const merged = mergeMessageRecord(existing || {}, incoming);
+        merged.id = incomingId;
+        if(incoming.messageId || merged.messageId) merged.messageId = Number(incoming.messageId || merged.messageId);
+        if(targetId !== incomingId) messageIndex.delete(targetId);
+        messageIndex.set(String(merged.id), merged);
+        seen.add(String(merged.id));
+
+        if(activeRooms.size > 0 && !merged.room) return;
+        if(merged.room){
+          if(!streams[merged.room]) ensureStreamThumb(merged.room, merged.room);
+          if(streams[merged.room]) appendMessage(merged, false, streams[merged.room].feed);
         } else {
-          appendMessage(m);
-          store.pushMsg(m);
+          appendMessage(merged);
+          store.upsertMsg(merged);
         }
       }
 
       function renderHistory(){
       feed.innerHTML = '';
-      const items = store.loadMsgs();
-      items.slice().reverse().forEach(m => appendMessage(m, true));
+      const items = store.loadMsgs().sort((a, b) => Number(a?.ts || 0) - Number(b?.ts || 0));
+      messageIndex.clear();
+      items.forEach(m => {
+        if(!m || !m.id) return;
+        messageIndex.set(String(m.id), m);
+      });
+      items.forEach(m => appendMessage(m, true));
       scrollToTop();
     }
 
       function appendMessage(m, skipScroll=false, container=feed){
+        if(!m?.id) return;
+        const existing = container.querySelector(`li[data-id="${String(m.id)}"]`);
+        if(existing) existing.remove();
         const mine = m.user === store.user;
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
