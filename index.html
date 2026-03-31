@@ -1732,19 +1732,6 @@
       if(mode !== 'cloud') renderHistory();
     }
 
-    async function hydrateCloudFeedFromSnapshot(){
-      try {
-        const res = await fetch('/api/cloud-feed', { cache: 'no-store' });
-        if(!res.ok) return;
-        const data = await res.json().catch(() => null);
-        const messages = Array.isArray(data?.messages) ? data.messages : [];
-        if(!messages.length) return;
-        feed.innerHTML = '';
-        seen.clear();
-        messages.forEach((m) => receive(m, true));
-      } catch {}
-    }
-
     function connectWS(){
       const url = store.wsURL;
       if(!('WebSocket' in window)) return setStatus('off');
@@ -1752,11 +1739,7 @@
         socket = new WebSocket(url);
       } catch { setStatus('off'); return; }
 
-      socket.addEventListener('open', () => {
-        setStatus('cloud');
-        hydrateCloudFeedFromSnapshot();
-        sendJoin();
-      });
+      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
       socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('message', ev => {
@@ -1774,9 +1757,7 @@
             if(msgs.some(m => m.room)){
               msgs.forEach(m => receive(m));
             } else {
-              if(!msgs.length) return;
               feed.innerHTML = '';
-              seen.clear();
               msgs.forEach(m => receive(m));
             }
           }
@@ -1859,7 +1840,6 @@
       auth.style.display = 'none';
 
       renderHistory();
-      hydrateCloudFeedFromSnapshot();
       if (!socket || socket.readyState > 1) connectWS();
       else sendJoin();
       if (!bc) setupLocal();
