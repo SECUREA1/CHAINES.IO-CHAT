@@ -1655,11 +1655,16 @@ class ControlManager{
     state.simBus.targets = {};
 
     let dx = 0, dy = 0, click = false, setPos = null;
+    const inGamesMode = state.ui.mode === "app:games";
 
-    // Determine which controller is currently driving the in-app cursor
-    let cursorControl = resolveCursorDriver();
+    // Determine which controller is currently driving the in-app cursor / games controls.
+    // In Games mode, the selected control can drive input even when its routing target isn't Cursor.
+    const preferredControl = state.settings.active?.cursorControl || resolveCursorDriver();
+    let cursorControl = preferredControl;
     if(!this.active.has(cursorControl)){
-      cursorControl = [...this.active.keys()].find(n => getTunerTarget(n) === "cursor_ui") || cursorControl;
+      cursorControl = inGamesMode
+        ? (TUNER_ORDER.find(n => this.active.has(n)) || [...this.active.keys()][0] || cursorControl)
+        : ([...this.active.keys()].find(n => getTunerTarget(n) === "cursor_ui") || cursorControl);
     }
 
     // Update all active controllers; each publishes to Sim Bus based on its routed target.
@@ -1669,8 +1674,9 @@ class ControlManager{
       // Route to sim bus (per-tuner + per-target)
       updateSimBusFromController(name, out);
 
-      // Only the active cursor controller (routed to Cursor) drives the on-screen pointer
-      if(name === cursorControl && getTunerTarget(name) === "cursor_ui"){
+      // Only one selected controller drives the on-screen pointer.
+      // In Games mode we accept the selected control regardless of Sim Bus target.
+      if(name === cursorControl && (inGamesMode || getTunerTarget(name) === "cursor_ui")){
         if(out.setPos) setPos = out.setPos;
         dx += out.dx || 0;
         dy += out.dy || 0;
