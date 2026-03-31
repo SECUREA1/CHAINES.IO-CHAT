@@ -2526,16 +2526,16 @@ class GamesApp{
     if(!state.settings.games){
       state.settings.games = {
         last: "pong",
-        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null }
+        highs: { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null, asteroidBestMs:null, tapblitz:0 }
       };
       saveSettings();
     }
     if(!state.settings.games.highs){
-      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
+      state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null, asteroidBestMs:null, tapblitz:0 };
       saveSettings();
     }
     state.settings.games.highs = {
-      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null,
+      breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null, asteroidBestMs:null, tapblitz:0,
       ...state.settings.games.highs
     };
 
@@ -2561,6 +2561,8 @@ class GamesApp{
       { key:"runner",   title:"Lane Runner",   desc:"Standardized endless runner. Cursor chooses lane, click/pinch dashes." },
       { key:"runnerX",  title:"Runner X",      desc:"Faster lane runner with shorter dash recovery." },
       { key:"memory",   title:"Memory Match",  desc:"Standardized memory game. Cursor + click to flip matching cards." },
+      { key:"asteroid", title:"Asteroid Drift", desc:"Survive an asteroid field. Cursor steers, click/pinch triggers a short phase dash." },
+      { key:"tapblitz", title:"Tap Blitz",      desc:"Rapid mobile-friendly target challenge. Click/pinch highlighted targets before time runs out." },
     ];
 
     this.games = {
@@ -2584,7 +2586,9 @@ class GamesApp{
       hoopsFrenzy: new HoopsFrenzyGame(),
       runner: new LaneRunnerGame(),
       runnerX: new RunnerXGame(),
-      memory: new MemoryMatchGame()
+      memory: new MemoryMatchGame(),
+      asteroid: new AsteroidDriftGame(),
+      tapblitz: new TapBlitzGame()
     };
 
     this.current = state.settings.games.last || "pong";
@@ -2690,7 +2694,7 @@ class GamesApp{
   }
 
   clearScores(){
-    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null };
+    state.settings.games.highs = { breakout:0, bubbles:0, catch:0, reactionBestMs: null, neon:0, sports:0, hoops:0, runner:0, memoryBestMs:null, asteroidBestMs:null, tapblitz:0 };
     saveSettings();
     toast("Game scores cleared");
   }
@@ -3635,6 +3639,222 @@ class MemoryMatchGame{
     const best = state.settings.games.highs.memoryBestMs;
     ctx.fillStyle="rgba(234,242,255,.88)"; ctx.font="900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"; ctx.textAlign="left"; ctx.fillText(`MATCHED ${flips}/6   BEST ${best===null?'--':best+'ms'}`, 18, 28);
     if(this.completeMs !== null){ ctx.textAlign="center"; ctx.fillStyle="rgba(242,213,122,.92)"; ctx.fillText(`CLEARED IN ${this.completeMs} ms — CLICK TO RESTART`, w/2, h*0.9); }
+    ctx.restore();
+  }
+}
+
+class AsteroidDriftGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Steer with cursor to dodge incoming asteroids. Click/pinch for a brief phase dash that can pass through danger."; }
+  reset(){
+    this.ship = {x:0.5, y:0.85};
+    this.asteroids = [];
+    this.spawnCd = 0;
+    this.running = true;
+    this.startMs = nowMs();
+    this.phaseMs = 0;
+    this.phaseCd = 0;
+    this.survivalMs = 0;
+  }
+  bestMs(){
+    return state.settings.games.highs.asteroidBestMs;
+  }
+  setBestIfNeeded(ms){
+    const prev = state.settings.games.highs.asteroidBestMs;
+    if(prev === null || ms > prev){
+      state.settings.games.highs.asteroidBestMs = ms;
+      saveSettings();
+      toast(`New Asteroid Drift best: ${(ms/1000).toFixed(1)}s`);
+    }
+  }
+  onClick(){
+    if(!this.active) return;
+    if(!this.running){ this.reset(); return; }
+    if(this.phaseCd <= 0 && this.phaseMs <= 0){
+      this.phaseMs = 560;
+      this.phaseCd = 1850;
+    }
+  }
+  update(dt, cur){
+    if(!this.active) return;
+    const t = dt/1000;
+    this.ship.x = clamp(cur?.x ?? 0.5, 0.07, 0.93);
+    this.ship.y = clamp((cur?.y ?? 0.8)*0.68 + 0.26, 0.42, 0.92);
+    if(!this.running) return;
+
+    this.phaseMs = Math.max(0, this.phaseMs - dt);
+    this.phaseCd = Math.max(0, this.phaseCd - dt);
+    this.survivalMs = Math.round(nowMs() - this.startMs);
+
+    this.spawnCd -= dt;
+    if(this.spawnCd <= 0){
+      const laneBias = Math.random()*0.7 + 0.15;
+      this.asteroids.push({
+        x: laneBias,
+        y: -0.08,
+        r: 0.018 + Math.random()*0.034,
+        vx: (Math.random()-0.5)*0.18,
+        vy: 0.24 + Math.random()*0.22 + Math.min(0.34, this.survivalMs*0.000012)
+      });
+      this.spawnCd = Math.max(120, 420 - this.survivalMs*0.0045);
+    }
+
+    const invuln = this.phaseMs > 0;
+    const shipR = 0.032;
+    for(let i=this.asteroids.length-1; i>=0; i--){
+      const a = this.asteroids[i];
+      a.x += a.vx*t;
+      a.y += a.vy*t;
+      if(a.x < a.r){ a.x = a.r; a.vx = Math.abs(a.vx); }
+      if(a.x > 1-a.r){ a.x = 1-a.r; a.vx = -Math.abs(a.vx); }
+      if(a.y > 1.15){
+        this.asteroids.splice(i,1);
+        continue;
+      }
+      if(!invuln){
+        const dx = a.x - this.ship.x;
+        const dy = a.y - this.ship.y;
+        const rr = a.r + shipR;
+        if(dx*dx + dy*dy <= rr*rr){
+          this.running = false;
+          this.setBestIfNeeded(this.survivalMs);
+          break;
+        }
+      }
+    }
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    const best = this.bestMs();
+    ctx.fillStyle = "rgba(4,10,20,.45)";
+    ctx.fillRect(0,0,w,h);
+    for(const a of this.asteroids){
+      ctx.fillStyle = "rgba(140,180,255,.70)";
+      ctx.beginPath();
+      ctx.arc(a.x*w, a.y*h, a.r*Math.min(w,h), 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(242,213,122,.20)";
+      ctx.stroke();
+    }
+    ctx.fillStyle = this.phaseMs > 0 ? "rgba(50,213,131,.95)" : "rgba(234,242,255,.92)";
+    roundRect(ctx, this.ship.x*w-14, this.ship.y*h-11, 28, 22, 8);
+    ctx.fill();
+    ctx.fillStyle = "rgba(234,242,255,.90)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    const bestLabel = best == null ? "--" : `${(best/1000).toFixed(1)}s`;
+    const liveLabel = `${(this.survivalMs/1000).toFixed(1)}s`;
+    const dashLabel = this.phaseMs > 0 ? "ON" : (this.phaseCd <= 0 ? "READY" : `${(this.phaseCd/1000).toFixed(1)}s`);
+    ctx.fillText(`TIME ${liveLabel}   BEST ${bestLabel}   PHASE ${dashLabel}`, 18, 28);
+    if(!this.running){
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,77,77,.88)";
+      ctx.fillText("SHIP LOST — CLICK TO RESTART", w/2, h*0.56);
+    }else if(this.phaseCd <= 0 && this.phaseMs <= 0){
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(242,213,122,.75)";
+      ctx.fillText("CLICK / PINCH TO PHASE DASH", w/2, h*0.90);
+    }
+    ctx.restore();
+  }
+}
+
+class TapBlitzGame{
+  constructor(){ this.active = false; this.reset(); }
+  helpText(){ return "Tap/click the active target quickly. Designed to be mobile-friendly with large hit zones and short rounds."; }
+  reset(){
+    this.running = false;
+    this.score = 0;
+    this.combo = 0;
+    this.startMs = 0;
+    this.durationMs = 30000;
+    this.target = null;
+    this.switchAt = 0;
+  }
+  setBestIfNeeded(){
+    const highs = state.settings.games.highs;
+    if((highs.tapblitz || 0) < this.score){
+      highs.tapblitz = this.score;
+      saveSettings();
+      toast(`New Tap Blitz best: ${this.score}`);
+    }
+  }
+  spawnTarget(){
+    this.target = {
+      x: 0.12 + Math.random()*0.76,
+      y: 0.18 + Math.random()*0.62,
+      r: isMobileViewport() ? 0.105 : 0.085
+    };
+    const pace = Math.max(480, 1100 - this.score*4);
+    this.switchAt = nowMs() + pace;
+  }
+  start(){
+    this.running = true;
+    this.score = 0;
+    this.combo = 0;
+    this.startMs = nowMs();
+    this.spawnTarget();
+  }
+  onClick(nx, ny){
+    if(!this.active) return;
+    if(!this.running){ this.start(); return; }
+    if(!this.target) return;
+    const dx = nx - this.target.x;
+    const dy = ny - this.target.y;
+    if(dx*dx + dy*dy <= this.target.r*this.target.r){
+      this.combo += 1;
+      this.score += 8 + Math.min(12, this.combo);
+      this.spawnTarget();
+    }else{
+      this.combo = 0;
+      this.score = Math.max(0, this.score - 4);
+    }
+  }
+  update(){
+    if(!this.active || !this.running) return;
+    const elapsed = nowMs() - this.startMs;
+    if(elapsed >= this.durationMs){
+      this.running = false;
+      this.setBestIfNeeded();
+      return;
+    }
+    if(nowMs() >= this.switchAt){
+      this.combo = 0;
+      this.spawnTarget();
+    }
+  }
+  draw(ctx, w, h){
+    if(!this.active) return;
+    ctx.save();
+    const best = state.settings.games.highs.tapblitz || 0;
+    if(this.target){
+      ctx.fillStyle = "rgba(140,180,255,.30)";
+      ctx.beginPath();
+      ctx.arc(this.target.x*w, this.target.y*h, this.target.r*Math.min(w,h), 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(242,213,122,.55)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = "rgba(242,213,122,.85)";
+      ctx.beginPath();
+      ctx.arc(this.target.x*w, this.target.y*h, this.target.r*Math.min(w,h)*0.45, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(234,242,255,.90)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    if(this.running){
+      const remaining = Math.max(0, this.durationMs - (nowMs() - this.startMs));
+      ctx.fillText(`SCORE ${this.score}   COMBO ${this.combo}   TIME ${(remaining/1000).toFixed(1)}s   BEST ${best}`, 18, 28);
+    }else{
+      ctx.fillText(`BEST ${best}`, 18, 28);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(242,213,122,.90)";
+      ctx.font = "900 19px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("TAP BLITZ", w/2, h*0.45);
+      ctx.fillStyle = "rgba(234,242,255,.82)";
+      ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+      ctx.fillText("CLICK / PINCH TO START", w/2, h*0.52);
+    }
     ctx.restore();
   }
 }
@@ -4891,6 +5111,8 @@ function renderPanel_Games(){
       el("div",{class:"kv2"},[el("span",{},["Penalty Pro"]), el("b",{},[String(hs.sports || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Street Hoops"]), el("b",{},[String(hs.hoops || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Lane Runner"]), el("b",{},[String(hs.runner || 0)])]),
+      el("div",{class:"kv2"},[el("span",{},["Asteroid Drift Best"]), el("b",{},[(hs.asteroidBestMs == null ? "--" : `${(hs.asteroidBestMs/1000).toFixed(1)}s`)])]),
+      el("div",{class:"kv2"},[el("span",{},["Tap Blitz"]), el("b",{},[String(hs.tapblitz || 0)])]),
       el("div",{class:"kv2"},[el("span",{},["Reaction Best"]), el("b",{},[reactionBest])]),
       el("div",{class:"kv2"},[el("span",{},["Memory Match Best"]), el("b",{},[(hs.memoryBestMs == null ? "--" : `${hs.memoryBestMs} ms`)])]),
       el("div",{class:"row"},[
