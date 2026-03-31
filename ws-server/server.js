@@ -125,10 +125,25 @@ function maybeRestorePostsFromSql() {
   const hasPosts = db.prepare("SELECT 1 FROM chat_messages LIMIT 1").get();
   if (hasPosts) return;
   if (!fs.existsSync(POSTS_RESTORE_PATH)) return;
-  const restoreSql = fs.readFileSync(POSTS_RESTORE_PATH, "utf8").trim();
-  if (!restoreSql) return;
+  const restoreSql = fs.readFileSync(POSTS_RESTORE_PATH, "utf8");
+  if (!restoreSql.trim()) return;
+  const replayStatements = restoreSql
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.startsWith("INSERT INTO chat_messages ") ||
+        line.startsWith("INSERT INTO comments ") ||
+        line.startsWith("INSERT INTO likes ")
+    );
+  if (!replayStatements.length) return;
   try {
-    db.exec(restoreSql);
+    const replay = db.transaction(() => {
+      for (const statement of replayStatements) {
+        db.exec(statement);
+      }
+    });
+    replay();
     const restoredCount =
       db.prepare("SELECT COUNT(*) AS count FROM chat_messages").get()?.count || 0;
     if (restoredCount > 0) {
