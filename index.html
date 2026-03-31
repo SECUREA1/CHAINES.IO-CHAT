@@ -2994,7 +2994,6 @@
       function appendMessage(m, skipScroll=false, container=feed){
         if(!m?.id) return;
         const existing = container.querySelector(`li[data-id="${String(m.id)}"]`);
-        if(existing) existing.remove();
         const mine = m.user === store.user;
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
@@ -3146,7 +3145,12 @@
       }
 
       if(container === feed){
-        container.insertBefore(li, container.firstChild);
+        if(existing){
+          existing.replaceWith(li);
+          skipScroll = true;
+        } else {
+          container.insertBefore(li, container.firstChild);
+        }
         if(m.selfDestruct){
           const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
           setTimeout(() => {
