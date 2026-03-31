@@ -221,13 +221,29 @@
   display: block;
 }
 
+#conn-chip,
+#video-toggle,
+#ghost-btn,
+#feed-btn,
+#omconsole-btn,
 #gesture-games-btn {
   border-color: color-mix(in oklab, #8ac8ff, var(--lining) 40%);
   background: linear-gradient(180deg, rgba(29, 96, 206, 0.95), rgba(15, 52, 120, 0.95));
 }
 
+#conn-chip:hover,
+#video-toggle:hover,
+#ghost-btn:hover,
+#feed-btn:hover,
+#omconsole-btn:hover,
 #gesture-games-btn:hover {
   background: linear-gradient(180deg, rgba(58, 130, 255, 0.96), rgba(23, 69, 150, 0.96));
+}
+
+#video-toggle,
+#omconsole-btn {
+  width: auto;
+  padding: 0 10px;
 }
 
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
@@ -453,8 +469,9 @@
     .gesture-modal__item h3 { margin:0; font-size:14px; color:#f1f7ff; }
     .gesture-modal__item p { margin:4px 0 0; font-size:12px; color:#bed9ff; }
     .gesture-modal__actions { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-    .gesture-modal__open { border:1px solid color-mix(in oklab, #9fd2ff, transparent 40%); border-radius:999px; padding:7px 12px; color:#f5faff; text-decoration:none; font-size:12px; background: color-mix(in oklab, #245fce, transparent 35%); }
+    .gesture-modal__open { border:1px solid color-mix(in oklab, #9fd2ff, transparent 40%); border-radius:999px; padding:7px 12px; color:#f5faff; text-decoration:none; font-size:12px; background: color-mix(in oklab, #245fce, transparent 35%); display:inline-flex; align-items:center; gap:6px; }
     .gesture-modal__open:hover { background: color-mix(in oklab, #2f77f3, transparent 20%); }
+    .gesture-modal__open img { width:16px; height:16px; display:block; }
 
     .live-btn {
       display:inline-flex;
@@ -780,10 +797,10 @@
         </div>
         <div class="toolbar">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
+          <button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="Feed toggle" /><span id="video-toggle-label">Show Feed</span></button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
-          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
+          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/split.svg" alt="OMConsole" /><span>OMConsole</span></button>
           <button id="gesture-games-btn" class="chip" type="button" title="Open gesture games" aria-label="Open gesture games"><img src="static/games.svg" alt="Gesture games" /></button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
         </div>
@@ -880,28 +897,28 @@
           <h3>Gesture Billiards Pro (2P).html</h3>
           <p>Create Gesture Billiards Pro (2P).html · 1 minute ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="Gesture Billiards Pro (2P).html" target="_blank" rel="noopener">Open game</a>
+            <a class="gesture-modal__open" href="/Gesture%20Billiards%20Pro%20(2P).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>Gesture Mini Putt Pro (18 Holes).html</h3>
           <p>Create Gesture Mini Putt Pro (18 Holes).html · 4 minutes ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="Gesture Mini Putt Pro (18 Holes).html" target="_blank" rel="noopener">Open game</a>
+            <a class="gesture-modal__open" href="/Gesture%20Mini%20Putt%20Pro%20(18%20Holes).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html</h3>
           <p>Updated · 2 minutes ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener">Open game</a>
+            <a class="gesture-modal__open" href="/GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>Mobile Mini Putt — Pinch Lock + Pinch Shoot.html</h3>
           <p>Latest mobile mini putt build</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="Mobile Mini Putt — Pinch Lock + Pinch Shoot.html" target="_blank" rel="noopener">Open game</a>
+            <a class="gesture-modal__open" href="/Mobile%20Mini%20Putt%20%E2%80%94%20Pinch%20Lock%20+%20Pinch%20Shoot.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
       </ul>
@@ -1092,20 +1109,21 @@
     const guestMap = {};
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
+    const videoToggleLabel = el('#video-toggle-label');
     const feedBtn = el('#feed-btn');
     function showStream(){
       videoContainer.removeAttribute('hidden');
       feed.setAttribute('hidden','');
       if(form) form.setAttribute('hidden','');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
-      if(videoToggle) videoToggle.textContent = 'Show Chat';
+      if(videoToggleLabel) videoToggleLabel.textContent = 'Show Chat';
     }
     function showChat(){
       videoContainer.setAttribute('hidden','');
       feed.removeAttribute('hidden');
       if(form) form.removeAttribute('hidden');
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
-      if(videoToggle) videoToggle.textContent = 'Show Feed';
+      if(videoToggleLabel) videoToggleLabel.textContent = 'Show Feed';
     }
     let currentHost = null;
     let broadcastThumb = null;
