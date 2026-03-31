@@ -1225,6 +1225,11 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "history-request": {
+        const room = typeof msg.room === "string" && msg.room.trim() ? msg.room.trim() : null;
+        ws.send(JSON.stringify({ type: "history", messages: loadHistory(room) }));
+        return;
+      }
       case "unwatcher": {
         const set = listeners.get(msg.id);
         if(set){
