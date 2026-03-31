@@ -2541,29 +2541,49 @@ class GamesApp{
 
     this.catalog = [
       { key:"pong",     title:"Pong",          desc:"Cursor Y controls your paddle. AI on the right." },
+      { key:"turboPong", title:"Turbo Pong",   desc:"High-speed Pong variant with faster rebounds and tighter timing." },
       { key:"breakout", title:"Breakout",      desc:"Cursor X controls paddle. Click/pinch to launch." },
+      { key:"brickstorm", title:"Brickstorm",  desc:"Dense Breakout variant with extra bricks and fewer lives." },
       { key:"bubbles",  title:"Bubble Pop",    desc:"Pop bubbles fast. Click/pinch to pop." },
+      { key:"hyperPop", title:"Hyper Pop",     desc:"Faster Bubble Pop round with aggressive spawns." },
       { key:"catch",    title:"Star Catch",    desc:"Cursor X controls catcher. Catch the falling stars." },
+      { key:"cometCatch", title:"Comet Catch", desc:"Hard-mode Star Catch with faster falls and tighter margins." },
       { key:"reaction", title:"Reaction Test", desc:"Click/pinch as soon as it turns green." },
+      { key:"quickdraw", title:"Quickdraw RX", desc:"Shorter reaction windows for ultra-fast reflex runs." },
       { key:"paint",    title:"Zen Paint",     desc:"Paint with particles. Click/pinch to clear." },
+      { key:"prismPaint", title:"Prism Paint", desc:"Legacy paint variant with denser trails and quick hue cycling." },
       { key:"neon",     title:"Neon Blaster '86", desc:"80s-style arcade shooter. Cursor aims ship, click/pinch fires." },
+      { key:"neonSiege", title:"Neon Siege",   desc:"Hard-mode blaster with denser enemy pressure." },
       { key:"sports",   title:"Penalty Pro",   desc:"Sports challenge: aim then click/pinch to shoot against the keeper." },
+      { key:"goalRush", title:"Goal Rush",     desc:"Rapid-fire penalty rounds with fewer misses allowed." },
       { key:"hoops",    title:"Street Hoops",  desc:"Sports shooting game: move to aim, click/pinch to shoot at a moving hoop." },
+      { key:"hoopsFrenzy", title:"Hoops Frenzy", desc:"Street Hoops variant with longer streak potential." },
       { key:"runner",   title:"Lane Runner",   desc:"Standardized endless runner. Cursor chooses lane, click/pinch dashes." },
+      { key:"runnerX",  title:"Runner X",      desc:"Faster lane runner with shorter dash recovery." },
       { key:"memory",   title:"Memory Match",  desc:"Standardized memory game. Cursor + click to flip matching cards." },
     ];
 
     this.games = {
       pong: new PongGame(),
+      turboPong: new TurboPongGame(),
       breakout: new BreakoutGame(),
+      brickstorm: new BrickStormGame(),
       bubbles: new BubblePopGame(),
+      hyperPop: new HyperPopGame(),
       catch: new StarCatchGame(),
+      cometCatch: new CometCatchGame(),
       reaction: new ReactionTestGame(),
+      quickdraw: new QuickdrawRXGame(),
       paint: new ZenPaintGame(),
+      prismPaint: new PrismPaintGame(),
       neon: new NeonBlasterGame(),
+      neonSiege: new NeonSiegeGame(),
       sports: new PenaltyProGame(),
+      goalRush: new GoalRushGame(),
       hoops: new StreetHoopsGame(),
+      hoopsFrenzy: new HoopsFrenzyGame(),
       runner: new LaneRunnerGame(),
+      runnerX: new RunnerXGame(),
       memory: new MemoryMatchGame()
     };
 
@@ -3752,6 +3772,69 @@ class ZenPaintGame{
 
     ctx.restore();
   }
+}
+
+class TurboPongGame extends PongGame{
+  helpText(){ return "Turbo Pong: same controls as Pong, but the ball starts faster and ramps quickly."; }
+  resetBall(){ this.ball = {x:0.5, y:0.5, vx:(Math.random()>0.5?1:-1)*0.60, vy:(Math.random()>0.5?1:-1)*0.34}; }
+}
+class BrickStormGame extends BreakoutGame{
+  helpText(){ return "Brickstorm: denser brick wall + fewer lives. Cursor moves paddle; click/pinch launches."; }
+  reset(){ super.reset(); this.lives = 2; }
+  makeBricks(){
+    this.bricks = [];
+    const rows = 7, cols = 12;
+    const pad = 0.05, top = 0.10, gap = 0.006;
+    const bw = (1 - 2*pad - gap*(cols-1)) / cols;
+    const bh = 0.040;
+    for(let r=0; r<rows; r++){
+      for(let c=0; c<cols; c++){
+        const x = pad + c*(bw+gap) + bw/2;
+        const y = top + r*(bh+gap) + bh/2;
+        this.bricks.push({x, y, w:bw, h:bh, alive:true, row:r % 5});
+      }
+    }
+  }
+}
+class HyperPopGame extends BubblePopGame{
+  helpText(){ return "Hyper Pop: 30-second sprint with faster spawns. Click/pinch bubbles to score."; }
+  reset(){ super.reset(); this.durationMs = 30000; }
+  update(dt){ super.update(dt * 1.45); }
+}
+class CometCatchGame extends StarCatchGame{
+  helpText(){ return "Comet Catch: hard-mode catcher with faster stars and only two lives."; }
+  reset(){ super.reset(); this.lives = 2; }
+  update(dt, cur){ super.update(dt * 1.3, cur); }
+}
+class QuickdrawRXGame extends ReactionTestGame{
+  helpText(){ return "Quickdraw RX: shorter random delay window for rapid reaction drills."; }
+  start(){
+    this.phase = "waiting";
+    this.lastMs = null;
+    this.goAtMs = nowMs() + (350 + Math.random()*1100);
+  }
+}
+class PrismPaintGame extends ZenPaintGame{
+  helpText(){ return "Prism Paint: legacy visualizer with denser brush particles and rapid hue sweep."; }
+  update(dt, cur){ super.update(dt * 1.2, cur); this.hue = (this.hue + 1.2) % 360; }
+}
+class NeonSiegeGame extends NeonBlasterGame{
+  helpText(){ return "Neon Siege: faster incoming waves. Click/pinch to fire and survive."; }
+  reset(){ super.reset(); this.lives = 2; }
+  update(dt, cur){ super.update(dt * 1.22, cur); }
+}
+class GoalRushGame extends PenaltyProGame{
+  helpText(){ return "Goal Rush: quick penalty set with 6 high-pressure shots."; }
+  reset(){ super.reset(); this.rounds = 6; }
+}
+class HoopsFrenzyGame extends StreetHoopsGame{
+  helpText(){ return "Hoops Frenzy: extended round with 18 shots and faster moving rim."; }
+  reset(){ super.reset(); this.shotsLeft = 18; this.hoop.vx = 0.24; }
+}
+class RunnerXGame extends LaneRunnerGame{
+  helpText(){ return "Runner X: faster lanes and shorter safety windows. Click/pinch to dash."; }
+  update(dt, cur){ super.update(dt * 1.3, cur); }
+  onClick(){ if(!this.active) return; if(!this.running){ this.reset(); return; } this.dashMs = 360; }
 }
 
 // -----------------------------
