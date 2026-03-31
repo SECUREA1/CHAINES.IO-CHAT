@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gesture Billiards Pro (2P)</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 20% 10%, #16233a 0%, #070a10 55%, #05060a 100%);
+      color:#e9f0fb;
+      min-height:100vh;
+      display:flex;
+      padding:16px;
+      gap:16px;
+    }
+
+    .stage{
+      flex:1;
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 14px;
+      border:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(16,26,40,.88), rgba(10,14,20,.82));
+      border-radius:14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+
+    .brand{
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+      white-space:nowrap;
+    }
+    .brand .title{ font-weight:900; letter-spacing:.2px; font-size:16px; }
+    .brand .tag{ font-size:12px; color:#bcd0ea; border:1px solid rgba(255,255,255,.12); padding:2px 8px; border-radius:999px; background:rgba(0,0,0,.2); }
+
+    .stats{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    .chip{
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.22);
+      padding:6px 10px;
+      border-radius:12px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .chip b{ font-size:12px; color:#bcd0ea; font-weight:700; }
+    .chip span{ font-weight:900; font-size:13px; }
+
+    .canvasWrap{
+      position:relative;
+      flex:1;
+      min-height:420px;
+      border-radius:18px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow: 0 22px 60px rgba(0,0,0,.45);
+      background: rgba(0,0,0,.18);
+    }
+
+    canvas#table{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    .overlay{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+
+    .banner{
+      position:absolute;
+      top:16px;
+      left:50%;
+      transform:translateX(-50%);
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(5,8,12,.55), rgba(5,8,12,.25));
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+      font-weight:900;
+      letter-spacing:.2px;
+      opacity:0;
+      transition:opacity .22s ease, transform .22s ease;
+      max-width: calc(100% - 28px);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .banner.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+
+    .hud{
+      position:absolute;
+      bottom:14px;
+      left:14px;
+      right:14px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      pointer-events:none;
+    }
+
+    .power{
+      width:min(320px, 46vw);
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.22);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 12px 32px rgba(0,0,0,.35);
+    }
+    .power .row{ display:flex; justify-content:space-between; align-items:center; }
+    .power .row .label{ color:#bcd0ea; font-size:12px; font-weight:800; }
+    .power .row .val{ font-weight:900; font-size:13px; }
+    .bar{
+      margin-top:8px;
+      height:10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+      position:relative;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(255,214,10,.75), rgba(255,214,10,.95));
+      border-radius:999px;
+      box-shadow: 0 0 16px rgba(255,214,10,.35);
+    }
+
+    .hint{
+      max-width: 52%;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.22);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 12px 32px rgba(0,0,0,.35);
+      color:#cfe0f6;
+      font-size:12px;
+      line-height:1.35;
+    }
+    .hint b{ color:#ffffff; }
+
+    aside.panel{
+      width:360px;
+      max-width:42vw;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(16,26,40,.88), rgba(10,14,20,.85));
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+    button{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.28);
+      color:#e9f0fb;
+      border-radius:14px;
+      padding:10px 12px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      transition: transform .06s ease, background .15s ease;
+      flex:1;
+      min-width: 150px;
+    }
+    button:hover{ background: rgba(0,0,0,.36); }
+    button:active{ transform: translateY(1px); }
+
+    .section{
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.2);
+      border-radius:14px;
+      padding:12px;
+    }
+    .section h3{
+      margin:0 0 8px 0;
+      font-size:12px;
+      color:#bcd0ea;
+      letter-spacing:.3px;
+      text-transform:uppercase;
+    }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .kpi{
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+    }
+    .kpi .t{ font-size:11px; color:#bcd0ea; font-weight:800; }
+    .kpi .v{ margin-top:3px; font-size:14px; font-weight:950; }
+
+    .rowCtl{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      align-items:center;
+      gap:10px;
+      margin-top:10px;
+    }
+    .rowCtl label{ font-size:12px; color:#cfe0f6; font-weight:800; }
+    input[type="range"]{ width:100%; }
+
+    .mini{
+      font-size:12px;
+      color:#bcd0ea;
+      line-height:1.35;
+    }
+    .mini code{ color:#fff; }
+
+    .cameraWrap{ display:none; }
+    .cameraWrap.show{ display:block; }
+    canvas#debug{
+      width:100%;
+      aspect-ratio: 4 / 3;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.08);
+      background:#04060a;
+    }
+
+    video#input_video{ display:none; }
+
+    @media (max-width: 980px){
+      body{ flex-direction:column; }
+      aside.panel{ width:100%; max-width:none; }
+      .hint{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="topbar">
+      <div class="brand">
+        <div class="title">Gesture Billiards Pro</div>
+        <div class="tag" id="modeBadge">Gesture: ON</div>
+      </div>
+      <div class="stats">
+        <div class="chip"><b>Turn</b><span id="turnText">Player 1</span></div>
+        <div class="chip"><b>Score</b><span id="scoreText">0 — 0</span></div>
+        <div class="chip"><b>Angle</b><span id="angleText">0.0°</span></div>
+        <div class="chip"><b>Force</b><span id="forceText">4.0</span></div>
+      </div>
+    </div>
+
+    <div class="canvasWrap" id="canvasWrap">
+      <canvas id="table"></canvas>
+      <div class="overlay">
+        <div class="banner" id="banner">Player 1</div>
+        <div class="hud">
+          <div class="power">
+            <div class="row">
+              <div class="label" id="stateText">AIM</div>
+              <div class="val" id="powerVal">4.0</div>
+            </div>
+            <div class="bar"><i id="powerBar"></i></div>
+          </div>
+          <div class="hint">
+            <b>Gesture flow:</b> Aim with index tip → <b>Pinch & hold</b> to lock/charge → <b>Release</b> to shoot.
+            <br/>Mouse: move to aim, click-hold to lock/charge, release to shoot.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="actions">
+      <button id="toggleGestureBtn">Toggle Gesture</button>
+      <button id="resetBtn">Reset Rack</button>
+    </div>
+
+    <div class="section">
+      <h3>Match</h3>
+      <div class="grid2">
+        <div class="kpi">
+          <div class="t">Player 1</div>
+          <div class="v" id="p1Text">0</div>
+        </div>
+        <div class="kpi">
+          <div class="t">Player 2</div>
+          <div class="v" id="p2Text">0</div>
+        </div>
+        <div class="kpi">
+          <div class="t">Remaining Balls</div>
+          <div class="v" id="remainText">15</div>
+        </div>
+        <div class="kpi">
+          <div class="t">Status</div>
+          <div class="v" id="statusText">Ready</div>
+        </div>
+      </div>
+      <div class="mini" style="margin-top:10px;">
+        Scoring: each object ball potted = 1 point. Pot ≥1 to keep turn. Scratch passes turn + respot cue.
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Settings</h3>
+      <div class="rowCtl">
+        <label>Friction (lower = longer rolls)</label>
+        <span class="mini" id="frictionVal"></span>
+      </div>
+      <input id="friction" type="range" min="0.970" max="0.995" step="0.001" value="0.988" />
+
+      <div class="rowCtl">
+        <label>Max Force</label>
+        <span class="mini" id="maxForceVal"></span>
+      </div>
+      <input id="maxForce" type="range" min="6" max="14" step="0.5" value="10" />
+
+      <div class="rowCtl">
+        <label>Gesture Smoothing</label>
+        <span class="mini" id="smoothVal"></span>
+      </div>
+      <input id="smoothing" type="range" min="0.10" max="0.60" step="0.01" value="0.35" />
+
+      <div class="rowCtl">
+        <label>Pinch Threshold</label>
+        <span class="mini" id="pinchVal"></span>
+      </div>
+      <input id="pinchThreshold" type="range" min="0.020" max="0.070" step="0.001" value="0.040" />
+
+      <div class="actions" style="margin-top:10px;">
+        <button id="toggleCameraBtn">Toggle Camera Debug</button>
+      </div>
+    </div>
+
+    <div class="section cameraWrap" id="cameraWrap">
+      <h3>Camera Debug</h3>
+      <canvas id="debug" width="640" height="480"></canvas>
+      <div class="mini" style="margin-top:10px;">
+        If detection is noisy: increase smoothing, adjust pinch threshold, improve lighting.
+      </div>
+    </div>
+  </aside>
+
+  <video id="input_video" playsinline></video>
+
+  <!-- MediaPipe Hands via jsDelivr -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <script>
+    /*****************************************************************
+     * PRO VISUAL + RESPONSIVE WORLD
+     *****************************************************************/
+    const canvas = document.getElementById("table");
+    const wrap = document.getElementById("canvasWrap");
+    const ctx = canvas.getContext("2d");
+
+    const debugCanvas = document.getElementById("debug");
+    const debugCtx = debugCanvas.getContext("2d");
+    const cameraWrap = document.getElementById("cameraWrap");
+
+    const UI = {
+      modeBadge: document.getElementById("modeBadge"),
+      turnText: document.getElementById("turnText"),
+      scoreText: document.getElementById("scoreText"),
+      angleText: document.getElementById("angleText"),
+      forceText: document.getElementById("forceText"),
+      banner: document.getElementById("banner"),
+      stateText: document.getElementById("stateText"),
+      powerVal: document.getElementById("powerVal"),
+      powerBar: document.getElementById("powerBar"),
+      statusText: document.getElementById("statusText"),
+      remainText: document.getElementById("remainText"),
+      p1Text: document.getElementById("p1Text"),
+      p2Text: document.getElementById("p2Text"),
+
+      toggleGestureBtn: document.getElementById("toggleGestureBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      toggleCameraBtn: document.getElementById("toggleCameraBtn"),
+
+      friction: document.getElementById("friction"),
+      frictionVal: document.getElementById("frictionVal"),
+      maxForce: document.getElementById("maxForce"),
+      maxForceVal: document.getElementById("maxForceVal"),
+      smoothing: document.getElementById("smoothing"),
+      smoothVal: document.getElementById("smoothVal"),
+      pinchThreshold: document.getElementById("pinchThreshold"),
+      pinchVal: document.getElementById("pinchVal"),
+    };
+
+    // Logical world size (physics lives here)
+    const WORLD_W = 1100;
+    const WORLD_H = 550;
+
+    let dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    let view = { w: 0, h: 0, scale: 1, ox: 0, oy: 0 };
+
+    function resize() {
+      dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const r = wrap.getBoundingClientRect();
+      const pixelW = Math.max(2, Math.floor(r.width * dpr));
+      const pixelH = Math.max(2, Math.floor(r.height * dpr));
+
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+
+      // Fit world inside canvas
+      const sx = pixelW / WORLD_W;
+      const sy = pixelH / WORLD_H;
+      view.scale = Math.min(sx, sy);
+      view.w = pixelW;
+      view.h = pixelH;
+      view.ox = (pixelW - WORLD_W * view.scale) * 0.5;
+      view.oy = (pixelH - WORLD_H * view.scale) * 0.5;
+
+      // Regenerate felt texture for new resolution
+      feltPattern = makeFeltPattern();
+    }
+    window.addEventListener("resize", resize);
+
+    function toWorldFromClient(clientX, clientY) {
+      const r = canvas.getBoundingClientRect();
+      const px = (clientX - r.left) * dpr;
+      const py = (clientY - r.top) * dpr;
+      const x = (px - view.ox) / view.scale;
+      const y = (py - view.oy) / view.scale;
+      return { x: clamp(x, 0, WORLD_W), y: clamp(y, 0, WORLD_H) };
+    }
+
+    function withWorldTransform(drawFn) {
+      ctx.save();
+      ctx.setTransform(view.scale, 0, 0, view.scale, view.ox, view.oy);
+      drawFn();
+      ctx.restore();
+    }
+
+    /*****************************************************************
+     * GAME CONSTANTS
+     *****************************************************************/
+    const BORDER = 18;
+    const BALL_R = 16;
+    const POCKET_R = 26;
+    const REST_EPS = 7;
+    const REST_EPS2 = REST_EPS * REST_EPS;
+
+    let frictionPerFrame = parseFloat(UI.friction.value); // ~60fps
+    let maxForce = parseFloat(UI.maxForce.value);
+
+    const pockets = [
+      {x: BORDER, y: BORDER},
+      {x: WORLD_W/2, y: BORDER},
+      {x: WORLD_W-BORDER, y: BORDER},
+      {x: BORDER, y: WORLD_H-BORDER},
+      {x: WORLD_W/2, y: WORLD_H-BORDER},
+      {x: WORLD_W-BORDER, y: WORLD_H-BORDER},
+    ];
+
+    // Visual helper: prebuilt gradients for balls
+    function ballGradient(x, y, baseColor) {
+      const g = ctx.createRadialGradient(x - BALL_R*0.35, y - BALL_R*0.35, BALL_R*0.2, x, y, BALL_R*1.2);
+      g.addColorStop(0, "rgba(255,255,255,.70)");
+      g.addColorStop(0.18, baseColor);
+      g.addColorStop(0.9, "rgba(0,0,0,.38)");
+      g.addColorStop(1, "rgba(0,0,0,.55)");
+      return g;
+    }
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function len2(x, y) { return x*x + y*y; }
+    function len(x, y) { return Math.sqrt(x*x + y*y); }
+    function smooth(prev, next, alpha) { return prev + alpha * (next - prev); }
+
+    /*****************************************************************
+     * GAME STATE
+     *****************************************************************/
+    let balls = [];
+    let cueBall = null;
+
+    let playerTurn = 0;
+    let scores = [0, 0];
+    let gameOver = false;
+
+    let shotInProgress = false;
+    let pottedThisShot = [];
+    let cueScratchedThisShot = false;
+
+    // Cue / control
+    let gestureEnabled = true;
+    let cueLocked = false;
+
+    let cueAngle = 0;        // radians
+    let cueForce = 4.0;      // 1..maxForce
+    let aim = { x: WORLD_W/2, y: WORLD_H/2 };
+
+    // Inputs
+    let mouseDown = false;
+
+    // Flow banner helper
+    let bannerTimer = 0;
+    function showBanner(text, seconds=1.2) {
+      UI.banner.textContent = text;
+      UI.banner.classList.add("show");
+      bannerTimer = seconds;
+    }
+
+    function allStopped() {
+      for (const b of balls) {
+        if (!b.active) continue;
+        if (len2(b.vx, b.vy) > REST_EPS2) return false;
+      }
+      return true;
+    }
+
+    function resetRack() {
+      balls = [];
+
+      cueBall = {
+        id: "cue",
+        active: true,
+        isCue: true,
+        x: WORLD_W*0.25,
+        y: WORLD_H*0.5,
+        vx: 0, vy: 0,
+        color: "#ffffff",
+        stripe: false
+      };
+      balls.push(cueBall);
+
+      // Professional-ish palette (solids/stripes mix)
+      const palette = [
+        "#ff3b30","#ff9f0a","#ffd60a","#34c759","#64d2ff","#0a84ff","#bf5af2",
+        "#ff2d55","#66d4cf","#d0fd3e","#5e5ce6","#ff453a","#30d158","#ffd60a","#0a84ff"
+      ];
+
+      const startX = WORLD_W*0.72;
+      const startY = WORLD_H*0.5;
+      const dx = BALL_R*2*0.92;
+      const dy = BALL_R*2*0.92;
+
+      let idx = 0;
+      for (let row = 0; row < 5; row++) {
+        for (let j = 0; j <= row; j++) {
+          balls.push({
+            id: "obj_" + idx,
+            active: true,
+            isCue: false,
+            x: startX + row*dx,
+            y: startY + (j*dy - row*dy/2),
+            vx: 0, vy: 0,
+            color: palette[idx % palette.length],
+            stripe: (idx % 2 === 1)
+          });
+          idx++;
+        }
+      }
+
+      playerTurn = 0;
+      scores = [0, 0];
+      gameOver = false;
+
+      shotInProgress = false;
+      pottedThisShot = [];
+      cueScratchedThisShot = false;
+
+      cueLocked = false;
+      cueForce = 4.0;
+      aim.x = WORLD_W*0.45;
+      aim.y = WORLD_H*0.5;
+      cueAngle = 0;
+
+      showBanner("Player 1 to break", 1.6);
+      updateUI();
+    }
+
+    function updateUI() {
+      UI.modeBadge.textContent = `Gesture: ${gestureEnabled ? "ON" : "OFF"}`;
+      UI.turnText.textContent = gameOver ? "Game Over" : `Player ${playerTurn + 1}`;
+      UI.scoreText.textContent = `${scores[0]} — ${scores[1]}`;
+      UI.p1Text.textContent = scores[0];
+      UI.p2Text.textContent = scores[1];
+
+      UI.angleText.textContent = `${(cueAngle * 180 / Math.PI).toFixed(1)}°`;
+      UI.forceText.textContent = cueForce.toFixed(1);
+      UI.powerVal.textContent = cueForce.toFixed(1);
+
+      const p = clamp(cueForce / maxForce, 0, 1) * 100;
+      UI.powerBar.style.width = `${p}%`;
+
+      const remaining = balls.filter(b => b.active && !b.isCue).length;
+      UI.remainText.textContent = remaining;
+
+      if (gameOver) UI.statusText.textContent = "Finished";
+      else if (shotInProgress) UI.statusText.textContent = "Shot in progress";
+      else if (!allStopped()) UI.statusText.textContent = "Balls moving";
+      else UI.statusText.textContent = cueLocked ? "Locked (charging)" : "Ready";
+    }
+
+    function respotCueBall() {
+      cueBall.active = true;
+      cueBall.x = WORLD_W*0.25;
+      cueBall.y = WORLD_H*0.5;
+      cueBall.vx = 0;
+      cueBall.vy = 0;
+
+      // Nudge down until clear
+      for (let tries = 0; tries < 80; tries++) {
+        let ok = true;
+        for (const b of balls) {
+          if (!b.active || b.isCue) continue;
+          if (len2(cueBall.x - b.x, cueBall.y - b.y) < (BALL_R*2.1)*(BALL_R*2.1)) {
+            ok = false;
+            cueBall.y += BALL_R*0.6;
+            break;
+          }
+        }
+        if (ok) break;
+      }
+    }
+
+    function endShotIfReady() {
+      if (!shotInProgress) return;
+      if (!allStopped()) return;
+
+      // Resolve shot
+      if (cueScratchedThisShot) {
+        respotCueBall();
+        playerTurn = (playerTurn + 1) % 2;
+        showBanner(`Scratch. Player ${playerTurn + 1} turn`, 1.4);
+      } else {
+        const scored = pottedThisShot.length;
+        if (scored > 0) {
+          scores[playerTurn] += scored;
+          showBanner(`+${scored} point${scored>1?"s":""}. Player ${playerTurn + 1} continues`, 1.4);
+        } else {
+          playerTurn = (playerTurn + 1) % 2;
+          showBanner(`No pot. Player ${playerTurn + 1} turn`, 1.2);
+        }
+      }
+
+      // End condition
+      const remaining = balls.filter(b => b.active && !b.isCue).length;
+      if (remaining === 0) {
+        gameOver = true;
+        const winner = scores[0] === scores[1] ? "Tie game" : (scores[0] > scores[1] ? "Player 1 wins" : "Player 2 wins");
+        showBanner(`Game Over — ${winner}`, 2.5);
+      }
+
+      shotInProgress = false;
+      pottedThisShot = [];
+      cueScratchedThisShot = false;
+      cueLocked = false;
+
+      updateUI();
+    }
+
+    function pocketCheck(ball) {
+      for (const p of pockets) {
+        if (len2(ball.x - p.x, ball.y - p.y) <= POCKET_R*POCKET_R) {
+          ball.active = false;
+          ball.vx = 0; ball.vy = 0;
+
+          if (ball.isCue) cueScratchedThisShot = true;
+          else pottedThisShot.push(ball);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function applyPhysics(dt) {
+      // Scale friction to elapsed time (target ~60fps)
+      const friction = Math.pow(frictionPerFrame, dt * 60);
+
+      for (const b of balls) {
+        if (!b.active) continue;
+
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        b.vx *= friction;
+        b.vy *= friction;
+
+        if (len2(b.vx, b.vy) < 4) { b.vx = 0; b.vy = 0; }
+
+        const minX = BORDER + BALL_R;
+        const maxX = WORLD_W - BORDER - BALL_R;
+        const minY = BORDER + BALL_R;
+        const maxY = WORLD_H - BORDER - BALL_R;
+
+        if (b.x < minX) { b.x = minX; b.vx *= -1; }
+        if (b.x > maxX) { b.x = maxX; b.vx *= -1; }
+        if (b.y < minY) { b.y = minY; b.vy *= -1; }
+        if (b.y > maxY) { b.y = maxY; b.vy *= -1; }
+
+        if (shotInProgress) pocketCheck(b);
+      }
+    }
+
+    function resolveBallCollisions() {
+      const restitution = 0.985;
+      for (let i = 0; i < balls.length; i++) {
+        const a = balls[i];
+        if (!a.active) continue;
+        for (let j = i + 1; j < balls.length; j++) {
+          const b = balls[j];
+          if (!b.active) continue;
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist2 = dx*dx + dy*dy;
+          const minDist = BALL_R * 2;
+
+          if (dist2 > 0 && dist2 < minDist*minDist) {
+            const dist = Math.sqrt(dist2);
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            // Positional correction
+            const overlap = (minDist - dist);
+            a.x -= nx * overlap * 0.5;
+            a.y -= ny * overlap * 0.5;
+            b.x += nx * overlap * 0.5;
+            b.y += ny * overlap * 0.5;
+
+            // Relative velocity along normal
+            const rvx = a.vx - b.vx;
+            const rvy = a.vy - b.vy;
+            const rel = rvx * nx + rvy * ny;
+
+            if (rel > 0) {
+              const imp = rel * restitution;
+              a.vx -= imp * nx;
+              a.vy -= imp * ny;
+              b.vx += imp * nx;
+              b.vy += imp * ny;
+            }
+          }
+        }
+      }
+    }
+
+    function strikeCueBall() {
+      if (gameOver) return;
+      if (shotInProgress) return;
+      if (!cueBall.active) return;
+      if (!allStopped()) return;
+
+      shotInProgress = true;
+      pottedThisShot = [];
+      cueScratchedThisShot = false;
+
+      const dirx = Math.cos(cueAngle);
+      const diry = Math.sin(cueAngle);
+
+      const speed = cueForce * 220;
+      cueBall.vx = dirx * speed;
+      cueBall.vy = diry * speed;
+
+      cueLocked = false;
+      updateUI();
+    }
+
+    /*****************************************************************
+     * VISUALS: FELT + RAILS + POCKET DEPTH + PREDICTIVE AIM
+     *****************************************************************/
+    let feltPattern = null;
+
+    function makeFeltPattern() {
+      // Procedural "felt" noise tile in an offscreen canvas, then pattern it.
+      const tile = document.createElement("canvas");
+      tile.width = 220;
+      tile.height = 220;
+      const t = tile.getContext("2d");
+
+      // Base felt gradient
+      const g = t.createLinearGradient(0, 0, 220, 220);
+      g.addColorStop(0, "#1c8a43");
+      g.addColorStop(0.45, "#167a35");
+      g.addColorStop(1, "#146b30");
+      t.fillStyle = g;
+      t.fillRect(0, 0, 220, 220);
+
+      // Noise specks
+      const img = t.getImageData(0, 0, 220, 220);
+      const data = img.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const n = (Math.random() * 28) | 0;
+        data[i] = clamp(data[i] + n - 12, 0, 255);
+        data[i+1] = clamp(data[i+1] + n - 8, 0, 255);
+        data[i+2] = clamp(data[i+2] + n - 12, 0, 255);
+        data[i+3] = 255;
+      }
+      t.putImageData(img, 0, 0);
+
+      // Subtle diagonal weave
+      t.globalAlpha = 0.10;
+      t.strokeStyle = "#dfffea";
+      t.lineWidth = 1;
+      for (let i = -220; i < 440; i += 10) {
+        t.beginPath();
+        t.moveTo(i, 0);
+        t.lineTo(i + 220, 220);
+        t.stroke();
+      }
+      t.globalAlpha = 1;
+
+      return ctx.createPattern(tile, "repeat");
+    }
+
+    function drawTable() {
+      // Felt
+      ctx.fillStyle = feltPattern || "#167a35";
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+      // Soft vignette
+      const vg = ctx.createRadialGradient(WORLD_W*0.5, WORLD_H*0.5, WORLD_H*0.2, WORLD_W*0.5, WORLD_H*0.5, WORLD_H*0.9);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, "rgba(0,0,0,.28)");
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+      // Rails (wood-like)
+      const railOuter = ctx.createLinearGradient(0, 0, 0, WORLD_H);
+      railOuter.addColorStop(0, "#2b1b10");
+      railOuter.addColorStop(0.5, "#3a2414");
+      railOuter.addColorStop(1, "#24150c");
+
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = railOuter;
+      ctx.lineWidth = BORDER * 1.9;
+      ctx.strokeRect(BORDER*0.45, BORDER*0.45, WORLD_W - BORDER*0.9, WORLD_H - BORDER*0.9);
+
+      // Inner rail highlight
+      ctx.strokeStyle = "rgba(255,255,255,.08)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(BORDER + 1.5, BORDER + 1.5, WORLD_W - (BORDER*2 + 3), WORLD_H - (BORDER*2 + 3));
+      ctx.restore();
+
+      // Pockets (depth)
+      for (const p of pockets) {
+        // Outer shadow
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(0,0,0,.55)";
+        ctx.arc(p.x, p.y, POCKET_R*1.18, 0, Math.PI*2);
+        ctx.fill();
+
+        // Inner hole gradient
+        const hg = ctx.createRadialGradient(p.x - 6, p.y - 6, 6, p.x, p.y, POCKET_R);
+        hg.addColorStop(0, "rgba(30,30,30,.95)");
+        hg.addColorStop(0.6, "rgba(8,8,8,.98)");
+        hg.addColorStop(1, "rgba(0,0,0,1)");
+        ctx.beginPath();
+        ctx.fillStyle = hg;
+        ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI*2);
+        ctx.fill();
+
+        // Rim shine
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255,255,255,.12)";
+        ctx.lineWidth = 2;
+        ctx.arc(p.x, p.y, POCKET_R*1.02, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    }
+
+    function drawBalls() {
+      // Shadow first for depth
+      for (const b of balls) {
+        if (!b.active) continue;
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(0,0,0,.35)";
+        ctx.ellipse(b.x + 4, b.y + 6, BALL_R*0.98, BALL_R*0.84, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      for (const b of balls) {
+        if (!b.active) continue;
+
+        // Ball body (gradient)
+        ctx.beginPath();
+        ctx.fillStyle = ballGradient(b.x, b.y, b.color);
+        ctx.arc(b.x, b.y, BALL_R, 0, Math.PI*2);
+        ctx.fill();
+
+        // Stripes (visual only)
+        if (!b.isCue && b.stripe) {
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = "rgba(255,255,255,.85)";
+          ctx.beginPath();
+          ctx.ellipse(b.x, b.y, BALL_R*1.02, BALL_R*0.52, 0, 0, Math.PI*2);
+          ctx.fill();
+
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.fillStyle = b.color;
+          ctx.ellipse(b.x, b.y, BALL_R*1.02, BALL_R*0.30, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Outline
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(0,0,0,.38)";
+        ctx.lineWidth = 2;
+        ctx.arc(b.x, b.y, BALL_R, 0, Math.PI*2);
+        ctx.stroke();
+
+        // Tiny specular highlight
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(255,255,255,.32)";
+        ctx.arc(b.x - BALL_R*0.28, b.y - BALL_R*0.28, BALL_R*0.18, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    function raycastFirstHit(originX, originY, dirX, dirY) {
+      // Aim assist: find first collision with wall or ball (simple iterative stepping).
+      // Good enough visually; physics remains unchanged.
+      const step = 6;
+      let x = originX, y = originY;
+      const maxSteps = 220;
+      const minX = BORDER + BALL_R;
+      const maxX = WORLD_W - BORDER - BALL_R;
+      const minY = BORDER + BALL_R;
+      const maxY = WORLD_H - BORDER - BALL_R;
+
+      for (let i = 0; i < maxSteps; i++) {
+        x += dirX * step;
+        y += dirY * step;
+
+        if (x <= minX || x >= maxX || y <= minY || y >= maxY) {
+          return { type: "wall", x: clamp(x, minX, maxX), y: clamp(y, minY, maxY) };
+        }
+        for (const b of balls) {
+          if (!b.active || b.isCue) continue;
+          const d2 = len2(x - b.x, y - b.y);
+          if (d2 <= (BALL_R*2.0)*(BALL_R*2.0)) {
+            return { type: "ball", x, y, ball: b };
+          }
+        }
+      }
+      return { type: "none", x: originX + dirX*step*maxSteps, y: originY + dirY*step*maxSteps };
+    }
+
+    function drawCueAndAim() {
+      if (gameOver) return;
+      if (shotInProgress) return;
+      if (!cueBall.active) return;
+      if (!allStopped()) return;
+
+      // Angle always from cue ball to aim point, but smoothed
+      const ax = aim.x - cueBall.x;
+      const ay = aim.y - cueBall.y;
+      const targetAngle = Math.atan2(ay, ax);
+      cueAngle = smooth(cueAngle, targetAngle, 0.20);
+
+      // Aim assist line & target highlight
+      const dirx = Math.cos(cueAngle);
+      const diry = Math.sin(cueAngle);
+      const hit = raycastFirstHit(cueBall.x, cueBall.y, dirx, diry);
+
+      // Dotted aim line
+      ctx.save();
+      ctx.setLineDash([10, 10]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = cueLocked ? "rgba(255,214,10,.78)" : "rgba(255,255,255,.55)";
+      ctx.beginPath();
+      ctx.moveTo(cueBall.x, cueBall.y);
+      ctx.lineTo(hit.x, hit.y);
+      ctx.stroke();
+      ctx.restore();
+
+      if (hit.type === "ball" && hit.ball) {
+        // Halo highlight on first ball
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255,214,10,.75)";
+        ctx.lineWidth = 3;
+        ctx.arc(hit.ball.x, hit.ball.y, BALL_R*1.35, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      // Cue stick (gradient, with offset backwards)
+      const cueLen = 140;
+      const back = 62 + (cueLocked ? (cueForce/maxForce)*26 : 10);
+
+      const sx = cueBall.x - dirx * back;
+      const sy = cueBall.y - diry * back;
+      const ex = sx + dirx * cueLen;
+      const ey = sy + diry * cueLen;
+
+      const cueG = ctx.createLinearGradient(sx, sy, ex, ey);
+      cueG.addColorStop(0, "rgba(30,18,10,.9)");
+      cueG.addColorStop(0.45, "rgba(198,160,108,.95)");
+      cueG.addColorStop(0.85, "rgba(235,222,198,.95)");
+      cueG.addColorStop(1, "rgba(250,250,250,.95)");
+
+      // Shadow
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(0,0,0,.35)";
+      ctx.lineWidth = 10;
+      ctx.moveTo(sx + 4, sy + 6);
+      ctx.lineTo(ex + 4, ey + 6);
+      ctx.stroke();
+
+      // Cue body
+      ctx.beginPath();
+      ctx.strokeStyle = cueG;
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Tip
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,.85)";
+      ctx.lineWidth = 5;
+      ctx.moveTo(ex - dirx*5, ey - diry*5);
+      ctx.lineTo(ex + dirx*6, ey + diry*6);
+      ctx.stroke();
+    }
+
+    function drawGameOver() {
+      if (!gameOver) return;
+      const winner = scores[0] === scores[1] ? "Tie game" : (scores[0] > scores[1] ? "Player 1 wins" : "Player 2 wins");
+
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 48px ui-sans-serif, system-ui";
+      ctx.fillText("Game Over", WORLD_W/2 - 140, WORLD_H/2 - 18);
+
+      ctx.font = "900 30px ui-sans-serif, system-ui";
+      ctx.fillText(winner, WORLD_W/2 - (winner.length * 8), WORLD_H/2 + 26);
+
+      ctx.font = "600 16px ui-sans-serif, system-ui";
+      ctx.fillStyle = "rgba(233,240,251,.85)";
+      ctx.fillText("Press Reset Rack to play again.", WORLD_W/2 - 140, WORLD_H/2 + 58);
+      ctx.restore();
+    }
+
+    function render() {
+      withWorldTransform(() => {
+        drawTable();
+        drawCueAndAim();
+        drawBalls();
+        drawGameOver();
+      });
+    }
+
+    /*****************************************************************
+     * INPUT: MOUSE FLOW (PRO)
+     *****************************************************************/
+    canvas.addEventListener("mousemove", (e) => {
+      if (gestureEnabled) return;
+      const w = toWorldFromClient(e.clientX, e.clientY);
+      aim.x = w.x; aim.y = w.y;
+    });
+
+    canvas.addEventListener("mousedown", (e) => {
+      if (gestureEnabled) return;
+      if (gameOver || shotInProgress || !allStopped()) return;
+      mouseDown = true;
+      cueLocked = true;
+      UI.stateText.textContent = "LOCKED / CHARGE";
+      showBanner("Locked — release to shoot", 0.9);
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (gestureEnabled) return;
+      if (!mouseDown) return;
+      mouseDown = false;
+
+      if (cueLocked && !shotInProgress && allStopped() && !gameOver) {
+        strikeCueBall();
+      }
+      cueLocked = false;
+    });
+
+    // Mouse wheel adjusts force when locked
+    window.addEventListener("wheel", (e) => {
+      if (gestureEnabled) return;
+      if (!cueLocked || shotInProgress || gameOver) return;
+      const delta = Math.sign(e.deltaY);
+      cueForce = clamp(cueForce - delta * 0.35, 1, maxForce);
+      updateUI();
+    }, { passive: true });
+
+    /*****************************************************************
+     * INPUT: GESTURE (MEDIAPIPE) — LOCK & CHARGE FLOW
+     *****************************************************************/
+    const video = document.getElementById("input_video");
+    let pinch = false;
+    let pinchPrev = false;
+
+    let handAimX = WORLD_W/2, handAimY = WORLD_H/2;
+    let pinchStartHandX = 0.5;
+    let pinchStartHandY = 0.5;
+    let pinchStartForce = 4.0;
+
+    function onHandResults(results) {
+      // Debug view
+      if (cameraWrap.classList.contains("show")) {
+        debugCtx.save();
+        debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+        debugCtx.drawImage(results.image, 0, 0, debugCanvas.width, debugCanvas.height);
+      }
+
+      let hasHand = false;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        hasHand = true;
+        const lm = results.multiHandLandmarks[0];
+
+        if (cameraWrap.classList.contains("show") && typeof drawConnectors === "function") {
+          drawConnectors(debugCtx, lm, window.HAND_CONNECTIONS || HAND_CONNECTIONS, { color: "#2ee59d", lineWidth: 3 });
+          drawLandmarks(debugCtx, lm, { color: "#ffd60a", lineWidth: 2 });
+        }
+
+        const thumb = lm[4];
+        const indexTip = lm[8];
+        const wrist = lm[0];
+
+        // Mirror X so it feels natural
+        const nx = 1 - indexTip.x;
+        const ny = indexTip.y;
+
+        const smoothA = parseFloat(UI.smoothing.value);
+        handAimX = smooth(handAimX, nx * WORLD_W, smoothA);
+        handAimY = smooth(handAimY, ny * WORLD_H, smoothA);
+
+        if (gestureEnabled) {
+          aim.x = clamp(handAimX, BORDER + BALL_R, WORLD_W - BORDER - BALL_R);
+          aim.y = clamp(handAimY, BORDER + BALL_R, WORLD_H - BORDER - BALL_R);
+        }
+
+        // Pinch distance normalized
+        const pdx = (thumb.x - indexTip.x);
+        const pdy = (thumb.y - indexTip.y);
+        const pDist = Math.sqrt(pdx*pdx + pdy*pdy);
+
+        pinchPrev = pinch;
+        const pinchTh = parseFloat(UI.pinchThreshold.value);
+        pinch = (pDist < pinchTh);
+
+        const wristX = (1 - wrist.x);
+        const wristY = wrist.y;
+
+        // Lock on pinch start
+        if (gestureEnabled && pinch && !pinchPrev && !shotInProgress && allStopped() && !gameOver) {
+          cueLocked = true;
+          pinchStartHandX = wristX;
+          pinchStartHandY = wristY;
+          pinchStartForce = cueForce;
+          UI.stateText.textContent = "LOCKED / CHARGE";
+          showBanner("Locked — release to shoot", 0.9);
+        }
+
+        // Charge power while pinched
+        if (gestureEnabled && pinch && cueLocked && !shotInProgress && !gameOver) {
+          // Up/down controls main charge, left/right is fine tune.
+          const dy = (pinchStartHandY - wristY);   // move up => positive
+          const dx = (wristX - pinchStartHandX);
+
+          const nextForce = clamp(pinchStartForce + dy * 18.0 + dx * 8.0, 1, maxForce);
+          cueForce = smooth(cueForce, nextForce, 0.25);
+        }
+
+        // Shoot on pinch release
+        if (gestureEnabled && !pinch && pinchPrev && cueLocked && !shotInProgress && allStopped() && !gameOver) {
+          strikeCueBall();
+          UI.stateText.textContent = "SHOT";
+        }
+      }
+
+      if (cameraWrap.classList.contains("show")) {
+        debugCtx.restore();
+      }
+
+      if (gestureEnabled && !hasHand) {
+        pinchPrev = pinch;
+        pinch = false;
+      }
+    }
+
+    async function initHands() {
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
+
+      hands.onResults(onHandResults);
+
+      const camera = new Camera(video, {
+        onFrame: async () => { await hands.send({ image: video }); },
+        width: 640,
+        height: 480,
+      });
+
+      await camera.start();
+    }
+
+    /*****************************************************************
+     * MAIN LOOP
+     *****************************************************************/
+    let lastT = performance.now();
+
+    function tick(t) {
+      const dt = Math.min(0.033, (t - lastT) / 1000);
+      lastT = t;
+
+      // Banner timing
+      if (bannerTimer > 0) {
+        bannerTimer -= dt;
+        if (bannerTimer <= 0) UI.banner.classList.remove("show");
+      }
+
+      // State text
+      if (gameOver) UI.stateText.textContent = "GAME OVER";
+      else if (shotInProgress || !allStopped()) UI.stateText.textContent = "SHOT";
+      else UI.stateText.textContent = cueLocked ? "LOCKED / CHARGE" : "AIM";
+
+      // Physics
+      if (!gameOver) {
+        applyPhysics(dt);
+        resolveBallCollisions();
+        endShotIfReady();
+      }
+
+      updateUI();
+      render();
+      requestAnimationFrame(tick);
+    }
+
+    /*****************************************************************
+     * SETTINGS + BUTTONS
+     *****************************************************************/
+    function syncSettingLabels() {
+      UI.frictionVal.textContent = frictionPerFrame.toFixed(3);
+      UI.maxForceVal.textContent = maxForce.toFixed(1);
+      UI.smoothVal.textContent = parseFloat(UI.smoothing.value).toFixed(2);
+      UI.pinchVal.textContent = parseFloat(UI.pinchThreshold.value).toFixed(3);
+    }
+
+    UI.friction.addEventListener("input", () => {
+      frictionPerFrame = parseFloat(UI.friction.value);
+      syncSettingLabels();
+    });
+
+    UI.maxForce.addEventListener("input", () => {
+      maxForce = parseFloat(UI.maxForce.value);
+      cueForce = clamp(cueForce, 1, maxForce);
+      syncSettingLabels();
+      updateUI();
+    });
+
+    UI.smoothing.addEventListener("input", syncSettingLabels);
+    UI.pinchThreshold.addEventListener("input", syncSettingLabels);
+
+    UI.toggleGestureBtn.addEventListener("click", () => {
+      gestureEnabled = !gestureEnabled;
+      if (!gestureEnabled) {
+        cueLocked = false;
+        pinch = false;
+        pinchPrev = false;
+        showBanner("Mouse control enabled", 0.9);
+      } else {
+        showBanner("Gesture control enabled", 0.9);
+      }
+      updateUI();
+    });
+
+    UI.resetBtn.addEventListener("click", () => resetRack());
+
+    UI.toggleCameraBtn.addEventListener("click", () => {
+      cameraWrap.classList.toggle("show");
+      showBanner(cameraWrap.classList.contains("show") ? "Camera debug ON" : "Camera debug OFF", 0.9);
+    });
+
+    /*****************************************************************
+     * BOOT
+     *****************************************************************/
+    (function boot() {
+      resize();
+      resetRack();
+      syncSettingLabels();
+      render();
+      requestAnimationFrame(tick);
+
+      initHands().catch((err) => {
+        console.error(err);
+        UI.modeBadge.textContent = "Gesture: ERROR";
+        showBanner("Camera/gesture init failed. Use mouse control.", 1.8);
+        gestureEnabled = false;
+        updateUI();
+      });
+    })();
+  </script>
+</body>
+</html>
