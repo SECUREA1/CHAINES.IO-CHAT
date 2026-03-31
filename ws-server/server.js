@@ -25,6 +25,9 @@ const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
 // Locate repo root to serve the client HTML
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+const DATA_DIR = path.join(ROOT, "data");
+const CLOUD_FEED_JSON_PATH =
+  process.env.CLOUD_FEED_JSON_PATH || path.join(DATA_DIR, "cloud-feed.json");
 
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
 const db = new Database(DB_PATH);
@@ -119,6 +122,32 @@ try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
+
+function ensureCloudFeedDir() {
+  try {
+    fs.mkdirSync(path.dirname(CLOUD_FEED_JSON_PATH), { recursive: true });
+  } catch {}
+}
+
+function writeCloudFeedSnapshot(messages = []) {
+  try {
+    ensureCloudFeedDir();
+    fs.writeFileSync(
+      CLOUD_FEED_JSON_PATH,
+      JSON.stringify(
+        {
+          generatedAt: new Date().toISOString(),
+          count: messages.length,
+          messages,
+        },
+        null,
+        2
+      )
+    );
+  } catch (err) {
+    console.warn("Unable to write cloud feed snapshot:", err?.message || err);
+  }
+}
 
 const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
@@ -219,6 +248,20 @@ app.get("/favicon.svg", (req, res) =>
 );
 
 app.get("/healthz", (req, res) => res.send("ok"));
+app.get("/api/cloud-feed", (req, res) => {
+  try {
+    const raw = fs.readFileSync(CLOUD_FEED_JSON_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    const messages = Array.isArray(parsed?.messages) ? parsed.messages : [];
+    res.json({
+      generatedAt: parsed?.generatedAt || null,
+      count: messages.length,
+      messages,
+    });
+  } catch {
+    res.json({ generatedAt: null, count: 0, messages: [] });
+  }
+});
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
@@ -930,6 +973,12 @@ function loadHistory(room = null) {
   }));
 }
 
+function syncCloudFeedSnapshot() {
+  writeCloudFeedSnapshot(loadHistory());
+}
+
+syncCloudFeedSnapshot();
+
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
 const broadcasters = new Map();
@@ -1251,6 +1300,7 @@ wss.on("connection", (ws) => {
           text: msg.text,
           ts: Date.now(),
         };
+        syncCloudFeedSnapshot();
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(JSON.stringify(out));
         }
@@ -1287,6 +1337,7 @@ wss.on("connection", (ws) => {
           .prepare("SELECT COUNT(*) as c FROM likes WHERE message_id = ?")
           .get(msg.messageId).c;
         const payload = { type: "like", messageId: msg.messageId, count };
+        syncCloudFeedSnapshot();
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(JSON.stringify(payload));
         }
@@ -1410,6 +1461,7 @@ wss.on("connection", (ws) => {
       msg.file_type = fileType;
       msg.fileType = fileType;
     }
+    if (!msg.room) syncCloudFeedSnapshot();
     // broadcast
     if (msg.room) {
       const targets = new Set();
@@ -1436,6 +1488,7 @@ wss.on("connection", (ws) => {
         db.prepare("DELETE FROM chat_messages WHERE id = ?").run(msg.id);
         db.prepare("DELETE FROM comments WHERE message_id = ?").run(msg.id);
         db.prepare("DELETE FROM likes WHERE message_id = ?").run(msg.id);
+        if (!msg.room) syncCloudFeedSnapshot();
         const payload = JSON.stringify({ type: "delete", id: msg.id });
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(payload);
