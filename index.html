@@ -1243,7 +1243,10 @@
       pushMsg(m) {
         try {
           const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          items.push(m); while (items.length > 200) items.shift();
+          const idx = items.findIndex(x => x.id === m.id);
+          if(idx >= 0) items[idx] = m;
+          else items.push(m);
+          while (items.length > 200) items.shift();
           localStorage.setItem('chaines_messages', JSON.stringify(items));
         } catch {}
       },
@@ -2912,7 +2915,7 @@
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal) store.pushMsg(m);
+          store.pushMsg(m);
         }
       }
 
