@@ -193,8 +193,8 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #gesture-games-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #gesture-games-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -202,7 +202,7 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #feed-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
+      #camera-btn img, #screen-btn img, #gesture-games-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img {
         width:24px;
@@ -435,6 +435,17 @@
     .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
     .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
     .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
+    .gesture-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:25; padding:16px; }
+    .gesture-modal__dialog { width:min(680px, 96vw); max-height:min(760px, 92vh); overflow:auto; background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; }
+    .gesture-modal__header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid var(--lining); }
+    .gesture-modal__title { margin:0; font-size:16px; }
+    .gesture-modal__list { list-style:none; margin:0; padding:12px; display:grid; gap:10px; }
+    .gesture-modal__item { border:1px solid var(--lining); border-radius:12px; padding:10px 12px; background: color-mix(in oklab, var(--panel), transparent 22%); }
+    .gesture-modal__item h3 { margin:0; font-size:14px; }
+    .gesture-modal__item p { margin:4px 0 0; font-size:12px; color:var(--muted); }
+    .gesture-modal__actions { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+    .gesture-modal__open { border:1px solid var(--lining); border-radius:999px; padding:7px 12px; color:var(--fg); text-decoration:none; font-size:12px; }
+    .gesture-modal__open:hover { background: color-mix(in oklab, var(--accent), transparent 45%); }
 
     .live-btn {
       display:inline-flex;
@@ -764,6 +775,7 @@
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
           <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
+          <button id="gesture-games-btn" class="chip" type="button" title="Open gesture games" aria-label="Open gesture games"><img src="static/games.svg" alt="Gesture games" /></button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
         </div>
       <div class="const-buttons" hidden>
@@ -845,6 +857,45 @@
         <button id="omconsole-close" class="omconsole-close" type="button" aria-label="Close OMConsole">Close</button>
       </div>
       <iframe id="omconsole-frame" class="omconsole-modal__frame" src="omconsole_render_single_games_ROUTING.html" title="OMConsole" loading="lazy" allow="camera *; microphone *; display-capture *; autoplay *; fullscreen *" allowfullscreen allowusermedia></iframe>
+    </div>
+  </div>
+
+  <div id="gesture-games-modal" class="gesture-modal" hidden>
+    <div class="gesture-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="gesture-games-title">
+      <div class="gesture-modal__header">
+        <h2 id="gesture-games-title" class="gesture-modal__title">Latest Gesture Games</h2>
+        <button id="gesture-games-close" class="omconsole-close" type="button" aria-label="Close gesture games">Close</button>
+      </div>
+      <ul class="gesture-modal__list">
+        <li class="gesture-modal__item">
+          <h3>Gesture Billiards Pro (2P).html</h3>
+          <p>Create Gesture Billiards Pro (2P).html · 1 minute ago</p>
+          <div class="gesture-modal__actions">
+            <a class="gesture-modal__open" href="Gesture Billiards Pro (2P).html" target="_blank" rel="noopener">Open game</a>
+          </div>
+        </li>
+        <li class="gesture-modal__item">
+          <h3>Gesture Mini Putt Pro (18 Holes).html</h3>
+          <p>Create Gesture Mini Putt Pro (18 Holes).html · 4 minutes ago</p>
+          <div class="gesture-modal__actions">
+            <a class="gesture-modal__open" href="Gesture Mini Putt Pro (18 Holes).html" target="_blank" rel="noopener">Open game</a>
+          </div>
+        </li>
+        <li class="gesture-modal__item">
+          <h3>GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html</h3>
+          <p>Updated · 2 minutes ago</p>
+          <div class="gesture-modal__actions">
+            <a class="gesture-modal__open" href="GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener">Open game</a>
+          </div>
+        </li>
+        <li class="gesture-modal__item">
+          <h3>Mobile Mini Putt — Pinch Lock + Pinch Shoot.html</h3>
+          <p>Latest mobile mini putt build</p>
+          <div class="gesture-modal__actions">
+            <a class="gesture-modal__open" href="Mobile Mini Putt — Pinch Lock + Pinch Shoot.html" target="_blank" rel="noopener">Open game</a>
+          </div>
+        </li>
+      </ul>
     </div>
   </div>
 
@@ -1024,6 +1075,9 @@
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
+    const gestureGamesBtn = el('#gesture-games-btn');
+    const gestureGamesModal = el('#gesture-games-modal');
+    const gestureGamesClose = el('#gesture-games-close');
     const streamsEl = el('#streams');
     const streams = {};
     const guestMap = {};
@@ -1138,6 +1192,40 @@
     document.addEventListener('keydown', (event) => {
       if(event.key === 'Escape' && omconsoleModal && !omconsoleModal.hidden){
         hideOmconsole();
+      }
+    });
+
+    const showGestureGames = () => {
+      if(!gestureGamesModal) return;
+      gestureGamesModal.hidden = false;
+    };
+
+    const hideGestureGames = () => {
+      if(!gestureGamesModal) return;
+      gestureGamesModal.hidden = true;
+      gestureGamesBtn?.focus?.();
+    };
+
+    if(gestureGamesBtn){
+      gestureGamesBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        showGestureGames();
+      });
+    }
+
+    if(gestureGamesClose){
+      gestureGamesClose.addEventListener('click', hideGestureGames);
+    }
+
+    if(gestureGamesModal){
+      gestureGamesModal.addEventListener('click', (event) => {
+        if(event.target === gestureGamesModal) hideGestureGames();
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if(event.key === 'Escape' && gestureGamesModal && !gestureGamesModal.hidden){
+        hideGestureGames();
       }
     });
 
