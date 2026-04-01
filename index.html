@@ -752,14 +752,23 @@
     .auth.is-hidden { display: none !important; }
     @media (max-width: 900px) {
       .bar {
-        grid-template-columns: minmax(0, 1fr) auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 8px;
+      }
+      .brand {
+        flex: 1 1 auto;
       }
       .self-destruct {
-        grid-column: 1 / -1;
-        justify-content: flex-start;
+        flex: 0 1 auto;
+        min-width: 0;
+        font-size: 11px;
+        white-space: nowrap;
       }
       .toolbar {
-        grid-template-columns: repeat(8, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(0, 1fr));
       }
     }
     @media (max-width: 600px) {
