@@ -487,6 +487,7 @@
   gap: 10px;
   padding: 10px;
   scroll-snap-type: x mandatory;
+  align-items: stretch;
 }
 
 /* Stream cards */
@@ -504,8 +505,36 @@
 
 /* Expanded stream state */
 .stream.open {
-  width: 300px;
+  width: min(300px, 76vw);
   flex: 0 0 auto;
+}
+
+body.streams-flex-fit #streams {
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-content: start;
+}
+body.streams-flex-fit #streams .stream,
+body.streams-flex-fit #streams .stream.open {
+  width: 100%;
+  min-height: 170px;
+  flex: 1 1 auto;
+}
+body.streams-flex-fit #streams .stream .video {
+  display: block;
+}
+body.streams-flex-fit #streams .stream .thumb {
+  display: none;
+}
+body.streams-flex-fit #feed {
+  display: none;
+}
+body.streams-flex-fit #video-container[hidden] {
+  display: none !important;
 }
 
     .stream .title { font-weight:700; margin-bottom:6px; }
@@ -602,6 +631,21 @@
       object-fit: contain;
       background: #000;
       display: block;
+    }
+    @media (max-width: 900px) {
+      #streams {
+        gap: 8px;
+        padding: 8px;
+      }
+      .stream {
+        width: 132px;
+      }
+      .stream.open {
+        width: min(250px, 88vw);
+      }
+      body.streams-flex-fit #streams {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
     }
 
     #overlay-chat {
@@ -763,6 +807,7 @@
         <div class="toolbar">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
+          <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
           <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
@@ -1037,6 +1082,17 @@
     const guestMap = {};
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
+    const streamsFitBtn = el('#streams-fit-btn');
+    let streamsFlexFit = false;
+    function setStreamsFlexFit(next){
+      streamsFlexFit = !!next;
+      document.body.classList.toggle('streams-flex-fit', streamsFlexFit);
+      if(streamsFitBtn){
+        streamsFitBtn.setAttribute('aria-pressed', streamsFlexFit ? 'true' : 'false');
+        streamsFitBtn.textContent = streamsFlexFit ? 'Tiles Row' : 'Flex Fit';
+      }
+      if(streamsFlexFit) showStream();
+    }
     function showStream(){
       videoContainer.removeAttribute('hidden');
       feed.setAttribute('hidden','');
@@ -1045,6 +1101,14 @@
       if(videoToggle) videoToggle.textContent = 'Show Chat';
     }
     function showChat(){
+      if(streamsFlexFit){
+        streamsFlexFit = false;
+        document.body.classList.remove('streams-flex-fit');
+        if(streamsFitBtn){
+          streamsFitBtn.setAttribute('aria-pressed', 'false');
+          streamsFitBtn.textContent = 'Flex Fit';
+        }
+      }
       videoContainer.setAttribute('hidden','');
       feed.removeAttribute('hidden');
       if(form) form.removeAttribute('hidden');
@@ -1178,6 +1242,9 @@
           showChat();
         }
       });
+    }
+    if(streamsFitBtn){
+      streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
 
     // --- Basic state ---
