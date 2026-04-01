@@ -606,6 +606,8 @@ body.streams-flex-fit #video-container[hidden] {
       flex-wrap: wrap;
       gap: 10px;
       padding: 10px;
+      align-content: flex-start;
+      overflow: auto;
     }
     #video-container.has-guest {
       flex-wrap: nowrap;
@@ -631,6 +633,26 @@ body.streams-flex-fit #video-container[hidden] {
       object-fit: contain;
       background: #000;
       display: block;
+    }
+    body.broadcast-mode #video-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      overflow: auto;
+      align-content: start;
+      align-items: start;
+    }
+    body.broadcast-mode #video-container.has-guest {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    body.broadcast-mode #video-container.has-guest video {
+      max-width: 100%;
+    }
+    body.broadcast-mode #video-container video {
+      max-width: 100%;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      height: auto;
+      object-fit: contain;
     }
     @media (max-width: 900px) {
       #streams {
