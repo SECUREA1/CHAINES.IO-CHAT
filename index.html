@@ -1695,6 +1695,11 @@
     let drawHandle = null;
     let recordMime = 'video/webm';
     let overlayMessages = [];
+    let cameraStreams = [];
+    let mixCanvas = null;
+    let mixCtx = null;
+    let mixDrawHandle = null;
+    let multiCamBroadcast = false;
 
     function showOverlayMessage({ user, text, profilePic }){
       if(!overlayChat) return;
@@ -1714,6 +1719,97 @@
       wrap.appendChild(span);
       overlayChat.appendChild(wrap);
       setTimeout(() => wrap.remove(), 5000);
+    }
+
+    function stopMultiCamMix(){
+      if(mixDrawHandle){
+        cancelAnimationFrame(mixDrawHandle);
+        mixDrawHandle = null;
+      }
+      mixCanvas = null;
+      mixCtx = null;
+    }
+
+    function stopCameraStreams(){
+      cameraStreams.forEach(s => {
+        try { s.getTracks().forEach(t => t.stop()); } catch {}
+      });
+      cameraStreams = [];
+      stopMultiCamMix();
+    }
+
+    async function createBroadcastCameraBundle(){
+      const base = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+        audio: true
+      });
+      if(!navigator.mediaDevices?.enumerateDevices){
+        cameraStreams = [base];
+        return { stream: base, previews: [base], multiCam: false };
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(d => d.kind === 'videoinput');
+      if(videoInputs.length <= 1){
+        cameraStreams = [base];
+        return { stream: base, previews: [base], multiCam: false };
+      }
+      const opened = [base];
+      for(const d of videoInputs){
+        const id = d.deviceId;
+        if(!id) continue;
+        try{
+          const extra = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
+          const extraTrack = extra.getVideoTracks()[0];
+          const baseTrack = base.getVideoTracks()[0];
+          const extraId = extraTrack?.getSettings?.().deviceId;
+          const baseId = baseTrack?.getSettings?.().deviceId;
+          if(baseId && extraId && baseId === extraId){
+            extra.getTracks().forEach(t => t.stop());
+            continue;
+          }
+          opened.push(extra);
+        } catch {}
+      }
+      cameraStreams = opened;
+      if(opened.length <= 1){
+        return { stream: base, previews: [base], multiCam: false };
+      }
+
+      const vids = opened.map(s => {
+        const v = document.createElement('video');
+        v.srcObject = s;
+        v.muted = true;
+        v.autoplay = true;
+        v.playsInline = true;
+        v.setAttribute('muted', '');
+        v.setAttribute('autoplay', '');
+        v.setAttribute('playsinline', '');
+        v.play().catch(() => {});
+        return v;
+      });
+      mixCanvas = document.createElement('canvas');
+      mixCtx = mixCanvas.getContext('2d');
+      const draw = () => {
+        const count = vids.length;
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const cellW = 640;
+        const cellH = 360;
+        mixCanvas.width = cols * cellW;
+        mixCanvas.height = rows * cellH;
+        mixCtx.fillStyle = 'black';
+        mixCtx.fillRect(0, 0, mixCanvas.width, mixCanvas.height);
+        vids.forEach((v, idx) => {
+          const x = (idx % cols) * cellW;
+          const y = Math.floor(idx / cols) * cellH;
+          try { mixCtx.drawImage(v, x, y, cellW, cellH); } catch {}
+        });
+        mixDrawHandle = requestAnimationFrame(draw);
+      };
+      draw();
+      const mixed = mixCanvas.captureStream(30);
+      base.getAudioTracks().forEach(t => mixed.addTrack(t));
+      return { stream: mixed, previews: opened, multiCam: true };
     }
 
       function updateHeaderButtons(){
@@ -2306,9 +2402,15 @@
         cameraOff = false;
         blankTrack = null;
         broadcasting = true;
-        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
-        getStream.then(stream => {
+        const getStream = stream
+          ? Promise.resolve({ stream, previews: [stream], multiCam: false })
+          : (audioOnly
+            ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
+            : createBroadcastCameraBundle());
+        getStream.then(bundle => {
+          const stream = bundle.stream;
           localStream = stream;
+          multiCamBroadcast = !!bundle.multiCam;
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -2379,9 +2481,13 @@
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
+      if(cameraFlipBtn){
+        cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
+      }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      mediaEl.srcObject = stream;
+      const previewStream = bundle.previews && bundle.previews[0] ? bundle.previews[0] : stream;
+      mediaEl.srcObject = previewStream;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -2413,6 +2519,21 @@
             }
           }
           videoContainer.appendChild(mediaEl);
+          if(!audioOnly && bundle.previews && bundle.previews.length > 1){
+            bundle.previews.slice(1).forEach((camStream, idx) => {
+              const camEl = document.createElement('video');
+              camEl.srcObject = camStream;
+              camEl.muted = true;
+              camEl.setAttribute('muted','');
+              camEl.autoplay = true;
+              camEl.setAttribute('autoplay','');
+              camEl.playsInline = true;
+              camEl.setAttribute('playsinline','');
+              camEl.controls = true;
+              camEl.dataset.cam = `extra-${idx}`;
+              videoContainer.appendChild(camEl);
+            });
+          }
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
@@ -2449,6 +2570,7 @@
       }
 
       function switchCamera(){
+        if(multiCamBroadcast) return;
         if(!localStream) return;
         usingFrontCamera = !usingFrontCamera;
         const videoTrack = localStream.getVideoTracks()[0];
@@ -2467,6 +2589,7 @@
       }
 
       function toggleCamera(){
+        if(multiCamBroadcast) return;
         if(!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
         if(!cameraOff){
@@ -2636,6 +2759,7 @@
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
+        multiCamBroadcast = false;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
         const note = forced ? new Date().toLocaleString() : (share ?
@@ -2673,6 +2797,7 @@
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
       }
+      stopCameraStreams();
       for(const id in peerConnections){
         try{ peerConnections[id].close(); }catch{}
         delete peerConnections[id];
