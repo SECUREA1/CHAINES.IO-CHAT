@@ -1490,6 +1490,7 @@
     let mixCanvas = null;
     let mixCtx = null;
     let mixDrawHandle = null;
+    const MAX_BROADCAST_CAMERAS = 10;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
 
@@ -1547,12 +1548,12 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'chip';
-        btn.textContent = `Cam ${idx + 1}: On`;
-        btn.title = `Toggle camera ${idx + 1}`;
+        btn.textContent = `Cam ${idx + 1}: Approved`;
+        btn.title = `Approve camera ${idx + 1}`;
         btn.addEventListener('click', () => {
           entry.enabled = !entry.enabled;
           if(entry.track) entry.track.enabled = entry.enabled;
-          btn.textContent = `Cam ${idx + 1}: ${entry.enabled ? 'On' : 'Off'}`;
+          btn.textContent = `Cam ${idx + 1}: ${entry.enabled ? 'Approved' : 'Muted'}`;
           btn.classList.toggle('off', !entry.enabled);
         });
         multiCameraControls.appendChild(btn);
@@ -1570,13 +1571,16 @@
         return { stream: base, previews: [base], multiCam: false };
       }
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter(d => d.kind === 'videoinput');
+      const videoInputs = devices
+        .filter(d => d.kind === 'videoinput')
+        .slice(0, MAX_BROADCAST_CAMERAS);
       if(videoInputs.length <= 1){
         cameraStreams = [base];
         return { stream: base, previews: [base], multiCam: false };
       }
       const opened = [base];
       for(const d of videoInputs){
+        if(opened.length >= MAX_BROADCAST_CAMERAS) break;
         const id = d.deviceId;
         if(!id) continue;
         try{
@@ -1591,6 +1595,11 @@
           }
           opened.push(extra);
         } catch {}
+      }
+      if(opened.length > MAX_BROADCAST_CAMERAS){
+        opened.splice(MAX_BROADCAST_CAMERAS).forEach(s => {
+          try { s.getTracks().forEach(t => t.stop()); } catch {}
+        });
       }
       cameraStreams = opened;
       if(opened.length <= 1){
