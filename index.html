@@ -161,7 +161,7 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: clamp(15px, 2.1vw, 22px); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { display:grid; grid-template-columns:repeat(7, minmax(46px, 1fr)); }
+    .toolbar { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); }
     .toolbar .chip { justify-content:center; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; white-space:nowrap; }
@@ -194,10 +194,8 @@
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #gesture-games-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #gesture-games-btn, #video-toggle, #omconsole-btn {
-      min-width:40px;
-      height:40px;
-      width:40px;
-      padding:0;
+      min-height:40px;
+      padding:0 10px;
       justify-content:center;
       border-radius:12px;
     }
@@ -252,11 +250,18 @@
   width: 100%;
   min-width: 0;
   min-height: 44px;
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .toolbar > .chip span {
   white-space: nowrap;
+}
+.toolbar > .chip .chip-label,
+#logout-btn .chip-label {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
@@ -786,12 +791,8 @@
         transform: translate(-50%, 0);
       }
       .toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px;
-      }
-      #conn-chip span,
-      #video-toggle span,
-      #omconsole-btn span {
-        display:none;
       }
       #conn-chip,
       #video-toggle,
@@ -802,6 +803,10 @@
       #theme-toggle,
       #logout-btn {
         min-width: 0;
+      }
+      .toolbar > .chip .chip-label,
+      #logout-btn .chip-label {
+        font-size: 11px;
       }
     }
   </style>
@@ -845,16 +850,16 @@
             <input type="checkbox" id="auto-delete" />
             Self-destruct in 5m
           </label>
-          <button id="logout-btn" class="chip" type="button" title="Exit" aria-label="Exit"><img src="static/logout.svg" alt="Exit" /></button>
+          <button id="logout-btn" class="chip" type="button" title="Exit" aria-label="Exit"><img src="static/logout.svg" alt="Exit" /><span class="chip-label">Exit</span></button>
         </div>
         <div class="toolbar">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-          <button id="video-toggle" class="chip" type="button" title="Show feed" aria-label="Show feed"><img src="static/screen.svg" alt="Feed toggle" /></button>
-          <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
-          <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
-          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/split.svg" alt="OMConsole" /></button>
-          <button id="gesture-games-btn" class="chip" type="button" title="Open gesture games" aria-label="Open gesture games"><img src="static/games.svg" alt="Gesture games" /></button>
-          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+          <button id="video-toggle" class="chip" type="button" title="Show feed" aria-label="Show feed"><img src="static/screen.svg" alt="Feed toggle" /><span class="chip-label">Feed View</span></button>
+          <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /><span class="chip-label">Hologhost</span></button>
+          <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /><span class="chip-label">New Feed</span></button>
+          <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/split.svg" alt="OMConsole" /><span class="chip-label">OMConsole</span></button>
+          <button id="gesture-games-btn" class="chip" type="button" title="Open gesture games" aria-label="Open gesture games"><img src="static/games.svg" alt="Gesture games" /><span class="chip-label">Gesture Games</span></button>
+          <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/><span class="chip-label">Theme</span></button>
         </div>
       <div class="const-buttons" hidden>
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
@@ -950,6 +955,7 @@
           <p>Create Gesture Billiards Pro (2P).html · 1 minute ago</p>
           <div class="gesture-modal__actions">
             <a class="gesture-modal__open" href="/games/gesture-billiards-pro-2p" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="/Gesture%20Billiards%20Pro%20(2P).html" target="_blank" rel="noopener"><img src="static/split.svg" alt="" aria-hidden="true" />Fallback link</a>
           </div>
         </li>
         <li class="gesture-modal__item">
@@ -957,6 +963,7 @@
           <p>Create Gesture Mini Putt Pro (18 Holes).html · 4 minutes ago</p>
           <div class="gesture-modal__actions">
             <a class="gesture-modal__open" href="/games/gesture-mini-putt-pro-18-holes" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="/Gesture%20Mini%20Putt%20Pro%20(18%20Holes).html" target="_blank" rel="noopener"><img src="static/split.svg" alt="" aria-hidden="true" />Fallback link</a>
           </div>
         </li>
         <li class="gesture-modal__item">
@@ -964,6 +971,7 @@
           <p>Updated · 2 minutes ago</p>
           <div class="gesture-modal__actions">
             <a class="gesture-modal__open" href="/games/goldeneye-retinaops" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="/GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener"><img src="static/split.svg" alt="" aria-hidden="true" />Fallback link</a>
           </div>
         </li>
         <li class="gesture-modal__item">
@@ -971,6 +979,7 @@
           <p>Latest mobile mini putt build</p>
           <div class="gesture-modal__actions">
             <a class="gesture-modal__open" href="/games/mobile-mini-putt-pinch-lock-pinch-shoot" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="/Mobile%20Mini%20Putt%20%E2%80%94%20Pinch%20Lock%20%2B%20Pinch%20Shoot.html" target="_blank" rel="noopener"><img src="static/split.svg" alt="" aria-hidden="true" />Fallback link</a>
           </div>
         </li>
       </ul>
