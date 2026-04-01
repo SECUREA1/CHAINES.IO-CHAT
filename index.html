@@ -161,7 +161,7 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { justify-content:space-between; flex-wrap:nowrap; }
+    .toolbar { justify-content:space-between; flex-wrap:wrap; }
     .toolbar > * { flex:1; }
     .toolbar .chip { justify-content:center; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
@@ -195,9 +195,9 @@
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #gesture-games-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #gesture-games-btn {
-      width:36px;
-      height:36px;
-      padding:0;
+      min-width:40px;
+      height:40px;
+      padding:0 10px;
       justify-content:center;
       border-radius:12px;
     }
@@ -241,9 +241,20 @@
 }
 
 #video-toggle,
-#omconsole-btn {
+#omconsole-btn,
+#conn-chip {
   width: auto;
+  min-height: 40px;
   padding: 0 10px;
+}
+
+.toolbar > .chip {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toolbar > .chip span {
+  white-space: nowrap;
 }
 
       /* layout toggle button is hidden by default and revealed when multiple videos are present */
@@ -751,6 +762,25 @@
       .ghost-ticker.is-visible {
         transform: translate(-50%, 0);
       }
+      .toolbar {
+        gap: 6px;
+      }
+      #conn-chip span,
+      #video-toggle span,
+      #omconsole-btn span {
+        display:none;
+      }
+      #conn-chip,
+      #video-toggle,
+      #omconsole-btn,
+      #gesture-games-btn,
+      #feed-btn,
+      #ghost-btn,
+      #theme-toggle,
+      #logout-btn {
+        flex: 0 1 calc(25% - 6px);
+        min-width: 44px;
+      }
     }
   </style>
 </head>
@@ -897,28 +927,28 @@
           <h3>Gesture Billiards Pro (2P).html</h3>
           <p>Create Gesture Billiards Pro (2P).html · 1 minute ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="/Gesture%20Billiards%20Pro%20(2P).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="./Gesture%20Billiards%20Pro%20(2P).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>Gesture Mini Putt Pro (18 Holes).html</h3>
           <p>Create Gesture Mini Putt Pro (18 Holes).html · 4 minutes ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="/Gesture%20Mini%20Putt%20Pro%20(18%20Holes).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="./Gesture%20Mini%20Putt%20Pro%20(18%20Holes).html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html</h3>
           <p>Updated · 2 minutes ago</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="/GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="./GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
         <li class="gesture-modal__item">
           <h3>Mobile Mini Putt — Pinch Lock + Pinch Shoot.html</h3>
           <p>Latest mobile mini putt build</p>
           <div class="gesture-modal__actions">
-            <a class="gesture-modal__open" href="/Mobile%20Mini%20Putt%20%E2%80%94%20Pinch%20Lock%20+%20Pinch%20Shoot.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
+            <a class="gesture-modal__open" href="./Mobile%20Mini%20Putt%20%E2%80%94%20Pinch%20Lock%20%2B%20Pinch%20Shoot.html" target="_blank" rel="noopener"><img src="static/games.svg" alt="" aria-hidden="true" />Open game</a>
           </div>
         </li>
       </ul>
