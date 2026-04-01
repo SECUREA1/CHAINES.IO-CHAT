@@ -265,6 +265,17 @@ app.get(["/", "/index.html"], (req, res) =>
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
 );
+const GAME_HTML_FILES = [
+  "Gesture Billiards Pro (2P).html",
+  "Gesture Mini Putt Pro (18 Holes).html",
+  "GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html",
+  "Mobile Mini Putt — Pinch Lock + Pinch Shoot.html",
+];
+for (const gameFile of GAME_HTML_FILES) {
+  const sendGame = (req, res) => res.sendFile(path.join(ROOT, gameFile));
+  app.get(`/${gameFile}`, sendGame);
+  app.get(`/${encodeURIComponent(gameFile)}`, sendGame);
+}
 app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
 app.post("/push/subscribe", (req, res) => {
   const { username, subscription } = req.body || {};
