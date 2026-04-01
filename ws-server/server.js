@@ -276,6 +276,21 @@ for (const gameFile of GAME_HTML_FILES) {
   app.get(`/${gameFile}`, sendGame);
   app.get(`/${encodeURIComponent(gameFile)}`, sendGame);
 }
+const GAME_SLUGS = {
+  "gesture-billiards-pro-2p": "Gesture Billiards Pro (2P).html",
+  "gesture-mini-putt-pro-18-holes": "Gesture Mini Putt Pro (18 Holes).html",
+  "goldeneye-retinaops": "GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html",
+  "mobile-mini-putt-pinch-lock-pinch-shoot":
+    "Mobile Mini Putt — Pinch Lock + Pinch Shoot.html",
+};
+app.get("/games/:slug", (req, res) => {
+  const gameFile = GAME_SLUGS[req.params.slug];
+  if (!gameFile) {
+    res.status(404).send("Game not found");
+    return;
+  }
+  res.sendFile(path.join(ROOT, gameFile));
+});
 app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
 app.post("/push/subscribe", (req, res) => {
   const { username, subscription } = req.body || {};
