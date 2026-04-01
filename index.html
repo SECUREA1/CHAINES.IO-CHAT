@@ -161,8 +161,22 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: clamp(15px, 2.1vw, 22px); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); }
-    .toolbar .chip { justify-content:center; }
+    .toolbar {
+      display:grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .toolbar .chip {
+      justify-content:center;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .toolbar .chip .chip-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; white-space:nowrap; }
     .self-destruct input { accent-color: var(--accent-2); }
@@ -194,8 +208,8 @@
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn, #gesture-games-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn, #gesture-games-btn, #video-toggle, #omconsole-btn {
-      min-height:40px;
-      padding:0 10px;
+      min-height:44px;
+      padding:0 8px;
       justify-content:center;
       border-radius:12px;
     }
@@ -772,9 +786,7 @@
         font-size: 11px;
         white-space: nowrap;
       }
-      .toolbar {
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-      }
+      .toolbar { grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); }
     }
     @media (max-width: 600px) {
       header { padding:10px; gap:8px; }
@@ -790,10 +802,7 @@
       .ghost-ticker.is-visible {
         transform: translate(-50%, 0);
       }
-      .toolbar {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-      }
+      .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
       #conn-chip,
       #video-toggle,
       #omconsole-btn,
