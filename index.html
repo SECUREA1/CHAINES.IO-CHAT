@@ -195,8 +195,8 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
-    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #screen-btn {
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
+    #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
       padding:0;
@@ -204,7 +204,7 @@
       border-radius:12px;
     }
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #feed-btn img, #logout-btn img, #live-chip img,
-      #camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
+      #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img {
         width:24px;
@@ -772,6 +772,9 @@
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
+        <button class="chip" id="add-camera-btn" type="button" title="Add camera to broadcast" hidden>
+          <img src="static/insert.svg" alt="Add camera" />
+        </button>
         <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
         <button class="chip" id="screen-btn" type="button" title="Share screen">
           <img src="static/screen.svg" alt="Share screen" />
@@ -1010,6 +1013,7 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const addCameraBtn = el('#add-camera-btn');
     const multiCameraControls = el('#multi-camera-controls');
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
@@ -1146,6 +1150,9 @@
 
     if(cameraBtn){
       cameraBtn.addEventListener('click', toggleCamera);
+    }
+    if(addCameraBtn){
+      addCameraBtn.addEventListener('click', addCameraToBroadcast);
     }
     if(screenBtn){
       screenBtn.addEventListener('click', () => {
@@ -1643,6 +1650,67 @@
       base.getAudioTracks().forEach(t => mixed.addTrack(t));
       renderMultiCamControls(entries);
       return { stream: mixed, previews: opened, multiCam: true };
+    }
+
+    function removeExtraCameraPreviews(){
+      if(!videoContainer) return;
+      videoContainer.querySelectorAll('video[data-cam^="extra-"]').forEach(elm => elm.remove());
+    }
+
+    function renderExtraCameraPreviews(previews){
+      removeExtraCameraPreviews();
+      if(!previews || previews.length <= 1) return;
+      previews.slice(1).forEach((camStream, idx) => {
+        const camEl = document.createElement('video');
+        camEl.srcObject = camStream;
+        camEl.muted = true;
+        camEl.setAttribute('muted','');
+        camEl.autoplay = true;
+        camEl.setAttribute('autoplay','');
+        camEl.playsInline = true;
+        camEl.setAttribute('playsinline','');
+        camEl.controls = true;
+        camEl.dataset.cam = `extra-${idx}`;
+        videoContainer.appendChild(camEl);
+      });
+      updateVideoLayout();
+    }
+
+    async function addCameraToBroadcast(){
+      if(!broadcasting || !localStream || screenSharing || multiCamBroadcast) return;
+      try{
+        const previousStream = localStream;
+        const bundle = await createBroadcastCameraBundle();
+        if(!bundle.multiCam || !bundle.stream){
+          alert('No additional camera found to add.');
+          return;
+        }
+        const nextStream = bundle.stream;
+        localStream = nextStream;
+        multiCamBroadcast = true;
+        if(cameraBtn) cameraBtn.hidden = true;
+        if(cameraFlipBtn) cameraFlipBtn.hidden = true;
+        if(addCameraBtn) addCameraBtn.hidden = true;
+        if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
+        renderExtraCameraPreviews(bundle.previews);
+        const nextVideoTrack = nextStream.getVideoTracks()[0];
+        const nextAudioTrack = nextStream.getAudioTracks()[0] || null;
+        for(const id in peerConnections){
+          const senders = peerConnections[id].getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if(videoSender && nextVideoTrack) videoSender.replaceTrack(nextVideoTrack);
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if(audioSender) audioSender.replaceTrack(nextAudioTrack);
+        }
+        const selfStream = streams[clientId];
+        if(selfStream?.vid) selfStream.vid.srcObject = nextStream;
+        if(previousStream && previousStream !== nextStream){
+          try { previousStream.getTracks().forEach(t => t.stop()); } catch {}
+        }
+      } catch(err){
+        console.error('Unable to add camera', err);
+        alert('Unable to add camera.');
+      }
     }
 
       function updateHeaderButtons(){
@@ -2311,6 +2379,9 @@
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
+      if(addCameraBtn){
+        addCameraBtn.hidden = audioOnly || multiCamBroadcast;
+      }
       if(cameraFlipBtn){
         cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
       }
@@ -2350,19 +2421,7 @@
           }
           videoContainer.appendChild(mediaEl);
           if(!audioOnly && bundle.previews && bundle.previews.length > 1){
-            bundle.previews.slice(1).forEach((camStream, idx) => {
-              const camEl = document.createElement('video');
-              camEl.srcObject = camStream;
-              camEl.muted = true;
-              camEl.setAttribute('muted','');
-              camEl.autoplay = true;
-              camEl.setAttribute('autoplay','');
-              camEl.playsInline = true;
-              camEl.setAttribute('playsinline','');
-              camEl.controls = true;
-              camEl.dataset.cam = `extra-${idx}`;
-              videoContainer.appendChild(camEl);
-            });
+            renderExtraCameraPreviews(bundle.previews);
           }
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
@@ -2494,6 +2553,7 @@
           })
           .catch(() => endBroadcast(true));
         if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
+        if(addCameraBtn) addCameraBtn.hidden = !broadcasting || multiCamBroadcast;
       }
 
       async function shareScreen(surface){
@@ -2530,6 +2590,7 @@
           screenTrack = track;
           screenSharing = true;
           if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
+          if(addCameraBtn) addCameraBtn.hidden = true;
           track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
           console.error('Screen share failed', err);
@@ -2573,6 +2634,10 @@
           cameraBtn.classList.remove('off');
           cameraBtn.title = 'Turn camera off';
         }
+        if(addCameraBtn){
+          addCameraBtn.hidden = true;
+        }
+        removeExtraCameraPreviews();
         clearMultiCamControls();
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
