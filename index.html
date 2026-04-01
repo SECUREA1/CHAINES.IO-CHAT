@@ -155,17 +155,16 @@
         overflow:hidden;
       }
 
-    header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
-    .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:nowrap; width:100%; }
-    .brand { display:flex; align-items:center; gap:10px; }
+    header { display:flex; flex-direction:column; gap:10px; padding:10px 12px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); border-radius: var(--radius); }
+    .bar { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; align-items:center; gap:10px; width:100%; }
+    .brand { display:flex; align-items:center; gap:10px; min-width:0; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
-    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
+    .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: clamp(15px, 2.1vw, 22px); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { justify-content:space-between; flex-wrap:wrap; }
-    .toolbar > * { flex:1; }
+    .toolbar { display:grid; grid-template-columns:repeat(7, minmax(46px, 1fr)); }
     .toolbar .chip { justify-content:center; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
-    .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
+    .self-destruct { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; white-space:nowrap; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
     .status.top, .status.user { justify-content:space-between; }
@@ -209,6 +208,8 @@
         width:24px;
         height:24px;
         display:block;
+        shape-rendering: geometricPrecision;
+        image-rendering: -webkit-optimize-contrast;
       }
 #cmd-list {
   width: auto;
@@ -248,10 +249,10 @@
 }
 
 .toolbar > .chip {
-  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 0 10px;
+  min-height: 44px;
+  padding: 0 8px;
 }
 
 .toolbar > .chip span {
@@ -749,8 +750,20 @@
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
+    @media (max-width: 900px) {
+      .bar {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .self-destruct {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+      }
+      .toolbar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
     @media (max-width: 600px) {
-      header { padding:12px; gap:8px; }
+      header { padding:10px; gap:8px; }
       footer { padding:0 12px 12px; gap:8px; }
       .feed { padding:12px; }
       .composer { margin:0; }
@@ -779,8 +792,7 @@
       #ghost-btn,
       #theme-toggle,
       #logout-btn {
-        flex: 0 1 calc(25% - 6px);
-        min-width: 44px;
+        min-width: 0;
       }
     }
   </style>
