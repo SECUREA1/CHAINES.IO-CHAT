@@ -1,11 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="url(#homeGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <defs>
-    <linearGradient id="homeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7ad7ff"/>
-      <stop offset="1" stop-color="#2d86ff"/>
-    </linearGradient>
-  </defs>
-  <path d="M3 10.5 12 3l9 7.5"/>
-  <path d="M5.5 9.8V20a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.8"/>
-  <path d="M10 21.5v-5a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4h-4v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
 </svg>

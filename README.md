@@ -51,13 +51,6 @@ configured for the page.
 
 Use the screen button in the header to broadcast either your entire screen or a specific window. You can trigger it while live to replace your camera feed, and click the button again to stop sharing and return to the camera. After choosing a surface, a thumbnail is captured and the stream begins broadcasting to other users.
 
-### Export posts as ordered SQL
-
-Run `python export_posts_sql.py --out posts_restore.sql` to generate a SQL file
-that replays posts/comments/likes in write order (`timestamp`, then `id`). The
-script keeps original IDs so related comments/likes reconnect correctly and the
-chat can be repopulated instantly with a single SQL import.
-
 ### File-type backups
 
 Run `python backup.py` to copy repository files into the `backups/` directory.

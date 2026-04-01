@@ -28,7 +28,6 @@ const ROOT = path.resolve(__dirname, "..");
 
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
 const db = new Database(DB_PATH);
-const POSTS_RESTORE_PATH = path.join(ROOT, "posts_restore.sql");
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,45 +119,6 @@ try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
-
-function maybeRestorePostsFromSql() {
-  const hasPosts = db.prepare("SELECT 1 FROM chat_messages LIMIT 1").get();
-  if (hasPosts) return;
-  if (!fs.existsSync(POSTS_RESTORE_PATH)) return;
-  const restoreSql = fs.readFileSync(POSTS_RESTORE_PATH, "utf8");
-  if (!restoreSql.trim()) return;
-  const replayStatements = restoreSql
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.startsWith("INSERT INTO chat_messages ") ||
-        line.startsWith("INSERT INTO comments ") ||
-        line.startsWith("INSERT INTO likes ")
-    );
-  if (!replayStatements.length) return;
-  try {
-    const replay = db.transaction(() => {
-      for (const statement of replayStatements) {
-        db.exec(statement);
-      }
-    });
-    replay();
-    const restoredCount =
-      db.prepare("SELECT COUNT(*) AS count FROM chat_messages").get()?.count || 0;
-    if (restoredCount > 0) {
-      console.log(
-        `[restore] Replayed ${restoredCount} posts from ${path.basename(
-          POSTS_RESTORE_PATH
-        )}`
-      );
-    }
-  } catch (error) {
-    console.error("[restore] Failed to replay posts_restore.sql", error);
-  }
-}
-
-maybeRestorePostsFromSql();
 
 const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
 
@@ -265,32 +225,6 @@ app.get(["/", "/index.html"], (req, res) =>
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
 );
-const GAME_HTML_FILES = [
-  "Gesture Billiards Pro (2P).html",
-  "Gesture Mini Putt Pro (18 Holes).html",
-  "GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html",
-  "Mobile Mini Putt — Pinch Lock + Pinch Shoot.html",
-];
-for (const gameFile of GAME_HTML_FILES) {
-  const sendGame = (req, res) => res.sendFile(path.join(ROOT, gameFile));
-  app.get(`/${gameFile}`, sendGame);
-  app.get(`/${encodeURIComponent(gameFile)}`, sendGame);
-}
-const GAME_SLUGS = {
-  "gesture-billiards-pro-2p": "Gesture Billiards Pro (2P).html",
-  "gesture-mini-putt-pro-18-holes": "Gesture Mini Putt Pro (18 Holes).html",
-  "goldeneye-retinaops": "GoldenEye_RetinaOps_FaceCursor_BlinkShoot_HandPie_SVGPlayers.html",
-  "mobile-mini-putt-pinch-lock-pinch-shoot":
-    "Mobile Mini Putt — Pinch Lock + Pinch Shoot.html",
-};
-app.get("/games/:slug", (req, res) => {
-  const gameFile = GAME_SLUGS[req.params.slug];
-  if (!gameFile) {
-    res.status(404).send("Game not found");
-    return;
-  }
-  res.sendFile(path.join(ROOT, gameFile));
-});
 app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
 app.post("/push/subscribe", (req, res) => {
   const { username, subscription } = req.body || {};
@@ -1264,11 +1198,6 @@ wss.on("connection", (ws) => {
           const history = loadHistory(msg.id);
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
-        return;
-      }
-      case "history-request": {
-        const room = typeof msg.room === "string" && msg.room.trim() ? msg.room.trim() : null;
-        ws.send(JSON.stringify({ type: "history", messages: loadHistory(room) }));
         return;
       }
       case "unwatcher": {
