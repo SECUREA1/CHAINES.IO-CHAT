@@ -165,6 +165,8 @@
     .toolbar > * { flex:1; }
     .toolbar .chip { justify-content:center; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
+    .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .multi-camera-controls .chip.off { opacity:0.55; }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
@@ -770,6 +772,7 @@
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
+        <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
         <button class="chip" id="screen-btn" type="button" title="Share screen">
           <img src="static/screen.svg" alt="Share screen" />
         </button>
@@ -1007,6 +1010,7 @@
     const broadcastControls = el('#broadcast-controls');
     const chatToggle = el('#chat-toggle');
     const cameraBtn = el('#camera-btn');
+    const multiCameraControls = el('#multi-camera-controls');
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -1487,6 +1491,7 @@
     let mixCtx = null;
     let mixDrawHandle = null;
     let multiCamBroadcast = false;
+    let multiCamTrackEntries = [];
 
     function showOverlayMessage({ user, text, profilePic }){
       if(!overlayChat) return;
@@ -1523,6 +1528,36 @@
       });
       cameraStreams = [];
       stopMultiCamMix();
+    }
+
+    function clearMultiCamControls(){
+      multiCamTrackEntries = [];
+      if(multiCameraControls){
+        multiCameraControls.innerHTML = '';
+        multiCameraControls.setAttribute('hidden', '');
+      }
+    }
+
+    function renderMultiCamControls(entries){
+      if(!multiCameraControls) return;
+      clearMultiCamControls();
+      if(!entries || entries.length <= 1) return;
+      multiCamTrackEntries = entries;
+      entries.forEach((entry, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip';
+        btn.textContent = `Cam ${idx + 1}: On`;
+        btn.title = `Toggle camera ${idx + 1}`;
+        btn.addEventListener('click', () => {
+          entry.enabled = !entry.enabled;
+          if(entry.track) entry.track.enabled = entry.enabled;
+          btn.textContent = `Cam ${idx + 1}: ${entry.enabled ? 'On' : 'Off'}`;
+          btn.classList.toggle('off', !entry.enabled);
+        });
+        multiCameraControls.appendChild(btn);
+      });
+      multiCameraControls.removeAttribute('hidden');
     }
 
     async function createBroadcastCameraBundle(){
@@ -1562,9 +1597,10 @@
         return { stream: base, previews: [base], multiCam: false };
       }
 
-      const vids = opened.map(s => {
+      const entries = opened.map(s => ({ stream: s, track: s.getVideoTracks()[0], enabled: true }));
+      const vids = entries.map(entry => {
         const v = document.createElement('video');
-        v.srcObject = s;
+        v.srcObject = entry.stream;
         v.muted = true;
         v.autoplay = true;
         v.playsInline = true;
@@ -1596,6 +1632,7 @@
       draw();
       const mixed = mixCanvas.captureStream(30);
       base.getAudioTracks().forEach(t => mixed.addTrack(t));
+      renderMultiCamControls(entries);
       return { stream: mixed, previews: opened, multiCam: true };
     }
 
@@ -2184,6 +2221,7 @@
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
+        clearMultiCamControls();
         broadcasting = true;
         const getStream = stream
           ? Promise.resolve({ stream, previews: [stream], multiCam: false })
@@ -2260,7 +2298,7 @@
       broadcastControls.removeAttribute('hidden');
       if(constButtons) constButtons.removeAttribute('hidden');
       if(cameraBtn){
-        cameraBtn.hidden = audioOnly;
+        cameraBtn.hidden = audioOnly || multiCamBroadcast;
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
@@ -2348,6 +2386,7 @@
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
+          clearMultiCamControls();
           alert('Unable to access camera/microphone');
         });
       }
@@ -2525,6 +2564,7 @@
           cameraBtn.classList.remove('off');
           cameraBtn.title = 'Turn camera off';
         }
+        clearMultiCamControls();
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
       overlayMessages = [];
