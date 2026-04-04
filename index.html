@@ -1785,7 +1785,11 @@ body.streams-flex-fit #video-container[hidden] {
     });
     broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
-      if(onlineMode !== 'cloud') connectWS();
+      const connected = await ensureCloudConnection();
+      if(!connected){
+        alert('Cloud connection unavailable. Try again in a moment.');
+        return;
+      }
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
         const hostId = others[0];
@@ -2351,6 +2355,20 @@ body.streams-flex-fit #video-container[hidden] {
         connectWS();
       }
       return false;
+    }
+
+    function ensureCloudConnection(timeoutMs = 2000){
+      if(socket && socket.readyState === 1) return Promise.resolve(true);
+      connectWS();
+      return new Promise((resolve) => {
+        const started = Date.now();
+        const tick = () => {
+          if(socket && socket.readyState === 1){ resolve(true); return; }
+          if(Date.now() - started >= timeoutMs){ resolve(false); return; }
+          setTimeout(tick, 100);
+        };
+        tick();
+      });
     }
 
     function connectWS(){
@@ -3532,7 +3550,12 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     function sendSignal(data){
-      try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
+      if(socket && socket.readyState === 1){
+        try { socket.send(JSON.stringify(data)); return; } catch {}
+      }
+      if(onlineMode === 'cloud' || broadcasting || pendingJoinHost || pendingMicHost){
+        sendCloudMessage(data);
+      }
     }
 
       function receive(m, isLocal=false){
