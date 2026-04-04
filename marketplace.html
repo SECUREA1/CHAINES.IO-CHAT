@@ -17,6 +17,20 @@
     .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
     .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
     .meta { padding:0 12px 12px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .post-wrap { padding:12px; border-top:1px solid var(--line); display:grid; gap:10px; }
+    .post-brand { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+    .post-title { margin:0; font-size:16px; }
+    .post-sub { margin:0; color:var(--muted); font-size:12px; }
+    .post-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; }
+    .post-grid input, .post-grid select, .post-grid textarea, .post-grid button {
+      width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); font:inherit;
+    }
+    .post-grid textarea { min-height:90px; resize:vertical; grid-column:1/-1; }
+    .post-grid .wide { grid-column:1/-1; }
+    .post-grid button { cursor:pointer; background:linear-gradient(180deg, #2c5fbf, #153a7a); font-weight:700; }
+    .post-status { min-height:1.2em; color:var(--muted); font-size:12px; }
+    .post-status.error { color:#ff8e8e; }
+    .post-status.success { color:#92f5b8; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; padding:12px; }
     .card { border:1px solid var(--line); border-radius:12px; padding:10px; background:color-mix(in oklab, var(--panel), transparent 7%); display:grid; gap:8px; }
     .chips { display:flex; gap:6px; flex-wrap:wrap; }
@@ -56,6 +70,31 @@
         <span id="count">0 listings</span>
         <span>Marketplace posts only. Filter by category, query, and value sort.</span>
       </div>
+      <div class="post-wrap">
+        <div class="post-brand">
+          <div>
+            <h2 class="post-title">Post to Marketplace</h2>
+            <p class="post-sub">Fast branded listing composer for jobs, services, and local offers.</p>
+          </div>
+        </div>
+        <form id="post-form" class="post-grid">
+          <input id="post-user" type="text" maxlength="24" placeholder="Your username" />
+          <select id="post-category" required>
+            <option value="jobs">Jobs</option>
+            <option value="for-sale">Items for sale</option>
+            <option value="services">Services</option>
+            <option value="housing">Housing</option>
+            <option value="community">Community</option>
+            <option value="general">General</option>
+          </select>
+          <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
+          <input id="post-location" type="text" maxlength="80" placeholder="Location (optional)" />
+          <input id="post-details" class="wide" type="text" maxlength="120" placeholder="Condition / details (optional)" />
+          <textarea id="post-text" maxlength="800" required placeholder="Write your listing and call to action..."></textarea>
+          <button type="submit">Publish Listing</button>
+        </form>
+        <div id="post-status" class="post-status" aria-live="polite"></div>
+      </div>
       <div id="listings" class="grid"></div>
       <div id="empty" class="empty" hidden>No posts match your filters yet.</div>
     </section>
@@ -74,6 +113,14 @@
       const list = $('#listings');
       const count = $('#count');
       const empty = $('#empty');
+      const postForm = $('#post-form');
+      const postStatus = $('#post-status');
+      const postUser = $('#post-user');
+      const postCategory = $('#post-category');
+      const postPrice = $('#post-price');
+      const postLocation = $('#post-location');
+      const postDetails = $('#post-details');
+      const postText = $('#post-text');
 
       const MARKETPLACE_CATEGORIES = {
         jobs: { label: 'Jobs' },
@@ -103,6 +150,12 @@
       const load = () => {
         try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
         catch { return []; }
+      };
+      const save = (items) => localStorage.setItem(sourceKey, JSON.stringify(items));
+      const sanitizeUser = (name) => String(name || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24);
+      const setPostStatus = (text, tone = '') => {
+        postStatus.textContent = text;
+        postStatus.className = `post-status${tone ? ` ${tone}` : ''}`;
       };
       const formatTime = (ts) => {
         try { return new Date(ts).toLocaleString(); } catch { return ''; }
@@ -152,6 +205,42 @@
         empty.hidden = items.length > 0;
       }
 
+      function postListing(ev) {
+        ev.preventDefault();
+        const text = String(postText.value || '').trim();
+        const user = sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || 'anon');
+        if (!text) {
+          setPostStatus('Add listing text before publishing.', 'error');
+          postText.focus();
+          return;
+        }
+        const listing = normalizeListing({
+          category: postCategory.value,
+          price: postPrice.value,
+          location: postLocation.value,
+          condition: postDetails.value
+        });
+        const now = Date.now();
+        const items = load();
+        items.push({
+          id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+          user: user || 'anon',
+          text,
+          ts: now,
+          likes: 0,
+          comments: [],
+          category: listing.category,
+          listing
+        });
+        save(items);
+        try { localStorage.setItem('chaines_username', user); } catch {}
+        postForm.reset();
+        postUser.value = user;
+        postCategory.value = listing.category;
+        setPostStatus('Listing published to CHAINeS Marketplace.', 'success');
+        render();
+      }
+
       Object.values(controls).forEach((el) => {
         if (!el || el.tagName === 'BUTTON') return;
         el.addEventListener('input', render);
@@ -159,6 +248,8 @@
       });
       controls.refresh.addEventListener('click', render);
       window.addEventListener('storage', (ev) => { if (ev.key === sourceKey) render(); });
+      postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
+      postForm.addEventListener('submit', postListing);
       render();
     })();
   </script>
