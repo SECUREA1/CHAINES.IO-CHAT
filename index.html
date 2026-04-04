@@ -825,34 +825,41 @@ body.streams-flex-fit #video-container[hidden] {
       .feed { padding:12px; }
       .composer { margin:0; }
       .toolbar-shell {
-        align-items:flex-start;
+        flex-direction:row;
+        align-items:center;
       }
       .toolbar-toggle {
         display:inline-flex;
+        flex:0 0 auto;
       }
       .toolbar-panel {
         display:none;
+        flex:1;
+        min-width:0;
       }
       .toolbar-shell.is-open .toolbar-panel {
         display:block;
       }
       .toolbar {
-        flex-wrap:wrap;
-        overflow:visible;
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        overflow-y:hidden;
         padding:8px;
       }
       .toolbar .chip {
-        flex: 1 1 calc(50% - 8px);
-        min-width: 0;
+        flex: 0 0 auto;
+        min-width: max-content;
         justify-content:center;
       }
       .toolbar-overflow {
         margin-left:0;
-        width:100%;
+        width:auto;
       }
       .toolbar-overflow-panel {
-        position:static;
-        width:100%;
+        position:absolute;
+        right:0;
+        top:calc(100% + 6px);
+        width:max-content;
       }
       .ghost-ticker {
         left: 50%;
@@ -1500,10 +1507,7 @@ body.streams-flex-fit #video-container[hidden] {
     function syncToolbarLayout(){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       if(mobileToolbarMedia.matches){
-        if(!toolbarShell.classList.contains('is-open')){
-          toolbarPanel.style.display = '';
-        }
-        setToolbarOpen(false);
+        setToolbarOpen(true);
       } else {
         toolbarShell.classList.remove('is-open');
         toolbarToggle.setAttribute('aria-expanded', 'false');
