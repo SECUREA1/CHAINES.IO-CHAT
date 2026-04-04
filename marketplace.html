@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CHAINeS Marketplace</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
+  <style>
+    :root { --bg:#0b1024; --panel:#111a36; --fg:#f7f9ff; --muted:#9fb3d4; --line:#334155; --accent:#153a7a; --gold:#e5b35c; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--fg); background: radial-gradient(1200px 800px at 10% -20%, #1d2f65, transparent 55%), var(--bg); }
+    .wrap { max-width:1200px; margin:0 auto; padding:18px; display:grid; gap:12px; }
+    .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
+    header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .title { margin:0; font-size:20px; }
+    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
+    .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
+    .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
+    .meta { padding:0 12px 12px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; padding:12px; }
+    .card { border:1px solid var(--line); border-radius:12px; padding:10px; background:color-mix(in oklab, var(--panel), transparent 7%); display:grid; gap:8px; }
+    .chips { display:flex; gap:6px; flex-wrap:wrap; }
+    .chip { font-size:11px; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--gold); }
+    .user { color:#9ad6ff; font-weight:700; }
+    .small { color:var(--muted); font-size:12px; }
+    .empty { text-align:center; color:var(--muted); padding:24px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="panel">
+      <h1 class="title">CHAINeS Marketplace Explorer</h1>
+      <a href="/index.html" style="color:var(--gold)">← Back to feed</a>
+    </header>
+
+    <section class="panel">
+      <div class="tools">
+        <input id="search" type="search" placeholder="Search users, listing details, text, location, category..." />
+        <select id="view-mode">
+          <option value="all">All View</option>
+          <option value="market">Straight Market</option>
+          <option value="cloud">Straight Cloud</option>
+        </select>
+        <select id="category">
+          <option value="all">All Categories</option>
+          <option value="jobs">Jobs</option>
+          <option value="for-sale">Items for sale</option>
+          <option value="services">Services</option>
+          <option value="housing">Housing</option>
+          <option value="community">Community</option>
+          <option value="general">General</option>
+        </select>
+        <select id="sort">
+          <option value="value">Top value first</option>
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+        </select>
+        <button id="refresh" type="button">Refresh Search Engine</button>
+      </div>
+      <div class="meta">
+        <span id="count">0 listings</span>
+        <span>Toggle mode between cloud, market, or hybrid view.</span>
+      </div>
+      <div id="listings" class="grid"></div>
+      <div id="empty" class="empty" hidden>No posts match your filters yet.</div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const $ = (q) => document.querySelector(q);
+      const sourceKey = 'chaines_messages';
+      const controls = {
+        search: $('#search'),
+        mode: $('#view-mode'),
+        category: $('#category'),
+        sort: $('#sort'),
+        refresh: $('#refresh')
+      };
+      const list = $('#listings');
+      const count = $('#count');
+      const empty = $('#empty');
+
+      const normalizeListing = (listing = {}) => ({
+        category: String(listing.category || 'general').trim() || 'general',
+        price: String(listing.price || '').trim(),
+        location: String(listing.location || '').trim(),
+        condition: String(listing.condition || '').trim()
+      });
+      const isMarket = (m) => {
+        const l = normalizeListing(m.listing || { category: m.category });
+        return l.category !== 'general' || !!(l.price || l.location || l.condition);
+      };
+      const isCloud = (m) => !!(m.room || m.broadcast || m.video);
+      const valueScore = (m) => {
+        const l = normalizeListing(m.listing || { category: m.category });
+        const completedFields = [l.price, l.location, l.condition].filter(Boolean).length;
+        const likes = Number(m.likes || 0);
+        const comments = Array.isArray(m.comments) ? m.comments.length : 0;
+        return (likes * 3) + (comments * 2) + completedFields + (isCloud(m) ? 1 : 0) + (isMarket(m) ? 2 : 0);
+      };
+      const load = () => {
+        try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
+        catch { return []; }
+      };
+      const formatTime = (ts) => {
+        try { return new Date(ts).toLocaleString(); } catch { return ''; }
+      };
+      const include = (m) => {
+        const mode = controls.mode.value;
+        const category = controls.category.value;
+        const q = controls.search.value.trim().toLowerCase();
+        const l = normalizeListing(m.listing || { category: m.category });
+        if (mode === 'market' && !isMarket(m)) return false;
+        if (mode === 'cloud' && !isCloud(m)) return false;
+        if (category !== 'all' && l.category !== category) return false;
+        if (q) {
+          const hay = [m.user, m.text, l.category, l.price, l.location, l.condition].join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      };
+
+      function render() {
+        const items = load().filter(include);
+        const sortBy = controls.sort.value;
+        items.sort((a, b) => {
+          if (sortBy === 'new') return Number(b.ts || 0) - Number(a.ts || 0);
+          if (sortBy === 'old') return Number(a.ts || 0) - Number(b.ts || 0);
+          return valueScore(b) - valueScore(a);
+        });
+        list.innerHTML = '';
+        items.forEach((m) => {
+          const l = normalizeListing(m.listing || { category: m.category });
+          const card = document.createElement('article');
+          card.className = 'card';
+          card.innerHTML = `
+            <div><span class="user">@${m.user || 'anon'}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
+            <div>${(m.text || '').replace(/</g,'&lt;')}</div>
+            <div class="chips">
+              <span class="chip">${isMarket(m) ? 'Market' : 'General'}</span>
+              <span class="chip">${isCloud(m) ? 'Cloud' : 'Direct'}</span>
+              <span class="chip">${l.category}</span>
+              <span class="chip">Value ${valueScore(m)}</span>
+            </div>
+            <div class="small">Price/Salary: ${l.price || '—'}</div>
+            <div class="small">Location: ${l.location || '—'}</div>
+            <div class="small">Details: ${l.condition || '—'}</div>
+            <div class="small">Likes ${m.likes || 0} • Comments ${(m.comments || []).length}</div>
+          `;
+          list.appendChild(card);
+        });
+        count.textContent = `${items.length} listings`;
+        empty.hidden = items.length > 0;
+      }
+
+      Object.values(controls).forEach((el) => {
+        if (!el || el.tagName === 'BUTTON') return;
+        el.addEventListener('input', render);
+        el.addEventListener('change', render);
+      });
+      controls.refresh.addEventListener('click', render);
+      window.addEventListener('storage', (ev) => { if (ev.key === sourceKey) render(); });
+      render();
+    })();
+  </script>
+</body>
+</html>
