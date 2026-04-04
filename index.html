@@ -394,6 +394,9 @@
     .marketplace-panel select,
     .marketplace-panel input { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
     .marketplace-note { font-size:12px; color: var(--muted); margin:0 0 6px; text-align:left; }
+    .marketplace-tools { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:6px; margin:0 0 8px; }
+    .marketplace-tools input,
+    .marketplace-tools select { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
     .category-chip { display:inline-flex; align-items:center; font-size:11px; border-radius:999px; padding:2px 8px; border:1px solid var(--lining); color: var(--accent-2); background: color-mix(in oklab, var(--accent), transparent 80%); }
     .listing-meta { margin-top:8px; display:grid; gap:3px; font-size:12px; color: var(--muted); }
     .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
@@ -838,6 +841,7 @@ body.streams-flex-fit #video-container[hidden] {
           <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
+          <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
           <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
           <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
         </div>
@@ -873,6 +877,14 @@ body.streams-flex-fit #video-container[hidden] {
       <form id="composer" class="composer" autocomplete="off" hidden>
         <div style="flex:1;min-width:0;">
           <div class="marketplace-note">Cloud feed marketplace settings</div>
+          <div class="marketplace-tools">
+            <input id="market-search" type="search" placeholder="Search market and cloud posts" />
+            <select id="market-view-mode" aria-label="Marketplace feed mode">
+              <option value="all">All posts</option>
+              <option value="market">Marketplace only</option>
+              <option value="cloud">Cloud only</option>
+            </select>
+          </div>
           <div class="marketplace-panel">
             <select id="marketplace-category" aria-label="Marketplace category">
               <option value="general">General</option>
@@ -996,6 +1008,8 @@ body.streams-flex-fit #video-container[hidden] {
     const marketplacePrice = el('#marketplace-price');
     const marketplaceLocation = el('#marketplace-location');
     const marketplaceCondition = el('#marketplace-condition');
+    const marketSearchInput = el('#market-search');
+    const marketViewMode = el('#market-view-mode');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
     const sendBtn = el('#send');
@@ -1033,6 +1047,34 @@ body.streams-flex-fit #video-container[hidden] {
         condition: String(listing.condition || '').trim()
       };
     }
+    function isMarketplacePost(m){
+      const listing = normalizeListing(m?.listing || { category: m?.category });
+      return listing.category !== 'general' || !!(listing.price || listing.location || listing.condition);
+    }
+    function isCloudPost(m){
+      return !!(m && (m.room || m.broadcast || m.video));
+    }
+    function matchesFeedFilters(m){
+      const mode = marketViewMode?.value || 'all';
+      if(mode === 'market' && !isMarketplacePost(m)) return false;
+      if(mode === 'cloud' && !isCloudPost(m)) return false;
+      const q = String(marketSearchInput?.value || '').trim().toLowerCase();
+      if(!q) return true;
+      const listing = normalizeListing(m?.listing || { category: m?.category });
+      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition].join(' ').toLowerCase();
+      return haystack.includes(q);
+    }
+    function applyFeedFilters(){
+      [...feed.querySelectorAll('li.msg')].forEach((node) => {
+        const mode = node.dataset.marketMode || 'all';
+        const text = node.dataset.searchText || '';
+        const modeFilter = marketViewMode?.value || 'all';
+        const searchFilter = String(marketSearchInput?.value || '').trim().toLowerCase();
+        const modeOk = modeFilter === 'all' || mode === modeFilter || (modeFilter === 'market' && mode === 'market-cloud') || (modeFilter === 'cloud' && mode === 'market-cloud');
+        const textOk = !searchFilter || text.includes(searchFilter);
+        node.hidden = !(modeOk && textOk);
+      });
+    }
     function getListingFromComposer(){
       return normalizeListing({
         category: marketplaceCategory?.value,
@@ -1049,6 +1091,8 @@ body.streams-flex-fit #video-container[hidden] {
     }
     input.addEventListener('input', () => autoResize(input));
     marketplaceCategory?.addEventListener('change', syncMarketplaceHints);
+    marketSearchInput?.addEventListener('input', applyFeedFilters);
+    marketViewMode?.addEventListener('change', applyFeedFilters);
     syncMarketplaceHints();
 
     messageBtn.addEventListener('click', () => {
@@ -3270,6 +3314,7 @@ body.streams-flex-fit #video-container[hidden] {
       feed.innerHTML = '';
       const items = store.loadMsgs();
       items.slice().reverse().forEach(m => appendMessage(m, true));
+      applyFeedFilters();
       scrollToTop();
     }
 
@@ -3278,6 +3323,18 @@ body.streams-flex-fit #video-container[hidden] {
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
       li.dataset.id = m.id;
+      const postIsMarket = isMarketplacePost(m);
+      const postIsCloud = isCloudPost(m);
+      li.dataset.marketMode = postIsMarket && postIsCloud ? 'market-cloud' : (postIsMarket ? 'market' : (postIsCloud ? 'cloud' : 'all'));
+      li.dataset.searchText = [
+        m.user,
+        m.text,
+        m.category,
+        m.listing?.category,
+        m.listing?.price,
+        m.listing?.location,
+        m.listing?.condition
+      ].join(' ').toLowerCase();
 
       const av = document.createElement('div');
       av.className = 'avatar';
@@ -3447,6 +3504,7 @@ body.streams-flex-fit #video-container[hidden] {
 
       if(container === feed){
         container.insertBefore(li, container.firstChild);
+        li.hidden = !matchesFeedFilters(m);
         if(m.selfDestruct){
           const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
           setTimeout(() => {
