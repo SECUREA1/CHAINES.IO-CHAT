@@ -186,12 +186,14 @@
     .toolbar::-webkit-scrollbar { display:none; }
     .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
-    .toolbar-overflow { position:relative; flex:0 0 auto; }
+    .toolbar-overflow { position:relative; flex:0 0 auto; margin-right:2px; }
     .toolbar-overflow-panel { position:absolute; left:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:6px; min-width:220px; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:6; }
     .toolbar-overflow.is-open .toolbar-overflow-panel { display:flex; }
     .toolbar-overflow-panel .chip { width:100%; justify-content:flex-start; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #feed-btn, .toolbar-overflow-panel #theme-toggle { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-overflow-panel #feed-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #ghost-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #marketplace-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
+    .toolbar-primary .chip { min-width:max-content; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
@@ -865,6 +867,9 @@ body.streams-flex-fit #video-container[hidden] {
         text-overflow:ellipsis;
       }
       #toolbar-overflow-toggle { flex:0 0 44px; }
+      .toolbar-primary {
+        gap:6px;
+      }
       .toolbar-overflow {
         margin-left:0;
         width:auto;
@@ -940,14 +945,16 @@ body.streams-flex-fit #video-container[hidden] {
                   <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" />Flex Fit</button>
                   <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" />New Feed</button>
                   <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/>Theme</button>
+                  <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" />Hologhost</button>
+                  <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button>
+                  <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="" aria-hidden="true" />Marketplace</a>
                 </div>
               </div>
-              <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
-              <button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="" aria-hidden="true" />Show Feed</button>
-              <button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" />Feed + Market</button>
-              <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
-              <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button>
-              <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
+              <div class="toolbar-primary">
+                <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
+                <button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="" aria-hidden="true" />Show Feed</button>
+                <button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" />Feed + Market</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1191,7 +1198,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!marketModeToggle) return;
       const currentMode = marketViewMode?.value || 'all';
       const modeDef = MARKET_VIEW_MODES.find((entry) => entry.value === currentMode) || MARKET_VIEW_MODES[0];
-      marketModeToggle.textContent = modeDef.label;
+      marketModeToggle.innerHTML = `<img src="static/wallet.svg" alt="" aria-hidden="true" />${modeDef.label}`;
       marketModeToggle.dataset.mode = modeDef.value;
       marketModeToggle.title = `View mode: ${modeDef.label}`;
     }
@@ -1561,6 +1568,12 @@ body.streams-flex-fit #video-container[hidden] {
           toolbarOverflow.classList.remove('is-open');
           toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
         }
+      });
+      toolbarOverflow.addEventListener('click', (event) => {
+        const trigger = event.target.closest('button, a');
+        if(!trigger || trigger.id === 'toolbar-overflow-toggle') return;
+        toolbarOverflow.classList.remove('is-open');
+        toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
       });
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
@@ -2572,6 +2585,8 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       postMessage(msg);
+      showChat();
+      setMarketMode('all');
       input.value = '';
       autoResize(input);
       input.placeholder = defaultPlaceholder;
