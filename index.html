@@ -147,7 +147,9 @@
         flex-direction:column;
         min-height:100vh;
         height:100vh;
+        height:100dvh;
         max-height:100vh;
+        max-height:100dvh;
         width:100%;
         max-width:100%;
         margin:0 auto;
@@ -161,8 +163,8 @@
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { justify-content:space-between; flex-wrap:nowrap; }
-    .toolbar > * { flex:1; }
+    .toolbar { justify-content:flex-start; flex-wrap:wrap; }
+    .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
@@ -195,7 +197,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #market-mode-toggle { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -211,9 +213,12 @@
         height:24px;
         display:block;
       }
-#cmd-list {
+    #cmd-list {
   width: auto;
   padding: 0 10px;
+}
+#market-mode-toggle {
+  min-width: 128px;
 }
 
 #theme-toggle img,
@@ -839,6 +844,7 @@ body.streams-flex-fit #video-container[hidden] {
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
           <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
           <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
+          <button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode">Feed + Market</button>
           <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
           <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
           <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
@@ -1010,6 +1016,7 @@ body.streams-flex-fit #video-container[hidden] {
     const marketplaceCondition = el('#marketplace-condition');
     const marketSearchInput = el('#market-search');
     const marketViewMode = el('#market-view-mode');
+    const marketModeToggle = el('#market-mode-toggle');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
     const sendBtn = el('#send');
@@ -1075,6 +1082,26 @@ body.streams-flex-fit #video-container[hidden] {
         node.hidden = !(modeOk && textOk);
       });
     }
+    const MARKET_VIEW_MODES = [
+      { value: 'all', label: 'Feed + Market' },
+      { value: 'market', label: 'Market Only' },
+      { value: 'cloud', label: 'Feed Only' }
+    ];
+    function syncMarketModeToggleLabel(){
+      if(!marketModeToggle) return;
+      const currentMode = marketViewMode?.value || 'all';
+      const modeDef = MARKET_VIEW_MODES.find((entry) => entry.value === currentMode) || MARKET_VIEW_MODES[0];
+      marketModeToggle.textContent = modeDef.label;
+      marketModeToggle.dataset.mode = modeDef.value;
+      marketModeToggle.title = `View mode: ${modeDef.label}`;
+    }
+    function setMarketMode(nextMode){
+      if(!marketViewMode) return;
+      const safeMode = MARKET_VIEW_MODES.some((entry) => entry.value === nextMode) ? nextMode : 'all';
+      marketViewMode.value = safeMode;
+      syncMarketModeToggleLabel();
+      applyFeedFilters();
+    }
     function getListingFromComposer(){
       return normalizeListing({
         category: marketplaceCategory?.value,
@@ -1092,7 +1119,17 @@ body.streams-flex-fit #video-container[hidden] {
     input.addEventListener('input', () => autoResize(input));
     marketplaceCategory?.addEventListener('change', syncMarketplaceHints);
     marketSearchInput?.addEventListener('input', applyFeedFilters);
-    marketViewMode?.addEventListener('change', applyFeedFilters);
+    marketViewMode?.addEventListener('change', () => {
+      syncMarketModeToggleLabel();
+      applyFeedFilters();
+    });
+    marketModeToggle?.addEventListener('click', () => {
+      const currentMode = marketViewMode?.value || 'all';
+      const currentIndex = MARKET_VIEW_MODES.findIndex((entry) => entry.value === currentMode);
+      const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % MARKET_VIEW_MODES.length : 0;
+      setMarketMode(MARKET_VIEW_MODES[nextIndex].value);
+    });
+    syncMarketModeToggleLabel();
     syncMarketplaceHints();
 
     messageBtn.addEventListener('click', () => {
