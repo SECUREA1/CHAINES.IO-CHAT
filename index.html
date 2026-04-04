@@ -157,8 +157,9 @@
         overflow:hidden;
       }
 
-    header { display:flex; flex-direction:column; gap:6px; padding:6px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); }
+    header { display:flex; flex-direction:column; gap:8px; padding:8px 10px; position: sticky; top: 0; z-index: 5; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); border-radius:16px; }
     .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:nowrap; width:100%; }
+    .bar-right { display:flex; align-items:center; gap:8px; margin-left:auto; min-width:0; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
@@ -169,7 +170,7 @@
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
-    .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; }
+    .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; white-space:nowrap; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
     .status.top, .status.user { justify-content:space-between; }
@@ -783,21 +784,45 @@ body.streams-flex-fit #video-container[hidden] {
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
-      header { padding:12px; gap:8px; }
+      header { padding:10px; gap:10px; border-radius:14px; }
+      .bar {
+        flex-wrap:wrap;
+        align-items:flex-start;
+      }
+      .brand {
+        min-width:0;
+        flex:1 1 auto;
+      }
+      .brand h1 {
+        font-size:14px;
+        line-height:1.2;
+      }
+      .bar-right {
+        flex:0 0 auto;
+      }
+      .self-destruct {
+        font-size:11px;
+      }
       footer { padding:0 12px 12px; gap:8px; }
       .feed { padding:12px; }
       .composer { margin:0; }
       .toolbar {
         flex-wrap: nowrap;
+        display:grid;
+        grid-auto-flow:column;
+        grid-auto-columns:max-content;
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+        scroll-snap-type:x proximity;
+        padding:8px;
       }
       .toolbar::-webkit-scrollbar { display: none; }
       .toolbar .chip {
         flex: 0 0 auto;
         white-space: nowrap;
+        scroll-snap-align:start;
       }
       .ghost-ticker {
         left: 50%;
@@ -846,11 +871,13 @@ body.streams-flex-fit #video-container[hidden] {
             <div class="logo" aria-hidden="true"></div>
             <h1>CHAINeS POST</h1>
           </div>
-          <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
-            <input type="checkbox" id="auto-delete" />
-            Self-destruct in 5m
-          </label>
-          <button id="logout-btn" class="chip" type="button" title="Exit" aria-label="Exit"><img src="static/logout.svg" alt="Exit" /></button>
+          <div class="bar-right">
+            <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
+              <input type="checkbox" id="auto-delete" />
+              Self-destruct in 5m
+            </label>
+            <button id="logout-btn" class="chip" type="button" title="Exit" aria-label="Exit"><img src="static/logout.svg" alt="Exit" /></button>
+          </div>
         </div>
         <div class="toolbar">
           <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
