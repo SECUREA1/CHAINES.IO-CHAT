@@ -31,6 +31,7 @@
     .post-status { min-height:1.2em; color:var(--muted); font-size:12px; }
     .post-status.error { color:#ff8e8e; }
     .post-status.success { color:#92f5b8; }
+    .hint { margin:0; color:var(--muted); font-size:12px; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; padding:12px; }
     .card { border:1px solid var(--line); border-radius:12px; padding:10px; background:color-mix(in oklab, var(--panel), transparent 7%); display:grid; gap:8px; }
     .chips { display:flex; gap:6px; flex-wrap:wrap; }
@@ -38,6 +39,13 @@
     .user { color:#9ad6ff; font-weight:700; }
     .small { color:var(--muted); font-size:12px; }
     .empty { text-align:center; color:var(--muted); padding:24px; }
+    .media-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; }
+    .media-grid img, .media-grid video { width:100%; max-height:180px; border-radius:8px; border:1px solid var(--line); object-fit:cover; background:#060b1d; }
+    .dating-block { border:1px dashed var(--line); border-radius:10px; padding:8px; display:grid; gap:6px; grid-column:1/-1; }
+    .dating-title { margin:0; font-size:12px; color:var(--gold); }
+    .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .like-btn[aria-pressed="true"] { border-color:#ff7eb6; color:#ff7eb6; }
   </style>
 </head>
 <body>
@@ -57,6 +65,7 @@
           <option value="services">Services</option>
           <option value="housing">Housing</option>
           <option value="community">Community</option>
+          <option value="dating">Dating</option>
           <option value="general">General</option>
         </select>
         <select id="sort">
@@ -68,13 +77,13 @@
       </div>
       <div class="meta">
         <span id="count">0 listings</span>
-        <span>Marketplace posts only. Filter by category, query, and value sort.</span>
+        <span>Marketplace posts only. Filter by category, dating availability/interests, and value sort.</span>
       </div>
       <div class="post-wrap">
         <div class="post-brand">
           <div>
             <h2 class="post-title">Post to Marketplace</h2>
-            <p class="post-sub">Fast branded listing composer for jobs, services, and local offers.</p>
+            <p class="post-sub">Now supports dating profiles plus image/video uploads for all listing types.</p>
           </div>
         </div>
         <form id="post-form" class="post-grid">
@@ -85,11 +94,19 @@
             <option value="services">Services</option>
             <option value="housing">Housing</option>
             <option value="community">Community</option>
+            <option value="dating">Dating</option>
             <option value="general">General</option>
           </select>
           <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
           <input id="post-location" type="text" maxlength="80" placeholder="Location (optional)" />
           <input id="post-details" class="wide" type="text" maxlength="120" placeholder="Condition / details (optional)" />
+          <div class="dating-block">
+            <p class="dating-title">Dating add-on</p>
+            <input id="post-availability" type="text" maxlength="100" placeholder="Availability (optional e.g. Weeknights, weekends)" />
+            <input id="post-interests" type="text" maxlength="140" placeholder="Interests (optional e.g. hiking, coffee, movies)" />
+          </div>
+          <input id="post-media" class="wide" type="file" accept="image/*,video/*" multiple />
+          <p class="hint wide">Upload up to 4 files (images or videos). Stored locally in browser storage for now.</p>
           <textarea id="post-text" maxlength="800" required placeholder="Write your listing and call to action..."></textarea>
           <button type="submit">Publish Listing</button>
         </form>
@@ -104,6 +121,7 @@
     (() => {
       const $ = (q) => document.querySelector(q);
       const sourceKey = 'chaines_messages';
+      const likedKey = 'chaines_marketplace_likes';
       const controls = {
         search: $('#search'),
         category: $('#category'),
@@ -120,6 +138,9 @@
       const postPrice = $('#post-price');
       const postLocation = $('#post-location');
       const postDetails = $('#post-details');
+      const postAvailability = $('#post-availability');
+      const postInterests = $('#post-interests');
+      const postMedia = $('#post-media');
       const postText = $('#post-text');
 
       const MARKETPLACE_CATEGORIES = {
@@ -127,31 +148,40 @@
         'for-sale': { label: 'Items for sale' },
         services: { label: 'Services' },
         housing: { label: 'Housing' },
-        community: { label: 'Community' }
+        community: { label: 'Community' },
+        dating: { label: 'Dating' }
       };
 
       const normalizeListing = (listing = {}) => ({
         category: String(listing.category || 'general').trim() || 'general',
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
-        condition: String(listing.condition || '').trim()
+        condition: String(listing.condition || '').trim(),
+        availability: String(listing.availability || '').trim(),
+        interests: String(listing.interests || '').trim(),
+        media: Array.isArray(listing.media) ? listing.media.filter((item) => item && item.url && item.type) : []
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
-        return (likes * 3) + (comments * 2) + completedFields + 2;
+        return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
       };
       const load = () => {
         try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
         catch { return []; }
       };
       const save = (items) => localStorage.setItem(sourceKey, JSON.stringify(items));
+      const loadLikedMap = () => {
+        try { return JSON.parse(localStorage.getItem(likedKey) || '{}'); }
+        catch { return {}; }
+      };
+      const saveLikedMap = (map) => localStorage.setItem(likedKey, JSON.stringify(map));
       const sanitizeUser = (name) => String(name || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24);
       const setPostStatus = (text, tone = '') => {
         postStatus.textContent = text;
@@ -167,15 +197,43 @@
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const hay = [m.user, m.text, l.category, l.price, l.location, l.condition].join(' ').toLowerCase();
+          const hay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests].join(' ').toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
       };
+      const readMediaFiles = async (fileList) => {
+        const files = Array.from(fileList || []).slice(0, 4);
+        const fileReaders = files.map((file) => new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ type: file.type || 'application/octet-stream', url: String(reader.result || ''), name: file.name || 'file' });
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        }));
+        const media = (await Promise.all(fileReaders)).filter(Boolean);
+        const oversized = media.some((item) => item.url.length > 2_000_000);
+        if (oversized) return { error: 'One or more files are too large for browser storage. Please use smaller media.' };
+        return { media };
+      };
+
+      function toggleLike(postId) {
+        if (!postId) return;
+        const items = load();
+        const likedMap = loadLikedMap();
+        const idx = items.findIndex((item) => item.id === postId);
+        if (idx === -1) return;
+        const alreadyLiked = !!likedMap[postId];
+        likedMap[postId] = !alreadyLiked;
+        items[idx].likes = Math.max(0, Number(items[idx].likes || 0) + (alreadyLiked ? -1 : 1));
+        save(items);
+        saveLikedMap(likedMap);
+        render();
+      }
 
       function render() {
         const items = load().filter(include);
         const sortBy = controls.sort.value;
+        const likedMap = loadLikedMap();
         items.sort((a, b) => {
           if (sortBy === 'new') return Number(b.ts || 0) - Number(a.ts || 0);
           if (sortBy === 'old') return Number(a.ts || 0) - Number(b.ts || 0);
@@ -184,11 +242,24 @@
         list.innerHTML = '';
         items.forEach((m) => {
           const l = normalizeListing(m.listing || { category: m.category });
+          const liked = !!likedMap[m.id];
           const card = document.createElement('article');
           card.className = 'card';
+
+          const safeText = (m.text || '').replace(/</g,'&lt;');
+          const mediaHtml = l.media.length
+            ? `<div class="media-grid">${l.media.map((item) => item.type.startsWith('video/')
+              ? `<video controls preload="metadata" src="${item.url}"></video>`
+              : `<img alt="Marketplace upload" loading="lazy" src="${item.url}" />`).join('')}</div>`
+            : '';
+          const datingDetails = l.category === 'dating'
+            ? `<div class="small">Availability: ${l.availability || '—'}</div><div class="small">Interests: ${l.interests || '—'}</div>`
+            : '';
+
           card.innerHTML = `
             <div><span class="user">@${m.user || 'anon'}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
-            <div>${(m.text || '').replace(/</g,'&lt;')}</div>
+            <div>${safeText}</div>
+            ${mediaHtml}
             <div class="chips">
               <span class="chip">Market</span>
               <span class="chip">${(MARKETPLACE_CATEGORIES[l.category] || { label: 'General' }).label}</span>
@@ -197,7 +268,11 @@
             <div class="small">Price/Salary: ${l.price || '—'}</div>
             <div class="small">Location: ${l.location || '—'}</div>
             <div class="small">Details: ${l.condition || '—'}</div>
-            <div class="small">Likes ${m.likes || 0} • Comments ${(m.comments || []).length}</div>
+            ${datingDetails}
+            <div class="actions">
+              <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
+              <span class="small">Likes ${m.likes || 0} • Comments ${(m.comments || []).length}</span>
+            </div>
           `;
           list.appendChild(card);
         });
@@ -205,7 +280,7 @@
         empty.hidden = items.length > 0;
       }
 
-      function postListing(ev) {
+      async function postListing(ev) {
         ev.preventDefault();
         const text = String(postText.value || '').trim();
         const user = sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || 'anon');
@@ -214,11 +289,19 @@
           postText.focus();
           return;
         }
+        const mediaResult = await readMediaFiles(postMedia.files);
+        if (mediaResult.error) {
+          setPostStatus(mediaResult.error, 'error');
+          return;
+        }
         const listing = normalizeListing({
           category: postCategory.value,
           price: postPrice.value,
           location: postLocation.value,
-          condition: postDetails.value
+          condition: postDetails.value,
+          availability: postAvailability.value,
+          interests: postInterests.value,
+          media: mediaResult.media
         });
         const now = Date.now();
         const items = load();
@@ -247,7 +330,14 @@
         el.addEventListener('change', render);
       });
       controls.refresh.addEventListener('click', render);
-      window.addEventListener('storage', (ev) => { if (ev.key === sourceKey) render(); });
+      list.addEventListener('click', (ev) => {
+        const button = ev.target.closest('[data-like-id]');
+        if (!button) return;
+        toggleLike(button.getAttribute('data-like-id'));
+      });
+      window.addEventListener('storage', (ev) => {
+        if (ev.key === sourceKey || ev.key === likedKey) render();
+      });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
       postForm.addEventListener('submit', postListing);
       render();
