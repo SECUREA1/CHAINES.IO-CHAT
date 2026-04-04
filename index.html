@@ -311,7 +311,7 @@
     }
     .ghost-ticker {
       position: fixed;
-      top: 20px;
+      top: calc(env(safe-area-inset-top) + var(--header-height) + 8px);
       right: 20px;
       display: flex;
       align-items: center;
@@ -844,7 +844,7 @@ body.streams-flex-fit #video-container[hidden] {
       .ghost-ticker {
         left: 50%;
         right: auto;
-        top: 12px;
+        top: calc(env(safe-area-inset-top) + var(--header-height) + 6px);
         transform: translate(-50%, -16px);
       }
       .ghost-ticker.is-visible {
