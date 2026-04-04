@@ -180,10 +180,11 @@
     .toolbar { justify-content:flex-start; flex-wrap:nowrap; }
     .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
-    .toolbar-overflow { margin-left:auto; position:relative; }
+    .toolbar-overflow { margin-left:auto; position:relative; flex:0 0 auto; }
     .toolbar-overflow-panel { position:absolute; right:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:6px; min-width:190px; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:6; }
     .toolbar-overflow.is-open .toolbar-overflow-panel { display:flex; }
     .toolbar-overflow-panel .chip { width:100%; justify-content:flex-start; }
+    #toolbar-overflow-toggle { width:36px; height:36px; padding:0; justify-content:center; }
     .toolbar-overflow-panel #feed-btn, .toolbar-overflow-panel #theme-toggle { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
@@ -839,25 +840,32 @@ body.streams-flex-fit #video-container[hidden] {
         display:block;
       }
       .toolbar {
-        flex-wrap:wrap;
+        flex-wrap:nowrap;
         overflow:visible;
-        padding:8px;
+        padding:8px 6px;
+        gap:6px;
       }
       .toolbar .chip {
-        flex:1 1 calc(50% - 8px);
+        flex:1 1 0;
         min-width:0;
         justify-content:center;
+        padding:5px 6px;
+        font-size:11px;
+        gap:4px;
+        white-space:nowrap;
+      }
+      #conn-chip #conn-label {
+        overflow:hidden;
+        text-overflow:ellipsis;
       }
       #ghost-btn,
-      #marketplace-btn {
-        flex:0 0 44px;
-      }
+      #marketplace-btn,
       #toolbar-overflow-toggle {
-        width:100%;
+        flex:0 0 44px;
       }
       .toolbar-overflow {
         margin-left:0;
-        width:100%;
+        width:auto;
       }
       .toolbar-overflow-panel {
         position:static;
@@ -931,7 +939,7 @@ body.streams-flex-fit #video-container[hidden] {
               <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
               <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
               <div id="toolbar-overflow" class="toolbar-overflow">
-                <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Open more actions">More ▾</button>
+                <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Toggle additional actions">⋮</button>
                 <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Additional quick actions">
                   <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
                   <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
