@@ -38,6 +38,8 @@ db.exec(`
     file TEXT,
     file_name TEXT,
     file_type TEXT,
+    category TEXT,
+    listing_data TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS comments (
@@ -115,6 +117,8 @@ db.exec(`
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN category TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
@@ -865,6 +869,26 @@ function dmChannelId(userA = "", userB = "") {
   return [String(userA).toLowerCase(), String(userB).toLowerCase()].sort().join("|");
 }
 
+const MARKETPLACE_CATEGORIES = new Set([
+  "general",
+  "jobs",
+  "for-sale",
+  "services",
+  "housing",
+  "community",
+]);
+
+function normalizeListingPayload(payload = {}, fallbackCategory = "general") {
+  const categoryCandidate = String(payload.category || fallbackCategory || "general").trim();
+  const category = MARKETPLACE_CATEGORIES.has(categoryCandidate) ? categoryCandidate : "general";
+  return {
+    category,
+    price: String(payload.price || "").trim(),
+    location: String(payload.location || "").trim(),
+    condition: String(payload.condition || "").trim(),
+  };
+}
+
 function loadDirectHistory(userA = "", userB = "") {
   const cleanA = String(userA || "").trim();
   const cleanB = String(userB || "").trim();
@@ -891,7 +915,7 @@ function loadDirectHistory(userA = "", userB = "") {
 function loadHistory(room = null) {
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, c.category, c.listing_data, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
@@ -913,21 +937,35 @@ function loadHistory(room = null) {
   }
   const likes = {};
   for (const l of likeRows) likes[l.message_id] = l.c;
-  return rows.map((r) => ({
-    type: "chat",
-    id: r.id,
-    user: r.user,
-    profilePic: r.profile_pic,
-    room: r.room,
-    text: r.message,
-    image: r.image,
-    file: r.file,
-    fileName: r.file_name,
-    fileType: r.file_type,
-    ts: r.ts,
-    likes: likes[r.id] || 0,
-    comments: comments[r.id] || [],
-  }));
+  return rows.map((r) => {
+    const listing = normalizeListingPayload(
+      (() => {
+        try {
+          return r.listing_data ? JSON.parse(r.listing_data) : {};
+        } catch {
+          return {};
+        }
+      })(),
+      r.category || "general"
+    );
+    return {
+      type: "chat",
+      id: r.id,
+      user: r.user,
+      profilePic: r.profile_pic,
+      room: r.room,
+      text: r.message,
+      image: r.image,
+      file: r.file,
+      fileName: r.file_name,
+      fileType: r.file_type,
+      category: listing.category,
+      listing,
+      ts: r.ts,
+      likes: likes[r.id] || 0,
+      comments: comments[r.id] || [],
+    };
+  });
 }
 
 const wss = new WebSocketServer({ server, path: "/ws" });
@@ -1381,13 +1419,16 @@ wss.on("connection", (ws) => {
     msg.text = text;
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
+    const listing = normalizeListingPayload(msg.listing || {}, msg.category || "general");
+    msg.category = listing.category;
+    msg.listing = listing;
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
     msg.profilePic = u?.profile_pic || null;
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type, category, listing_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
@@ -1396,7 +1437,9 @@ wss.on("connection", (ws) => {
         msg.image || null,
         msg.file || null,
         fileName,
-        fileType
+        fileType,
+        listing.category,
+        JSON.stringify(listing)
     );
     msg.id = info.lastInsertRowid;
     msg.message = text;
