@@ -1785,6 +1785,7 @@ body.streams-flex-fit #video-container[hidden] {
     });
     broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
+      if(onlineMode !== 'cloud') connectWS();
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
         const hostId = others[0];
@@ -1858,6 +1859,7 @@ body.streams-flex-fit #video-container[hidden] {
     let socket = null;
     let bc = null;
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
+    const pendingCloudMessages = [];
     const seen = new Set();
     const seenComments = new Set();
 
@@ -2328,14 +2330,38 @@ body.streams-flex-fit #video-container[hidden] {
       if(mode !== 'cloud') renderHistory();
     }
 
+    function flushPendingCloudMessages(){
+      if(!socket || socket.readyState !== 1 || !pendingCloudMessages.length) return;
+      while(pendingCloudMessages.length){
+        const next = pendingCloudMessages.shift();
+        try { socket.send(JSON.stringify(next)); }
+        catch {
+          pendingCloudMessages.unshift(next);
+          break;
+        }
+      }
+    }
+
+    function sendCloudMessage(msg){
+      if(socket && socket.readyState === 1){
+        try { socket.send(JSON.stringify(msg)); return true; } catch {}
+      }
+      pendingCloudMessages.push(msg);
+      if((!socket || socket.readyState > 1) && store.user){
+        connectWS();
+      }
+      return false;
+    }
+
     function connectWS(){
       const url = store.wsURL;
       if(!('WebSocket' in window)) return setStatus('off');
+      if(socket && (socket.readyState === 0 || socket.readyState === 1)) return;
       try {
         socket = new WebSocket(url);
       } catch { setStatus('off'); return; }
 
-      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); });
+      socket.addEventListener('open', () => { setStatus('cloud'); sendJoin(); flushPendingCloudMessages(); });
       socket.addEventListener('close', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('error', () => { setStatus(bc? 'local' : 'off'); });
       socket.addEventListener('message', ev => {
@@ -2680,7 +2706,7 @@ body.streams-flex-fit #video-container[hidden] {
       try { bc && bc.postMessage(msg); } catch {}
 
       // Send to server if available
-        try { if(socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); } catch {}
+      sendCloudMessage(msg);
       }
 
     // --- WebRTC helpers ---
