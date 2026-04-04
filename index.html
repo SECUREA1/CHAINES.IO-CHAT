@@ -390,6 +390,12 @@
     .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
     .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
+    .marketplace-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; margin:0 0 8px; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 15%); }
+    .marketplace-panel select,
+    .marketplace-panel input { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
+    .marketplace-note { font-size:12px; color: var(--muted); margin:0 0 6px; text-align:left; }
+    .category-chip { display:inline-flex; align-items:center; font-size:11px; border-radius:999px; padding:2px 8px; border:1px solid var(--lining); color: var(--accent-2); background: color-mix(in oklab, var(--accent), transparent 80%); }
+    .listing-meta { margin-top:8px; display:grid; gap:3px; font-size:12px; color: var(--muted); }
     .input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius: 12px; background: color-mix(in oklab, var(--panel), transparent 25%); border:2px solid var(--accent); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .input input,
     .input textarea { flex:1; width:100%; font: inherit; color: var(--fg); background: transparent; border:0; outline:0; resize:none; overflow-y:auto; }
@@ -865,9 +871,25 @@ body.streams-flex-fit #video-container[hidden] {
 
     <footer>
       <form id="composer" class="composer" autocomplete="off" hidden>
+        <div style="flex:1;min-width:0;">
+          <div class="marketplace-note">Cloud feed marketplace settings</div>
+          <div class="marketplace-panel">
+            <select id="marketplace-category" aria-label="Marketplace category">
+              <option value="general">General</option>
+              <option value="jobs">Jobs</option>
+              <option value="for-sale">Items for sale</option>
+              <option value="services">Services</option>
+              <option value="housing">Housing</option>
+              <option value="community">Community</option>
+            </select>
+            <input id="marketplace-price" type="text" placeholder="Price or salary (optional)" />
+            <input id="marketplace-location" type="text" placeholder="Location (optional)" />
+            <input id="marketplace-condition" type="text" placeholder="Condition / type (optional)" />
+          </div>
         <label class="input" for="text">
           <textarea id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" rows="1"></textarea>
         </label>
+        </div>
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
@@ -970,6 +992,10 @@ body.streams-flex-fit #video-container[hidden] {
     const feed = el('#feed');
     const form = el('#composer');
     const input = el('#text');
+    const marketplaceCategory = el('#marketplace-category');
+    const marketplacePrice = el('#marketplace-price');
+    const marketplaceLocation = el('#marketplace-location');
+    const marketplaceCondition = el('#marketplace-condition');
     const attachBtn = el('#attach');
     const fileInput = el('#file');
     const sendBtn = el('#send');
@@ -979,6 +1005,14 @@ body.streams-flex-fit #video-container[hidden] {
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
+    const MARKETPLACE_CATEGORIES = {
+      general: { label: 'General listing', defaults: { condition: 'Open listing' } },
+      jobs: { label: 'Jobs', defaults: { price: 'Salary negotiable', condition: 'Position type' } },
+      'for-sale': { label: 'Items for sale', defaults: { price: '$0', condition: 'Used/New' } },
+      services: { label: 'Services', defaults: { price: 'Rate', condition: 'Service type' } },
+      housing: { label: 'Housing', defaults: { price: 'Rent', condition: 'Bedrooms / lease' } },
+      community: { label: 'Community', defaults: { condition: 'Event type' } }
+    };
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
@@ -990,7 +1024,32 @@ body.streams-flex-fit #video-container[hidden] {
       el.style.height = 'auto';
       el.style.height = el.scrollHeight + 'px';
     }
+    function normalizeListing(listing = {}){
+      const category = String(listing.category || 'general').trim();
+      return {
+        category: MARKETPLACE_CATEGORIES[category] ? category : 'general',
+        price: String(listing.price || '').trim(),
+        location: String(listing.location || '').trim(),
+        condition: String(listing.condition || '').trim()
+      };
+    }
+    function getListingFromComposer(){
+      return normalizeListing({
+        category: marketplaceCategory?.value,
+        price: marketplacePrice?.value,
+        location: marketplaceLocation?.value,
+        condition: marketplaceCondition?.value
+      });
+    }
+    function syncMarketplaceHints(){
+      const listing = getListingFromComposer();
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES.general;
+      if(marketplacePrice) marketplacePrice.placeholder = `${categoryDef.defaults.price || 'Price'} (optional)`;
+      if(marketplaceCondition) marketplaceCondition.placeholder = `${categoryDef.defaults.condition || 'Condition'} (optional)`;
+    }
     input.addEventListener('input', () => autoResize(input));
+    marketplaceCategory?.addEventListener('change', syncMarketplaceHints);
+    syncMarketplaceHints();
 
     messageBtn.addEventListener('click', () => {
       form.hidden = !form.hidden;
@@ -2261,7 +2320,7 @@ body.streams-flex-fit #video-container[hidden] {
       // append user signature for copyright
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
       const msgText = raw ? raw + signature : signature;
-      const msg = { text: msgText, broadcast: broadcasting };
+      const msg = { text: msgText, broadcast: broadcasting, listing: getListingFromComposer() };
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
         msg.fileName = pendingFile.name;
@@ -2329,10 +2388,11 @@ body.streams-flex-fit #video-container[hidden] {
       fileInput.value = '';
     });
 
-      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room }){
+      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room, listing }){
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
+      const normalizedListing = normalizeListing(listing);
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
@@ -2352,6 +2412,8 @@ body.streams-flex-fit #video-container[hidden] {
         likes: 0,
         comments: []
       };
+      msg.category = normalizedListing.category;
+      msg.listing = normalizedListing;
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
 
       // Push to UI + storage immediately
@@ -3237,6 +3299,8 @@ body.streams-flex-fit #video-container[hidden] {
       const meta = document.createElement('div');
       meta.className = 'meta';
       meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
+      const listing = normalizeListing(m.listing || { category: m.category });
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES.general;
 
       const text = document.createElement('div');
       text.className = 'msg-text';
@@ -3256,7 +3320,26 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
         bubble.appendChild(meta);
+      const categoryChip = document.createElement('span');
+      categoryChip.className = 'category-chip';
+      categoryChip.textContent = categoryDef.label;
+      bubble.appendChild(categoryChip);
       bubble.appendChild(text);
+      const listingRows = [
+        listing.price ? `Price / Salary: ${listing.price}` : '',
+        listing.location ? `Location: ${listing.location}` : '',
+        listing.condition ? `Details: ${listing.condition}` : ''
+      ].filter(Boolean);
+      if(listingRows.length){
+        const listingMeta = document.createElement('div');
+        listingMeta.className = 'listing-meta';
+        listingRows.forEach(row => {
+          const detail = document.createElement('div');
+          detail.textContent = row;
+          listingMeta.appendChild(detail);
+        });
+        bubble.appendChild(listingMeta);
+      }
       const plain = text.textContent.trim();
       if (broadcasting && plain) {
         const isMyRoom = (m.room === clientId);
