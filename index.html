@@ -787,6 +787,18 @@ body.streams-flex-fit #video-container[hidden] {
       footer { padding:0 12px 12px; gap:8px; }
       .feed { padding:12px; }
       .composer { margin:0; }
+      .toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .toolbar::-webkit-scrollbar { display: none; }
+      .toolbar .chip {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
       .ghost-ticker {
         left: 50%;
         right: auto;
