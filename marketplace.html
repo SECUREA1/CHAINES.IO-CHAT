@@ -13,7 +13,7 @@
     .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
     header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
     .title { margin:0; font-size:20px; }
-    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
+    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(3, minmax(130px,1fr)); gap:8px; }
     .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
     .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
     .meta { padding:0 12px 12px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
@@ -36,11 +36,6 @@
     <section class="panel">
       <div class="tools">
         <input id="search" type="search" placeholder="Search users, listing details, text, location, category..." />
-        <select id="view-mode">
-          <option value="all">All View</option>
-          <option value="market">Straight Market</option>
-          <option value="cloud">Straight Cloud</option>
-        </select>
         <select id="category">
           <option value="all">All Categories</option>
           <option value="jobs">Jobs</option>
@@ -59,7 +54,7 @@
       </div>
       <div class="meta">
         <span id="count">0 listings</span>
-        <span>Toggle mode between cloud, market, or hybrid view.</span>
+        <span>Marketplace posts only. Filter by category, query, and value sort.</span>
       </div>
       <div id="listings" class="grid"></div>
       <div id="empty" class="empty" hidden>No posts match your filters yet.</div>
@@ -72,7 +67,6 @@
       const sourceKey = 'chaines_messages';
       const controls = {
         search: $('#search'),
-        mode: $('#view-mode'),
         category: $('#category'),
         sort: $('#sort'),
         refresh: $('#refresh')
@@ -80,6 +74,14 @@
       const list = $('#listings');
       const count = $('#count');
       const empty = $('#empty');
+
+      const MARKETPLACE_CATEGORIES = {
+        jobs: { label: 'Jobs' },
+        'for-sale': { label: 'Items for sale' },
+        services: { label: 'Services' },
+        housing: { label: 'Housing' },
+        community: { label: 'Community' }
+      };
 
       const normalizeListing = (listing = {}) => ({
         category: String(listing.category || 'general').trim() || 'general',
@@ -89,15 +91,14 @@
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return l.category !== 'general' || !!(l.price || l.location || l.condition);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition);
       };
-      const isCloud = (m) => !!(m.room || m.broadcast || m.video);
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
         const completedFields = [l.price, l.location, l.condition].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
-        return (likes * 3) + (comments * 2) + completedFields + (isCloud(m) ? 1 : 0) + (isMarket(m) ? 2 : 0);
+        return (likes * 3) + (comments * 2) + completedFields + 2;
       };
       const load = () => {
         try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
@@ -107,12 +108,10 @@
         try { return new Date(ts).toLocaleString(); } catch { return ''; }
       };
       const include = (m) => {
-        const mode = controls.mode.value;
         const category = controls.category.value;
         const q = controls.search.value.trim().toLowerCase();
         const l = normalizeListing(m.listing || { category: m.category });
-        if (mode === 'market' && !isMarket(m)) return false;
-        if (mode === 'cloud' && !isCloud(m)) return false;
+        if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
           const hay = [m.user, m.text, l.category, l.price, l.location, l.condition].join(' ').toLowerCase();
@@ -138,9 +137,8 @@
             <div><span class="user">@${m.user || 'anon'}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
             <div>${(m.text || '').replace(/</g,'&lt;')}</div>
             <div class="chips">
-              <span class="chip">${isMarket(m) ? 'Market' : 'General'}</span>
-              <span class="chip">${isCloud(m) ? 'Cloud' : 'Direct'}</span>
-              <span class="chip">${l.category}</span>
+              <span class="chip">Market</span>
+              <span class="chip">${(MARKETPLACE_CATEGORIES[l.category] || { label: 'General' }).label}</span>
               <span class="chip">Value ${valueScore(m)}</span>
             </div>
             <div class="small">Price/Salary: ${l.price || '—'}</div>
