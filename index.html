@@ -825,41 +825,45 @@ body.streams-flex-fit #video-container[hidden] {
       .feed { padding:12px; }
       .composer { margin:0; }
       .toolbar-shell {
-        flex-direction:row;
-        align-items:center;
+        flex-direction:column;
+        align-items:stretch;
       }
       .toolbar-toggle {
-        display:inline-flex;
-        flex:0 0 auto;
+        display:none;
       }
       .toolbar-panel {
-        display:none;
-        flex:1;
-        min-width:0;
+        display:block;
+        width:100%;
       }
       .toolbar-shell.is-open .toolbar-panel {
         display:block;
       }
       .toolbar {
-        flex-wrap:nowrap;
-        overflow-x:auto;
-        overflow-y:hidden;
+        flex-wrap:wrap;
+        overflow:visible;
         padding:8px;
       }
       .toolbar .chip {
-        flex: 0 0 auto;
-        min-width: max-content;
+        flex:1 1 calc(50% - 8px);
+        min-width:0;
         justify-content:center;
+      }
+      #ghost-btn,
+      #marketplace-btn {
+        flex:0 0 44px;
+      }
+      #toolbar-overflow-toggle {
+        width:100%;
       }
       .toolbar-overflow {
         margin-left:0;
-        width:auto;
+        width:100%;
       }
       .toolbar-overflow-panel {
-        position:absolute;
-        right:0;
+        position:static;
         top:calc(100% + 6px);
-        width:max-content;
+        margin-top:6px;
+        width:100%;
       }
       .ghost-ticker {
         left: 50%;
