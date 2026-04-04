@@ -177,9 +177,14 @@
     }
     .toolbar-panel { width:100%; }
     .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
-    .toolbar { justify-content:flex-start; flex-wrap:wrap; }
+    .toolbar { justify-content:flex-start; flex-wrap:nowrap; }
     .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
+    .toolbar-overflow { margin-left:auto; position:relative; }
+    .toolbar-overflow-panel { position:absolute; right:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:6px; min-width:190px; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:6; }
+    .toolbar-overflow.is-open .toolbar-overflow-panel { display:flex; }
+    .toolbar-overflow-panel .chip { width:100%; justify-content:flex-start; }
+    .toolbar-overflow-panel #feed-btn, .toolbar-overflow-panel #theme-toggle { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
@@ -211,7 +216,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #market-mode-toggle { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #market-mode-toggle, #toolbar-overflow-toggle { cursor:pointer; }
     #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -841,6 +846,14 @@ body.streams-flex-fit #video-container[hidden] {
         min-width: 0;
         justify-content:center;
       }
+      .toolbar-overflow {
+        margin-left:0;
+        width:100%;
+      }
+      .toolbar-overflow-panel {
+        position:static;
+        width:100%;
+      }
       .ghost-ticker {
         left: 50%;
         right: auto;
@@ -902,13 +915,18 @@ body.streams-flex-fit #video-container[hidden] {
             <div class="toolbar">
               <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
               <button id="video-toggle" class="chip" type="button" title="Show live feed">Show Feed</button>
-              <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
               <button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode">Feed + Market</button>
               <button id="ghost-btn" class="chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="Hologhost" /></button>
-              <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
-              <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
               <button id="omconsole-btn" class="chip" type="button" title="Open OMConsole">OMConsole</button>
-              <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/></button>
+              <a id="marketplace-btn" class="chip" href="/marketplace.html" title="Open marketplace" aria-label="Open marketplace"><img src="static/wallet.svg" alt="Marketplace" /></a>
+              <div id="toolbar-overflow" class="toolbar-overflow">
+                <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Open more actions">More ▾</button>
+                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Additional quick actions">
+                  <button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false">Flex Fit</button>
+                  <button id="feed-btn" class="chip" type="button" title="New feed" aria-label="New feed"><img src="static/home.svg" alt="New feed" /></button>
+                  <button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/>Theme</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1304,6 +1322,8 @@ body.streams-flex-fit #video-container[hidden] {
     const toolbarShell = el('#toolbar-shell');
     const toolbarToggle = el('#toolbar-toggle');
     const toolbarPanel = el('#toolbar-panel');
+    const toolbarOverflow = el('#toolbar-overflow');
+    const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -1494,6 +1514,27 @@ body.streams-flex-fit #video-container[hidden] {
       toolbarToggle.addEventListener('click', () => {
         const next = !toolbarShell.classList.contains('is-open');
         setToolbarOpen(next);
+      });
+    }
+    if(toolbarOverflowToggle && toolbarOverflow){
+      toolbarOverflowToggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const next = !toolbarOverflow.classList.contains('is-open');
+        toolbarOverflow.classList.toggle('is-open', next);
+        toolbarOverflowToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+      });
+      document.addEventListener('click', (event) => {
+        if(!toolbarOverflow.contains(event.target)){
+          toolbarOverflow.classList.remove('is-open');
+          toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if(event.key === 'Escape'){
+          toolbarOverflow.classList.remove('is-open');
+          toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
+        }
       });
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
