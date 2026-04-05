@@ -484,7 +484,10 @@
     }
 
     .actions { margin-top:6px; display:flex; gap:10px; }
-    .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
+    .like-btn,
+    .comment-jump-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
+    .comment-jump-btn { color: var(--muted); }
+    .comment-jump-btn:hover { color: var(--fg); }
     .comments { margin-top:6px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
@@ -984,6 +987,29 @@ body.streams-flex-fit #video-container[hidden] {
       .ghost-ticker.is-visible {
         transform: translate(-50%, 0);
       }
+      body.mobile-select-open .composer-actions {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: 48px;
+        gap: 0;
+        border: 1px solid var(--lining);
+        border-radius: 12px;
+        overflow: hidden;
+        background: color-mix(in oklab, var(--panel), transparent 10%);
+      }
+      body.mobile-select-open .composer-actions .send {
+        width: 100%;
+        height: 48px;
+        border-width: 0;
+        border-right: 1px solid var(--lining);
+        border-radius: 0;
+        box-shadow: none;
+      }
+      body.mobile-select-open .composer-actions .send:last-of-type {
+        border-right: 0;
+      }
+      body.mobile-select-open .composer-actions .copywriter {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -1234,6 +1260,7 @@ body.streams-flex-fit #video-container[hidden] {
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
     const autoDeleteToggle = el('#auto-delete');
+    const composerSelects = [marketViewMode, marketplaceCategory].filter(Boolean);
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
     const MARKETPLACE_CATEGORIES = {
@@ -1349,6 +1376,24 @@ body.streams-flex-fit #video-container[hidden] {
     });
     syncMarketModeToggleLabel();
     syncMarketplaceHints();
+    function setMobileSelectOpen(isOpen){
+      if(!window.matchMedia('(max-width: 600px)').matches) return;
+      document.body.classList.toggle('mobile-select-open', !!isOpen);
+    }
+    composerSelects.forEach((selectEl) => {
+      selectEl.addEventListener('focus', () => setMobileSelectOpen(true));
+      selectEl.addEventListener('blur', () => setMobileSelectOpen(false));
+      selectEl.addEventListener('change', () => setMobileSelectOpen(false));
+    });
+    document.addEventListener('touchstart', (event) => {
+      if(!document.body.classList.contains('mobile-select-open')) return;
+      if(event.target.closest('#market-view-mode, #marketplace-category')) return;
+      setMobileSelectOpen(false);
+    }, { passive: true });
+    window.addEventListener('resize', () => {
+      if(window.matchMedia('(max-width: 600px)').matches) return;
+      document.body.classList.remove('mobile-select-open');
+    });
 
     messageBtn.addEventListener('click', () => {
       form.hidden = !form.hidden;
@@ -3844,6 +3889,12 @@ body.streams-flex-fit #video-container[hidden] {
           try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
         });
         actions.appendChild(likeBtn);
+        const commentJumpBtn = document.createElement('button');
+        commentJumpBtn.className = 'comment-jump-btn';
+        commentJumpBtn.type = 'button';
+        commentJumpBtn.textContent = `💬 ${(m.comments || []).length}`;
+        commentJumpBtn.setAttribute('aria-label', `Comment on post by ${m.user}`);
+        actions.appendChild(commentJumpBtn);
 
         const commentsBox = document.createElement('div');
         commentsBox.className = 'comments';
@@ -3854,6 +3905,10 @@ body.streams-flex-fit #video-container[hidden] {
         commentForm.className = 'comment-form';
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment...';
+        commentJumpBtn.addEventListener('click', () => {
+          commentInput.focus({ preventScroll: false });
+          commentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
         commentForm.appendChild(commentInput);
         commentForm.addEventListener('submit', ev => {
           ev.preventDefault();
@@ -3908,6 +3963,10 @@ body.streams-flex-fit #video-container[hidden] {
         const msgEl = feed.querySelector(`li[data-id="${c.messageId}"]`);
         const list = msgEl && msgEl.querySelector('.comments-list');
         if(list) appendCommentElement(list, c);
+        const jumpBtn = msgEl && msgEl.querySelector('.comment-jump-btn');
+        if(jumpBtn && list){
+          jumpBtn.textContent = `💬 ${list.children.length}`;
+        }
       }
 
       function handleLike(l){
