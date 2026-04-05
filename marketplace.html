@@ -48,6 +48,15 @@
     .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
     .like-btn[aria-pressed="true"] { border-color:#ff7eb6; color:#ff7eb6; }
+    .ghost-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .comment-wrap, .contact-compose { border-top:1px dashed var(--line); padding-top:8px; display:grid; gap:6px; }
+    .comment-list { display:grid; gap:4px; max-height:120px; overflow:auto; padding-right:4px; }
+    .comment-item { font-size:12px; color:var(--muted); }
+    .comment-form, .contact-form { display:grid; grid-template-columns:120px 1fr auto; gap:6px; }
+    .comment-form input, .contact-form input { width:100%; border-radius:8px; border:1px solid var(--line); padding:6px 8px; background:#0d1733; color:var(--fg); }
+    .comment-form button, .contact-form button { border-radius:8px; border:1px solid var(--line); background:#163e80; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .inbox { padding:10px 12px; border-top:1px solid var(--line); display:grid; gap:6px; }
+    .inbox-item { font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px; }
   </style>
 </head>
 <body>
@@ -127,6 +136,10 @@
         <div id="post-status" class="post-status" aria-live="polite"></div>
       </div>
       <div id="listings" class="grid"></div>
+      <div class="inbox">
+        <strong>Contact Inbox</strong>
+        <div id="contact-inbox" class="comment-list"></div>
+      </div>
       <div id="empty" class="empty" hidden>No posts match your filters yet.</div>
     </section>
   </div>
@@ -136,6 +149,7 @@
       const $ = (q) => document.querySelector(q);
       const sourceKey = 'chaines_messages';
       const likedKey = 'chaines_marketplace_likes';
+      const contactKey = 'chaines_marketplace_contacts';
       const controls = {
         search: $('#search'),
         category: $('#category'),
@@ -163,6 +177,7 @@
       const postDatingBio = $('#post-dating-bio');
       const postMedia = $('#post-media');
       const postText = $('#post-text');
+      const contactInbox = $('#contact-inbox');
 
       const MARKETPLACE_CATEGORIES = {
         jobs: { label: 'Jobs' },
@@ -209,6 +224,11 @@
         catch { return {}; }
       };
       const saveLikedMap = (map) => localStorage.setItem(likedKey, JSON.stringify(map));
+      const loadContacts = () => {
+        try { return JSON.parse(localStorage.getItem(contactKey) || '[]'); }
+        catch { return []; }
+      };
+      const saveContacts = (items) => localStorage.setItem(contactKey, JSON.stringify(items));
       const sanitizeUser = (name) => String(name || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24);
       const escapeHtml = (value) => String(value || '')
         .replace(/&/g, '&amp;')
@@ -274,6 +294,50 @@
         render();
       }
 
+      function addComment(postId, user, text) {
+        if (!postId || !text) return false;
+        const items = load();
+        const idx = items.findIndex((item) => item.id === postId);
+        if (idx === -1) return false;
+        const nextComment = { user: sanitizeUser(user || 'anon') || 'anon', text: String(text || '').trim().slice(0, 240), ts: Date.now() };
+        if (!nextComment.text) return false;
+        const existing = Array.isArray(items[idx].comments) ? items[idx].comments : [];
+        items[idx].comments = [...existing, nextComment];
+        save(items);
+        return true;
+      }
+
+      function sendContact(postId, from, to, text) {
+        const msg = String(text || '').trim().slice(0, 240);
+        if (!to || !msg) return false;
+        const contacts = loadContacts();
+        contacts.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          postId,
+          from: sanitizeUser(from || 'anon') || 'anon',
+          to: sanitizeUser(to || 'anon') || 'anon',
+          text: msg,
+          ts: Date.now()
+        });
+        saveContacts(contacts);
+        return true;
+      }
+
+      function renderInbox() {
+        const activeUser = sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || '');
+        const received = loadContacts().filter((item) => item.to === activeUser).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
+        if (!received.length) {
+          contactInbox.innerHTML = '<div class="comment-item">No contact messages yet for this username.</div>';
+          return;
+        }
+        contactInbox.innerHTML = received.slice(0, 25).map((item) => `
+          <div class="inbox-item">
+            <strong>@${escapeHtml(item.from || 'anon')}</strong> → @${escapeHtml(item.to || 'anon')} • ${escapeHtml(formatTime(item.ts))}
+            <div>${escapeHtml(item.text || '')}</div>
+          </div>
+        `).join('');
+      }
+
       function render() {
         const items = load().filter(include);
         const sortBy = controls.sort.value;
@@ -313,6 +377,15 @@
                </div>`
             : '';
 
+          const comments = Array.isArray(m.comments) ? m.comments : [];
+          const commentsHtml = comments.length
+            ? comments.map((c) => {
+              const commentUser = typeof c === 'string' ? 'anon' : escapeHtml(c.user || 'anon');
+              const commentText = typeof c === 'string' ? escapeHtml(c) : escapeHtml(c.text || '');
+              const commentTime = typeof c === 'string' ? '' : ` • ${escapeHtml(formatTime(c.ts))}`;
+              return `<div class="comment-item"><strong>@${commentUser}</strong>${commentTime}: ${commentText}</div>`;
+            }).join('')
+            : '<div class="comment-item">No comments yet.</div>';
           card.innerHTML = `
             <div><span class="user">@${safeUser}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
             <div>${safeText}</div>
@@ -328,13 +401,30 @@
             ${datingDetails}
             <div class="actions">
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
-              <span class="small">Likes ${m.likes || 0} • Comments ${(m.comments || []).length}</span>
+              <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
+              <span class="small">Likes ${m.likes || 0} • Comments ${comments.length}</span>
+            </div>
+            <div class="comment-wrap">
+              <div class="comment-list">${commentsHtml}</div>
+              <form class="comment-form" data-comment-form-id="${m.id || ''}">
+                <input type="text" maxlength="24" name="user" placeholder="Your user" value="${escapeHtml(sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || ''))}" />
+                <input type="text" maxlength="240" name="comment" placeholder="Add a public comment..." required />
+                <button type="submit">Comment</button>
+              </form>
+            </div>
+            <div class="contact-compose" data-contact-compose-id="${m.id || ''}" hidden>
+              <form class="contact-form" data-contact-form-id="${m.id || ''}" data-contact-target="${safeUser}">
+                <input type="text" maxlength="24" name="from" placeholder="Your user" value="${escapeHtml(sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || ''))}" />
+                <input type="text" maxlength="240" name="message" placeholder="Private contact message to @${safeUser}" required />
+                <button type="submit">Send</button>
+              </form>
             </div>
           `;
           list.appendChild(card);
         });
         count.textContent = `${items.length} listings`;
         empty.hidden = items.length > 0;
+        renderInbox();
       }
 
       async function postListing(ev) {
@@ -399,13 +489,47 @@
       controls.refresh.addEventListener('click', render);
       list.addEventListener('click', (ev) => {
         const button = ev.target.closest('[data-like-id]');
-        if (!button) return;
-        toggleLike(button.getAttribute('data-like-id'));
+        if (button) {
+          toggleLike(button.getAttribute('data-like-id'));
+          return;
+        }
+        const contactToggle = ev.target.closest('[data-toggle-contact-id]');
+        if (!contactToggle) return;
+        const id = contactToggle.getAttribute('data-toggle-contact-id');
+        const compose = list.querySelector(`[data-contact-compose-id="${id}"]`);
+        if (!compose) return;
+        compose.hidden = !compose.hidden;
+      });
+      list.addEventListener('submit', (ev) => {
+        const commentForm = ev.target.closest('[data-comment-form-id]');
+        if (commentForm) {
+          ev.preventDefault();
+          const id = commentForm.getAttribute('data-comment-form-id');
+          const user = commentForm.elements.user.value;
+          const text = commentForm.elements.comment.value;
+          if (!addComment(id, user, text)) return;
+          try { localStorage.setItem('chaines_username', sanitizeUser(user || '')); } catch {}
+          render();
+          return;
+        }
+        const contactForm = ev.target.closest('[data-contact-form-id]');
+        if (!contactForm) return;
+        ev.preventDefault();
+        const id = contactForm.getAttribute('data-contact-form-id');
+        const to = contactForm.getAttribute('data-contact-target');
+        const from = contactForm.elements.from.value;
+        const message = contactForm.elements.message.value;
+        if (!sendContact(id, from, to, message)) return;
+        try { localStorage.setItem('chaines_username', sanitizeUser(from || '')); } catch {}
+        contactForm.reset();
+        contactForm.elements.from.value = sanitizeUser(from || '');
+        renderInbox();
       });
       window.addEventListener('storage', (ev) => {
-        if (ev.key === sourceKey || ev.key === likedKey) render();
+        if (ev.key === sourceKey || ev.key === likedKey || ev.key === contactKey) render();
       });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
+      postUser.addEventListener('input', () => renderInbox());
       document.querySelector('.dating-block').classList.toggle('show', postCategory.value === 'dating');
       postForm.addEventListener('submit', postListing);
       render();
