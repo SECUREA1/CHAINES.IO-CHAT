@@ -117,6 +117,26 @@
           <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
           <input id="post-location" type="text" maxlength="80" placeholder="Location (optional)" />
           <input id="post-details" class="wide" type="text" maxlength="120" placeholder="Condition / details (optional)" />
+          <div class="dating-block service-block">
+            <p class="dating-title">Service details</p>
+            <select id="post-service-type">
+              <option value="">Service type (optional)</option>
+              <option value="kimono">Kimono & cultural styling</option>
+              <option value="personal">Personal services</option>
+              <option value="construction">Construction & trades</option>
+              <option value="cleaning">Cleaning services</option>
+              <option value="beauty">Beauty & wellness</option>
+              <option value="fitness">Fitness coaching</option>
+              <option value="events">Events & hospitality</option>
+              <option value="tech">Tech & IT support</option>
+              <option value="transport">Transport & moving</option>
+              <option value="education">Education & tutoring</option>
+            </select>
+            <input id="post-service-subcategory" type="text" maxlength="100" placeholder="Sub-category (optional)" />
+            <input id="post-job-location" type="text" maxlength="120" placeholder="Job location / service area (optional)" />
+            <input id="post-credentials" type="text" maxlength="140" placeholder="Credentials / certifications (optional)" />
+            <input id="post-contact-info" type="text" maxlength="140" placeholder="Preferred contact info (optional)" />
+          </div>
           <div class="dating-block">
             <p class="dating-title">Dating add-on</p>
             <input id="post-availability" type="text" maxlength="100" placeholder="Availability (optional e.g. Weeknights, weekends)" />
@@ -169,6 +189,11 @@
       const postPrice = $('#post-price');
       const postLocation = $('#post-location');
       const postDetails = $('#post-details');
+      const postServiceType = $('#post-service-type');
+      const postServiceSubcategory = $('#post-service-subcategory');
+      const postJobLocation = $('#post-job-location');
+      const postCredentials = $('#post-credentials');
+      const postContactInfo = $('#post-contact-info');
       const postAvailability = $('#post-availability');
       const postInterests = $('#post-interests');
       const postAge = $('#post-age');
@@ -197,6 +222,11 @@
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
         condition: String(listing.condition || '').trim(),
+        serviceType: String(listing.serviceType || '').trim(),
+        subcategory: String(listing.subcategory || '').trim(),
+        jobLocation: String(listing.jobLocation || '').trim(),
+        credentials: String(listing.credentials || '').trim(),
+        contactInfo: String(listing.contactInfo || '').trim(),
         availability: String(listing.availability || '').trim(),
         interests: String(listing.interests || '').trim(),
         age: Number.isFinite(Number(listing.age)) ? Number(listing.age) : null,
@@ -211,11 +241,11 @@
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.serviceType || l.subcategory || l.jobLocation || l.credentials || l.contactInfo || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
@@ -257,7 +287,7 @@
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
+          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
           const likesHay = l.datingLikes.toLowerCase();
           const dislikesHay = l.datingDislikes.toLowerCase();
           const bioHay = l.datingBio.toLowerCase();
@@ -394,7 +424,12 @@
             ? ''
             : `<div class="small">Price/Salary: ${escapeHtml(l.price || '—')}</div>
                <div class="small">Location: ${safeLocation}</div>
-               <div class="small">Details: ${safeCondition}</div>`;
+               <div class="small">Details: ${safeCondition}</div>
+               <div class="small">Service type: ${escapeHtml(l.serviceType || '—')}</div>
+               <div class="small">Sub-category: ${escapeHtml(l.subcategory || '—')}</div>
+               <div class="small">Job location: ${escapeHtml(l.jobLocation || '—')}</div>
+               <div class="small">Credentials: ${escapeHtml(l.credentials || '—')}</div>
+               <div class="small">Contact: ${escapeHtml(l.contactInfo || '—')}</div>`;
           const datingLocationRow = l.category === 'dating'
             ? `<div class="small">Location: ${safeLocation}</div>`
             : '';
@@ -468,6 +503,11 @@
           price: postPrice.value,
           location: postLocation.value,
           condition: postDetails.value,
+          serviceType: postServiceType.value,
+          subcategory: postServiceSubcategory.value,
+          jobLocation: postJobLocation.value,
+          credentials: postCredentials.value,
+          contactInfo: postContactInfo.value,
           availability: postAvailability.value,
           interests: postInterests.value,
           age: postAge.value,
@@ -506,12 +546,24 @@
         el.addEventListener('input', render);
         el.addEventListener('change', render);
       });
+      const datingBlock = document.querySelector('.dating-block:not(.service-block)');
+      const serviceBlock = document.querySelector('.service-block');
       const syncPostFieldsByCategory = () => {
         const showDating = postCategory.value === 'dating';
-        document.querySelector('.dating-block').classList.toggle('show', showDating);
+        const showServices = postCategory.value === 'services';
+        datingBlock?.classList.toggle('show', showDating);
+        serviceBlock?.classList.toggle('show', showServices);
         postPrice.disabled = showDating;
         if (showDating) postPrice.value = '';
         postPrice.placeholder = showDating ? 'Not used for dating profiles' : 'Price or salary (optional)';
+        postDetails.placeholder = showServices ? 'Service summary (optional)' : 'Condition / details (optional)';
+        if (!showServices) {
+          postServiceType.value = '';
+          postServiceSubcategory.value = '';
+          postJobLocation.value = '';
+          postCredentials.value = '';
+          postContactInfo.value = '';
+        }
       };
       postCategory.addEventListener('change', () => {
         syncPostFieldsByCategory();

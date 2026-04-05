@@ -1207,6 +1207,23 @@ body.streams-flex-fit #video-container[hidden] {
             <input id="marketplace-price" type="text" placeholder="Price or salary (optional)" />
             <input id="marketplace-location" type="text" placeholder="Location (optional)" />
             <input id="marketplace-condition" type="text" placeholder="Condition / type (optional)" />
+            <select id="marketplace-service-type" aria-label="Service type" hidden>
+              <option value="">Service type (optional)</option>
+              <option value="kimono">Kimono & cultural styling</option>
+              <option value="personal">Personal services</option>
+              <option value="construction">Construction & trades</option>
+              <option value="cleaning">Cleaning services</option>
+              <option value="beauty">Beauty & wellness</option>
+              <option value="fitness">Fitness coaching</option>
+              <option value="events">Events & hospitality</option>
+              <option value="tech">Tech & IT support</option>
+              <option value="transport">Transport & moving</option>
+              <option value="education">Education & tutoring</option>
+            </select>
+            <input id="marketplace-subcategory" type="text" placeholder="Service sub-category (optional)" hidden />
+            <input id="marketplace-job-location" type="text" placeholder="Job location / service area (optional)" hidden />
+            <input id="marketplace-credentials" type="text" placeholder="Credentials / certifications (optional)" hidden />
+            <input id="marketplace-contact-info" type="text" placeholder="Preferred contact info (optional)" hidden />
           </div>
         <label class="input" for="text">
           <textarea id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" rows="1"></textarea>
@@ -1318,6 +1335,11 @@ body.streams-flex-fit #video-container[hidden] {
     const marketplacePrice = el('#marketplace-price');
     const marketplaceLocation = el('#marketplace-location');
     const marketplaceCondition = el('#marketplace-condition');
+    const marketplaceServiceType = el('#marketplace-service-type');
+    const marketplaceSubcategory = el('#marketplace-subcategory');
+    const marketplaceJobLocation = el('#marketplace-job-location');
+    const marketplaceCredentials = el('#marketplace-credentials');
+    const marketplaceContactInfo = el('#marketplace-contact-info');
     const marketSearchInput = el('#market-search');
     const marketViewMode = el('#market-view-mode');
     const marketModeToggle = el('#market-mode-toggle');
@@ -1359,12 +1381,18 @@ body.streams-flex-fit #video-container[hidden] {
         category: MARKETPLACE_CATEGORIES[category] ? category : NON_MARKETPLACE_CATEGORY,
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
-        condition: String(listing.condition || '').trim()
+        condition: String(listing.condition || '').trim(),
+        serviceType: String(listing.serviceType || '').trim(),
+        subcategory: String(listing.subcategory || '').trim(),
+        jobLocation: String(listing.jobLocation || '').trim(),
+        credentials: String(listing.credentials || '').trim(),
+        contactInfo: String(listing.contactInfo || '').trim()
       };
     }
     function isMarketplacePost(m){
       const listing = normalizeListing(m?.listing || { category: m?.category });
-      return listing.category !== NON_MARKETPLACE_CATEGORY || !!(listing.price || listing.location || listing.condition);
+      return listing.category !== NON_MARKETPLACE_CATEGORY
+        || !!(listing.price || listing.location || listing.condition || listing.serviceType || listing.subcategory || listing.jobLocation || listing.credentials || listing.contactInfo);
     }
     function isCloudPost(m){
       return !!(m && (m.room || m.broadcast || m.video));
@@ -1376,7 +1404,7 @@ body.streams-flex-fit #video-container[hidden] {
       const q = String(marketSearchInput?.value || '').trim().toLowerCase();
       if(!q) return true;
       const listing = normalizeListing(m?.listing || { category: m?.category });
-      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition].join(' ').toLowerCase();
+      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition, listing.serviceType, listing.subcategory, listing.jobLocation, listing.credentials, listing.contactInfo].join(' ').toLowerCase();
       return haystack.includes(q);
     }
     function applyFeedFilters(){
@@ -1415,19 +1443,31 @@ body.streams-flex-fit #video-container[hidden] {
         category: marketplaceCategory?.value,
         price: marketplacePrice?.value,
         location: marketplaceLocation?.value,
-        condition: marketplaceCondition?.value
+        condition: marketplaceCondition?.value,
+        serviceType: marketplaceServiceType?.value,
+        subcategory: marketplaceSubcategory?.value,
+        jobLocation: marketplaceJobLocation?.value,
+        credentials: marketplaceCredentials?.value,
+        contactInfo: marketplaceContactInfo?.value
       });
     }
     function syncMarketplaceHints(){
       const listing = getListingFromComposer();
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
       const isCommentCategory = listing.category === NON_MARKETPLACE_CATEGORY;
+      const isServicesCategory = listing.category === 'services';
       [marketplacePrice, marketplaceLocation, marketplaceCondition].forEach((field) => {
         if(!field) return;
         field.hidden = isCommentCategory;
         if(isCommentCategory) field.value = '';
       });
+      [marketplaceServiceType, marketplaceSubcategory, marketplaceJobLocation, marketplaceCredentials, marketplaceContactInfo].forEach((field) => {
+        if(!field) return;
+        field.hidden = !isServicesCategory;
+        if(!isServicesCategory) field.value = '';
+      });
       if(marketplacePrice) marketplacePrice.placeholder = `${categoryDef.defaults.price || 'Price'} (optional)`;
+      if(marketplaceLocation) marketplaceLocation.placeholder = `${isServicesCategory ? 'General location' : 'Location'} (optional)`;
       if(marketplaceCondition) marketplaceCondition.placeholder = `${categoryDef.defaults.condition || 'Condition'} (optional)`;
     }
     input.addEventListener('input', () => autoResize(input));
@@ -3833,7 +3873,12 @@ body.streams-flex-fit #video-container[hidden] {
         m.listing?.category,
         m.listing?.price,
         m.listing?.location,
-        m.listing?.condition
+        m.listing?.condition,
+        m.listing?.serviceType,
+        m.listing?.subcategory,
+        m.listing?.jobLocation,
+        m.listing?.credentials,
+        m.listing?.contactInfo
       ].join(' ').toLowerCase();
 
       const av = document.createElement('div');
@@ -3885,7 +3930,12 @@ body.streams-flex-fit #video-container[hidden] {
       const listingRows = [
         listing.price ? `Price / Salary: ${listing.price}` : '',
         listing.location ? `Location: ${listing.location}` : '',
-        listing.condition ? `Details: ${listing.condition}` : ''
+        listing.condition ? `Details: ${listing.condition}` : '',
+        listing.serviceType ? `Service type: ${listing.serviceType}` : '',
+        listing.subcategory ? `Sub-category: ${listing.subcategory}` : '',
+        listing.jobLocation ? `Job location: ${listing.jobLocation}` : '',
+        listing.credentials ? `Credentials: ${listing.credentials}` : '',
+        listing.contactInfo ? `Contact: ${listing.contactInfo}` : ''
       ].filter(Boolean);
       if(listingRows.length){
         const listingMeta = document.createElement('div');
