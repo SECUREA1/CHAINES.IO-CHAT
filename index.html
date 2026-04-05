@@ -245,7 +245,7 @@
       width:100%;
       align-items:center;
       gap:8px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
     footer .status.bottom .chip {
       display:flex;
@@ -268,7 +268,8 @@
       height:16px;
       object-fit:contain;
     }
-    footer .legal { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; color:var(--muted); text-align:center; width:100%; }
+    footer .legal { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; color:var(--muted); text-align:center; }
+    footer .legal-inline { width:100%; min-height:36px; }
     .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
     .composer-actions .send { width:56px; height:56px; }
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
@@ -1370,8 +1371,8 @@ body.streams-flex-fit #video-container[hidden] {
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
+        <span class="chip legal legal-inline">© <span id="year"></span> CHAINeS</span>
       </div>
-      <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
     </footer>
   </div>
 
@@ -3131,9 +3132,11 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastInput.value = '';
     });
 
-    cmdListBtn.addEventListener('click', () => {
-      cmdPanel.hidden = !cmdPanel.hidden;
-    });
+    if(cmdListBtn){
+      cmdListBtn.addEventListener('click', () => {
+        cmdPanel.hidden = !cmdPanel.hidden;
+      });
+    }
     cmdBtn.addEventListener('click', () => {
       cmdPanel.hidden = !cmdPanel.hidden;
     });
