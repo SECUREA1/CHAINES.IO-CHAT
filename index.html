@@ -165,7 +165,7 @@
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
     .toolbar-shell { display:flex; flex-direction:column; gap:8px; width:100%; }
     .toolbar-toggle {
-      display:inline-flex;
+      display:none;
       width:42px;
       height:42px;
       padding:0;
@@ -209,50 +209,6 @@
       flex:1 1 0;
     }
     .toolbar-primary .chip.action-chip { min-height:36px; font-size:12px; }
-    .toolbar-shell.is-vertical .toolbar {
-      flex-direction:column;
-      align-items:stretch;
-      overflow:visible;
-      padding:8px;
-      gap:8px;
-    }
-    .toolbar-shell.is-vertical .toolbar-primary {
-      width:100%;
-      flex-direction:column;
-      align-items:stretch;
-      gap:8px;
-    }
-    .toolbar-shell.is-vertical .toolbar-primary .chip,
-    .toolbar-shell.is-vertical #conn-chip {
-      width:100%;
-      justify-content:flex-start;
-      flex:0 0 auto;
-      min-height:38px;
-      padding:8px 10px;
-      font-size:13px;
-      border-radius:12px;
-    }
-    .toolbar-shell.is-vertical .toolbar-overflow {
-      width:100%;
-      margin-right:0;
-    }
-    .toolbar-shell.is-vertical #toolbar-overflow-toggle {
-      width:100%;
-      justify-content:flex-start;
-      padding:8px 10px;
-      font-size:13px;
-      border-radius:12px;
-    }
-    .toolbar-shell.is-vertical .toolbar-overflow-panel {
-      position:static;
-      display:flex;
-      width:100%;
-      max-width:none;
-      max-height:none;
-      box-shadow:none;
-      margin-top:8px;
-      border-radius:12px;
-    }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
@@ -484,10 +440,7 @@
     }
 
     .actions { margin-top:6px; display:flex; gap:10px; }
-    .like-btn,
-    .comment-jump-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
-    .comment-jump-btn { color: var(--muted); }
-    .comment-jump-btn:hover { color: var(--fg); }
+    .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
     .comments { margin-top:6px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
@@ -926,57 +879,47 @@ body.streams-flex-fit #video-container[hidden] {
       .toolbar-shell.is-open .toolbar-panel {
         display:block;
       }
-      .toolbar,
-      .toolbar-primary {
-        flex-direction:column;
-        align-items:stretch;
-        gap:8px;
-      }
       .toolbar {
+        flex-wrap:nowrap;
         overflow:visible;
-        padding:8px;
+        padding:8px 6px;
+        gap:6px;
       }
-      .toolbar .chip,
-      .toolbar-primary .chip,
-      #conn-chip {
-        width:100%;
-        min-width:0;
-        justify-content:flex-start;
-        padding:8px 10px;
-        font-size:13px;
-        gap:8px;
-        white-space:normal;
-        border-radius:12px;
-      }
-      #conn-chip {
+      .toolbar .chip {
         flex:0 0 auto;
+        min-width:max-content;
+        justify-content:center;
+        padding:5px 7px;
+        font-size:10px;
+        gap:4px;
+        white-space:nowrap;
+      }
+      .toolbar-primary .chip {
+        min-width:0;
+        flex:1 1 0;
+      }
+      #conn-chip {
+        flex:0 1 118px;
+        min-width:92px;
       }
       #conn-chip #conn-label {
         overflow:hidden;
         text-overflow:ellipsis;
       }
-      #toolbar-overflow-toggle {
-        flex:0 0 auto;
-        width:100%;
-        height:auto;
-        min-height:38px;
-        justify-content:flex-start;
-      }
+      #toolbar-overflow-toggle { flex:0 0 40px; width:40px; height:34px; }
       .toolbar-primary {
         gap:6px;
       }
       .toolbar-overflow {
         margin-left:0;
-        width:100%;
+        width:auto;
       }
       .toolbar-overflow-panel {
-        position:static;
-        display:flex;
-        margin-top:0;
-        width:100%;
-        max-width:none;
-        max-height:none;
-        box-shadow:none;
+        position:absolute;
+        left:0;
+        top:calc(100% + 6px);
+        margin-top:6px;
+        width:min(90vw, 300px);
       }
       .ghost-ticker {
         left: 50%;
@@ -986,29 +929,6 @@ body.streams-flex-fit #video-container[hidden] {
       }
       .ghost-ticker.is-visible {
         transform: translate(-50%, 0);
-      }
-      body.mobile-select-open .composer-actions {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        grid-template-rows: 48px;
-        gap: 0;
-        border: 1px solid var(--lining);
-        border-radius: 12px;
-        overflow: hidden;
-        background: color-mix(in oklab, var(--panel), transparent 10%);
-      }
-      body.mobile-select-open .composer-actions .send {
-        width: 100%;
-        height: 48px;
-        border-width: 0;
-        border-right: 1px solid var(--lining);
-        border-radius: 0;
-        box-shadow: none;
-      }
-      body.mobile-select-open .composer-actions .send:last-of-type {
-        border-right: 0;
-      }
-      body.mobile-select-open .composer-actions .copywriter {
-        display: none;
       }
     }
   </style>
@@ -1057,7 +977,6 @@ body.streams-flex-fit #video-container[hidden] {
           </div>
         </div>
         <div id="toolbar-shell" class="toolbar-shell">
-          <button id="toolbar-toggle" class="chip toolbar-toggle" type="button" aria-expanded="false" aria-controls="toolbar-panel" aria-label="Toggle vertical toolbar">☰</button>
           <div id="toolbar-panel" class="toolbar-panel">
             <div class="toolbar">
               <div id="toolbar-overflow" class="toolbar-overflow">
@@ -1260,7 +1179,6 @@ body.streams-flex-fit #video-container[hidden] {
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
     const autoDeleteToggle = el('#auto-delete');
-    const composerSelects = [marketViewMode, marketplaceCategory].filter(Boolean);
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
     const MARKETPLACE_CATEGORIES = {
@@ -1376,24 +1294,6 @@ body.streams-flex-fit #video-container[hidden] {
     });
     syncMarketModeToggleLabel();
     syncMarketplaceHints();
-    function setMobileSelectOpen(isOpen){
-      if(!window.matchMedia('(max-width: 600px)').matches) return;
-      document.body.classList.toggle('mobile-select-open', !!isOpen);
-    }
-    composerSelects.forEach((selectEl) => {
-      selectEl.addEventListener('focus', () => setMobileSelectOpen(true));
-      selectEl.addEventListener('blur', () => setMobileSelectOpen(false));
-      selectEl.addEventListener('change', () => setMobileSelectOpen(false));
-    });
-    document.addEventListener('touchstart', (event) => {
-      if(!document.body.classList.contains('mobile-select-open')) return;
-      if(event.target.closest('#market-view-mode, #marketplace-category')) return;
-      setMobileSelectOpen(false);
-    }, { passive: true });
-    window.addEventListener('resize', () => {
-      if(window.matchMedia('(max-width: 600px)').matches) return;
-      document.body.classList.remove('mobile-select-open');
-    });
 
     messageBtn.addEventListener('click', () => {
       form.hidden = !form.hidden;
@@ -1686,9 +1586,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
       toolbarShell.classList.toggle('is-open', isOpen);
-      toolbarShell.classList.toggle('is-vertical', isOpen);
       toolbarToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      toolbarToggle.textContent = isOpen ? '✕' : '☰';
       document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
     }
     function syncToolbarLayout(){
@@ -1697,9 +1595,8 @@ body.streams-flex-fit #video-container[hidden] {
         setToolbarOpen(true);
       } else {
         toolbarShell.classList.remove('is-open');
-        toolbarShell.classList.remove('is-vertical');
         toolbarToggle.setAttribute('aria-expanded', 'false');
-        toolbarToggle.textContent = '☰';
+        toolbarPanel.style.display = '';
       }
     }
     if(toolbarToggle){
@@ -3889,12 +3786,6 @@ body.streams-flex-fit #video-container[hidden] {
           try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
         });
         actions.appendChild(likeBtn);
-        const commentJumpBtn = document.createElement('button');
-        commentJumpBtn.className = 'comment-jump-btn';
-        commentJumpBtn.type = 'button';
-        commentJumpBtn.textContent = `💬 ${(m.comments || []).length}`;
-        commentJumpBtn.setAttribute('aria-label', `Comment on post by ${m.user}`);
-        actions.appendChild(commentJumpBtn);
 
         const commentsBox = document.createElement('div');
         commentsBox.className = 'comments';
@@ -3905,10 +3796,6 @@ body.streams-flex-fit #video-container[hidden] {
         commentForm.className = 'comment-form';
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment...';
-        commentJumpBtn.addEventListener('click', () => {
-          commentInput.focus({ preventScroll: false });
-          commentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
         commentForm.appendChild(commentInput);
         commentForm.addEventListener('submit', ev => {
           ev.preventDefault();
@@ -3963,10 +3850,6 @@ body.streams-flex-fit #video-container[hidden] {
         const msgEl = feed.querySelector(`li[data-id="${c.messageId}"]`);
         const list = msgEl && msgEl.querySelector('.comments-list');
         if(list) appendCommentElement(list, c);
-        const jumpBtn = msgEl && msgEl.querySelector('.comment-jump-btn');
-        if(jumpBtn && list){
-          jumpBtn.textContent = `💬 ${list.children.length}`;
-        }
       }
 
       function handleLike(l){
