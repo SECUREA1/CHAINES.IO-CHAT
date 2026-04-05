@@ -1207,6 +1207,17 @@ body.streams-flex-fit #video-container[hidden] {
             <input id="marketplace-price" type="text" placeholder="Price or salary (optional)" />
             <input id="marketplace-location" type="text" placeholder="Location (optional)" />
             <input id="marketplace-condition" type="text" placeholder="Condition / type (optional)" />
+            <select id="marketplace-job-type" aria-label="Job type" hidden>
+              <option value="">Job type (optional)</option>
+              <option value="full-time">Full-time</option>
+              <option value="part-time">Part-time</option>
+              <option value="contract">Contract</option>
+              <option value="temporary">Temporary</option>
+              <option value="internship">Internship</option>
+              <option value="freelance">Freelance</option>
+              <option value="volunteer">Volunteer</option>
+            </select>
+            <input id="marketplace-job-rules" type="text" placeholder="Job rules / requirements (optional)" hidden />
           </div>
         <label class="input" for="text">
           <textarea id="text" name="text" placeholder="Type a message… (try /wave, /me dance or /clear)" rows="1"></textarea>
@@ -1318,6 +1329,8 @@ body.streams-flex-fit #video-container[hidden] {
     const marketplacePrice = el('#marketplace-price');
     const marketplaceLocation = el('#marketplace-location');
     const marketplaceCondition = el('#marketplace-condition');
+    const marketplaceJobType = el('#marketplace-job-type');
+    const marketplaceJobRules = el('#marketplace-job-rules');
     const marketSearchInput = el('#market-search');
     const marketViewMode = el('#market-view-mode');
     const marketModeToggle = el('#market-mode-toggle');
@@ -1359,7 +1372,9 @@ body.streams-flex-fit #video-container[hidden] {
         category: MARKETPLACE_CATEGORIES[category] ? category : NON_MARKETPLACE_CATEGORY,
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
-        condition: String(listing.condition || '').trim()
+        condition: String(listing.condition || '').trim(),
+        jobType: String(listing.jobType || '').trim(),
+        jobRules: String(listing.jobRules || '').trim()
       };
     }
     function isMarketplacePost(m){
@@ -1376,7 +1391,7 @@ body.streams-flex-fit #video-container[hidden] {
       const q = String(marketSearchInput?.value || '').trim().toLowerCase();
       if(!q) return true;
       const listing = normalizeListing(m?.listing || { category: m?.category });
-      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition].join(' ').toLowerCase();
+      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition, listing.jobType, listing.jobRules].join(' ').toLowerCase();
       return haystack.includes(q);
     }
     function applyFeedFilters(){
@@ -1415,18 +1430,29 @@ body.streams-flex-fit #video-container[hidden] {
         category: marketplaceCategory?.value,
         price: marketplacePrice?.value,
         location: marketplaceLocation?.value,
-        condition: marketplaceCondition?.value
+        condition: marketplaceCondition?.value,
+        jobType: marketplaceJobType?.value,
+        jobRules: marketplaceJobRules?.value
       });
     }
     function syncMarketplaceHints(){
       const listing = getListingFromComposer();
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
       const isCommentCategory = listing.category === NON_MARKETPLACE_CATEGORY;
+      const isJobsCategory = listing.category === 'jobs';
       [marketplacePrice, marketplaceLocation, marketplaceCondition].forEach((field) => {
         if(!field) return;
         field.hidden = isCommentCategory;
         if(isCommentCategory) field.value = '';
       });
+      if(marketplaceJobType){
+        marketplaceJobType.hidden = !isJobsCategory;
+        if(!isJobsCategory) marketplaceJobType.value = '';
+      }
+      if(marketplaceJobRules){
+        marketplaceJobRules.hidden = !isJobsCategory;
+        if(!isJobsCategory) marketplaceJobRules.value = '';
+      }
       if(marketplacePrice) marketplacePrice.placeholder = `${categoryDef.defaults.price || 'Price'} (optional)`;
       if(marketplaceCondition) marketplaceCondition.placeholder = `${categoryDef.defaults.condition || 'Condition'} (optional)`;
     }
@@ -3833,7 +3859,9 @@ body.streams-flex-fit #video-container[hidden] {
         m.listing?.category,
         m.listing?.price,
         m.listing?.location,
-        m.listing?.condition
+        m.listing?.condition,
+        m.listing?.jobType,
+        m.listing?.jobRules
       ].join(' ').toLowerCase();
 
       const av = document.createElement('div');
@@ -3885,7 +3913,9 @@ body.streams-flex-fit #video-container[hidden] {
       const listingRows = [
         listing.price ? `Price / Salary: ${listing.price}` : '',
         listing.location ? `Location: ${listing.location}` : '',
-        listing.condition ? `Details: ${listing.condition}` : ''
+        listing.condition ? `Details: ${listing.condition}` : '',
+        listing.jobType ? `Job type: ${listing.jobType}` : '',
+        listing.jobRules ? `Job rules: ${listing.jobRules}` : ''
       ].filter(Boolean);
       if(listingRows.length){
         const listingMeta = document.createElement('div');

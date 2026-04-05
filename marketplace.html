@@ -117,6 +117,17 @@
           <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
           <input id="post-location" type="text" maxlength="80" placeholder="Location (optional)" />
           <input id="post-details" class="wide" type="text" maxlength="120" placeholder="Condition / details (optional)" />
+          <select id="post-job-type" hidden>
+            <option value="">Job type (optional)</option>
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+            <option value="temporary">Temporary</option>
+            <option value="internship">Internship</option>
+            <option value="freelance">Freelance</option>
+            <option value="volunteer">Volunteer</option>
+          </select>
+          <input id="post-job-rules" type="text" maxlength="180" placeholder="Job rules / requirements (optional)" hidden />
           <div class="dating-block">
             <p class="dating-title">Dating add-on</p>
             <input id="post-availability" type="text" maxlength="100" placeholder="Availability (optional e.g. Weeknights, weekends)" />
@@ -169,6 +180,8 @@
       const postPrice = $('#post-price');
       const postLocation = $('#post-location');
       const postDetails = $('#post-details');
+      const postJobType = $('#post-job-type');
+      const postJobRules = $('#post-job-rules');
       const postAvailability = $('#post-availability');
       const postInterests = $('#post-interests');
       const postAge = $('#post-age');
@@ -197,6 +210,8 @@
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
         condition: String(listing.condition || '').trim(),
+        jobType: String(listing.jobType || '').trim(),
+        jobRules: String(listing.jobRules || '').trim(),
         availability: String(listing.availability || '').trim(),
         interests: String(listing.interests || '').trim(),
         age: Number.isFinite(Number(listing.age)) ? Number(listing.age) : null,
@@ -211,11 +226,11 @@
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.jobType || l.jobRules || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.jobType, l.jobRules, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
@@ -257,7 +272,7 @@
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
+          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.jobType, l.jobRules, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
           const likesHay = l.datingLikes.toLowerCase();
           const dislikesHay = l.datingDislikes.toLowerCase();
           const bioHay = l.datingBio.toLowerCase();
@@ -368,6 +383,8 @@
           const safeProfileHref = `/profile.html?user=${encodeURIComponent(safeUserRaw)}`;
           const safeLocation = escapeHtml(l.location || '—');
           const safeCondition = escapeHtml(l.condition || '—');
+          const safeJobType = escapeHtml(l.jobType || '—');
+          const safeJobRules = escapeHtml(l.jobRules || '—');
           const mediaHtml = l.media.length
             ? `<div class="media-grid">${l.media.map((item) => item.type.startsWith('video/')
               ? `<video controls preload="metadata" src="${item.url}"></video>`
@@ -394,7 +411,9 @@
             ? ''
             : `<div class="small">Price/Salary: ${escapeHtml(l.price || '—')}</div>
                <div class="small">Location: ${safeLocation}</div>
-               <div class="small">Details: ${safeCondition}</div>`;
+               <div class="small">Details: ${safeCondition}</div>
+               ${l.category === 'jobs' ? `<div class="small">Job type: ${safeJobType}</div>
+               <div class="small">Job rules: ${safeJobRules}</div>` : ''}`;
           const datingLocationRow = l.category === 'dating'
             ? `<div class="small">Location: ${safeLocation}</div>`
             : '';
@@ -468,6 +487,8 @@
           price: postPrice.value,
           location: postLocation.value,
           condition: postDetails.value,
+          jobType: postJobType.value,
+          jobRules: postJobRules.value,
           availability: postAvailability.value,
           interests: postInterests.value,
           age: postAge.value,
@@ -508,10 +529,17 @@
       });
       const syncPostFieldsByCategory = () => {
         const showDating = postCategory.value === 'dating';
+        const showJobs = postCategory.value === 'jobs';
         document.querySelector('.dating-block').classList.toggle('show', showDating);
         postPrice.disabled = showDating;
         if (showDating) postPrice.value = '';
         postPrice.placeholder = showDating ? 'Not used for dating profiles' : 'Price or salary (optional)';
+        postJobType.hidden = !showJobs;
+        postJobRules.hidden = !showJobs;
+        if (!showJobs) {
+          postJobType.value = '';
+          postJobRules.value = '';
+        }
       };
       postCategory.addEventListener('change', () => {
         syncPostFieldsByCategory();
