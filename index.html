@@ -599,6 +599,22 @@
     .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
     .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
     .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
+    .omconsole-mobile-exit {
+      display:none;
+      position:absolute;
+      top:calc(env(safe-area-inset-top) + 8px);
+      right:8px;
+      z-index:2;
+      min-width:44px;
+      min-height:36px;
+      padding:6px 10px;
+      border:1px solid var(--lining);
+      border-radius:12px;
+      background: color-mix(in oklab, var(--panel), transparent 6%);
+      color:var(--fg);
+      font-weight:700;
+      box-shadow: var(--shadow);
+    }
 
     .live-btn {
       display:inline-flex;
@@ -1034,6 +1050,37 @@ body.streams-flex-fit #video-container[hidden] {
       .mobile-only-chip {
         display:inline-flex;
       }
+      .footer-market-btn span {
+        display:none;
+      }
+      .footer-market-btn {
+        width:36px;
+        height:36px;
+        padding:0;
+        justify-content:center;
+      }
+      .omconsole-modal {
+        padding:0;
+        align-items:stretch;
+      }
+      .omconsole-modal__dialog {
+        width:100vw;
+        height:100dvh;
+        border-radius:0;
+        border-left:0;
+        border-right:0;
+      }
+      .omconsole-modal__header {
+        padding:8px 10px;
+      }
+      .omconsole-modal__title {
+        font-size:14px;
+      }
+      .omconsole-mobile-exit {
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+      }
       header { padding:10px; gap:10px; border-radius:14px; }
       .bar {
         flex-wrap:wrap;
@@ -1326,6 +1373,7 @@ body.streams-flex-fit #video-container[hidden] {
 
   <div id="omconsole-modal" class="omconsole-modal" hidden>
     <div class="omconsole-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="omconsole-title">
+      <button id="omconsole-mobile-exit" class="omconsole-mobile-exit" type="button" aria-label="Exit OMConsole">Exit</button>
       <div class="omconsole-modal__header">
         <h2 id="omconsole-title" class="omconsole-modal__title">OMConsole</h2>
         <button id="omconsole-close" class="omconsole-close" type="button" aria-label="Close OMConsole">Close</button>
@@ -1694,6 +1742,7 @@ body.streams-flex-fit #video-container[hidden] {
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
+    const omconsoleMobileExit = el('#omconsole-mobile-exit');
     const streamsEl = el('#streams');
     const toolbarShell = el('#toolbar-shell');
     const toolbarToggle = el('#toolbar-toggle');
@@ -1834,6 +1883,9 @@ body.streams-flex-fit #video-container[hidden] {
 
     if(omconsoleClose){
       omconsoleClose.addEventListener('click', hideOmconsole);
+    }
+    if(omconsoleMobileExit){
+      omconsoleMobileExit.addEventListener('click', hideOmconsole);
     }
 
     if(omconsoleModal){
