@@ -1079,6 +1079,16 @@ body.streams-flex-fit #video-container[hidden] {
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
+      body.omconsole-open header,
+      body.omconsole-open footer {
+        opacity:0;
+        visibility:hidden;
+        transform: translateY(-12px);
+        pointer-events:none;
+      }
+      body.omconsole-open footer {
+        transform: translateY(12px);
+      }
       .mobile-only-chip {
         display:inline-flex;
       }
@@ -1892,6 +1902,7 @@ body.streams-flex-fit #video-container[hidden] {
     const showOmconsole = () => {
       if(!omconsoleModal) return;
       omconsoleModal.hidden = false;
+      document.body.classList.add('omconsole-open');
       if(omconsoleFrame && !omconsoleBootstrapped){
         // Force a user-initiated frame load for stricter mobile permission policies.
         omconsoleFrame.src = omconsoleFrame.src;
@@ -1904,6 +1915,7 @@ body.streams-flex-fit #video-container[hidden] {
     const hideOmconsole = () => {
       if(!omconsoleModal) return;
       omconsoleModal.hidden = true;
+      document.body.classList.remove('omconsole-open');
       omconsoleBtn?.focus?.();
     };
 

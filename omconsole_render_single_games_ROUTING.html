@@ -602,7 +602,39 @@
     @media (max-width: 900px){
       body{overflow:auto}
       .app{grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "topbar" "sidebar" "main";}
-      .sidebar{max-height: 520px}
+      .topbar{
+        position: sticky;
+        top: 0;
+        z-index: 18;
+        margin-bottom: 2px;
+        transition: transform .24s var(--ease), opacity .2s var(--ease);
+        will-change: transform;
+      }
+      .sidebar{
+        max-height: 520px;
+        transition: transform .24s var(--ease), opacity .2s var(--ease);
+        will-change: transform;
+      }
+      .side-foot{
+        position: sticky;
+        bottom: 0;
+        z-index: 16;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        margin-top: 10px;
+        background: linear-gradient(180deg, rgba(13, 31, 60, .88), rgba(9, 20, 40, .86));
+        border-top: 1px solid rgba(140,180,255,.20);
+        backdrop-filter: var(--glass);
+        transition: transform .24s var(--ease), opacity .2s var(--ease);
+        will-change: transform;
+      }
+      .app.mobile-ui-hidden .topbar{
+        transform: translateY(calc(-100% - 12px));
+        opacity: .02;
+      }
+      .app.mobile-ui-hidden .side-foot{
+        transform: translateY(calc(100% + 12px));
+        opacity: .02;
+      }
       .app.mobile-game-focus{
         position: fixed;
         inset: 0;
@@ -1539,6 +1571,9 @@ const cursorEl = $("#cursor");
 const viz = $("#viz");
 const viewportEl = $("#viewport");
 const appEl = $(".app");
+const topbarEl = $(".topbar");
+const sidebarEl = $(".sidebar");
+const sideFootEl = $(".side-foot");
 const panelTitle = $("#panelTitle");
 const panelSub = $("#panelSub");
 const panelContent = $("#panelContent");
@@ -1593,6 +1628,39 @@ function applyMobileGameFocus(){
     btnMobileMenus.classList.toggle("hidden", !(mobile && inGames));
     btnMobileMenus.textContent = state.ui.mobileGameMenusVisible ? "Hide Menus" : "Show Menus";
   }
+}
+
+function setupMobileChromeAutoHide(){
+  let lastY = window.scrollY;
+  const threshold = 10;
+  const reveal = () => appEl?.classList.remove("mobile-ui-hidden");
+  const canAutoHide = () => isMobileViewport() && state.ui.mode !== "app:games";
+
+  const onScroll = ()=>{
+    if(!canAutoHide()){
+      reveal();
+      lastY = window.scrollY;
+      return;
+    }
+    const currentY = window.scrollY;
+    const delta = currentY - lastY;
+    if(Math.abs(delta) < threshold) return;
+    if(delta > 0 && currentY > 24){
+      appEl?.classList.add("mobile-ui-hidden");
+    }else{
+      reveal();
+    }
+    lastY = currentY;
+  };
+
+  window.addEventListener("scroll", onScroll, { passive:true });
+  window.addEventListener("resize", ()=>{
+    if(!isMobileViewport()) reveal();
+  });
+
+  [topbarEl, sidebarEl, sideFootEl].forEach(section=>{
+    section?.addEventListener("pointerdown", reveal, { passive:true });
+  });
 }
 
 async function requestGameFullscreen(){
@@ -5720,6 +5788,7 @@ function boot(){
   resizeCanvas();
   wireNav();
   wirePointerFallback();
+  setupMobileChromeAutoHide();
 
   // initialize top toggles from settings
   state.runtime.hoverEnabled = !!state.settings.ui.hoverClick;
