@@ -8,8 +8,8 @@
   <style>
     :root { --bg:#0b1024; --panel:#111a36; --fg:#f7f9ff; --muted:#9fb3d4; --line:#334155; --accent:#153a7a; --gold:#e5b35c; }
     * { box-sizing:border-box; }
-    body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--fg); background: radial-gradient(1200px 800px at 10% -20%, #1d2f65, transparent 55%), var(--bg); }
-    .wrap { max-width:1200px; margin:0 auto; padding:18px; display:grid; gap:12px; }
+    body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--fg); background: radial-gradient(1200px 800px at 10% -20%, #1d2f65, transparent 55%), var(--bg); overflow-x:hidden; }
+    .wrap { max-width:1200px; width:100%; margin:0 auto; padding:18px; display:grid; gap:12px; }
     .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
     header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
     .title { margin:0; font-size:20px; }
@@ -57,6 +57,29 @@
     .comment-form button, .contact-form button { border-radius:8px; border:1px solid var(--line); background:#163e80; color:var(--fg); padding:6px 10px; cursor:pointer; }
     .inbox { padding:10px 12px; border-top:1px solid var(--line); display:grid; gap:6px; }
     .inbox-item { font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px; }
+
+    @media (max-width: 900px) {
+      .tools { grid-template-columns:1fr 1fr; }
+      .tools input[type="search"] { grid-column:1/-1; }
+      .tools button { grid-column:1/-1; }
+      .post-grid { grid-template-columns:1fr 1fr; }
+      .post-grid .wide,
+      .post-grid textarea { grid-column:1/-1; }
+      .comment-form, .contact-form { grid-template-columns:1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding:12px; }
+      header { align-items:flex-start; }
+      .title { font-size:18px; }
+      .tools { display:flex; flex-wrap:wrap; }
+      .tools > * { flex:1 1 100%; min-width:0; }
+      .post-wrap { padding:10px; }
+      .post-grid { display:flex; flex-wrap:wrap; gap:8px; }
+      .post-grid > * { flex:1 1 100%; min-width:0; }
+      .grid { grid-template-columns:1fr; padding:10px; }
+      .media-grid { grid-template-columns:1fr 1fr; }
+    }
   </style>
 </head>
 <body>
