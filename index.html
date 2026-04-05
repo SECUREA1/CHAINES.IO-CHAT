@@ -1190,6 +1190,33 @@ body.streams-flex-fit #video-container[hidden] {
         transform: translate(-50%, 0);
       }
     }
+    @media (min-width: 1024px) {
+      header {
+        flex-direction:row;
+        align-items:center;
+        gap:12px;
+      }
+      .bar {
+        flex:0 0 auto;
+        width:auto;
+        gap:12px;
+      }
+      .bar-right {
+        margin-left:8px;
+      }
+      .toolbar-shell {
+        flex:1 1 auto;
+        width:auto;
+        min-width:0;
+      }
+      .toolbar-panel,
+      .toolbar {
+        width:100%;
+      }
+      .toolbar {
+        min-width:0;
+      }
+    }
     @media (min-width: 601px) {
       .mobile-only-chip {
         display:none !important;
