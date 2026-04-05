@@ -13,7 +13,7 @@
     .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
     header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
     .title { margin:0; font-size:20px; }
-    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(3, minmax(130px,1fr)); gap:8px; }
+    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
     .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
     .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
     .meta { padding:0 12px 12px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
@@ -41,8 +41,10 @@
     .empty { text-align:center; color:var(--muted); padding:24px; }
     .media-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; }
     .media-grid img, .media-grid video { width:100%; max-height:180px; border-radius:8px; border:1px solid var(--line); object-fit:cover; background:#060b1d; }
-    .dating-block { border:1px dashed var(--line); border-radius:10px; padding:8px; display:grid; gap:6px; grid-column:1/-1; }
+    .dating-block { border:1px dashed var(--line); border-radius:10px; padding:8px; display:none; gap:6px; grid-column:1/-1; }
     .dating-title { margin:0; font-size:12px; color:var(--gold); }
+    .dating-block.show { display:grid; }
+    .dating-profile { border-top:1px dashed var(--line); padding-top:6px; margin-top:2px; display:grid; gap:4px; }
     .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
     .like-btn[aria-pressed="true"] { border-color:#ff7eb6; color:#ff7eb6; }
@@ -73,11 +75,17 @@
           <option value="new">Newest first</option>
           <option value="old">Oldest first</option>
         </select>
+        <select id="dating-match">
+          <option value="all">Dating: All</option>
+          <option value="likes">Search in likes</option>
+          <option value="dislikes">Search in dislikes</option>
+          <option value="bio">Search in bio</option>
+        </select>
         <button id="refresh" type="button">Refresh Search Engine</button>
       </div>
       <div class="meta">
         <span id="count">0 listings</span>
-        <span>Marketplace posts only. Filter by category, dating availability/interests, and value sort.</span>
+        <span>Marketplace posts only. Filter by category, dating profile details, likes/dislikes, and value sort.</span>
       </div>
       <div class="post-wrap">
         <div class="post-brand">
@@ -104,6 +112,12 @@
             <p class="dating-title">Dating add-on</p>
             <input id="post-availability" type="text" maxlength="100" placeholder="Availability (optional e.g. Weeknights, weekends)" />
             <input id="post-interests" type="text" maxlength="140" placeholder="Interests (optional e.g. hiking, coffee, movies)" />
+            <input id="post-age" type="number" min="18" max="99" placeholder="Age (optional)" />
+            <input id="post-gender" type="text" maxlength="40" placeholder="Gender identity (optional)" />
+            <input id="post-looking-for" type="text" maxlength="120" placeholder="Looking for (optional)" />
+            <input id="post-likes" type="text" maxlength="180" placeholder="Likes in a match (optional e.g. kind, outdoorsy, creative)" />
+            <input id="post-dislikes" type="text" maxlength="180" placeholder="Not into / dislikes (optional)" />
+            <textarea id="post-dating-bio" maxlength="300" placeholder="Dating profile description / bio (optional)"></textarea>
           </div>
           <input id="post-media" class="wide" type="file" accept="image/*,video/*" multiple />
           <p class="hint wide">Upload up to 4 files (images or videos). Stored locally in browser storage for now.</p>
@@ -126,6 +140,7 @@
         search: $('#search'),
         category: $('#category'),
         sort: $('#sort'),
+        datingMatch: $('#dating-match'),
         refresh: $('#refresh')
       };
       const list = $('#listings');
@@ -140,6 +155,12 @@
       const postDetails = $('#post-details');
       const postAvailability = $('#post-availability');
       const postInterests = $('#post-interests');
+      const postAge = $('#post-age');
+      const postGender = $('#post-gender');
+      const postLookingFor = $('#post-looking-for');
+      const postLikes = $('#post-likes');
+      const postDislikes = $('#post-dislikes');
+      const postDatingBio = $('#post-dating-bio');
       const postMedia = $('#post-media');
       const postText = $('#post-text');
 
@@ -159,15 +180,21 @@
         condition: String(listing.condition || '').trim(),
         availability: String(listing.availability || '').trim(),
         interests: String(listing.interests || '').trim(),
+        age: Number.isFinite(Number(listing.age)) ? Number(listing.age) : null,
+        gender: String(listing.gender || '').trim(),
+        lookingFor: String(listing.lookingFor || '').trim(),
+        datingLikes: String(listing.datingLikes || '').trim(),
+        datingDislikes: String(listing.datingDislikes || '').trim(),
+        datingBio: String(listing.datingBio || '').trim(),
         media: Array.isArray(listing.media) ? listing.media.filter((item) => item && item.url && item.type) : []
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.media.length);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.gender || l.lookingFor || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
@@ -183,6 +210,12 @@
       };
       const saveLikedMap = (map) => localStorage.setItem(likedKey, JSON.stringify(map));
       const sanitizeUser = (name) => String(name || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24);
+      const escapeHtml = (value) => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
       const setPostStatus = (text, tone = '') => {
         postStatus.textContent = text;
         postStatus.className = `post-status${tone ? ` ${tone}` : ''}`;
@@ -194,10 +227,21 @@
         const category = controls.category.value;
         const q = controls.search.value.trim().toLowerCase();
         const l = normalizeListing(m.listing || { category: m.category });
+        const datingMatch = controls.datingMatch.value;
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const hay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests].join(' ').toLowerCase();
+          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingBio, l.age].join(' ').toLowerCase();
+          const likesHay = l.datingLikes.toLowerCase();
+          const dislikesHay = l.datingDislikes.toLowerCase();
+          const bioHay = l.datingBio.toLowerCase();
+          const hay = datingMatch === 'likes'
+            ? likesHay
+            : datingMatch === 'dislikes'
+            ? dislikesHay
+            : datingMatch === 'bio'
+            ? bioHay
+            : `${generalHay} ${likesHay} ${dislikesHay}`;
           if (!hay.includes(q)) return false;
         }
         return true;
@@ -246,18 +290,31 @@
           const card = document.createElement('article');
           card.className = 'card';
 
-          const safeText = (m.text || '').replace(/</g,'&lt;');
+          const safeText = escapeHtml(m.text || '');
+          const safeUser = escapeHtml(m.user || 'anon');
+          const safePrice = escapeHtml(l.price || '—');
+          const safeLocation = escapeHtml(l.location || '—');
+          const safeCondition = escapeHtml(l.condition || '—');
           const mediaHtml = l.media.length
             ? `<div class="media-grid">${l.media.map((item) => item.type.startsWith('video/')
               ? `<video controls preload="metadata" src="${item.url}"></video>`
               : `<img alt="Marketplace upload" loading="lazy" src="${item.url}" />`).join('')}</div>`
             : '';
           const datingDetails = l.category === 'dating'
-            ? `<div class="small">Availability: ${l.availability || '—'}</div><div class="small">Interests: ${l.interests || '—'}</div>`
+            ? `<div class="small">Availability: ${l.availability || '—'}</div>
+               <div class="small">Interests: ${l.interests || '—'}</div>
+               <div class="dating-profile">
+                 <div class="small">Age: ${l.age || '—'}</div>
+                 <div class="small">Gender: ${escapeHtml(l.gender || '—')}</div>
+                 <div class="small">Looking for: ${escapeHtml(l.lookingFor || '—')}</div>
+                 <div class="small">Likes: ${escapeHtml(l.datingLikes || '—')}</div>
+                 <div class="small">Dislikes: ${escapeHtml(l.datingDislikes || '—')}</div>
+                 <div class="small">Bio: ${escapeHtml(l.datingBio || '—')}</div>
+               </div>`
             : '';
 
           card.innerHTML = `
-            <div><span class="user">@${m.user || 'anon'}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
+            <div><span class="user">@${safeUser}</span> <span class="small">• ${formatTime(m.ts)}</span></div>
             <div>${safeText}</div>
             ${mediaHtml}
             <div class="chips">
@@ -265,9 +322,9 @@
               <span class="chip">${(MARKETPLACE_CATEGORIES[l.category] || { label: 'General' }).label}</span>
               <span class="chip">Value ${valueScore(m)}</span>
             </div>
-            <div class="small">Price/Salary: ${l.price || '—'}</div>
-            <div class="small">Location: ${l.location || '—'}</div>
-            <div class="small">Details: ${l.condition || '—'}</div>
+            <div class="small">Price/Salary: ${safePrice}</div>
+            <div class="small">Location: ${safeLocation}</div>
+            <div class="small">Details: ${safeCondition}</div>
             ${datingDetails}
             <div class="actions">
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
@@ -301,6 +358,12 @@
           condition: postDetails.value,
           availability: postAvailability.value,
           interests: postInterests.value,
+          age: postAge.value,
+          gender: postGender.value,
+          lookingFor: postLookingFor.value,
+          datingLikes: postLikes.value,
+          datingDislikes: postDislikes.value,
+          datingBio: postDatingBio.value,
           media: mediaResult.media
         });
         const now = Date.now();
@@ -329,6 +392,10 @@
         el.addEventListener('input', render);
         el.addEventListener('change', render);
       });
+      postCategory.addEventListener('change', () => {
+        const showDating = postCategory.value === 'dating';
+        document.querySelector('.dating-block').classList.toggle('show', showDating);
+      });
       controls.refresh.addEventListener('click', render);
       list.addEventListener('click', (ev) => {
         const button = ev.target.closest('[data-like-id]');
@@ -339,6 +406,7 @@
         if (ev.key === sourceKey || ev.key === likedKey) render();
       });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
+      document.querySelector('.dating-block').classList.toggle('show', postCategory.value === 'dating');
       postForm.addEventListener('submit', postListing);
       render();
     })();
