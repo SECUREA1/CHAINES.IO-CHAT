@@ -744,6 +744,27 @@ body.streams-flex-fit #video-container[hidden] {
       height: auto;
       object-fit: contain;
     }
+
+    @media (min-width: 901px) {
+      header {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+      header > .bar {
+        width: auto;
+        flex: 0 0 auto;
+      }
+      header > #toolbar-shell {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .toolbar-shell,
+      .toolbar-panel {
+        width: 100%;
+      }
+    }
+
     @media (max-width: 900px) {
       #streams {
         gap: 8px;
