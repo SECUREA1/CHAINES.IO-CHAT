@@ -2084,16 +2084,47 @@ body.streams-flex-fit #video-container[hidden] {
       store.autoDelete = autoDeleteToggle.checked;
     });
 
-    function applyTheme(t){
-      document.documentElement.dataset.theme = t;
-      themeToggleIcon.src = t === 'light' ? 'static/moon.svg' : 'static/sun.svg';
+    const themePalettes = [
+      { key: 'light', label: 'Light', vars: { '--bg':'#f1f5f9','--panel':'#e2e8f0','--fg':'#0f172a','--muted':'#475569','--accent':'#1e40af','--accent-2':'#1e3a8a','--gold':'#f5d48b','--gold-2':'#c28a2a','--shadow':'0 0 20px rgba(0,114,255,.4)','--lining':'#94a3b8','--caption-color':'#0f172a' } },
+      { key: 'dark', label: 'Dark', vars: { '--bg':'#0b1024','--panel':'#111a36','--fg':'#f7f9ff','--muted':'#9fb3d4','--accent':'#102a5c','--accent-2':'#153a7a','--gold':'#e5b35c','--gold-2':'#c28a2a','--shadow':'0 0 12px rgba(0,114,255,.35)','--lining':'#334155','--caption-color':'#ffffff' } },
+      { key: 'ocean', label: 'Ocean', vars: { '--bg':'#041625','--panel':'#0b2b3f','--fg':'#dff6ff','--muted':'#8ac6d8','--accent':'#0ea5e9','--accent-2':'#0284c7','--gold':'#67e8f9','--gold-2':'#0ea5e9','--shadow':'0 0 16px rgba(14,165,233,.45)','--lining':'#155e75','--caption-color':'#dff6ff' } },
+      { key: 'forest', label: 'Forest', vars: { '--bg':'#081b12','--panel':'#123025','--fg':'#ecfff4','--muted':'#9ad5b4','--accent':'#16a34a','--accent-2':'#15803d','--gold':'#86efac','--gold-2':'#22c55e','--shadow':'0 0 16px rgba(34,197,94,.32)','--lining':'#2f6e4f','--caption-color':'#ecfff4' } },
+      { key: 'sunset', label: 'Sunset', vars: { '--bg':'#2a1120','--panel':'#3f1f31','--fg':'#fff4eb','--muted':'#f5b8a5','--accent':'#f97316','--accent-2':'#ea580c','--gold':'#fdba74','--gold-2':'#f97316','--shadow':'0 0 16px rgba(249,115,22,.4)','--lining':'#7f3b3b','--caption-color':'#fff4eb' } },
+      { key: 'lavender', label: 'Lavender', vars: { '--bg':'#1d1530','--panel':'#312451','--fg':'#f5f3ff','--muted':'#c4b5fd','--accent':'#8b5cf6','--accent-2':'#7c3aed','--gold':'#c4b5fd','--gold-2':'#8b5cf6','--shadow':'0 0 16px rgba(139,92,246,.4)','--lining':'#5b4b8a','--caption-color':'#f5f3ff' } },
+      { key: 'rose', label: 'Rose', vars: { '--bg':'#2a1020','--panel':'#3f1831','--fg':'#fff1f7','--muted':'#f9a8d4','--accent':'#ec4899','--accent-2':'#db2777','--gold':'#fda4af','--gold-2':'#f472b6','--shadow':'0 0 16px rgba(236,72,153,.36)','--lining':'#7a375b','--caption-color':'#fff1f7' } },
+      { key: 'amber', label: 'Amber', vars: { '--bg':'#1f1609','--panel':'#32250f','--fg':'#fff7e6','--muted':'#f4d39a','--accent':'#d97706','--accent-2':'#b45309','--gold':'#fbbf24','--gold-2':'#d97706','--shadow':'0 0 16px rgba(245,158,11,.36)','--lining':'#7a5a2f','--caption-color':'#fff7e6' } },
+      { key: 'slate', label: 'Slate', vars: { '--bg':'#0f172a','--panel':'#1e293b','--fg':'#e2e8f0','--muted':'#94a3b8','--accent':'#475569','--accent-2':'#334155','--gold':'#cbd5e1','--gold-2':'#64748b','--shadow':'0 0 16px rgba(100,116,139,.35)','--lining':'#475569','--caption-color':'#e2e8f0' } },
+      { key: 'mint', label: 'Mint', vars: { '--bg':'#071f1a','--panel':'#11352d','--fg':'#e8fff8','--muted':'#99f6e4','--accent':'#14b8a6','--accent-2':'#0d9488','--gold':'#5eead4','--gold-2':'#14b8a6','--shadow':'0 0 16px rgba(20,184,166,.35)','--lining':'#2b7064','--caption-color':'#e8fff8' } },
+      { key: 'arctic', label: 'Arctic', vars: { '--bg':'#e0f2fe','--panel':'#bae6fd','--fg':'#082f49','--muted':'#0369a1','--accent':'#0284c7','--accent-2':'#0369a1','--gold':'#7dd3fc','--gold-2':'#0ea5e9','--shadow':'0 0 16px rgba(3,105,161,.25)','--lining':'#7dd3fc','--caption-color':'#082f49' } },
+      { key: 'retro', label: 'Retro', vars: { '--bg':'#211c1b','--panel':'#3b2f2b','--fg':'#fef3c7','--muted':'#d6b58a','--accent':'#f59e0b','--accent-2':'#d97706','--gold':'#fde68a','--gold-2':'#f59e0b','--shadow':'0 0 16px rgba(245,158,11,.3)','--lining':'#8a6b4a','--caption-color':'#fef3c7' } },
+      { key: 'matrix', label: 'Matrix', vars: { '--bg':'#040b04','--panel':'#0d1b0d','--fg':'#c8ffc8','--muted':'#6eeb83','--accent':'#22c55e','--accent-2':'#16a34a','--gold':'#86efac','--gold-2':'#22c55e','--shadow':'0 0 16px rgba(34,197,94,.35)','--lining':'#2f6f3f','--caption-color':'#c8ffc8' } },
+      { key: 'midnight', label: 'Midnight', vars: { '--bg':'#050816','--panel':'#101935','--fg':'#dbeafe','--muted':'#93c5fd','--accent':'#1d4ed8','--accent-2':'#1e40af','--gold':'#60a5fa','--gold-2':'#2563eb','--shadow':'0 0 16px rgba(37,99,235,.35)','--lining':'#2f4f8a','--caption-color':'#dbeafe' } },
+      { key: 'neon', label: 'Neon', vars: { '--bg':'#15061f','--panel':'#2a0f3b','--fg':'#f5e8ff','--muted':'#d8b4fe','--accent':'#c026d3','--accent-2':'#a21caf','--gold':'#e879f9','--gold-2':'#c026d3','--shadow':'0 0 18px rgba(192,38,211,.45)','--lining':'#6e3290','--caption-color':'#f5e8ff' } }
+    ];
+    const themePaletteMap = new Map(themePalettes.map((palette) => [palette.key, palette]));
+    const themeKeys = themePalettes.map((palette) => palette.key);
+
+    function applyTheme(themeKey){
+      const root = document.documentElement;
+      const fallback = themePaletteMap.get('light');
+      const nextPalette = themePaletteMap.get(themeKey) || fallback;
+      root.dataset.theme = nextPalette.key;
+      Object.entries(nextPalette.vars).forEach(([name, value]) => {
+        root.style.setProperty(name, value);
+      });
+      themeToggleIcon.src = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
+      themeToggle.title = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
+      themeToggle.setAttribute('aria-label', `Switch theme (${nextPalette.label})`);
+      return nextPalette.key;
     }
-    const initialTheme = store.theme || 'light';
-    applyTheme(initialTheme);
+    const initialTheme = applyTheme(store.theme || 'light');
+    store.theme = initialTheme;
     themeToggle.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-      store.theme = next;
-      applyTheme(next);
+      const current = document.documentElement.dataset.theme || initialTheme;
+      const currentIndex = Math.max(0, themeKeys.indexOf(current));
+      const nextKey = themeKeys[(currentIndex + 1) % themeKeys.length];
+      store.theme = nextKey;
+      applyTheme(nextKey);
     });
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
