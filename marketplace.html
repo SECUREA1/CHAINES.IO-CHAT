@@ -44,6 +44,9 @@
     .dating-block { border:1px dashed var(--line); border-radius:10px; padding:8px; display:none; gap:6px; grid-column:1/-1; }
     .dating-title { margin:0; font-size:12px; color:var(--gold); }
     .dating-block.show { display:grid; }
+    .housing-block { border:1px dashed var(--line); border-radius:10px; padding:8px; display:none; gap:6px; grid-column:1/-1; }
+    .housing-title { margin:0; font-size:12px; color:var(--gold); }
+    .housing-block.show { display:grid; }
     .dating-profile { border-top:1px dashed var(--line); padding-top:6px; margin-top:2px; display:grid; gap:4px; }
     .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
@@ -130,6 +133,74 @@
             <input id="post-dislikes" type="text" maxlength="180" placeholder="Not into / dislikes (optional)" />
             <textarea id="post-dating-bio" maxlength="300" placeholder="Dating profile description / bio (optional)"></textarea>
           </div>
+          <div class="housing-block">
+            <p class="housing-title">Housing details</p>
+            <select id="post-housing-type">
+              <option value="">Property type (optional)</option>
+              <option value="house">House</option>
+              <option value="condo">Condo</option>
+              <option value="apartment">Apartment</option>
+              <option value="townhome">Townhome</option>
+              <option value="duplex">Duplex</option>
+              <option value="studio">Studio</option>
+              <option value="loft">Loft</option>
+              <option value="mobile-home">Mobile home</option>
+              <option value="other">Other</option>
+            </select>
+            <select id="post-housing-market">
+              <option value="">For sale or for rent (optional)</option>
+              <option value="for-rent">For rent</option>
+              <option value="for-sale">For sale</option>
+              <option value="rent-to-own">Rent to own</option>
+            </select>
+            <input id="post-bedrooms" type="number" min="0" max="20" step="1" placeholder="Bedrooms (optional)" />
+            <input id="post-bathrooms" type="number" min="0" max="20" step="0.5" placeholder="Bathrooms (optional)" />
+            <select id="post-washer-dryer">
+              <option value="">Washer / dryer (optional)</option>
+              <option value="in-unit">In-unit</option>
+              <option value="hookups">Hookups only</option>
+              <option value="on-site">On-site</option>
+              <option value="none">None</option>
+            </select>
+            <select id="post-heating">
+              <option value="">Heating (optional)</option>
+              <option value="central">Central</option>
+              <option value="electric">Electric</option>
+              <option value="gas">Gas</option>
+              <option value="radiant">Radiant</option>
+              <option value="none">None</option>
+            </select>
+            <select id="post-cooling">
+              <option value="">Cooling (optional)</option>
+              <option value="central-air">Central air</option>
+              <option value="window-unit">Window unit</option>
+              <option value="mini-split">Mini split</option>
+              <option value="none">None</option>
+            </select>
+            <input id="post-utilities-included" type="text" maxlength="180" placeholder="Utilities included (optional e.g. water, trash, internet)" />
+            <select id="post-parking">
+              <option value="">Parking (optional)</option>
+              <option value="garage">Garage</option>
+              <option value="covered">Covered</option>
+              <option value="street">Street</option>
+              <option value="none">None</option>
+            </select>
+            <select id="post-pets">
+              <option value="">Pets policy (optional)</option>
+              <option value="allowed">Allowed</option>
+              <option value="cats-only">Cats only</option>
+              <option value="dogs-only">Dogs only</option>
+              <option value="not-allowed">Not allowed</option>
+            </select>
+            <select id="post-furnished">
+              <option value="">Furnished (optional)</option>
+              <option value="furnished">Furnished</option>
+              <option value="unfurnished">Unfurnished</option>
+              <option value="partially-furnished">Partially furnished</option>
+            </select>
+            <input id="post-lease-term" type="text" maxlength="100" placeholder="Lease term (optional e.g. month-to-month, 12 months)" />
+            <input id="post-available-date" type="date" />
+          </div>
           <input id="post-media" class="wide" type="file" accept="image/*,video/*" multiple />
           <p class="hint wide">Upload up to 4 files (images or videos). Stored locally in browser storage for now.</p>
           <textarea id="post-text" maxlength="800" required placeholder="Write your listing and call to action..."></textarea>
@@ -179,6 +250,19 @@
       const postLikes = $('#post-likes');
       const postDislikes = $('#post-dislikes');
       const postDatingBio = $('#post-dating-bio');
+      const postHousingType = $('#post-housing-type');
+      const postHousingMarket = $('#post-housing-market');
+      const postBedrooms = $('#post-bedrooms');
+      const postBathrooms = $('#post-bathrooms');
+      const postWasherDryer = $('#post-washer-dryer');
+      const postHeating = $('#post-heating');
+      const postCooling = $('#post-cooling');
+      const postUtilitiesIncluded = $('#post-utilities-included');
+      const postParking = $('#post-parking');
+      const postPets = $('#post-pets');
+      const postFurnished = $('#post-furnished');
+      const postLeaseTerm = $('#post-lease-term');
+      const postAvailableDate = $('#post-available-date');
       const postMedia = $('#post-media');
       const postText = $('#post-text');
       const contactInbox = $('#contact-inbox');
@@ -207,15 +291,28 @@
         datingLikes: String(listing.datingLikes || '').trim(),
         datingDislikes: String(listing.datingDislikes || '').trim(),
         datingBio: String(listing.datingBio || '').trim(),
+        housingType: String(listing.housingType || '').trim(),
+        housingMarket: String(listing.housingMarket || '').trim(),
+        bedrooms: Number.isFinite(Number(listing.bedrooms)) ? Number(listing.bedrooms) : null,
+        bathrooms: Number.isFinite(Number(listing.bathrooms)) ? Number(listing.bathrooms) : null,
+        washerDryer: String(listing.washerDryer || '').trim(),
+        heating: String(listing.heating || '').trim(),
+        cooling: String(listing.cooling || '').trim(),
+        utilitiesIncluded: String(listing.utilitiesIncluded || '').trim(),
+        parking: String(listing.parking || '').trim(),
+        pets: String(listing.pets || '').trim(),
+        furnished: String(listing.furnished || '').trim(),
+        leaseTerm: String(listing.leaseTerm || '').trim(),
+        availableDate: String(listing.availableDate || '').trim(),
         media: Array.isArray(listing.media) ? listing.media.filter((item) => item && item.url && item.type) : []
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.housingType || l.housingMarket || l.bedrooms || l.bathrooms || l.washerDryer || l.heating || l.cooling || l.utilitiesIncluded || l.parking || l.pets || l.furnished || l.leaseTerm || l.availableDate || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age, l.housingType, l.housingMarket, l.bedrooms, l.bathrooms, l.washerDryer, l.heating, l.cooling, l.utilitiesIncluded, l.parking, l.pets, l.furnished, l.leaseTerm, l.availableDate].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
@@ -257,7 +354,7 @@
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
+          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age, l.housingType, l.housingMarket, l.bedrooms, l.bathrooms, l.washerDryer, l.heating, l.cooling, l.utilitiesIncluded, l.parking, l.pets, l.furnished, l.leaseTerm, l.availableDate].join(' ').toLowerCase();
           const likesHay = l.datingLikes.toLowerCase();
           const dislikesHay = l.datingDislikes.toLowerCase();
           const bioHay = l.datingBio.toLowerCase();
@@ -387,6 +484,23 @@
                  <div class="small">Bio: ${escapeHtml(l.datingBio || '—')}</div>
                </div>`
             : '';
+          const housingDetails = l.category === 'housing'
+            ? `<div class="dating-profile">
+                 <div class="small">Listing type: ${escapeHtml(l.housingMarket || '—')}</div>
+                 <div class="small">Property type: ${escapeHtml(l.housingType || '—')}</div>
+                 <div class="small">Bedrooms: ${l.bedrooms ?? '—'}</div>
+                 <div class="small">Bathrooms: ${l.bathrooms ?? '—'}</div>
+                 <div class="small">Washer/Dryer: ${escapeHtml(l.washerDryer || '—')}</div>
+                 <div class="small">Heating: ${escapeHtml(l.heating || '—')}</div>
+                 <div class="small">Cooling: ${escapeHtml(l.cooling || '—')}</div>
+                 <div class="small">Utilities included: ${escapeHtml(l.utilitiesIncluded || '—')}</div>
+                 <div class="small">Parking: ${escapeHtml(l.parking || '—')}</div>
+                 <div class="small">Pets: ${escapeHtml(l.pets || '—')}</div>
+                 <div class="small">Furnished: ${escapeHtml(l.furnished || '—')}</div>
+                 <div class="small">Lease term: ${escapeHtml(l.leaseTerm || '—')}</div>
+                 <div class="small">Available: ${escapeHtml(l.availableDate || '—')}</div>
+               </div>`
+            : '';
           const valueChip = l.category === 'dating'
             ? '<span class="chip">Dating Profile</span>'
             : `<span class="chip">Value ${valueScore(m)}</span>`;
@@ -420,6 +534,7 @@
             ${pricingRows}
             ${datingLocationRow}
             ${datingDetails}
+            ${housingDetails}
             <div class="actions">
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
               <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
@@ -478,6 +593,19 @@
           datingLikes: postLikes.value,
           datingDislikes: postDislikes.value,
           datingBio: postDatingBio.value,
+          housingType: postHousingType.value,
+          housingMarket: postHousingMarket.value,
+          bedrooms: postBedrooms.value,
+          bathrooms: postBathrooms.value,
+          washerDryer: postWasherDryer.value,
+          heating: postHeating.value,
+          cooling: postCooling.value,
+          utilitiesIncluded: postUtilitiesIncluded.value,
+          parking: postParking.value,
+          pets: postPets.value,
+          furnished: postFurnished.value,
+          leaseTerm: postLeaseTerm.value,
+          availableDate: postAvailableDate.value,
           media: mediaResult.media
         });
         const now = Date.now();
@@ -508,10 +636,16 @@
       });
       const syncPostFieldsByCategory = () => {
         const showDating = postCategory.value === 'dating';
+        const showHousing = postCategory.value === 'housing';
         document.querySelector('.dating-block').classList.toggle('show', showDating);
+        document.querySelector('.housing-block').classList.toggle('show', showHousing);
         postPrice.disabled = showDating;
         if (showDating) postPrice.value = '';
-        postPrice.placeholder = showDating ? 'Not used for dating profiles' : 'Price or salary (optional)';
+        postPrice.placeholder = showDating
+          ? 'Not used for dating profiles'
+          : showHousing
+          ? 'Rent amount or sale price (optional)'
+          : 'Price or salary (optional)';
       };
       postCategory.addEventListener('change', () => {
         syncPostFieldsByCategory();
