@@ -240,9 +240,23 @@
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
     }
-    footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; justify-content:space-evenly; }
-    footer .status.bottom .chip { display:flex; justify-content:center; }
-    footer .status.bottom .legal { display:flex; align-items:center; gap:4px; }
+    footer .status.bottom {
+      display:grid;
+      width:100%;
+      align-items:center;
+      gap:8px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    footer .status.bottom .chip {
+      display:flex;
+      justify-content:center;
+      width:100%;
+      min-width:0;
+    }
+    footer .status.bottom #profile-link {
+      justify-content:center;
+      text-align:center;
+    }
 
     .footer-market-btn {
       padding:6px 10px;
@@ -254,7 +268,7 @@
       height:16px;
       object-fit:contain;
     }
-    footer .legal { font-size:12px; color:var(--muted); text-align:center; }
+    footer .legal { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; color:var(--muted); text-align:center; width:100%; }
     .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
     .composer-actions .send { width:56px; height:56px; }
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
@@ -1355,9 +1369,9 @@ body.streams-flex-fit #video-container[hidden] {
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
-        <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Marketplace Explorer" aria-label="Open CHAINeS Marketplace Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
-        <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
+        <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
       </div>
+      <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
     </footer>
   </div>
 
