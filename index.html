@@ -875,6 +875,26 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     @media (max-width: 900px) {
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      body {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+      }
+      .wrap {
+        min-height: 100svh;
+        height: 100svh;
+        max-height: 100svh;
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      main {
+        min-height: 0;
+      }
       #streams {
         gap: 8px;
         padding: 8px;
