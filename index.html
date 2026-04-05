@@ -245,7 +245,7 @@
       width:100%;
       align-items:center;
       gap:8px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
     footer .status.bottom .chip {
       display:flex;
@@ -274,10 +274,16 @@
       object-fit:contain;
     }
     footer .legal { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; color:var(--muted); text-align:center; }
-    footer .footer-copyright {
+    footer .status.bottom .footer-copyright {
+      display:flex;
+      align-items:center;
+      justify-content:center;
       width:100%;
-      min-height:24px;
-      margin-top:2px;
+      min-height:36px;
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+      white-space:nowrap;
     }
     .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
     .composer-actions .send { width:56px; height:56px; }
@@ -1130,6 +1136,10 @@ body.streams-flex-fit #video-container[hidden] {
       footer .status.bottom {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
+      footer .status.bottom .footer-copyright {
+        min-height:36px;
+        font-size:11px;
+      }
       .feed { padding:12px; }
       .composer { margin:0; }
       .toolbar-shell {
@@ -1383,8 +1393,8 @@ body.streams-flex-fit #video-container[hidden] {
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
+        <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
       </div>
-      <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
     </footer>
   </div>
 
