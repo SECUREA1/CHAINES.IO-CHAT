@@ -442,43 +442,54 @@
     }
     .cmd-grid {
       display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(112px, 1fr);
       gap:8px;
+      overflow-x:auto;
+      padding-bottom:4px;
+      scrollbar-width:thin;
     }
     .cmd-chip {
       display:flex;
       align-items:center;
-      gap:8px;
-      border:1px solid color-mix(in oklab, var(--lining), transparent 20%);
-      background: color-mix(in oklab, var(--btn), var(--panel) 50%);
-      border-radius: 12px;
-      min-height: 48px;
-      padding: 8px;
+      justify-content:center;
+      gap:6px;
+      border:1px solid color-mix(in oklab, #56ccff, transparent 25%);
+      background: radial-gradient(circle at 20% 20%, rgba(90, 200, 255, .32), rgba(14, 31, 78, .85));
+      border-radius: 14px;
+      min-height: 52px;
+      padding: 8px 10px;
       cursor:pointer;
       color: var(--fg);
       transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+      box-shadow: 0 0 16px rgba(66, 184, 255, .32), inset 0 0 0 1px rgba(255,255,255,.08);
     }
     .cmd-chip:hover,
     .cmd-chip:focus-visible {
       transform: translateY(-1px);
-      border-color: color-mix(in oklab, var(--accent), white 20%);
-      box-shadow: 0 8px 16px rgba(0,0,0,.2);
-      background: color-mix(in oklab, var(--btn), var(--accent) 18%);
+      border-color: color-mix(in oklab, #7ed7ff, white 24%);
+      box-shadow: 0 0 18px rgba(72, 196, 255, .55), 0 10px 20px rgba(1, 9, 28, .35);
+      background: radial-gradient(circle at 15% 15%, rgba(120, 222, 255, .42), rgba(14, 31, 78, .95));
+    }
+    .cmd-chip.is-selected {
+      border-color: #8ee6ff;
+      box-shadow: 0 0 24px rgba(90, 208, 255, .75), inset 0 0 0 1px rgba(255,255,255,.22);
+      transform: translateY(-1px) scale(1.01);
     }
     .cmd-chip__icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
       display:grid;
       place-items:center;
-      flex: 0 0 28px;
+      flex: 0 0 30px;
       background: linear-gradient(145deg, var(--cmd-a, #4facfe), var(--cmd-b, #7b5cff));
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 0 12px rgba(98, 205, 255, .6);
     }
     .cmd-chip__icon svg { width:18px; height:18px; stroke:#fff; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
-    .cmd-chip__text { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
-    .cmd-chip__name { font-size: 12px; color: var(--fg); font-weight: 700; }
-    .cmd-chip__hint { font-size: 11px; color: var(--muted); white-space: nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .cmd-chip__emoji { font-size: 16px; line-height:1; filter: drop-shadow(0 0 6px rgba(111, 222, 255, .9)); }
+    .cmd-chip__name { font-size: 12px; color: var(--fg); font-weight: 700; letter-spacing: .2px; }
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
 
@@ -1522,30 +1533,38 @@ body.streams-flex-fit #video-container[hidden] {
       }
     });
     const actionCommands = {
-      wave:      { text: 'waves', hint: 'Say hi to everyone', colors: ['#4facfe','#00f2fe'], svg: '<path d="M8 17V8c0-2 3-2 3 0v4"/><path d="M11 13V7c0-2 3-2 3 0v6"/><path d="M14 13V8c0-2 3-2 3 0v5"/><path d="M17 14v-3c0-2 3-2 3 0v7c0 3-2 4-5 4h-4c-2 0-3-1-4-3l-2-4c-1-2 1-3 2-2l1 1"/>' },
-      shrug:     { text: 'shrugs', hint: 'IDK energy', colors: ['#a18cd1','#fbc2eb'], svg: '<path d="M4 15l5-3"/><path d="M20 15l-5-3"/><path d="M7 19l3-4h4l3 4"/><path d="M12 6a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/>' },
-      smile:     { text: 'smiles', hint: 'Positive vibe', colors: ['#f6d365','#fda085'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 14c1 1 2 2 3 2s2-1 3-2"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
-      laugh:     { text: 'laughs', hint: 'Big LOL', colors: ['#43e97b','#38f9d7'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 13c1.5 2 2.5 3 4 3s2.5-1 4-3"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
-      dance:     { text: 'dances', hint: 'Move like a legend', colors: ['#fa709a','#fee140'], svg: '<path d="M12 4a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/><path d="M11 9l2 2 3-1"/><path d="M13 11l-2 4 2 5"/><path d="M11 15l-4 2"/><path d="M14 16l4 2"/>' },
-      cry:       { text: 'cries a river', hint: 'Dramatic mode', colors: ['#5ee7df','#b490ca'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9 15c1-1 2-1 3-1s2 0 3 1"/><path d="M16 13c1 1 1 2 0 3"/>' },
-      sob:       { text: 'sobs like a soap opera star', hint: 'Maximum feels', colors: ['#667eea','#764ba2'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 16c1-2 2-2 4-2s3 0 4 2"/><path d="M8.5 11l1-1"/><path d="M14.5 11l1 1"/><path d="M16 12l2 3"/>' },
-      joke:      { text: 'tells a dad joke so bad it hurts', hint: 'Cringe comedy', colors: ['#30cfd0','#330867'], svg: '<path d="M4 12h16"/><path d="M6 8h12"/><path d="M7 16h10"/><path d="M9 20h6"/><path d="M8 4h8"/>' },
-      facepalm:  { text: 'facepalms in disbelief', hint: 'Epic oops', colors: ['#f78ca0','#f9748f'], svg: '<circle cx="12" cy="7" r="3"/><path d="M6 22l2-6 4-2 2 2 2 6"/><path d="M10 11l3 2"/>' },
-      sing:      { text: 'sings off-key karaoke', hint: 'Mic check', colors: ['#84fab0','#8fd3f4'], svg: '<path d="M15 6a4 4 0 1 1-6 3"/><path d="M9 9l-5 5 2 2 5-5"/><path d="M14 13v7"/><path d="M11 20h6"/>' },
-      clap:      { text: 'claps wildly', hint: 'Applause burst', colors: ['#c3cfe2','#c3cfe2'], svg: '<path d="M8 12l-2 2 4 6 2-1-2-7z"/><path d="M13 10l-2 1 2 9h3l1-8z"/><path d="M15 8l1-4"/><path d="M11 7V3"/><path d="M19 10l3-2"/>' },
-      thumbsup:  { text: 'gives a thumbs up', hint: 'Approve', colors: ['#96fbc4','#f9f586'], svg: '<path d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M9 10l3-6c1-1 3 0 3 2v4h4c1 0 2 1 2 2l-1 7c0 1-1 2-2 2H9z"/>' },
-      party:     { text: 'throws a party', hint: 'Celebrate now', colors: ['#f093fb','#f5576c'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
+      wave:      { text: 'waves', emoji: '👋', colors: ['#4facfe','#00f2fe'], svg: '<path d="M8 17V8c0-2 3-2 3 0v4"/><path d="M11 13V7c0-2 3-2 3 0v6"/><path d="M14 13V8c0-2 3-2 3 0v5"/><path d="M17 14v-3c0-2 3-2 3 0v7c0 3-2 4-5 4h-4c-2 0-3-1-4-3l-2-4c-1-2 1-3 2-2l1 1"/>' },
+      shrug:     { text: 'shrugs', emoji: '🤷', colors: ['#50c9ff','#4b8dff'], svg: '<path d="M4 15l5-3"/><path d="M20 15l-5-3"/><path d="M7 19l3-4h4l3 4"/><path d="M12 6a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/>' },
+      smile:     { text: 'smiles', emoji: '😊', colors: ['#58d8ff','#5c8dff'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 14c1 1 2 2 3 2s2-1 3-2"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
+      laugh:     { text: 'laughs', emoji: '😂', colors: ['#56c8ff','#67a2ff'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 13c1.5 2 2.5 3 4 3s2.5-1 4-3"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
+      dance:     { text: 'dances', emoji: '🕺', colors: ['#51b9ff','#6d7fff'], svg: '<path d="M12 4a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/><path d="M11 9l2 2 3-1"/><path d="M13 11l-2 4 2 5"/><path d="M11 15l-4 2"/><path d="M14 16l4 2"/>' },
+      cry:       { text: 'cries a river', emoji: '😭', colors: ['#5ed6ff','#5668ff'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9 15c1-1 2-1 3-1s2 0 3 1"/><path d="M16 13c1 1 1 2 0 3"/>' },
+      sob:       { text: 'sobs like a soap opera star', emoji: '😫', colors: ['#59b6ff','#5d4cff'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 16c1-2 2-2 4-2s3 0 4 2"/><path d="M8.5 11l1-1"/><path d="M14.5 11l1 1"/><path d="M16 12l2 3"/>' },
+      joke:      { text: 'tells a dad joke so bad it hurts', emoji: '😅', colors: ['#5ad9ff','#3678ff'], svg: '<path d="M4 12h16"/><path d="M6 8h12"/><path d="M7 16h10"/><path d="M9 20h6"/><path d="M8 4h8"/>' },
+      facepalm:  { text: 'facepalms in disbelief', emoji: '🤦', colors: ['#57ceff','#5f5fff'], svg: '<circle cx="12" cy="7" r="3"/><path d="M6 22l2-6 4-2 2 2 2 6"/><path d="M10 11l3 2"/>' },
+      sing:      { text: 'sings off-key karaoke', emoji: '🎤', colors: ['#6fdfff','#4f95ff'], svg: '<path d="M15 6a4 4 0 1 1-6 3"/><path d="M9 9l-5 5 2 2 5-5"/><path d="M14 13v7"/><path d="M11 20h6"/>' },
+      clap:      { text: 'claps wildly', emoji: '👏', colors: ['#6ad7ff','#5685ff'], svg: '<path d="M8 12l-2 2 4 6 2-1-2-7z"/><path d="M13 10l-2 1 2 9h3l1-8z"/><path d="M15 8l1-4"/><path d="M11 7V3"/><path d="M19 10l3-2"/>' },
+      thumbsup:  { text: 'gives a thumbs up', emoji: '👍', colors: ['#66e1ff','#63a4ff'], svg: '<path d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M9 10l3-6c1-1 3 0 3 2v4h4c1 0 2 1 2 2l-1 7c0 1-1 2-2 2H9z"/>' },
+      party:     { text: 'throws a party', emoji: '🥳', colors: ['#6ad5ff','#5670ff'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
     };
     const cmdPanel = document.createElement('div');
     cmdPanel.id = 'cmd-panel';
     cmdPanel.hidden = true;
     footer.insertBefore(cmdPanel, footer.querySelector('#broadcast-controls'));
 
+    let selectedActionCommand = '';
+    function clearSelectedAction(){
+      selectedActionCommand = '';
+      cmdPanel.querySelectorAll('.cmd-chip.is-selected').forEach((chip) => chip.classList.remove('is-selected'));
+    }
+    function selectedActionEntry(){
+      return selectedActionCommand ? actionCommands[selectedActionCommand] : null;
+    }
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
       const preview = document.createElement('div');
       preview.className = 'cmd-panel__preview';
-      preview.innerHTML = '<b>Command deck ready.</b> Pick a move to auto-fill chat.';
+      preview.innerHTML = '<b>Action deck ready.</b> 3-row emoji moves stay at the bottom. Pick one, then tap Send.';
       const grid = document.createElement('div');
       grid.className = 'cmd-grid';
 
@@ -1553,28 +1572,34 @@ body.streams-flex-fit #video-container[hidden] {
         const b = document.createElement('button');
         b.className = 'cmd-chip';
         b.type = 'button';
-        b.title = '/' + cmd;
-        b.setAttribute('aria-label', `Use command ${cmd}`);
+        b.title = `/${cmd}`;
+        b.dataset.command = cmd;
+        b.setAttribute('aria-label', `Queue action ${cmd}`);
         b.style.setProperty('--cmd-a', info.colors?.[0] || '#4facfe');
         b.style.setProperty('--cmd-b', info.colors?.[1] || '#7b5cff');
         b.innerHTML = `
           <span class="cmd-chip__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${info.svg || ''}</svg></span>
-          <span class="cmd-chip__text">
-            <span class="cmd-chip__name">/${cmd}</span>
-            <span class="cmd-chip__hint">${info.hint || info.text}</span>
-          </span>
+          <span class="cmd-chip__emoji" aria-hidden="true">${info.emoji || '✨'}</span>
+          <span class="cmd-chip__name">${info.emoji || ''} /${cmd}</span>
         `;
         b.addEventListener('mouseenter', () => {
-          preview.innerHTML = `<b>/${cmd}</b> → ${info.text}`;
+          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> → ${info.text}`;
         });
         b.addEventListener('focus', () => {
-          preview.innerHTML = `<b>/${cmd}</b> → ${info.text}`;
+          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> → ${info.text}`;
         });
         b.addEventListener('click', () => {
-          input.value = `/${cmd}`;
-          autoResize(input);
+          const wasSelected = selectedActionCommand === cmd;
+          clearSelectedAction();
+          if(wasSelected){
+            preview.innerHTML = '<b>Action cleared.</b> Pick another move then Send.';
+            input.focus();
+            return;
+          }
+          selectedActionCommand = cmd;
+          b.classList.add('is-selected');
           input.focus();
-          preview.innerHTML = `<b>/${cmd}</b> loaded. Hit Enter to send an action.`;
+          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> queued. Tap Send for a fun action.`;
         });
         grid.appendChild(b);
       });
@@ -2886,11 +2911,11 @@ body.streams-flex-fit #video-container[hidden] {
       ev.preventDefault();
       if(fileLoading) return;
       const raw = (input.value || '').trim();
-      if(!raw && !pendingFile) return;
+      if(!raw && !pendingFile && !selectedActionEntry()) return;
 
       if(raw){
         // Commands
-        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; clearSelectedAction(); systemNote('Cleared local chat history.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
@@ -2898,25 +2923,45 @@ body.streams-flex-fit #video-container[hidden] {
           autoResize(input);
           input.placeholder = defaultPlaceholder;
           pendingFile = null;
+          clearSelectedAction();
           return;
         }
         const simpleCmd = raw.match(/^\/([a-z]+)$/i);
         if(simpleCmd){
           const entry = actionCommands[simpleCmd[1].toLowerCase()];
           if(entry){
-            postMessage({ text: `*${entry.text}*`, isAction:true });
+            const emoji = entry.emoji ? `${entry.emoji} ` : '';
+            postMessage({ text: `*${emoji}${entry.text}*`, isAction:true });
             input.value='';
             autoResize(input);
             input.placeholder = defaultPlaceholder;
             pendingFile = null;
+            clearSelectedAction();
             return;
           }
         }
       }
 
+      const queuedAction = selectedActionEntry();
+      if(queuedAction && !raw && !pendingFile){
+        const emoji = queuedAction.emoji ? `${queuedAction.emoji} ` : '';
+        postMessage({ text: `*${emoji}${queuedAction.text}*`, isAction:true, broadcast: broadcasting, listing: getListingFromComposer() });
+        showChat();
+        setMarketMode('all');
+        clearSelectedAction();
+        input.value = '';
+        autoResize(input);
+        input.placeholder = defaultPlaceholder;
+        return;
+      }
+
       // append user signature for copyright
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
-      const msgText = raw ? raw + signature : signature;
+      let msgText = raw ? raw + signature : signature;
+      if(queuedAction){
+        const emoji = queuedAction.emoji ? `${queuedAction.emoji} ` : '';
+        msgText += `\n\n*${emoji}${queuedAction.text}*`;
+      }
       const msg = { text: msgText, broadcast: broadcasting, listing: getListingFromComposer() };
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
@@ -2934,6 +2979,7 @@ body.streams-flex-fit #video-container[hidden] {
       autoResize(input);
       input.placeholder = defaultPlaceholder;
       pendingFile = null;
+      clearSelectedAction();
     });
 
     broadcastComposer.addEventListener('submit', ev => {
