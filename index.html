@@ -1197,7 +1197,7 @@ body.streams-flex-fit #video-container[hidden] {
           </div>
           <div class="marketplace-panel">
             <select id="marketplace-category" aria-label="Marketplace category">
-              <option value="general">General</option>
+              <option value="comment">Comment</option>
               <option value="jobs">Jobs</option>
               <option value="for-sale">Items for sale</option>
               <option value="services">Services</option>
@@ -1332,8 +1332,9 @@ body.streams-flex-fit #video-container[hidden] {
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
+    const NON_MARKETPLACE_CATEGORY = 'comment';
     const MARKETPLACE_CATEGORIES = {
-      general: { label: 'General listing', defaults: { condition: 'Open listing' } },
+      comment: { label: 'Comment', defaults: {} },
       jobs: { label: 'Jobs', defaults: { price: 'Salary negotiable', condition: 'Position type' } },
       'for-sale': { label: 'Items for sale', defaults: { price: '$0', condition: 'Used/New' } },
       services: { label: 'Services', defaults: { price: 'Rate', condition: 'Service type' } },
@@ -1352,9 +1353,10 @@ body.streams-flex-fit #video-container[hidden] {
       el.style.height = el.scrollHeight + 'px';
     }
     function normalizeListing(listing = {}){
-      const category = String(listing.category || 'general').trim();
+      const rawCategory = String(listing.category || NON_MARKETPLACE_CATEGORY).trim();
+      const category = rawCategory === 'general' ? NON_MARKETPLACE_CATEGORY : rawCategory;
       return {
-        category: MARKETPLACE_CATEGORIES[category] ? category : 'general',
+        category: MARKETPLACE_CATEGORIES[category] ? category : NON_MARKETPLACE_CATEGORY,
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
         condition: String(listing.condition || '').trim()
@@ -1362,7 +1364,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function isMarketplacePost(m){
       const listing = normalizeListing(m?.listing || { category: m?.category });
-      return listing.category !== 'general' || !!(listing.price || listing.location || listing.condition);
+      return listing.category !== NON_MARKETPLACE_CATEGORY || !!(listing.price || listing.location || listing.condition);
     }
     function isCloudPost(m){
       return !!(m && (m.room || m.broadcast || m.video));
@@ -1418,7 +1420,13 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function syncMarketplaceHints(){
       const listing = getListingFromComposer();
-      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES.general;
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
+      const isCommentCategory = listing.category === NON_MARKETPLACE_CATEGORY;
+      [marketplacePrice, marketplaceLocation, marketplaceCondition].forEach((field) => {
+        if(!field) return;
+        field.hidden = isCommentCategory;
+        if(isCommentCategory) field.value = '';
+      });
       if(marketplacePrice) marketplacePrice.placeholder = `${categoryDef.defaults.price || 'Price'} (optional)`;
       if(marketplaceCondition) marketplaceCondition.placeholder = `${categoryDef.defaults.condition || 'Condition'} (optional)`;
     }
@@ -3849,7 +3857,7 @@ body.streams-flex-fit #video-container[hidden] {
       meta.className = 'meta';
       meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
       const listing = normalizeListing(m.listing || { category: m.category });
-      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES.general;
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
 
       const text = document.createElement('div');
       text.className = 'msg-text';
