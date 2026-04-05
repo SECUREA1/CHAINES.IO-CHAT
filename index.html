@@ -422,13 +422,63 @@
       border: 1px solid var(--lining);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 8px;
+      padding: 10px;
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
     }
-    #cmd-panel .chip { width:36px; height:36px; padding:0; justify-content:center; }
+    .cmd-panel__preview {
+      border: 1px solid color-mix(in oklab, var(--lining), transparent 30%);
+      background: color-mix(in oklab, var(--panel), var(--accent) 8%);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 40px;
+    }
+    .cmd-panel__preview b {
+      color: var(--fg);
+      font-size: 13px;
+    }
+    .cmd-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap:8px;
+    }
+    .cmd-chip {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid color-mix(in oklab, var(--lining), transparent 20%);
+      background: color-mix(in oklab, var(--btn), var(--panel) 50%);
+      border-radius: 12px;
+      min-height: 48px;
+      padding: 8px;
+      cursor:pointer;
+      color: var(--fg);
+      transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .cmd-chip:hover,
+    .cmd-chip:focus-visible {
+      transform: translateY(-1px);
+      border-color: color-mix(in oklab, var(--accent), white 20%);
+      box-shadow: 0 8px 16px rgba(0,0,0,.2);
+      background: color-mix(in oklab, var(--btn), var(--accent) 18%);
+    }
+    .cmd-chip__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display:grid;
+      place-items:center;
+      flex: 0 0 28px;
+      background: linear-gradient(145deg, var(--cmd-a, #4facfe), var(--cmd-b, #7b5cff));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+    }
+    .cmd-chip__icon svg { width:18px; height:18px; stroke:#fff; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+    .cmd-chip__text { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
+    .cmd-chip__name { font-size: 12px; color: var(--fg); font-weight: 700; }
+    .cmd-chip__hint { font-size: 11px; color: var(--muted); white-space: nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
 
@@ -1320,19 +1370,19 @@ body.streams-flex-fit #video-container[hidden] {
       }
     });
     const actionCommands = {
-      wave:      { text: 'waves \u{1F44B}', icon: '👋' },
-      shrug:     { text: 'shrugs \u{1F937}', icon: '🤷' },
-      smile:     { text: 'smiles \u{1F642}', icon: '😊' },
-      laugh:     { text: 'laughs \u{1F602}', icon: '😂' },
-      dance:     { text: 'dances \u{1F483}', icon: '💃' },
-      cry:       { text: 'cries a river \u{1F622}', icon: '😢' },
-      sob:       { text: 'sobs like a soap opera star \u{1F62D}', icon: '😭' },
-      joke:      { text: 'tells a dad joke so bad it hurts \u{1F923}', icon: '🤪' },
-      facepalm:  { text: 'facepalms in disbelief \u{1F926}', icon: '🤦' },
-      sing:      { text: 'sings off-key karaoke \u{1F3A4}', icon: '🎤' },
-      clap:      { text: 'claps wildly \u{1F44F}', icon: '👏' },
-      thumbsup:  { text: 'gives a thumbs up \u{1F44D}', icon: '👍' },
-      party:     { text: 'throws a party \u{1F389}', icon: '🎉' }
+      wave:      { text: 'waves', hint: 'Say hi to everyone', colors: ['#4facfe','#00f2fe'], svg: '<path d="M8 17V8c0-2 3-2 3 0v4"/><path d="M11 13V7c0-2 3-2 3 0v6"/><path d="M14 13V8c0-2 3-2 3 0v5"/><path d="M17 14v-3c0-2 3-2 3 0v7c0 3-2 4-5 4h-4c-2 0-3-1-4-3l-2-4c-1-2 1-3 2-2l1 1"/>' },
+      shrug:     { text: 'shrugs', hint: 'IDK energy', colors: ['#a18cd1','#fbc2eb'], svg: '<path d="M4 15l5-3"/><path d="M20 15l-5-3"/><path d="M7 19l3-4h4l3 4"/><path d="M12 6a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/>' },
+      smile:     { text: 'smiles', hint: 'Positive vibe', colors: ['#f6d365','#fda085'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 14c1 1 2 2 3 2s2-1 3-2"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
+      laugh:     { text: 'laughs', hint: 'Big LOL', colors: ['#43e97b','#38f9d7'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 13c1.5 2 2.5 3 4 3s2.5-1 4-3"/><path d="M9 10h.01"/><path d="M15 10h.01"/>' },
+      dance:     { text: 'dances', hint: 'Move like a legend', colors: ['#fa709a','#fee140'], svg: '<path d="M12 4a2 2 0 1 1 0 4a2 2 0 0 1 0-4z"/><path d="M11 9l2 2 3-1"/><path d="M13 11l-2 4 2 5"/><path d="M11 15l-4 2"/><path d="M14 16l4 2"/>' },
+      cry:       { text: 'cries a river', hint: 'Dramatic mode', colors: ['#5ee7df','#b490ca'], svg: '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9 15c1-1 2-1 3-1s2 0 3 1"/><path d="M16 13c1 1 1 2 0 3"/>' },
+      sob:       { text: 'sobs like a soap opera star', hint: 'Maximum feels', colors: ['#667eea','#764ba2'], svg: '<circle cx="12" cy="12" r="8"/><path d="M8 16c1-2 2-2 4-2s3 0 4 2"/><path d="M8.5 11l1-1"/><path d="M14.5 11l1 1"/><path d="M16 12l2 3"/>' },
+      joke:      { text: 'tells a dad joke so bad it hurts', hint: 'Cringe comedy', colors: ['#30cfd0','#330867'], svg: '<path d="M4 12h16"/><path d="M6 8h12"/><path d="M7 16h10"/><path d="M9 20h6"/><path d="M8 4h8"/>' },
+      facepalm:  { text: 'facepalms in disbelief', hint: 'Epic oops', colors: ['#f78ca0','#f9748f'], svg: '<circle cx="12" cy="7" r="3"/><path d="M6 22l2-6 4-2 2 2 2 6"/><path d="M10 11l3 2"/>' },
+      sing:      { text: 'sings off-key karaoke', hint: 'Mic check', colors: ['#84fab0','#8fd3f4'], svg: '<path d="M15 6a4 4 0 1 1-6 3"/><path d="M9 9l-5 5 2 2 5-5"/><path d="M14 13v7"/><path d="M11 20h6"/>' },
+      clap:      { text: 'claps wildly', hint: 'Applause burst', colors: ['#c3cfe2','#c3cfe2'], svg: '<path d="M8 12l-2 2 4 6 2-1-2-7z"/><path d="M13 10l-2 1 2 9h3l1-8z"/><path d="M15 8l1-4"/><path d="M11 7V3"/><path d="M19 10l3-2"/>' },
+      thumbsup:  { text: 'gives a thumbs up', hint: 'Approve', colors: ['#96fbc4','#f9f586'], svg: '<path d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M9 10l3-6c1-1 3 0 3 2v4h4c1 0 2 1 2 2l-1 7c0 1-1 2-2 2H9z"/>' },
+      party:     { text: 'throws a party', hint: 'Celebrate now', colors: ['#f093fb','#f5576c'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
     };
     const cmdPanel = document.createElement('div');
     cmdPanel.id = 'cmd-panel';
@@ -1341,19 +1391,43 @@ body.streams-flex-fit #video-container[hidden] {
 
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
+      const preview = document.createElement('div');
+      preview.className = 'cmd-panel__preview';
+      preview.innerHTML = '<b>Command deck ready.</b> Pick a move to auto-fill chat.';
+      const grid = document.createElement('div');
+      grid.className = 'cmd-grid';
+
       Object.entries(actionCommands).forEach(([cmd, info]) => {
         const b = document.createElement('button');
-        b.className = 'chip';
+        b.className = 'cmd-chip';
         b.type = 'button';
-        b.textContent = info.icon;
         b.title = '/' + cmd;
-        b.addEventListener('click', () => {
-          input.value = `/${cmd} `;
-          input.focus();
-          cmdPanel.hidden = true;
+        b.setAttribute('aria-label', `Use command ${cmd}`);
+        b.style.setProperty('--cmd-a', info.colors?.[0] || '#4facfe');
+        b.style.setProperty('--cmd-b', info.colors?.[1] || '#7b5cff');
+        b.innerHTML = `
+          <span class="cmd-chip__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${info.svg || ''}</svg></span>
+          <span class="cmd-chip__text">
+            <span class="cmd-chip__name">/${cmd}</span>
+            <span class="cmd-chip__hint">${info.hint || info.text}</span>
+          </span>
+        `;
+        b.addEventListener('mouseenter', () => {
+          preview.innerHTML = `<b>/${cmd}</b> → ${info.text}`;
         });
-        cmdPanel.appendChild(b);
+        b.addEventListener('focus', () => {
+          preview.innerHTML = `<b>/${cmd}</b> → ${info.text}`;
+        });
+        b.addEventListener('click', () => {
+          input.value = `/${cmd}`;
+          autoResize(input);
+          input.focus();
+          preview.innerHTML = `<b>/${cmd}</b> loaded. Hit Enter to send an action.`;
+        });
+        grid.appendChild(b);
       });
+
+      cmdPanel.append(preview, grid);
     }
     renderCmdPanel();
     let pendingFile = null;
