@@ -243,6 +243,17 @@
     footer .status.bottom { display:flex; width:100%; align-items:center; gap:8px; justify-content:space-evenly; }
     footer .status.bottom .chip { display:flex; justify-content:center; }
     footer .status.bottom .legal { display:flex; align-items:center; gap:4px; }
+
+    .footer-market-btn {
+      padding:6px 10px;
+      gap:6px;
+      font-size:13px;
+    }
+    .footer-market-btn img {
+      width:16px;
+      height:16px;
+      object-fit:contain;
+    }
     footer .legal { font-size:12px; color:var(--muted); text-align:center; }
     .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
     .composer-actions .send { width:56px; height:56px; }
@@ -1180,7 +1191,6 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
-                <a id="market-page-btn" class="chip action-chip" href="/marketplace.html" title="Open market page" aria-label="Open market page"><img src="static/wallet.svg" alt="" aria-hidden="true" /></a>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
               </div>
             </div>
@@ -1286,6 +1296,7 @@ body.streams-flex-fit #video-container[hidden] {
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
+        <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Marketplace Explorer" aria-label="Open CHAINeS Marketplace Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span>Market</span></a>
         <div class="legal">© <span id="year"></span> CHAINeS <button id="cmd-list" class="chip" title="Show commands" aria-label="Show commands"><img src="static/whitehat.svg" alt="Show commands" />Command</button></div>
       </div>
     </footer>
