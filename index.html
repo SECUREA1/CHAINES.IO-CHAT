@@ -592,8 +592,8 @@
     .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
     .popup-actions button img { width:24px; height:24px; display:block; }
 
-    .omconsole-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); z-index:20; padding:16px; }
-    .omconsole-modal__dialog { width:min(1200px, 96vw); height:min(800px, 92vh); background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
+    .omconsole-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); z-index:20; padding:16px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+    .omconsole-modal__dialog { width:min(1200px, 96vw); height:min(800px, 92vh); max-height:calc(100dvh - 32px); background: color-mix(in oklab, var(--panel), transparent 5%); border:1px solid var(--lining); box-shadow: var(--shadow); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; margin:auto; }
     .omconsole-modal__header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 10%); }
     .omconsole-modal__title { margin:0; font-size:16px; }
     .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
@@ -620,6 +620,8 @@
       .fields input { font-size: 15px; }
       .actions { flex-direction: column; align-items: stretch; }
       .actions .btn { width: 100%; }
+      .omconsole-modal { padding:10px 8px; align-items:flex-start; }
+      .omconsole-modal__dialog { width:100%; height:auto; min-height:min(560px, calc(100dvh - 20px)); max-height:calc(100dvh - 20px); border-radius:14px; }
     }
     .live-dot {
       display:inline-block;
