@@ -1031,6 +1031,9 @@ body.streams-flex-fit #video-container[hidden] {
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
     @media (max-width: 600px) {
+      .mobile-only-chip {
+        display:inline-flex;
+      }
       header { padding:10px; gap:10px; border-radius:14px; }
       .bar {
         flex-wrap:wrap;
@@ -1124,6 +1127,11 @@ body.streams-flex-fit #video-container[hidden] {
         transform: translate(-50%, 0);
       }
     }
+    @media (min-width: 601px) {
+      .mobile-only-chip {
+        display:none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1192,6 +1200,8 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
+                <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
               </div>
             </div>
           </div>
@@ -1643,6 +1653,8 @@ body.streams-flex-fit #video-container[hidden] {
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
     const themeToggleIcon = themeToggle.querySelector('img');
+    const themeToggleMobile = el('#theme-toggle-mobile');
+    const themeToggleMobileIcon = themeToggleMobile ? themeToggleMobile.querySelector('img') : null;
     const userList = el('#user-list');
     const usersEl = el('#users');
     const popup = el('#popup');
@@ -1678,6 +1690,7 @@ body.streams-flex-fit #video-container[hidden] {
     const videoContainer = el('#video-container');
     const overlayChat = el('#overlay-chat');
     const omconsoleBtn = el('#omconsole-btn');
+    const omconsoleBtnMobile = el('#omconsole-btn-mobile');
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
@@ -1808,6 +1821,12 @@ body.streams-flex-fit #video-container[hidden] {
 
     if(omconsoleBtn){
       omconsoleBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        showOmconsole();
+      });
+    }
+    if(omconsoleBtnMobile){
+      omconsoleBtnMobile.addEventListener('click', (event) => {
         event.preventDefault();
         showOmconsole();
       });
@@ -2126,6 +2145,11 @@ body.streams-flex-fit #video-container[hidden] {
       themeToggleIcon.src = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
       themeToggle.title = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
       themeToggle.setAttribute('aria-label', `Switch theme (${nextPalette.label})`);
+      if(themeToggleMobile && themeToggleMobileIcon){
+        themeToggleMobileIcon.src = themeToggleIcon.src;
+        themeToggleMobile.title = themeToggle.title;
+        themeToggleMobile.setAttribute('aria-label', themeToggle.getAttribute('aria-label') || 'Switch theme');
+      }
       return nextPalette.key;
     }
     const initialTheme = applyTheme(store.theme || 'light');
@@ -2137,6 +2161,11 @@ body.streams-flex-fit #video-container[hidden] {
       store.theme = nextKey;
       applyTheme(nextKey);
     });
+    if(themeToggleMobile){
+      themeToggleMobile.addEventListener('click', () => {
+        themeToggle.click();
+      });
+    }
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
