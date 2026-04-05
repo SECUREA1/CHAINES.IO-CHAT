@@ -895,6 +895,8 @@ function normalizeListingPayload(payload = {}, fallbackCategory = "general") {
     price: String(payload.price || "").trim(),
     location: String(payload.location || "").trim(),
     condition: String(payload.condition || "").trim(),
+    jobType: String(payload.jobType || "").trim(),
+    jobRules: String(payload.jobRules || "").trim(),
   };
 }
 
