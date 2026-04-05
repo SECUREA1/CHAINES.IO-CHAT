@@ -195,6 +195,7 @@
       const sourceKey = 'chaines_messages';
       const likedKey = 'chaines_marketplace_likes';
       const contactKey = 'chaines_marketplace_contacts';
+      const datingMatchKey = 'chaines_marketplace_dating_matches';
       const controls = {
         search: $('#search'),
         category: $('#category'),
@@ -283,6 +284,11 @@
         catch { return {}; }
       };
       const saveLikedMap = (map) => localStorage.setItem(likedKey, JSON.stringify(map));
+      const loadDatingMatchMap = () => {
+        try { return JSON.parse(localStorage.getItem(datingMatchKey) || '{}'); }
+        catch { return {}; }
+      };
+      const saveDatingMatchMap = (map) => localStorage.setItem(datingMatchKey, JSON.stringify(map));
       const loadContacts = () => {
         try { return JSON.parse(localStorage.getItem(contactKey) || '[]'); }
         catch { return []; }
@@ -339,17 +345,56 @@
         return { media };
       };
 
-      function toggleLike(postId) {
+      async function syncDatingLike(post, isLiked) {
+        const actor = sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || '');
+        const target = sanitizeUser(post.user || '');
+        if (!actor) {
+          setPostStatus('Add your username to save dating likes and matches.', 'error');
+          return { matched: false };
+        }
+        if (!target || actor === target) return { matched: false };
+        try {
+          const res = await fetch('/dating/interactions/toggle-like', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actor, target, messageId: post.id, liked: isLiked })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setPostStatus(data.error || 'Could not save dating interaction.', 'error');
+            return { matched: false };
+          }
+          if (data.matched) {
+            setPostStatus(`💘 Match found with @${target}. Added to profile + notifications.`, 'success');
+          } else if (isLiked) {
+            setPostStatus(`Saved @${target} to your dating likes.`, 'success');
+          }
+          return { matched: !!data.matched };
+        } catch {
+          setPostStatus('Dating interaction sync failed. Try again.', 'error');
+          return { matched: false };
+        }
+      }
+
+      async function toggleLike(postId) {
         if (!postId) return;
         const items = load();
         const likedMap = loadLikedMap();
+        const datingMatchMap = loadDatingMatchMap();
         const idx = items.findIndex((item) => item.id === postId);
         if (idx === -1) return;
+        const listing = normalizeListing(items[idx].listing || { category: items[idx].category });
         const alreadyLiked = !!likedMap[postId];
         likedMap[postId] = !alreadyLiked;
         items[idx].likes = Math.max(0, Number(items[idx].likes || 0) + (alreadyLiked ? -1 : 1));
+        if (listing.category === 'dating') {
+          const sync = await syncDatingLike(items[idx], !alreadyLiked);
+          datingMatchMap[postId] = !!sync.matched && !alreadyLiked;
+          if (alreadyLiked) datingMatchMap[postId] = false;
+        }
         save(items);
         saveLikedMap(likedMap);
+        saveDatingMatchMap(datingMatchMap);
         render();
       }
 
@@ -403,6 +448,7 @@
         const items = load().filter(include);
         const sortBy = controls.sort.value;
         const likedMap = loadLikedMap();
+        const datingMatchMap = loadDatingMatchMap();
         items.sort((a, b) => {
           if (sortBy === 'new') return Number(b.ts || 0) - Number(a.ts || 0);
           if (sortBy === 'old') return Number(a.ts || 0) - Number(b.ts || 0);
@@ -412,6 +458,7 @@
         items.forEach((m) => {
           const l = normalizeListing(m.listing || { category: m.category });
           const liked = !!likedMap[m.id];
+          const matched = !!datingMatchMap[m.id];
           const card = document.createElement('article');
           card.className = 'card';
 
@@ -482,7 +529,7 @@
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
               <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
               <a class="ghost-btn" href="${safeProfileHref}">Open @${safeUser} Profile</a>
-              <span class="small">Likes ${m.likes || 0} • Comments ${comments.length}</span>
+              <span class="small">${matched ? '💘 Matched' : ''} Likes ${m.likes || 0} • Comments ${comments.length}</span>
             </div>
             <div class="comment-wrap">
               <div class="comment-list">${commentsHtml}</div>
@@ -631,7 +678,7 @@
         renderInbox();
       });
       window.addEventListener('storage', (ev) => {
-        if (ev.key === sourceKey || ev.key === likedKey || ev.key === contactKey) render();
+        if (ev.key === sourceKey || ev.key === likedKey || ev.key === contactKey || ev.key === datingMatchKey) render();
       });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
       postUser.addEventListener('input', () => renderInbox());
