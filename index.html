@@ -1027,11 +1027,15 @@ body.streams-flex-fit #video-container[hidden] {
       }
       .toolbar {
         flex-wrap:nowrap;
-        overflow-x:auto;
-        overflow-y:visible;
+        overflow:visible;
         padding:8px 6px;
         gap:6px;
       }
+      .toolbar-primary {
+        overflow-x:auto;
+        scrollbar-width:none;
+      }
+      .toolbar-primary::-webkit-scrollbar { display:none; }
       .toolbar .chip {
         flex:0 0 auto;
         min-width:max-content;
