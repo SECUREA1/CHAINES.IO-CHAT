@@ -51,6 +51,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .relation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
 .relation-list{list-style:none;margin:0;padding:0;}
 .relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
+.dating-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
 </style>
 </head>
 <body>
@@ -78,6 +79,16 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <div>
       <h3 class="section-title">Following</h3>
       <ul id="following-list" class="relation-list"></ul>
+    </div>
+  </div>
+  <div class="dating-grid">
+    <div>
+      <h3 class="section-title">Dating Likes</h3>
+      <ul id="dating-liked-list" class="relation-list"></ul>
+    </div>
+    <div>
+      <h3 class="section-title">Dating Matches</h3>
+      <ul id="dating-matched-list" class="relation-list"></ul>
     </div>
   </div>
 
@@ -119,6 +130,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const followersList = document.getElementById('followers-list');
   const followingList = document.getElementById('following-list');
   const statsGrid = document.getElementById('stats-grid');
+  const datingLikedList = document.getElementById('dating-liked-list');
+  const datingMatchedList = document.getElementById('dating-matched-list');
   const backBtn = document.getElementById('back-btn');
   const settingsSection = document.getElementById('settings-section');
   const pushToggle = document.getElementById('push-toggle');
@@ -322,7 +335,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       ['Followers', stats.followers ?? data?.followers?.length ?? 0],
       ['Following', stats.following ?? data?.following?.length ?? 0],
       ['Likes Received', stats.likesReceived ?? 0],
-      ['Messages', stats.directMessages ?? 0]
+      ['Messages', stats.directMessages ?? 0],
+      ['Dating Likes', stats.datingLikesSent ?? data?.dating?.likedUsers?.length ?? 0],
+      ['Dating Matches', stats.datingMatches ?? data?.dating?.matchedUsers?.length ?? 0]
     ];
     statsGrid.innerHTML = '';
     cards.forEach(([label, value]) => {
@@ -343,6 +358,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       replies: Array.isArray(data.replies) ? data.replies : [],
       followers: Array.isArray(data.followers) ? data.followers : [],
       following: Array.isArray(data.following) ? data.following : [],
+      dating: {
+        likedUsers: Array.isArray(data?.dating?.likedUsers) ? data.dating.likedUsers : [],
+        matchedUsers: Array.isArray(data?.dating?.matchedUsers) ? data.dating.matchedUsers : []
+      },
       followerCount: Number.isFinite(data.followerCount) ? data.followerCount : undefined,
       followingCount: Number.isFinite(data.followingCount) ? data.followingCount : undefined,
       stats: data.stats || {},
@@ -430,6 +449,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       renderStats(profileData);
       renderRelationList(followersList, [], 'No followers yet.');
       renderRelationList(followingList, [], 'Not following anyone yet.');
+      renderRelationList(datingLikedList, [], 'No dating likes yet.');
+      renderRelationList(datingMatchedList, [], 'No matches yet.');
       followInfo.textContent = 'Followers: 0 • Following: 0';
       renderFeed();
       return;
@@ -445,6 +466,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     renderStats(data);
     renderRelationList(followersList, Array.isArray(data.followers) ? data.followers : [], 'No followers yet.');
     renderRelationList(followingList, Array.isArray(data.following) ? data.following : [], 'Not following anyone yet.');
+    renderRelationList(datingLikedList, data.dating?.likedUsers || [], 'No dating likes yet.');
+    renderRelationList(datingMatchedList, data.dating?.matchedUsers || [], 'No matches yet.');
 
     if(storeUser && storeUser !== currentUser){
       followBtn.style.display = '';
@@ -533,6 +556,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         li.onclick = () => {
           window.location.href = '/private-chat.html?user=' + encodeURIComponent(sender);
         };
+      } else if(n.type === 'dating-like'){
+        li.textContent = (n.data.from || 'Someone') + ' liked your dating profile';
+      } else if(n.type === 'dating-match'){
+        li.textContent = '💘 You matched with ' + (n.data.with || 'someone');
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
       }

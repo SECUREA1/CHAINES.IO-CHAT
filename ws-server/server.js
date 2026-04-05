@@ -86,6 +86,15 @@ db.exec(`
     push INTEGER DEFAULT 1,
     live INTEGER DEFAULT 1
   );
+  CREATE TABLE IF NOT EXISTS dating_likes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    liker TEXT NOT NULL,
+    liked TEXT NOT NULL,
+    message_id TEXT,
+    matched INTEGER DEFAULT 0,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(liker, liked, message_id)
+  );
   CREATE TABLE IF NOT EXISTS ghost_drops (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     wallet_address TEXT NOT NULL,
@@ -213,6 +222,30 @@ function sendPush(username, title, body, opts = {}) {
         }
       });
   }
+}
+
+function sanitizeUsername(name = "") {
+  return String(name).replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24);
+}
+
+function ensureUserProfile(username = "") {
+  const clean = sanitizeUsername(username);
+  if (!clean) return "";
+  const existing = db
+    .prepare("SELECT username FROM users WHERE username=?")
+    .get(clean);
+  if (!existing) {
+    try {
+      db.prepare(
+        "INSERT INTO users (username, password, profile_pic, description) VALUES (?, NULL, NULL, NULL)"
+      ).run(clean);
+    } catch {}
+  }
+  if (!profiles[clean]) {
+    profiles[clean] = { profilePic: null, description: null };
+    saveProfiles();
+  }
+  return clean;
 }
 
 app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
@@ -774,6 +807,13 @@ app.get("/profile/:username", (req, res) => {
           .get(viewer, req.params.username)
       : false
     : false;
+  const datingLikes = dbUser
+    ? db
+        .prepare("SELECT liked, matched FROM dating_likes WHERE liker=? ORDER BY id DESC")
+        .all(req.params.username)
+    : [];
+  const datingLikedUsers = datingLikes.map((row) => row.liked);
+  const datingMatchedUsers = [...new Set(datingLikes.filter((row) => row.matched).map((row) => row.liked))];
   res.json({
     username: req.params.username,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
@@ -782,6 +822,17 @@ app.get("/profile/:username", (req, res) => {
     followers,
     following,
     isFollowing,
+    stats: {
+      posts: posts.length,
+      followers: followers.length,
+      following: following.length,
+      datingLikesSent: datingLikedUsers.length,
+      datingMatches: datingMatchedUsers.length,
+    },
+    dating: {
+      likedUsers: datingLikedUsers,
+      matchedUsers: datingMatchedUsers,
+    },
   });
 });
 
@@ -847,6 +898,76 @@ app.post("/profile/:username/follow", (req, res) => {
     );
     res.json({ following: true });
   }
+});
+
+app.post("/dating/interactions/toggle-like", (req, res) => {
+  const actor = ensureUserProfile(req.body?.actor || "");
+  const target = ensureUserProfile(req.body?.target || "");
+  const messageId = String(req.body?.messageId || "").trim().slice(0, 64);
+  const liked = !!req.body?.liked;
+  if (!actor || !target || !messageId) {
+    res.status(400).json({ error: "Missing actor, target, or messageId" });
+    return;
+  }
+  if (actor === target) {
+    res.status(400).json({ error: "Cannot like your own profile" });
+    return;
+  }
+
+  let matched = false;
+  if (liked) {
+    db.prepare(
+      "INSERT OR IGNORE INTO dating_likes (liker, liked, message_id, matched) VALUES (?, ?, ?, 0)"
+    ).run(actor, target, messageId);
+    db.prepare(
+      "INSERT INTO notifications (username, type, data) VALUES (?, 'dating-like', ?)"
+    ).run(
+      target,
+      JSON.stringify({ from: actor, messageId })
+    );
+    sendPush(target, "New Dating Like", `${actor} liked your dating profile`);
+    const reciprocal = db
+      .prepare("SELECT id FROM dating_likes WHERE liker=? AND liked=? LIMIT 1")
+      .get(target, actor);
+    if (reciprocal) {
+      db.prepare(
+        "UPDATE dating_likes SET matched=1 WHERE (liker=? AND liked=?) OR (liker=? AND liked=?)"
+      ).run(actor, target, target, actor);
+      matched = true;
+      db.prepare(
+        "INSERT INTO notifications (username, type, data) VALUES (?, 'dating-match', ?)"
+      ).run(
+        actor,
+        JSON.stringify({ with: target, messageId })
+      );
+      db.prepare(
+        "INSERT INTO notifications (username, type, data) VALUES (?, 'dating-match', ?)"
+      ).run(
+        target,
+        JSON.stringify({ with: actor, messageId })
+      );
+      sendPush(actor, "Dating Match", `You and ${target} liked each other`);
+      sendPush(target, "Dating Match", `You and ${actor} liked each other`);
+    }
+  } else {
+    db.prepare(
+      "DELETE FROM dating_likes WHERE liker=? AND liked=? AND message_id=?"
+    ).run(actor, target, messageId);
+    db.prepare(
+      "UPDATE dating_likes SET matched=0 WHERE (liker=? AND liked=?) OR (liker=? AND liked=?)"
+    ).run(actor, target, target, actor);
+  }
+  const likedRows = db
+    .prepare("SELECT liked, matched FROM dating_likes WHERE liker=? ORDER BY id DESC")
+    .all(actor);
+  const matchRows = likedRows.filter((row) => row.matched).map((row) => row.liked);
+  res.json({
+    success: true,
+    liked,
+    matched,
+    likedUsers: likedRows.map((row) => row.liked),
+    matchedUsers: [...new Set(matchRows)],
+  });
 });
 
 app.get("/notifications/:username", (req, res) => {
