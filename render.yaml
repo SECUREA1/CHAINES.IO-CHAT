@@ -7,6 +7,19 @@ services:
     branch: main
     buildCommand: ""
     staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /secure
+        destination: /secure.html
+      - type: rewrite
+        source: /marketplace
+        destination: /marketplace.html
+      - type: rewrite
+        source: /private-chat
+        destination: /private-chat.html
+      - type: rewrite
+        source: /profile
+        destination: /profile.html
     previews:
       generation: automatic
 
