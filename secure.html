@@ -2063,6 +2063,17 @@
         return `${location.protocol}//${raw.replace(/\/+$/, "")}`;
       }
 
+      function wsUrlFromHttpBase(base){
+        try{
+          const parsed = new URL(normalizeBroadcastBase(base));
+          const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
+          return `${proto}//${parsed.host}/ws`;
+        }catch{
+          const proto = location.protocol === "https:" ? "wss:" : "ws:";
+          return `${proto}//${location.host}/ws`;
+        }
+      }
+
       function getSelectedBroadcastServers(){
         const selected = Array.isArray(settings.broadcastServers) ? settings.broadcastServers : [];
         const picked = BROADCAST_SERVER_OPTIONS.filter((srv)=>selected.includes(srv.id));
@@ -2108,6 +2119,8 @@
         for(const srv of servers){
           const base = normalizeBroadcastBase(srv.base);
           if(!base) continue;
+          const wsUrl = wsUrlFromHttpBase(base);
+          const frameSrc = `${base}/index.html?ws=${encodeURIComponent(wsUrl)}&channel=${encodeURIComponent(srv.id)}`;
           const safeLabel = escapeHtml(srv.label);
           const safeBase = escapeHtml(base);
           const card = document.createElement("article");
@@ -2119,7 +2132,7 @@
             </div>
             <iframe
               class="broadcast-feed-frame"
-              src="${base}/index.html"
+              src="${frameSrc}"
               loading="lazy"
               allow="camera *; microphone *; autoplay *; fullscreen *; display-capture *"
               referrerpolicy="no-referrer-when-downgrade"
