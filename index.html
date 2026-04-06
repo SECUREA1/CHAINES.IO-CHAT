@@ -884,17 +884,20 @@ body.streams-flex-fit #video-container[hidden] {
         width: 100%;
       }
       .toolbar {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
+        min-width: 0;
       }
       .toolbar-primary {
         order: 1;
-        flex: 1 1 360px;
+        flex: 1 1 auto;
+        min-width: 0;
       }
       .toolbar-overflow {
         order: 2;
         margin-right: 0;
-        flex: 1 1 420px;
+        flex: 2 1 auto;
+        min-width: 0;
       }
       #toolbar-overflow-toggle {
         display: none;
@@ -928,19 +931,26 @@ body.streams-flex-fit #video-container[hidden] {
         margin: 0;
         display: flex;
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
         gap: 8px;
+        min-width: 0;
       }
       .toolbar-overflow-list li {
         list-style: none;
+        min-width: 0;
+        flex: 1 1 0;
       }
       .toolbar-overflow-list .chip {
-        width: auto;
+        width: 100%;
         min-height: 36px;
         justify-content: center;
-        padding: 6px 10px;
+        padding: 6px 8px;
         font-size: 12px;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
 
