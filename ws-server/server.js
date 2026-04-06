@@ -259,16 +259,16 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
-app.get("/secure.html", (req, res) =>
+app.get(["/secure", "/secure.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "secure.html"))
 );
-app.get("/marketplace.html", (req, res) =>
+app.get(["/marketplace", "/marketplace.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "marketplace.html"))
 );
-app.get("/private-chat.html", (req, res) =>
+app.get(["/private-chat", "/private-chat.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "private-chat.html"))
 );
-app.get("/profile.html", (req, res) =>
+app.get(["/profile", "/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
 app.get("/omconsole_render_single.html", (req, res) =>
