@@ -196,7 +196,7 @@
     .toolbar-overflow-list { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
     .toolbar-overflow-list .chip { min-height:32px; padding:5px 8px; font-size:12px; gap:6px; border-radius:10px; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
     .toolbar-primary .chip {
       min-width:0;
@@ -290,7 +290,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -302,7 +302,7 @@
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
-      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img {
+      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img {
         width:24px;
         height:24px;
         display:block;
@@ -1282,6 +1282,7 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/>Theme</button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="" aria-hidden="true" />Show Feed</button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" />Feed + Market</button></li>
+                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" />Open Watchtower</button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button></li>
                       <li><button id="ioncore-btn" class="chip" type="button" title="Open ioncoreenergy.com"><img src="static/ioncore.svg" alt="" aria-hidden="true" />ION Core Energy</button></li>
                       <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" />Rednode AI</button></li>
@@ -1788,6 +1789,7 @@ body.streams-flex-fit #video-container[hidden] {
     const omconsoleBtnMobile = el('#omconsole-btn-mobile');
     const ioncoreBtn = el('#ioncore-btn');
     const rednodeBtn = el('#rednode-btn');
+    const watchtowerBtn = el('#watchtower-btn');
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
@@ -1812,6 +1814,12 @@ body.streams-flex-fit #video-container[hidden] {
       if(!streamsFitBtn) return;
       streamsFitBtn.innerHTML = `<img src="static/split.svg" alt="" aria-hidden="true" />${label}`;
     }
+    function setWatchtowerLabel(isOpen){
+      if(!watchtowerBtn) return;
+      watchtowerBtn.innerHTML = `<img src="static/camera.svg" alt="" aria-hidden="true" />${isOpen ? 'Close Watchtower' : 'Open Watchtower'}`;
+      watchtowerBtn.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+    }
+    let watchtowerWindow = null;
     function setStreamsFlexFit(next){
       streamsFlexFit = !!next;
       document.body.classList.toggle('streams-flex-fit', streamsFlexFit);
@@ -1943,6 +1951,29 @@ body.streams-flex-fit #video-container[hidden] {
         event.preventDefault();
         window.open('https://rednode.ai', '_blank', 'noopener,noreferrer');
       });
+    }
+    if(watchtowerBtn){
+      watchtowerBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        const isOpen = !!(watchtowerWindow && !watchtowerWindow.closed);
+        if(isOpen){
+          watchtowerWindow.close();
+          watchtowerWindow = null;
+          setWatchtowerLabel(false);
+          return;
+        }
+        watchtowerWindow = window.open('/secure.html?liveFeeds=1', 'chaines-watchtower-live');
+        const opened = !!(watchtowerWindow && !watchtowerWindow.closed);
+        setWatchtowerLabel(opened);
+        watchtowerWindow?.focus?.();
+      });
+      window.addEventListener('focus', () => {
+        if(watchtowerWindow && watchtowerWindow.closed){
+          watchtowerWindow = null;
+          setWatchtowerLabel(false);
+        }
+      });
+      setWatchtowerLabel(false);
     }
 
     if(omconsoleClose){
