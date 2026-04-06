@@ -2219,6 +2219,7 @@ body.streams-flex-fit #video-container[hidden] {
         catch {}
       },
       get wsURL() {
+        if(wsOverrideFromUrl) return wsOverrideFromUrl;
         try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
         catch { return defaultWS(); }
       },
@@ -3017,12 +3018,26 @@ body.streams-flex-fit #video-container[hidden] {
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
     }
 
+    function readWsOverrideFromUrl(){
+      try{
+        const url = new URL(window.location.href);
+        const raw = (url.searchParams.get('ws') || url.searchParams.get('wsUrl') || '').trim();
+        if(!raw) return '';
+        if(/^wss?:\/\//i.test(raw)) return raw;
+        if(/^https?:\/\//i.test(raw)){
+          const parsed = new URL(raw);
+          const proto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+          return `${proto}//${parsed.host}${parsed.pathname}${parsed.search}`;
+        }
+      }catch{}
+      return '';
+    }
+    const wsOverrideFromUrl = readWsOverrideFromUrl();
+
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
-        ? 'chaines-io-chat.onrender.com'
-        : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host + '/ws';
+      if(location.host) return proto + location.host + '/ws';
+      return 'wss://chaines-io-chat.onrender.com/ws';
     }
 
     function setStatus(mode){
