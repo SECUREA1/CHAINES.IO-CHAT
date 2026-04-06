@@ -196,7 +196,7 @@
     .toolbar-overflow-list { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
     .toolbar-overflow-list .chip { min-height:32px; padding:5px 8px; font-size:12px; gap:6px; border-radius:10px; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
     .toolbar-primary .chip {
       min-width:0;
@@ -290,7 +290,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #voice3-btn-desktop { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -302,7 +302,7 @@
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
-      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img {
+      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img, #voice3-btn-desktop img {
         width:24px;
         height:24px;
         display:block;
@@ -1296,6 +1296,7 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button></li>
                       <li><button id="ioncore-btn" class="chip" type="button" title="Open ioncoreenergy.com"><img src="static/ioncore.svg" alt="" aria-hidden="true" />ION Core Energy</button></li>
                       <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" />Rednode AI</button></li>
+                      <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" />Voice3 App</button></li>
                     </ul>
                   </details>
                 </div>
@@ -1305,6 +1306,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="voice3-btn-desktop" class="chip action-chip" type="button" title="Open Voice3 app" aria-label="Open Voice3 app"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
               </div>
@@ -1799,6 +1801,8 @@ body.streams-flex-fit #video-container[hidden] {
     const omconsoleBtnMobile = el('#omconsole-btn-mobile');
     const ioncoreBtn = el('#ioncore-btn');
     const rednodeBtn = el('#rednode-btn');
+    const voice3Btn = el('#voice3-btn');
+    const voice3BtnDesktop = el('#voice3-btn-desktop');
     const watchtowerBtn = el('#watchtower-btn');
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
@@ -1962,6 +1966,13 @@ body.streams-flex-fit #video-container[hidden] {
         window.open('https://rednode.ai', '_blank', 'noopener,noreferrer');
       });
     }
+    [voice3Btn, voice3BtnDesktop].forEach((btn) => {
+      if(!btn) return;
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        window.open('https://www.voice3.xyz', '_blank', 'noopener,noreferrer');
+      });
+    });
     if(watchtowerBtn){
       watchtowerBtn.addEventListener('click', (event) => {
         event.preventDefault();

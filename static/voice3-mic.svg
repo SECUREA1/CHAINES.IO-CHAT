@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Voice3 microphone">
+  <defs>
+    <linearGradient id="micGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd766"/>
+      <stop offset="100%" stop-color="#ff9f1c"/>
+    </linearGradient>
+    <linearGradient id="micRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff5a5a"/>
+      <stop offset="100%" stop-color="#9a0018"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#micRed)"/>
+  <rect x="21" y="10" width="22" height="30" rx="11" fill="url(#micGold)" stroke="#7f3e00" stroke-width="2"/>
+  <path d="M18 32c0 8 6 14 14 14s14-6 14-14" fill="none" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round"/>
+  <line x1="32" y1="46" x2="32" y2="54" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round"/>
+  <line x1="24" y1="54" x2="40" y2="54" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round"/>
+</svg>
