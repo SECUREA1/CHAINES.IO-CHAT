@@ -86,6 +86,25 @@ test('dedupe protects against duplicate replay after restore then live', () => {
   assert.deepEqual(deduped.map((m) => m.id), [22, 23]);
 });
 
+test('dedupe keeps the newest copy for matching ids from live post feed', () => {
+  const deduped = dedupeMessagesById([
+    { id: 10, createdAt: 100, ts: 100, text: 'old' },
+    { id: 10, createdAt: 200, ts: 200, text: 'latest' },
+  ]);
+  assert.equal(deduped.length, 1);
+  assert.equal(deduped[0].text, 'latest');
+});
+
+test('dedupe supports non-numeric message ids', () => {
+  const deduped = dedupeMessagesById([
+    { messageId: 'post-aa11', createdAt: 1, ts: 1, text: 'first' },
+    { messageId: 'post-aa11', createdAt: 2, ts: 2, text: 'updated' },
+    { messageId: 'post-bb22', createdAt: 3, ts: 3, text: 'other' },
+  ]);
+  assert.deepEqual(deduped.map((m) => m.messageId), ['post-aa11', 'post-bb22']);
+  assert.equal(deduped[0].text, 'updated');
+});
+
 test('anonymous/browser-scoped restore falls back to cloud room', () => {
   const resolved = resolveActiveRoomForRestore({
     persistedSession: null,

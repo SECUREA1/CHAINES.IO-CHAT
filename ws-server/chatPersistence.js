@@ -70,18 +70,83 @@ export function sortMessagesStable(messages = []) {
     if (tsA !== tsB) return tsA - tsB;
     const idA = Number(a?.id || a?.messageId || 0);
     const idB = Number(b?.id || b?.messageId || 0);
-    return idA - idB;
+    if (Number.isFinite(idA) && Number.isFinite(idB) && idA !== idB) return idA - idB;
+
+    const rawIdA = (a?.id ?? a?.messageId ?? '').toString();
+    const rawIdB = (b?.id ?? b?.messageId ?? '').toString();
+    return rawIdA.localeCompare(rawIdB);
   });
+}
+
+function extractMessageIdentity(message = {}) {
+  const rawId = message?.id ?? message?.messageId;
+  if (rawId === null || rawId === undefined) return null;
+  const normalized = rawId.toString().trim();
+  return normalized ? normalized : null;
+}
+
+function scoreMessageRecency(message = {}) {
+  const createdAt = Number(message?.createdAt || 0);
+  const ts = Number(message?.ts || 0);
+  return {
+    createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+    ts: Number.isFinite(ts) ? ts : 0,
+  };
+}
+
+function countDefinedFields(message = {}) {
+  return Object.values(message).reduce((count, value) => {
+    if (value === null || value === undefined) return count;
+    if (typeof value === 'string' && !value.trim()) return count;
+    return count + 1;
+  }, 0);
+}
+
+function choosePreferredMessage(existing = {}, incoming = {}) {
+  const existingScore = scoreMessageRecency(existing);
+  const incomingScore = scoreMessageRecency(incoming);
+
+  if (incomingScore.createdAt !== existingScore.createdAt) {
+    return incomingScore.createdAt > existingScore.createdAt ? incoming : existing;
+  }
+  if (incomingScore.ts !== existingScore.ts) {
+    return incomingScore.ts > existingScore.ts ? incoming : existing;
+  }
+
+  if (countDefinedFields(incoming) !== countDefinedFields(existing)) {
+    return countDefinedFields(incoming) > countDefinedFields(existing)
+      ? incoming
+      : existing;
+  }
+
+  return incoming;
 }
 
 export function dedupeMessagesById(messages = []) {
   const byId = new Map();
+  const passThrough = [];
+
   for (const message of messages) {
-    const messageId = Number(message?.id ?? message?.messageId);
-    if (!Number.isFinite(messageId)) continue;
-    byId.set(messageId, { ...message, id: messageId, messageId });
+    const identity = extractMessageIdentity(message);
+    if (!identity) {
+      passThrough.push({ ...message });
+      continue;
+    }
+
+    const normalizedNumericId = Number(identity);
+    const normalized = Number.isFinite(normalizedNumericId)
+      ? { ...message, id: normalizedNumericId, messageId: normalizedNumericId }
+      : { ...message, id: message?.id ?? identity, messageId: message?.messageId ?? identity };
+
+    const existing = byId.get(identity);
+    if (!existing) {
+      byId.set(identity, normalized);
+      continue;
+    }
+
+    byId.set(identity, choosePreferredMessage(existing, normalized));
   }
-  return Array.from(byId.values());
+  return [...Array.from(byId.values()), ...passThrough];
 }
 
 export function buildRestoreHistoryBundle({
