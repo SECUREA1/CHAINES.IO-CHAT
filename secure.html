@@ -530,6 +530,66 @@
       flex-wrap:wrap;
       margin-top:10px;
     }
+    .broadcast-toggle-wrap{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+      padding:12px;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      background:rgba(0,0,0,.16);
+    }
+    .broadcast-toggle-wrap[hidden]{display:none}
+    .broadcast-server-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap:8px;
+    }
+    .broadcast-server-chip{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:12px;
+      background:rgba(255,255,255,.03);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .broadcast-server-chip input{
+      width:auto;
+      min-height:auto;
+    }
+    .broadcast-feed-grid{
+      display:grid;
+      gap:12px;
+      grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+    }
+    .broadcast-feed-card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      background:rgba(0,0,0,.22);
+    }
+    .broadcast-feed-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .broadcast-feed-head b{font-size:13px}
+    .broadcast-feed-head .small{
+      font-family:var(--mono);
+      font-size:11px;
+    }
+    .broadcast-feed-frame{
+      width:100%;
+      min-height:260px;
+      border:0;
+      background:#05070B;
+    }
 
     .labeling-grid{
       display:grid;
@@ -1193,6 +1253,20 @@
               <button id="btnExport" type="button" class="ghost">⬇ Export Logs JSON</button>
               <button id="btnClear" type="button" class="danger">🧹 Clear Logs</button>
             </div>
+
+            <div class="broadcast-toggle-wrap">
+              <div class="row">
+                <label class="toggle" style="margin:0">
+                  <input id="chkBroadcastFeeds" type="checkbox" />
+                  <span><b>Show Broadcast Camera Feeds</b> <span class="small">(embed live stream tiles on this page)</span></span>
+                </label>
+                <button id="btnRefreshBroadcastFeeds" class="ghost" type="button">↻ Refresh Broadcast Feeds</button>
+              </div>
+              <div class="hint">
+                Uses the active broadcast servers below. Open a stream in another tab, then enable this toggle to monitor all active broadcast tiles from Secure.
+              </div>
+              <div id="broadcastServerGrid" class="broadcast-server-grid"></div>
+            </div>
           </div>
         </section>
       </div>
@@ -1288,6 +1362,13 @@
             </div>
 
             <div class="cam-grid" id="camGrid"></div>
+            <div id="broadcastFeedsWrap" class="broadcast-toggle-wrap" hidden>
+              <div class="row">
+                <div class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</div>
+                <span class="pill-mini">Source: Broadcast stream pages</span>
+              </div>
+              <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+            </div>
           </div>
         </section>
 
@@ -1589,6 +1670,8 @@
         selectedSlots: [0],
         logViewMode: "objects",
         clipViewMode: "objects",
+        broadcastFeedsOn: false,
+        broadcastServers: [],
 
         // Live CV tuning
         detectionIntervalMs: isLikelyMobile() ? 450 : 300,
@@ -1611,9 +1694,18 @@
         logSort: "newest",
       };
 
+      const BROADCAST_SERVER_OPTIONS = [
+        { id: "local", label: "Current Host", base: location.origin },
+        { id: "chat-render", label: "Render Chat", base: "https://chaines-io-chat.onrender.com" },
+        { id: "rednode-api", label: "Rednode API", base: "https://api.rednode.ai" },
+      ];
+
       // Load settings (merge defaults)
       let settings = loadJSON(LS_KEYS.settings, defaultSettings);
       settings = Object.assign({}, defaultSettings, settings || {});
+      if(!Array.isArray(settings.broadcastServers) || !settings.broadcastServers.length){
+        settings.broadcastServers = BROADCAST_SERVER_OPTIONS.map((srv)=>srv.id);
+      }
 
       // Persistent DBs
       let objectMemory = loadJSON(LS_KEYS.objectMemory, {});
@@ -1677,6 +1769,7 @@
       let demoMode = !!settings.demoMode;
       let logViewMode = settings.logViewMode || "objects";
       let clipViewMode = settings.clipViewMode || "objects";
+      let broadcastFeedsOn = !!settings.broadcastFeedsOn;
       const clipPlaybackUrls = new Map();
 
       // Demo-only labels (kept)
@@ -1901,6 +1994,80 @@
         return new Promise(resolve => setTimeout(resolve, ms));
       }
 
+      function normalizeBroadcastBase(base){
+        const raw = String(base || "").trim();
+        if(!raw) return "";
+        if(raw.startsWith("http://") || raw.startsWith("https://")) return raw.replace(/\/+$/, "");
+        return `${location.protocol}//${raw.replace(/\/+$/, "")}`;
+      }
+
+      function getSelectedBroadcastServers(){
+        const selected = Array.isArray(settings.broadcastServers) ? settings.broadcastServers : [];
+        const picked = BROADCAST_SERVER_OPTIONS.filter((srv)=>selected.includes(srv.id));
+        return picked.length ? picked : [BROADCAST_SERVER_OPTIONS[0]];
+      }
+
+      function renderBroadcastServerChoices(){
+        if(!broadcastServerGrid) return;
+        broadcastServerGrid.innerHTML = "";
+        for(const srv of BROADCAST_SERVER_OPTIONS){
+          const label = document.createElement("label");
+          label.className = "broadcast-server-chip";
+          const checked = getSelectedBroadcastServers().some((v)=>v.id === srv.id);
+          label.innerHTML = `
+            <input type="checkbox" data-broadcast-server="${srv.id}" ${checked ? "checked" : ""} />
+            <span><b>${escapeHtml(srv.label)}</b><br><span class="small">${escapeHtml(normalizeBroadcastBase(srv.base))}</span></span>
+          `;
+          broadcastServerGrid.appendChild(label);
+        }
+        broadcastServerGrid.querySelectorAll("input[data-broadcast-server]").forEach((input)=>{
+          input.addEventListener("change", ()=>{
+            const selected = [...broadcastServerGrid.querySelectorAll("input[data-broadcast-server]:checked")]
+              .map((node)=>node.getAttribute("data-broadcast-server"))
+              .filter(Boolean);
+            settings.broadcastServers = selected.length ? selected : [BROADCAST_SERVER_OPTIONS[0].id];
+            scheduleSaveAll();
+            renderBroadcastFeedEmbeds();
+            renderBroadcastServerChoices();
+          });
+        });
+      }
+
+      function renderBroadcastFeedEmbeds(){
+        if(!broadcastFeedsWrap || !broadcastFeedGrid) return;
+        broadcastFeedsWrap.hidden = !broadcastFeedsOn;
+        if(!broadcastFeedsOn){
+          broadcastFeedGrid.innerHTML = "";
+          return;
+        }
+
+        const servers = getSelectedBroadcastServers();
+        broadcastFeedGrid.innerHTML = "";
+        for(const srv of servers){
+          const base = normalizeBroadcastBase(srv.base);
+          if(!base) continue;
+          const safeLabel = escapeHtml(srv.label);
+          const safeBase = escapeHtml(base);
+          const card = document.createElement("article");
+          card.className = "broadcast-feed-card";
+          card.innerHTML = `
+            <div class="broadcast-feed-head">
+              <b>${safeLabel}</b>
+              <span class="small">${safeBase}</span>
+            </div>
+            <iframe
+              class="broadcast-feed-frame"
+              src="${base}/index.html"
+              loading="lazy"
+              allow="camera *; microphone *; autoplay *; fullscreen *; display-capture *"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Broadcast feed from ${safeLabel}">
+            </iframe>
+          `;
+          broadcastFeedGrid.appendChild(card);
+        }
+      }
+
       /***********************
        * DOM refs
        ***********************/
@@ -1916,6 +2083,11 @@
       const fpsCap = el("fpsCap");
       const fpsVal = el("fpsVal");
       const detectorMode = el("detectorMode");
+      const chkBroadcastFeeds = el("chkBroadcastFeeds");
+      const btnRefreshBroadcastFeeds = el("btnRefreshBroadcastFeeds");
+      const broadcastServerGrid = el("broadcastServerGrid");
+      const broadcastFeedsWrap = el("broadcastFeedsWrap");
+      const broadcastFeedGrid = el("broadcastFeedGrid");
       const cvStatusCamera = el("cvStatusCamera");
       const cvStatusBackend = el("cvStatusBackend");
       const cvStatusModels = el("cvStatusModels");
@@ -2610,6 +2782,22 @@
         });
       }
 
+      if(chkBroadcastFeeds){
+        chkBroadcastFeeds.addEventListener("change", (e)=>{
+          broadcastFeedsOn = !!e.target.checked;
+          settings.broadcastFeedsOn = broadcastFeedsOn;
+          saveSettings();
+          renderBroadcastFeedEmbeds();
+        });
+      }
+
+      if(btnRefreshBroadcastFeeds){
+        btnRefreshBroadcastFeeds.addEventListener("click", ()=>{
+          renderBroadcastFeedEmbeds();
+          toast("Broadcast feeds refreshed.");
+        });
+      }
+
       const persistTuneConfig = (msg="")=>{
         saveJSON(LS_KEYS.tunedAlert, tunedAlertConfig);
         updateTuneStatus(msg);
@@ -3271,6 +3459,9 @@
 
         setRecUI(recognitionMode);
         applyModeBadges();
+        if(chkBroadcastFeeds) chkBroadcastFeeds.checked = broadcastFeedsOn;
+        renderBroadcastServerChoices();
+        renderBroadcastFeedEmbeds();
 
         el("btnToggleDisplay").textContent = cameraDisplayOn ? "👁 Hide Display" : "👁 Show Display";
       }
@@ -6133,6 +6324,11 @@
   <script>
     (() => {
       const $ = (id) => document.getElementById(id);
+      const SECURE_SERVER_BASES = [
+        location.origin,
+        "https://chaines-io-chat.onrender.com",
+        "https://api.rednode.ai",
+      ];
 
       // ----------------------------
       // 0) Minimal UI fallback
@@ -6146,7 +6342,7 @@
         box.style.cssText = "padding:12px;border:1px solid #333;border-radius:8px;margin:12px 0;max-width:720px";
         box.innerHTML = `
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input id="serverUrl" style="flex:1;min-width:260px" placeholder="https://api.rednode.ai (blank = same origin)"/>
+            <input id="serverUrl" style="flex:1;min-width:260px" placeholder="https://chaines-io-chat.onrender.com"/>
             <input id="adminToken" style="flex:1;min-width:240px" placeholder="Admin token (required for commit)"/>
           </div>
           <label style="display:block;margin-top:8px">
@@ -6167,6 +6363,12 @@
         const el = $("storageFeedback");
         if (el) el.textContent = msg;
         console.log(msg);
+      }
+
+      function preferredServerBase() {
+        const explicit = (window.REDNODE_SERVER_BASE || "").trim();
+        if (explicit) return explicit;
+        return SECURE_SERVER_BASES[0] || location.origin;
       }
 
       // ----------------------------
@@ -6419,6 +6621,9 @@
       // ----------------------------
       window.addEventListener("load", () => {
         ensureUI();
+        if ($("serverUrl") && !$("serverUrl").value) {
+          $("serverUrl").value = preferredServerBase();
+        }
 
         $("rnConnectBtn")?.addEventListener("click", handleConnect);
         $("rnCommitAllBtn")?.addEventListener("click", handleCommitAll);
