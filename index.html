@@ -290,7 +290,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -302,7 +302,7 @@
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
-      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img {
+      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #watchtower-btn-mobile img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img {
         width:24px;
         height:24px;
         display:block;
@@ -1339,6 +1339,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
+                <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
               </div>
             </div>
           </div>
@@ -1834,6 +1835,7 @@ body.streams-flex-fit #video-container[hidden] {
     const voice3Btn = el('#voice3-btn');
     const voice3BtnDesktop = el('#voice3-btn-desktop');
     const watchtowerBtn = el('#watchtower-btn');
+    const watchtowerBtnMobile = el('#watchtower-btn-mobile');
     const omconsoleModal = el('#omconsole-modal');
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
@@ -1859,9 +1861,16 @@ body.streams-flex-fit #video-container[hidden] {
       streamsFitBtn.innerHTML = `<img src="static/split.svg" alt="" aria-hidden="true" />${label}`;
     }
     function setWatchtowerLabel(isOpen){
-      if(!watchtowerBtn) return;
-      watchtowerBtn.innerHTML = `<img src="static/camera.svg" alt="" aria-hidden="true" />${isOpen ? 'Close Watchtower' : 'Open Watchtower'}`;
-      watchtowerBtn.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+      if(watchtowerBtn){
+        watchtowerBtn.innerHTML = `<img src="static/camera.svg" alt="" aria-hidden="true" />${isOpen ? 'Close Watchtower' : 'Open Watchtower'}`;
+        watchtowerBtn.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+      }
+      if(watchtowerBtnMobile){
+        const mobileLabel = isOpen ? 'Close Watchtower' : 'Open Watchtower';
+        watchtowerBtnMobile.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+        watchtowerBtnMobile.setAttribute('title', mobileLabel);
+        watchtowerBtnMobile.setAttribute('aria-label', mobileLabel);
+      }
     }
     let watchtowerWindow = null;
     function setStreamsFlexFit(next){
@@ -2003,8 +2012,9 @@ body.streams-flex-fit #video-container[hidden] {
         window.open('https://www.voice3.xyz', '_blank', 'noopener,noreferrer');
       });
     });
-    if(watchtowerBtn){
-      watchtowerBtn.addEventListener('click', (event) => {
+    [watchtowerBtn, watchtowerBtnMobile].forEach((btn) => {
+      if(!btn) return;
+      btn.addEventListener('click', (event) => {
         event.preventDefault();
         const isOpen = !!(watchtowerWindow && !watchtowerWindow.closed);
         if(isOpen){
@@ -2018,6 +2028,8 @@ body.streams-flex-fit #video-container[hidden] {
         setWatchtowerLabel(opened);
         watchtowerWindow?.focus?.();
       });
+    });
+    if(watchtowerBtn || watchtowerBtnMobile){
       window.addEventListener('focus', () => {
         if(watchtowerWindow && watchtowerWindow.closed){
           watchtowerWindow = null;
