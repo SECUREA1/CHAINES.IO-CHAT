@@ -160,6 +160,7 @@
     header { display:flex; flex-direction:column; gap:8px; padding:8px 10px; position: sticky; top: 0; z-index: 1200; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); border-radius:16px; }
     .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:nowrap; width:100%; }
     .bar-right { display:flex; align-items:center; gap:8px; margin-left:auto; min-width:0; }
+    header, .bar, .toolbar, .toolbar-primary, .toolbar-shell { min-width:0; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:32px; height:32px; border-radius:8px; background: url('static/logo.svg') no-repeat center/cover; box-shadow: var(--shadow); }
     .brand h1 { font-weight: 800; letter-spacing:.4px; font-size: 16px; margin:0; }
@@ -1167,21 +1168,31 @@ body.streams-flex-fit #video-container[hidden] {
       header { padding:10px; gap:10px; border-radius:14px; }
       .bar {
         flex-wrap:wrap;
-        align-items:flex-start;
+        align-items:center;
+        justify-content:center;
+        row-gap:8px;
       }
       .brand {
         min-width:0;
-        flex:1 1 auto;
+        flex:1 1 100%;
+        justify-content:center;
       }
       .brand h1 {
         font-size:14px;
         line-height:1.2;
       }
       .bar-right {
-        flex:0 0 auto;
+        flex:1 1 100%;
+        width:100%;
+        justify-content:center;
+        flex-wrap:wrap;
+        gap:6px;
+        margin-left:0;
       }
       .self-destruct {
         font-size:11px;
+        white-space:normal;
+        text-align:center;
       }
       footer { padding:0 12px 12px; gap:8px; }
       footer .status.bottom {
