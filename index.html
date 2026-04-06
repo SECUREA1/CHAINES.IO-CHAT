@@ -2380,9 +2380,15 @@ body.streams-flex-fit #video-container[hidden] {
 
     // --- WebRTC state ---
       const peerConnections = {};
+      const rtcConfig = {
+        iceServers: [
+          { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+        ]
+      };
       let localStream = null;
       let clientId = null;
       const activeRooms = new Set();
+    const autoWatchLiveFeeds = true;
     let broadcasting = false;
     let broadcastTimer = null;
     let broadcastVideo = null;
@@ -2403,6 +2409,29 @@ body.streams-flex-fit #video-container[hidden] {
     const MAX_BROADCAST_CAMERAS = 10;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
+
+    function closePeerConnection(id){
+      const pc = peerConnections[id];
+      if(!pc) return;
+      try {
+        pc.ontrack = null;
+        pc.onicecandidate = null;
+        pc.close();
+      } catch {}
+      delete peerConnections[id];
+    }
+
+    function createPeerConnection(id){
+      closePeerConnection(id);
+      const pc = new RTCPeerConnection(rtcConfig);
+      peerConnections[id] = pc;
+      pc.onconnectionstatechange = () => {
+        if(['failed', 'closed', 'disconnected'].includes(pc.connectionState)){
+          closePeerConnection(id);
+        }
+      };
+      return pc;
+    }
 
     function showOverlayMessage({ user, text, profilePic }){
       if(!overlayChat) return;
@@ -2691,9 +2720,29 @@ body.streams-flex-fit #video-container[hidden] {
         });
         for(const id in streams){
           if(!liveIds.has(id)){
+            if(streams[id].started && !streams[id].self){
+              endWatching(id);
+            }
+            closePeerConnection(id);
             streams[id].container.remove();
             delete streams[id];
           }
+        }
+        if(autoWatchLiveFeeds){
+          liveIds.forEach(id => {
+            if(id === clientId || !streams[id] || streams[id].started) return;
+            startWatching(id);
+            streams[id].started = true;
+            streams[id].container.classList.add('open');
+            const tuneBtn = streams[id].container.querySelector('.tune-btn');
+            if(tuneBtn) tuneBtn.textContent = 'Leave';
+            const camBtn = streams[id].container.querySelector('.cam-btn');
+            const micBtn = streams[id].container.querySelector('.mic-btn');
+            const joinBtns = streams[id].container.querySelector('.join-btns');
+            if(camBtn) camBtn.hidden = false;
+            if(micBtn) micBtn.hidden = false;
+            if(joinBtns) joinBtns.hidden = false;
+          });
         }
       }
 
@@ -3665,8 +3714,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       stopCameraStreams();
       for(const id in peerConnections){
-        try{ peerConnections[id].close(); }catch{}
-        delete peerConnections[id];
+        closePeerConnection(id);
       }
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
@@ -3722,8 +3770,8 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
     function handleWatcher(id){
-      const pc = new RTCPeerConnection();
-      peerConnections[id] = pc;
+      if(!localStream) return;
+      const pc = createPeerConnection(id);
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
       pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
@@ -3733,8 +3781,7 @@ body.streams-flex-fit #video-container[hidden] {
       function handleOffer(msg){
         let pc = peerConnections[msg.id];
         if(!pc){
-          pc = new RTCPeerConnection();
-          peerConnections[msg.id] = pc;
+          pc = createPeerConnection(msg.id);
           pc.ontrack = ev => {
             const stream = ev.streams[0];
             if(broadcasting && !joinApproved){
@@ -3918,8 +3965,7 @@ body.streams-flex-fit #video-container[hidden] {
         const pc = peerConnections[msg.id];
         if(pc){
           if(pc._videos) pc._videos.forEach(v => v.remove());
-          pc.close();
-          delete peerConnections[msg.id];
+          closePeerConnection(msg.id);
         }
         const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
