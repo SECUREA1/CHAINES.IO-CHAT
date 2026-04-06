@@ -259,6 +259,9 @@ app.get("/healthz", (req, res) => res.send("ok"));
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
+app.get("/secure.html", (req, res) =>
+  res.sendFile(path.join(ROOT, "secure.html"))
+);
 app.get("/marketplace.html", (req, res) =>
   res.sendFile(path.join(ROOT, "marketplace.html"))
 );
@@ -267,6 +270,9 @@ app.get("/private-chat.html", (req, res) =>
 );
 app.get("/profile.html", (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
+);
+app.get("/omconsole_render_single.html", (req, res) =>
+  res.sendFile(path.join(ROOT, "omconsole_render_single.html"))
 );
 app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
