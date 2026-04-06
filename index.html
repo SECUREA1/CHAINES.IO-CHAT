@@ -911,22 +911,26 @@ body.streams-flex-fit #video-container[hidden] {
       .toolbar {
         flex-wrap: nowrap;
         align-items: center;
+        justify-content: flex-start;
         min-width: 0;
-      }
-      .toolbar-primary {
-        order: 1;
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-      .toolbar-additional-desktop {
-        display: flex;
-        order: 2;
       }
       .toolbar-overflow {
-        order: 3;
+        order: 1;
         margin-right: 0;
         flex: 0 0 auto;
         min-width: auto;
+      }
+      .toolbar-primary {
+        order: 2;
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .toolbar-primary .chip {
+        flex: 0 0 auto;
+      }
+      .toolbar-additional-desktop {
+        display: flex;
+        order: 3;
       }
       #toolbar-overflow-toggle {
         display: inline-flex;
