@@ -1081,10 +1081,10 @@ body.streams-flex-fit #video-container[hidden] {
     body.omconsole-open { overflow:hidden; }
     body.omconsole-open header,
     body.omconsole-open footer {
-      opacity:0;
-      visibility:hidden;
-      transform: translateY(-12px);
-      pointer-events:none;
+      opacity:0 !important;
+      visibility:hidden !important;
+      transform: translateY(-12px) !important;
+      pointer-events:none !important;
     }
     body.omconsole-open footer {
       transform: translateY(12px);
@@ -1880,9 +1880,10 @@ body.streams-flex-fit #video-container[hidden] {
     document.addEventListener('touchend', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
 
-    // ensure header and footer remain visible
+    // keep the shell UI visible unless OMConsole is open fullscreen
     const keepVisible = el => {
       if(!el) return;
+      if(document.body.classList.contains('omconsole-open')) return;
       el.style.opacity = '1';
       el.style.visibility = 'visible';
       el.removeAttribute('hidden');
