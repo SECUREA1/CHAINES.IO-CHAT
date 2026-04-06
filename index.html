@@ -198,6 +198,17 @@
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
     .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
+    .toolbar-additional-desktop {
+      display:none;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      flex:0 1 auto;
+    }
+    .toolbar-additional-desktop .chip {
+      flex:0 1 auto;
+      white-space:nowrap;
+    }
     .toolbar-primary .chip {
       min-width:0;
       max-width:100%;
@@ -907,8 +918,12 @@ body.streams-flex-fit #video-container[hidden] {
         flex: 1 1 auto;
         min-width: 0;
       }
+      .toolbar-additional-desktop {
+        display: flex;
+        order: 2;
+      }
       .toolbar-overflow {
-        order: 0;
+        order: 3;
         margin-right: 0;
         flex: 0 0 auto;
         min-width: auto;
@@ -1341,6 +1356,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
               </div>
+              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -1846,6 +1862,11 @@ body.streams-flex-fit #video-container[hidden] {
     const toolbarPanel = el('#toolbar-panel');
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
+    const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
+    const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']
+      .map(id => el(`#${id}`))
+      .filter(Boolean);
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -2090,6 +2111,22 @@ body.streams-flex-fit #video-container[hidden] {
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
+    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
+    function syncAdditionalButtonsLayout(){
+      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
+      const useDesktopHeader = desktopToolbarMedia.matches;
+      additionalButtons.forEach((btn) => {
+        if(useDesktopHeader){
+          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
+        } else {
+          const existingListItem = btn.closest('li');
+          if(existingListItem && existingListItem.parentElement === additionalList) return;
+          const li = document.createElement('li');
+          li.appendChild(btn);
+          additionalList.appendChild(li);
+        }
+      });
+    }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
@@ -2142,6 +2179,8 @@ body.streams-flex-fit #video-container[hidden] {
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
     syncToolbarLayout();
+    desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
+    syncAdditionalButtonsLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
