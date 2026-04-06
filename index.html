@@ -3018,11 +3018,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     function defaultWS(){
-      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
-        ? 'chaines-io-chat.onrender.com'
-        : location.host;
-      const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      return proto + host + '/ws';
+      return 'wss://chaines-io-chat.onrender.com/ws';
     }
 
     function setStatus(mode){

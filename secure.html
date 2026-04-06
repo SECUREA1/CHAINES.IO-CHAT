@@ -2244,8 +2244,7 @@
       };
 
       function secureLiveWsUrl(){
-        const proto = location.protocol === "https:" ? "wss:" : "ws:";
-        return `${proto}//${location.host}/ws`;
+        return "wss://chaines-io-chat.onrender.com/ws";
       }
 
       function setSecureLiveStatus(text){
