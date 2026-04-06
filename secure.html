@@ -2088,6 +2088,13 @@
       const broadcastServerGrid = el("broadcastServerGrid");
       const broadcastFeedsWrap = el("broadcastFeedsWrap");
       const broadcastFeedGrid = el("broadcastFeedGrid");
+      const secureUrl = (()=>{ try{ return new URL(window.location.href); }catch{ return null; } })();
+      const autoEnableLiveFeeds = (()=> {
+        if(!secureUrl) return false;
+        const fromQuery = secureUrl.searchParams.get("liveFeeds");
+        const fromHash = (secureUrl.hash || "").toLowerCase();
+        return fromQuery === "1" || fromQuery === "true" || fromHash.includes("live-feeds");
+      })();
       const cvStatusCamera = el("cvStatusCamera");
       const cvStatusBackend = el("cvStatusBackend");
       const cvStatusModels = el("cvStatusModels");
@@ -2789,6 +2796,13 @@
           saveSettings();
           renderBroadcastFeedEmbeds();
         });
+      }
+      if(autoEnableLiveFeeds && chkBroadcastFeeds){
+        broadcastFeedsOn = true;
+        settings.broadcastFeedsOn = true;
+        chkBroadcastFeeds.checked = true;
+        saveSettings();
+        renderBroadcastFeedEmbeds();
       }
 
       if(btnRefreshBroadcastFeeds){
