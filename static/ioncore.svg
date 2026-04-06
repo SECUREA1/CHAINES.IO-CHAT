@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Ion Core Energy icon">
+  <defs>
+    <linearGradient id="ioncore-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#31d6ff"/>
+      <stop offset="100%" stop-color="#126bff"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="20" height="20" rx="5" fill="#09131f"/>
+  <circle cx="12" cy="12" r="7" fill="none" stroke="url(#ioncore-grad)" stroke-width="2"/>
+  <path d="M12 5.5v13" stroke="#8ce4ff" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8 12h8" stroke="#8ce4ff" stroke-width="2" stroke-linecap="round"/>
+</svg>
