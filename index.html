@@ -290,7 +290,7 @@
     .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #voice3-btn-desktop { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -302,7 +302,7 @@
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
-      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img, #voice3-btn-desktop img {
+      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img {
         width:24px;
         height:24px;
         display:block;
@@ -873,6 +873,13 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     @media (min-width: 901px) {
+      .wrap {
+        height: auto;
+        max-height: none;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+      }
       header {
         flex-direction: row;
         align-items: center;
@@ -901,63 +908,65 @@ body.streams-flex-fit #video-container[hidden] {
         min-width: 0;
       }
       .toolbar-overflow {
-        order: 2;
+        order: 0;
         margin-right: 0;
-        flex: 2 1 auto;
-        min-width: 0;
+        flex: 0 0 auto;
+        min-width: auto;
       }
       #toolbar-overflow-toggle {
-        display: none;
+        display: inline-flex;
       }
       .toolbar-overflow-panel {
-        position: static;
-        display: flex;
-        width: 100%;
-        min-width: 0;
-        max-width: none;
-        max-height: none;
-        overflow: visible;
+        position: absolute;
+        left: 0;
+        top: calc(100% + 6px);
+        width: min(380px, 48vw);
+        max-width: min(90vw, 420px);
+        max-height: min(65vh, 500px);
+        overflow-y: auto;
         margin: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
+        padding: 8px;
+        border: 1px solid var(--lining);
+        border-radius: 12px;
+        background: color-mix(in oklab, var(--panel), transparent 8%);
+        box-shadow: var(--shadow);
       }
       .toolbar-overflow-group {
         width: 100%;
-        border: 0;
-        border-radius: 0;
-        padding: 0;
-        background: transparent;
+        border: 1px solid var(--lining);
+        border-radius: 10px;
+        padding: 6px;
+        background: color-mix(in oklab, var(--panel), transparent 15%);
       }
       .toolbar-overflow-group summary {
-        display: none;
+        display: block;
       }
       .toolbar-overflow-list {
-        margin: 0;
+        margin: 6px 0 0;
         display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
+        flex-direction: column;
+        gap: 6px;
+        min-width: auto;
       }
       .toolbar-overflow-list li {
         list-style: none;
         min-width: 0;
-        flex: 1 1 0;
+        width: 100%;
       }
       .toolbar-overflow-list .chip {
         width: 100%;
         min-height: 36px;
-        justify-content: center;
-        padding: 6px 8px;
+        justify-content: flex-start;
+        padding: 6px 10px;
         font-size: 12px;
         min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      footer {
+        position: relative;
+        bottom: auto;
       }
     }
 
@@ -1309,6 +1318,11 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/>Theme</button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="" aria-hidden="true" />Show Feed</button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" />Feed + Market</button></li>
+                    </ul>
+                  </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Cloud Links</summary>
+                    <ul class="toolbar-overflow-list">
                       <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" />Open Watchtower</button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button></li>
                       <li><button id="ioncore-btn" class="chip" type="button" title="Open ioncoreenergy.com"><img src="static/ioncore.svg" alt="" aria-hidden="true" />ION Core Energy</button></li>
@@ -1323,7 +1337,6 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
-                <button id="voice3-btn-desktop" class="chip action-chip" type="button" title="Open Voice3 app" aria-label="Open Voice3 app"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
               </div>
