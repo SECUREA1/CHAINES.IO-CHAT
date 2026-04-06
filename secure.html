@@ -590,6 +590,54 @@
       border:0;
       background:#05070B;
     }
+    .secure-live-wrap{
+      margin-top:14px;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:12px;
+      background:rgba(0,0,0,.2);
+      display:grid;
+      gap:10px;
+    }
+    .secure-live-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .secure-live-status{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .secure-live-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    .secure-live-row{
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:12px;
+      overflow:hidden;
+      background:rgba(0,0,0,.28);
+    }
+    .secure-live-row-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:8px 10px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .secure-live-row video{
+      width:100%;
+      aspect-ratio:16/9;
+      display:block;
+      background:#000;
+      object-fit:cover;
+    }
 
     .labeling-grid{
       display:grid;
@@ -1368,6 +1416,20 @@
                 <span class="pill-mini">Source: Broadcast stream pages</span>
               </div>
               <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+            </div>
+            <div class="secure-live-wrap">
+              <div class="secure-live-head">
+                <div>
+                  <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
+                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams (one row per user).</div>
+                </div>
+                <div class="row">
+                  <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
+                  <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
+                </div>
+              </div>
+              <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
+              <div id="secureLiveGrid" class="secure-live-grid"></div>
             </div>
           </div>
         </section>
@@ -2158,11 +2220,241 @@
       const btnTestBuzz = el("btnTestBuzz");
       const btnClearTune = el("btnClearTune");
       const tuneTargetTypeRadios = Array.from(document.querySelectorAll("input[name=\"tuneTargetType\"]"));
+      const secureLiveGrid = el("secureLiveGrid");
+      const secureLiveStatus = el("secureLiveStatus");
+      const btnSecureLiveStart = el("btnSecureLiveStart");
+      const btnSecureLiveStop = el("btnSecureLiveStop");
 
       el("year").textContent = new Date().getFullYear();
 
       let selectedLog = null;
       let selectedLogRow = null;
+      const MAX_SECURE_LIVE_ROWS = 5;
+      const secureLive = {
+        socket: null,
+        socketOpen: false,
+        reconnectTimer: null,
+        selfId: "",
+        roster: [],
+        peers: new Map(),
+        localStream: null,
+        sharing: false,
+        reconnectDelayMs: 1200,
+        user: `secure-${Math.random().toString(36).slice(2, 8)}`,
+      };
+
+      function secureLiveWsUrl(){
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        return `${proto}//${location.host}/ws`;
+      }
+
+      function setSecureLiveStatus(text){
+        if(secureLiveStatus) secureLiveStatus.textContent = text;
+      }
+
+      function secureLiveSend(payload){
+        if(!secureLive.socket || secureLive.socket.readyState !== WebSocket.OPEN) return;
+        try{ secureLive.socket.send(JSON.stringify(payload)); }catch(_err){ /* no-op */ }
+      }
+
+      function secureLiveRenderRows(){
+        if(!secureLiveGrid) return;
+        const ordered = [];
+        if(secureLive.selfId) ordered.push(secureLive.selfId);
+        for(const item of secureLive.roster){
+          if(item?.id && item.id !== secureLive.selfId) ordered.push(item.id);
+        }
+        const visibleIds = ordered.slice(0, MAX_SECURE_LIVE_ROWS);
+        secureLiveGrid.innerHTML = "";
+        if(!visibleIds.length){
+          secureLiveGrid.innerHTML = `<div class="small">No active participants yet. Keep this page open to auto-join.</div>`;
+          return;
+        }
+        for(const id of visibleIds){
+          const isSelf = id === secureLive.selfId;
+          const peer = secureLive.peers.get(id);
+          const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
+          const user = (secureLive.roster.find((entry)=>entry?.id === id)?.user || (isSelf ? secureLive.user : "secure-user"));
+          const row = document.createElement("article");
+          row.className = "secure-live-row";
+          row.innerHTML = `
+            <div class="secure-live-row-head">
+              <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
+              <span>${isSelf ? (secureLive.sharing ? "Broadcasting" : "Idle") : (stream ? "Live" : "Connecting...")}</span>
+            </div>
+            <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
+          `;
+          const video = row.querySelector("video");
+          if(video){
+            video.srcObject = stream || null;
+          }
+          secureLiveGrid.appendChild(row);
+        }
+      }
+
+      function secureLivePeerById(id){
+        if(!id) return null;
+        let peer = secureLive.peers.get(id);
+        if(peer) return peer;
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
+        peer = { id, pc, remoteStream: null };
+        secureLive.peers.set(id, peer);
+
+        pc.onicecandidate = (event)=>{
+          if(event.candidate){
+            secureLiveSend({ type: "candidate", id, candidate: event.candidate });
+          }
+        };
+        pc.ontrack = (event)=>{
+          peer.remoteStream = event.streams?.[0] || peer.remoteStream || null;
+          secureLiveRenderRows();
+        };
+        pc.onconnectionstatechange = ()=>{
+          if(["failed","closed","disconnected"].includes(pc.connectionState)){
+            if(pc.connectionState === "failed"){
+              try{ pc.restartIce(); }catch(_err){ /* no-op */ }
+            }
+            secureLiveRenderRows();
+          }
+        };
+
+        if(secureLive.localStream){
+          for(const track of secureLive.localStream.getTracks()){
+            pc.addTrack(track, secureLive.localStream);
+          }
+        }
+        return peer;
+      }
+
+      async function secureLiveOfferTo(id){
+        if(!secureLive.localStream || !id) return;
+        const peer = secureLivePeerById(id);
+        if(!peer) return;
+        const offer = await peer.pc.createOffer();
+        await peer.pc.setLocalDescription(offer);
+        secureLiveSend({ type: "offer", id, sdp: peer.pc.localDescription });
+      }
+
+      async function secureLiveStartSharing(){
+        if(secureLive.sharing) return true;
+        let stream = null;
+        const firstCamStream = camStreams.values().next().value || null;
+        if(firstCamStream && firstCamStream.getVideoTracks().length){
+          stream = new MediaStream([firstCamStream.getVideoTracks()[0].clone()]);
+        }else{
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        secureLive.localStream = stream;
+        secureLive.sharing = true;
+        for(const peer of secureLive.peers.values()){
+          try{
+            for(const sender of peer.pc.getSenders()){
+              if(sender.track) peer.pc.removeTrack(sender);
+            }
+          }catch(_err){ /* no-op */ }
+          for(const track of stream.getTracks()){
+            peer.pc.addTrack(track, stream);
+          }
+        }
+        for(const peer of secureLive.roster){
+          if(peer?.id && peer.id !== secureLive.selfId && secureLive.selfId < peer.id){
+            secureLiveOfferTo(peer.id).catch(()=>{});
+          }
+        }
+        setSecureLiveStatus(`Live feed connected • sharing to up to ${MAX_SECURE_LIVE_ROWS} rows`);
+        secureLiveRenderRows();
+        return true;
+      }
+
+      function secureLiveStopSharing(){
+        secureLive.sharing = false;
+        if(secureLive.localStream){
+          secureLive.localStream.getTracks().forEach((track)=>track.stop());
+          secureLive.localStream = null;
+        }
+        secureLiveRenderRows();
+        setSecureLiveStatus("Live feed connected • local camera stopped");
+      }
+
+      function secureLiveEnsureSocket(){
+        if(secureLive.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(secureLive.socket.readyState)) return;
+        const ws = new WebSocket(secureLiveWsUrl());
+        secureLive.socket = ws;
+        ws.addEventListener("open", ()=>{
+          secureLive.socketOpen = true;
+          secureLive.reconnectDelayMs = 1200;
+          secureLiveSend({ type: "join", user: secureLive.user });
+          secureLiveSend({ type: "secure-live-join", user: secureLive.user });
+          setSecureLiveStatus("Live feed connected • waiting for peers…");
+        });
+        ws.addEventListener("close", ()=>{
+          secureLive.socketOpen = false;
+          secureLive.selfId = "";
+          secureLive.roster = [];
+          setSecureLiveStatus("Live feed disconnected • reconnecting…");
+          if(secureLive.reconnectTimer) clearTimeout(secureLive.reconnectTimer);
+          secureLive.reconnectTimer = setTimeout(()=>{
+            secureLiveEnsureSocket();
+          }, secureLive.reconnectDelayMs);
+          secureLive.reconnectDelayMs = Math.min(10000, Math.floor(secureLive.reconnectDelayMs * 1.6));
+        });
+        ws.addEventListener("message", async (event)=>{
+          let msg = null;
+          try{ msg = JSON.parse(event.data); }catch(_err){ return; }
+          if(!msg || typeof msg !== "object") return;
+          if(msg.type === "id"){
+            secureLive.selfId = msg.id || "";
+            secureLiveRenderRows();
+            return;
+          }
+          if(msg.type === "secure-live-users"){
+            secureLive.roster = Array.isArray(msg.users) ? msg.users.filter((u)=>u && u.id) : [];
+            const activeIds = new Set(secureLive.roster.map((u)=>u.id));
+            for(const [id, peer] of secureLive.peers.entries()){
+              if(!activeIds.has(id)){
+                try{ peer.pc.close(); }catch(_err){ /* no-op */ }
+                secureLive.peers.delete(id);
+              }
+            }
+            for(const peer of secureLive.roster){
+              if(peer.id !== secureLive.selfId) secureLivePeerById(peer.id);
+            }
+            for(const peer of secureLive.roster){
+              if(peer.id !== secureLive.selfId && secureLive.selfId && secureLive.selfId < peer.id && secureLive.sharing){
+                secureLiveOfferTo(peer.id).catch(()=>{});
+              }
+            }
+            secureLiveRenderRows();
+            return;
+          }
+          if(msg.type === "offer" && msg.id && msg.sdp){
+            const peer = secureLivePeerById(msg.id);
+            await peer.pc.setRemoteDescription(msg.sdp);
+            if(secureLive.localStream){
+              const senders = peer.pc.getSenders();
+              const existing = new Set(senders.map((s)=>s.track?.id).filter(Boolean));
+              for(const track of secureLive.localStream.getTracks()){
+                if(!existing.has(track.id)) peer.pc.addTrack(track, secureLive.localStream);
+              }
+            }
+            const answer = await peer.pc.createAnswer();
+            await peer.pc.setLocalDescription(answer);
+            secureLiveSend({ type: "answer", id: msg.id, sdp: peer.pc.localDescription });
+            return;
+          }
+          if(msg.type === "answer" && msg.id && msg.sdp){
+            const peer = secureLive.peers.get(msg.id);
+            if(peer) await peer.pc.setRemoteDescription(msg.sdp);
+            return;
+          }
+          if(msg.type === "candidate" && msg.id && msg.candidate){
+            const peer = secureLive.peers.get(msg.id) || secureLivePeerById(msg.id);
+            try{ await peer.pc.addIceCandidate(msg.candidate); }catch(_err){ /* no-op */ }
+          }
+        });
+      }
 
       /***********************
        * Boot UI
@@ -2181,6 +2473,12 @@
 
       // Try device list (labels may be blank until permission)
       ensureDevicesDiscoveredOnLoad();
+      secureLiveEnsureSocket();
+      setTimeout(()=>{
+        secureLiveStartSharing().catch((err)=>{
+          setSecureLiveStatus(`Live feed connected • camera permission pending (${err?.message || "not granted"})`);
+        });
+      }, 500);
       watchCameraPermission();
       window.addEventListener("pagehide", ()=>hardResetCameras("page hidden"));
       window.addEventListener("beforeunload", ()=>hardResetCameras("page unload"));
@@ -2812,6 +3110,25 @@
         });
       }
 
+      if(btnSecureLiveStart){
+        btnSecureLiveStart.addEventListener("click", async ()=>{
+          try{
+            await secureLiveStartSharing();
+            toast("Secure live sharing started.");
+          }catch(err){
+            toast("Camera access is required for Secure live sharing.");
+            setSecureLiveStatus(`Live feed error: ${err?.message || err}`);
+          }
+        });
+      }
+
+      if(btnSecureLiveStop){
+        btnSecureLiveStop.addEventListener("click", ()=>{
+          secureLiveStopSharing();
+          toast("Secure live sharing stopped.");
+        });
+      }
+
       const persistTuneConfig = (msg="")=>{
         saveJSON(LS_KEYS.tunedAlert, tunedAlertConfig);
         updateTuneStatus(msg);
@@ -2957,10 +3274,16 @@
       });
 
       window.addEventListener("pagehide", ()=>{
+        secureLiveSend({ type: "secure-live-leave" });
+        secureLiveStopSharing();
+        if(secureLive.socket){
+          try{ secureLive.socket.close(); }catch(_err){ /* no-op */ }
+        }
         shutdownCamerasOnClose("page closed");
       });
 
       window.addEventListener("beforeunload", ()=>{
+        secureLiveSend({ type: "secure-live-leave" });
         shutdownCamerasOnClose("page closed");
       });
 
