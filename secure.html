@@ -2271,13 +2271,7 @@
       }
 
       function secureLiveWsUrl(){
-        try{
-          const raw = (new URL(window.location.href)).searchParams.get("ws");
-          const normalized = normalizeWsOverride(raw);
-          if(normalized) return normalized;
-        }catch(_err){ /* no-op */ }
-        const proto = location.protocol === "https:" ? "wss:" : "ws:";
-        return `${proto}//${location.host}/ws`;
+        return "wss://chaines-io-chat.onrender.com/ws";
       }
 
       function setSecureLiveStatus(text){
