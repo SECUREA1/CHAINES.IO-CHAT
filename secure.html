@@ -2256,15 +2256,25 @@
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
 
+      function normalizeWsOverride(raw){
+        if(!raw) return "";
+        const value = String(raw).trim();
+        if(!value) return "";
+        if(/^wss?:\/\//i.test(value)) return value;
+        if(/^https?:\/\//i.test(value)){
+          const parsed = new URL(value);
+          const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
+          const pathname = (!parsed.pathname || parsed.pathname === "/") ? "/ws" : parsed.pathname;
+          return `${proto}//${parsed.host}${pathname}${parsed.search}`;
+        }
+        return "";
+      }
+
       function secureLiveWsUrl(){
         try{
           const raw = (new URL(window.location.href)).searchParams.get("ws");
-          if(raw && /^wss?:\/\//i.test(raw)) return raw;
-          if(raw && /^https?:\/\//i.test(raw)){
-            const parsed = new URL(raw);
-            const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
-            return `${proto}//${parsed.host}${parsed.pathname}${parsed.search}`;
-          }
+          const normalized = normalizeWsOverride(raw);
+          if(normalized) return normalized;
         }catch(_err){ /* no-op */ }
         const proto = location.protocol === "https:" ? "wss:" : "ws:";
         return `${proto}//${location.host}/ws`;
