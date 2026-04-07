@@ -3018,17 +3018,25 @@ body.streams-flex-fit #video-container[hidden] {
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
     }
 
+    function normalizeWsOverride(raw){
+      if(!raw) return '';
+      const value = String(raw).trim();
+      if(!value) return '';
+      if(/^wss?:\/\//i.test(value)) return value;
+      if(/^https?:\/\//i.test(value)){
+        const parsed = new URL(value);
+        const proto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        const pathname = (!parsed.pathname || parsed.pathname === '/') ? '/ws' : parsed.pathname;
+        return `${proto}//${parsed.host}${pathname}${parsed.search}`;
+      }
+      return '';
+    }
+
     function readWsOverrideFromUrl(){
       try{
         const url = new URL(window.location.href);
-        const raw = (url.searchParams.get('ws') || url.searchParams.get('wsUrl') || '').trim();
-        if(!raw) return '';
-        if(/^wss?:\/\//i.test(raw)) return raw;
-        if(/^https?:\/\//i.test(raw)){
-          const parsed = new URL(raw);
-          const proto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-          return `${proto}//${parsed.host}${parsed.pathname}${parsed.search}`;
-        }
+        const raw = url.searchParams.get('ws') || url.searchParams.get('wsUrl') || '';
+        return normalizeWsOverride(raw);
       }catch{}
       return '';
     }

@@ -2256,6 +2256,20 @@
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
 
+      function normalizeWsOverride(raw){
+        if(!raw) return "";
+        const value = String(raw).trim();
+        if(!value) return "";
+        if(/^wss?:\/\//i.test(value)) return value;
+        if(/^https?:\/\//i.test(value)){
+          const parsed = new URL(value);
+          const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
+          const pathname = (!parsed.pathname || parsed.pathname === "/") ? "/ws" : parsed.pathname;
+          return `${proto}//${parsed.host}${pathname}${parsed.search}`;
+        }
+        return "";
+      }
+
       function secureLiveWsUrl(){
         return "wss://chaines-io-chat.onrender.com/ws";
       }
