@@ -800,9 +800,37 @@
     .users-panel li button img { width:16px; height:16px; }
 
     .popup { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); }
-    .popup-content { background:var(--panel); color:var(--fg); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow); min-width:200px; text-align:center; }
+    .popup-content {
+      background: color-mix(in oklab, var(--panel), #020816 28%);
+      color: #9fd3ff;
+      padding:16px;
+      border-radius:var(--radius);
+      box-shadow: 0 0 0 1px rgba(120, 196, 255, 0.4), 0 0 24px rgba(78, 171, 255, 0.35), var(--shadow);
+      min-width:200px;
+      text-align:center;
+    }
+    .popup-content,
+    .popup-content p,
+    .popup-content span,
+    .popup-content strong,
+    .popup-content button {
+      color: #bfe4ff;
+      text-shadow: 0 0 8px rgba(94, 188, 255, 0.72), 0 0 1px rgba(255,255,255,0.45);
+    }
     .popup-actions { margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-    .popup-actions button { padding:6px 12px; border-radius:var(--radius); border:1px solid var(--lining); background:var(--btn); cursor:pointer; }
+    .popup-actions button {
+      padding:6px 12px;
+      border-radius:var(--radius);
+      border:1px solid rgba(120, 196, 255, 0.55);
+      background: color-mix(in oklab, var(--btn), #04132e 35%);
+      color:#d4ecff;
+      cursor:pointer;
+      box-shadow: 0 0 12px rgba(78, 171, 255, 0.22);
+    }
+    .popup-actions button:hover {
+      background: color-mix(in oklab, var(--btn), #0b2550 48%);
+      box-shadow: 0 0 16px rgba(96, 184, 255, 0.35);
+    }
     .popup-actions button img { width:24px; height:24px; display:block; }
 
     .omconsole-modal { position:fixed; inset:0; display:flex; align-items:stretch; justify-content:stretch; background:rgba(0,0,0,0.75); z-index:20; padding:0; overflow:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
