@@ -838,6 +838,7 @@
     recordSelection(walletInfo.key);
     state.walletInfo = walletInfo;
     state.pendingDispense = false;
+    const selectedContract = state.config?.nativeContract || state.config?.policyId || '';
     setStatus(`Access granted with ${walletInfo.name}.`, 'success');
     hideOverlay();
     if(state.connectBtn){
@@ -853,7 +854,7 @@
         walletName: walletInfo.name,
         chain: state.config?.chain || 'cardano',
         currency: state.selectedCurrency || CHAIN_TO_CURRENCY[state.config?.chain] || 'ADA',
-        nativeContract: state.config?.nativeContract || '',
+        nativeContract: selectedContract,
         walletAddress: state.connectedAddress || state.walletAddressBech32 || state.walletAddressHex || ''
       }
     }));
@@ -1232,12 +1233,13 @@
   window.GhostWallet = Object.assign({}, window.GhostWallet, {
     validateAccessForLogin: async () => {
       await connectAndValidate();
+      const selectedContract = state.config?.nativeContract || state.config?.policyId || '';
       return {
         success: !!state.accessGranted,
         walletName: state.walletInfo?.name || '',
         chain: state.config?.chain || 'cardano',
         currency: state.selectedCurrency || CHAIN_TO_CURRENCY[state.config?.chain] || 'ADA',
-        nativeContract: state.config?.nativeContract || '',
+        nativeContract: selectedContract,
         walletAddress: state.connectedAddress || state.walletAddressBech32 || state.walletAddressHex || ''
       };
     },
