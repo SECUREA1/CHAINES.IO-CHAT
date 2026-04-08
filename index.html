@@ -3395,11 +3395,15 @@ body.streams-flex-fit #video-container[hidden] {
     function verificationBadgeForChain(chain, contract, fallbackBadge = '✅ Validated'){
       const normalizedChain = String(chain || '').trim().toLowerCase();
       const compactContract = String(contract || '').trim();
+      const explicitFallback = String(fallbackBadge || '').trim();
+      if(explicitFallback && explicitFallback !== '✅ Validated'){
+        return explicitFallback;
+      }
       if((normalizedChain === 'ethereum' || normalizedChain === 'polygon') && compactContract){
         const chainLabel = normalizedChain === 'ethereum' ? 'ETH' : 'POLY';
         return `✅ ${chainLabel} ${compactContract.slice(0, 6)}…${compactContract.slice(-4)}`;
       }
-      return fallbackBadge;
+      return explicitFallback || '✅ Validated';
     }
 
     function currencyForChain(chain, fallback = 'ADA'){
