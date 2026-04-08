@@ -1599,7 +1599,8 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="btn ghost" id="token-login-validate" type="button">Validate Token</button>
       </div>
       <div class="fields" style="margin-top:8px">
-        <select id="token-login-contract" aria-label="Token contract">
+        <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Token network for validation</label>
+        <select id="token-login-contract" aria-label="Token network">
           <option value="cardano">Cardano contract</option>
           <option value="ethereum">Ethereum contract</option>
           <option value="polygon">Polygon contract</option>
@@ -3298,11 +3299,24 @@ body.streams-flex-fit #video-container[hidden] {
       store.verifiedUsers = verified;
     }
 
+    function currencyForChain(chain, fallback = 'ADA'){
+      const lookup = {
+        cardano: 'ADA',
+        ethereum: 'ETH',
+        polygon: 'MATIC',
+        solana: 'SOL'
+      };
+      const normalized = (chain || '').trim().toLowerCase();
+      return lookup[normalized] || (fallback || 'ADA');
+    }
+
     function syncAuthSelectors(chain, currency){
-      if(authChainSelect) authChainSelect.value = chain || 'cardano';
-      if(authCurrencySelect) authCurrencySelect.value = currency || 'ADA';
+      const normalizedChain = (chain || 'cardano').trim().toLowerCase();
+      const normalizedCurrency = currencyForChain(normalizedChain, currency || 'ADA');
+      if(authChainSelect) authChainSelect.value = normalizedChain;
+      if(authCurrencySelect) authCurrencySelect.value = normalizedCurrency;
       if(tokenLoginContractSelect && chain){
-        tokenLoginContractSelect.value = chain;
+        tokenLoginContractSelect.value = normalizedChain;
       }
     }
 
@@ -3341,6 +3355,7 @@ body.streams-flex-fit #video-container[hidden] {
       });
       const selectedChain = (authChainSelect?.value || 'cardano').toLowerCase();
       tokenLoginContractSelect.value = selectedChain;
+      syncAuthSelectors(selectedChain, authCurrencySelect?.value || currencyForChain(selectedChain));
     }
 
     function evaluateValidationForUser(username, validation){
@@ -3659,7 +3674,7 @@ body.streams-flex-fit #video-container[hidden] {
 
     tokenLoginContractSelect?.addEventListener('change', () => {
       const chain = (tokenLoginContractSelect.value || 'cardano').trim().toLowerCase();
-      const currency = authCurrencySelect?.value || 'ADA';
+      const currency = currencyForChain(chain, authCurrencySelect?.value || 'ADA');
       syncAuthSelectors(chain, currency);
       if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
         window.GhostWallet.setSelection(chain, currency);
@@ -3669,9 +3684,10 @@ body.streams-flex-fit #video-container[hidden] {
 
     authChainSelect?.addEventListener('change', () => {
       const chain = (authChainSelect.value || 'cardano').trim().toLowerCase();
-      syncAuthSelectors(chain, authCurrencySelect?.value || 'ADA');
+      const currency = currencyForChain(chain, authCurrencySelect?.value || 'ADA');
+      syncAuthSelectors(chain, currency);
       if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
-        window.GhostWallet.setSelection(chain, authCurrencySelect?.value || '');
+        window.GhostWallet.setSelection(chain, currency);
       }
     });
 
