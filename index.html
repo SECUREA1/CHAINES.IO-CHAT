@@ -750,6 +750,29 @@
     .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
     .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
+    .composer-main { flex:1; min-width:0; }
+    .composer-panel-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 6px; }
+    .composer-panel-title { font-size:12px; color: var(--muted); text-align:left; margin:0; }
+    .composer-panel-controls { display:flex; align-items:center; gap:6px; }
+    .composer-panel-btn {
+      width:28px;
+      height:28px;
+      border-radius:8px;
+      border:1px solid var(--lining);
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+      color: var(--fg);
+      font-size:16px;
+      line-height:1;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+    }
+    .composer-panel-btn:hover { background: color-mix(in oklab, var(--panel), transparent 2%); }
+    .composer.composer--minimized .marketplace-note,
+    .composer.composer--minimized .marketplace-tools,
+    .composer.composer--minimized .marketplace-panel { display:none; }
+    .composer.composer--minimized .composer-panel-title { opacity:.85; }
     .marketplace-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; margin:0 0 8px; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 15%); }
     .marketplace-panel select,
     .marketplace-panel input { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
@@ -1588,7 +1611,14 @@ body.streams-flex-fit #video-container[hidden] {
 
     <footer>
       <form id="composer" class="composer" autocomplete="off" hidden>
-        <div style="flex:1;min-width:0;">
+        <div class="composer-main">
+          <div class="composer-panel-header">
+            <div class="composer-panel-title">Cloud feed marketplace settings</div>
+            <div class="composer-panel-controls">
+              <button id="composer-minimize" class="composer-panel-btn" type="button" title="Minimize comment panel" aria-label="Minimize comment panel" aria-pressed="false">−</button>
+              <button id="composer-close" class="composer-panel-btn" type="button" title="Close comment panel" aria-label="Close comment panel">×</button>
+            </div>
+          </div>
           <div class="marketplace-note">Cloud feed marketplace settings</div>
           <div class="marketplace-tools">
             <input id="market-search" type="search" placeholder="Search market and cloud posts" />
@@ -1764,6 +1794,8 @@ body.streams-flex-fit #video-container[hidden] {
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const messageBtn = el('#message-btn');
+    const composerMinimizeBtn = el('#composer-minimize');
+    const composerCloseBtn = el('#composer-close');
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -1912,6 +1944,25 @@ body.streams-flex-fit #video-container[hidden] {
       if(!form.hidden){
         autoResize(input);
         input.focus();
+      }
+    });
+    composerMinimizeBtn?.addEventListener('click', () => {
+      const isMinimized = form.classList.toggle('composer--minimized');
+      composerMinimizeBtn.setAttribute('aria-pressed', String(isMinimized));
+      composerMinimizeBtn.title = isMinimized ? 'Expand comment panel' : 'Minimize comment panel';
+      composerMinimizeBtn.setAttribute('aria-label', isMinimized ? 'Expand comment panel' : 'Minimize comment panel');
+      if(!isMinimized){
+        autoResize(input);
+        input.focus();
+      }
+    });
+    composerCloseBtn?.addEventListener('click', () => {
+      form.hidden = true;
+      form.classList.remove('composer--minimized');
+      if(composerMinimizeBtn){
+        composerMinimizeBtn.setAttribute('aria-pressed', 'false');
+        composerMinimizeBtn.title = 'Minimize comment panel';
+        composerMinimizeBtn.setAttribute('aria-label', 'Minimize comment panel');
       }
     });
     const actionCommands = {
