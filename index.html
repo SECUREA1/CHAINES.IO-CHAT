@@ -3486,16 +3486,18 @@ body.streams-flex-fit #video-container[hidden] {
       const normalizedUser = (username || '').trim().toLowerCase();
       const chain = (validation.chain || 'cardano').toLowerCase();
       const currency = (validation.currency || '').toUpperCase();
-      const contract = (validation.nativeContract || '').toLowerCase();
+      const contract = String(validation.nativeContract || '').trim();
+      const contractLower = contract.toLowerCase();
       const configuredContracts = tokenGateContracts();
-      const expectedContract = (configuredContracts[chain] || '').toLowerCase();
-      if(expectedContract && contract && expectedContract !== contract){
+      const expectedContract = String(configuredContracts[chain] || '').trim();
+      const expectedContractLower = expectedContract.toLowerCase();
+      if(expectedContractLower && expectedContractLower !== contractLower){
         return null;
       }
       const userRules = USER_VALIDATION_RULES[normalizedUser];
       if(userRules && userRules[chain]){
         const matchedRule = userRules[chain];
-        if(matchedRule.contract.toLowerCase() !== contract){
+        if(matchedRule.contract.toLowerCase() !== contractLower){
           return null;
         }
         return {
@@ -3709,9 +3711,9 @@ body.streams-flex-fit #video-container[hidden] {
         syncAuthSelectors(result.chain, result.currency);
         const contracts = tokenGateContracts();
         const chain = (result.chain || 'cardano').toLowerCase();
-        const expectedContract = contracts[chain] || '';
-        const contract = result.nativeContract || expectedContract;
-        if(expectedContract && contract && expectedContract.toLowerCase() !== String(contract).toLowerCase()){
+        const expectedContract = String(contracts[chain] || '').trim();
+        const contract = String(result.nativeContract || '').trim();
+        if(expectedContract && expectedContract.toLowerCase() !== contract.toLowerCase()){
           setTokenLoginStatus(`Token validation failed. Selected ${contractDisplayLabel(chain, expectedContract)} but wallet validated a different contract.`, 'error');
           return null;
         }
