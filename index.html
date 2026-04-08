@@ -704,7 +704,7 @@
     }
 
     .actions { margin-top:6px; display:flex; gap:10px; }
-    .like-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
+    .like-btn, .share-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
     .comments { margin-top:6px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
@@ -5297,6 +5297,23 @@ body.streams-flex-fit #video-container[hidden] {
           try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
         });
         actions.appendChild(likeBtn);
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'share-btn';
+        shareBtn.textContent = '🔗 Share';
+        shareBtn.title = 'Share this post to social platforms';
+        shareBtn.addEventListener('click', () => {
+          const payload = getPostSharePayload(m);
+          showPopup('Share post via…', [
+            { label: 'Share…', onClick: () => sharePostNative(payload) },
+            { label: 'X', onClick: () => openExternalShare('x', payload) },
+            { label: 'Facebook', onClick: () => openExternalShare('facebook', payload) },
+            { label: 'LinkedIn', onClick: () => openExternalShare('linkedin', payload) },
+            { label: 'WhatsApp', onClick: () => openExternalShare('whatsapp', payload) },
+            { label: 'Reddit', onClick: () => openExternalShare('reddit', payload) },
+            { label: 'Copy link', onClick: () => copySharePayload(payload) }
+          ]);
+        });
+        actions.appendChild(shareBtn);
 
         const commentsBox = document.createElement('div');
         commentsBox.className = 'comments';
@@ -5424,6 +5441,98 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // --- Helpers ---
+    function getPostSharePayload(m){
+      const listing = normalizeListing(m?.listing || { category: m?.category });
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
+      const details = [
+        m?.text || '',
+        listing.price ? `Price/Salary: ${listing.price}` : '',
+        listing.location ? `Location: ${listing.location}` : '',
+        listing.condition ? `Details: ${listing.condition}` : ''
+      ].filter(Boolean).join(' · ');
+      const title = `@${m?.user || 'user'} on CHAINes`;
+      const description = `${categoryDef.label}${details ? ` — ${details}` : ''}`.trim();
+      const url = `${location.origin}${location.pathname}#post-${encodeURIComponent(m?.id || '')}`;
+      return {
+        title,
+        text: `${title}\n${description}`.trim(),
+        url,
+        mediaData: m?.file || m?.image || '',
+        mediaType: m?.fileType || '',
+        mediaName: m?.fileName || m?.name || ''
+      };
+    }
+
+    async function sharePostNative(payload){
+      const shareData = { title: payload.title, text: payload.text, url: payload.url };
+      try{
+        if(payload.mediaData && payload.mediaData.startsWith('data:') && navigator.canShare && navigator.share){
+          const file = dataUrlToFile(payload.mediaData, payload.mediaName, payload.mediaType);
+          if(file && navigator.canShare({ files: [file] })){
+            await navigator.share({ ...shareData, files: [file] });
+            hidePopup();
+            return;
+          }
+        }
+        if(navigator.share){
+          await navigator.share(shareData);
+          hidePopup();
+          return;
+        }
+        copySharePayload(payload);
+      } catch(err){
+        if(err?.name !== 'AbortError') systemNote('Share canceled or unavailable on this device.');
+      }
+    }
+
+    function openExternalShare(target, payload){
+      const text = encodeURIComponent(payload.text);
+      const url = encodeURIComponent(payload.url);
+      const linkByTarget = {
+        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+        whatsapp: `https://wa.me/?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`,
+        reddit: `https://www.reddit.com/submit?url=${url}&title=${encodeURIComponent(payload.title)}`,
+      };
+      const link = linkByTarget[target];
+      if(link){
+        window.open(link, '_blank', 'noopener,noreferrer');
+        hidePopup();
+      }
+    }
+
+    function dataUrlToFile(dataUrl, suggestedName='', explicitType=''){
+      try{
+        const parts = dataUrl.split(',');
+        const header = parts[0] || '';
+        const base64 = parts[1] || '';
+        if(!header.includes(';base64')) return null;
+        const mime = explicitType || ((header.match(/^data:(.*?);base64$/) || [])[1]) || 'application/octet-stream';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+        const ext = (mime.split('/')[1] || 'bin').split(';')[0];
+        const safeName = suggestedName || `chaines-share-${Date.now()}.${ext}`;
+        return new File([bytes], safeName, { type: mime });
+      } catch {
+        return null;
+      }
+    }
+
+    function copySharePayload(payload){
+      const combined = `${payload.text}\n${payload.url}`.trim();
+      navigator.clipboard?.writeText(combined)
+        .then(() => {
+          hidePopup();
+          systemNote('Post share link copied.');
+        })
+        .catch(() => {
+          hidePopup();
+          prompt('Copy this share text:', combined);
+        });
+    }
+
     function fmtTime(ts){
       const d = new Date(ts || Date.now());
       const h = d.getHours().toString().padStart(2,'0');
