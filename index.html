@@ -1985,22 +1985,6 @@ body.streams-flex-fit #video-container[hidden] {
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
     const wsUrlInput = el('#ws-url');
-    const USER_VALIDATION_RULES = {
-      meknx: {
-        cardano: {
-          contract: 'd1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816',
-          badge: '💎 CHAINeS ADA'
-        },
-        ethereum: {
-          contract: '0xEf74118D5fB730E9B2729c7303DC29980b4771f0',
-          badge: '⚡ MEKNX ETH'
-        },
-        polygon: {
-          contract: '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0',
-          badge: '🟣 A1 POLYGON'
-        }
-      }
-    };
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
     const themeToggleIcon = themeToggle.querySelector('img');
@@ -3426,27 +3410,45 @@ body.streams-flex-fit #video-container[hidden] {
       store.verifiedUsers = verified;
     }
 
-    const TOKEN_CURRENCY_META = {
-      cardano: { currency: 'ADA', label: 'Cardano', palette: ['#0ea5e9', '#60a5fa', '#bae6fd'], glyph: '◈' },
-      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#818cf8', '#6366f1', '#e0e7ff'], glyph: '🤖' },
-      polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ede9fe'], glyph: '⬢' },
-      solana: { currency: 'SOL', label: 'Solana', palette: ['#22d3ee', '#34d399', '#d1fae5'], glyph: '◎' }
-    };
-    const CHAIN_BADGE_LABELS = {
-      cardano: '💎 CHAINeS ADA',
-      ethereum: '🤖 MEKX ETH',
-      polygon: '🟣 A1 POLYGON'
-    };
-
-    function verificationBadgeForChain(chain, contract, fallbackBadge = '✅ Validated'){
-      const normalizedChain = String(chain || '').trim().toLowerCase();
-      const compactContract = String(contract || '').trim();
-      if((normalizedChain === 'ethereum' || normalizedChain === 'polygon') && compactContract){
-        const chainLabel = normalizedChain === 'ethereum' ? 'ETH' : 'POLY';
-        return `✅ ${chainLabel} ${compactContract.slice(0, 6)}…${compactContract.slice(-4)}`;
+    const TOKEN_NETWORKS = {
+      cardano: {
+        currency: 'ADA',
+        label: 'Cardano',
+        badge: '💎 CHAINeS ADA',
+        icon: '◈',
+        palette: ['#0ea5e9', '#60a5fa', '#bae6fd']
+      },
+      ethereum: {
+        currency: 'ETH',
+        label: 'Ethereum',
+        badge: '⚡ MEKNX ETH',
+        icon: 'Ξ',
+        palette: ['#818cf8', '#6366f1', '#e0e7ff']
+      },
+      polygon: {
+        currency: 'MATIC',
+        label: 'Polygon',
+        badge: '🟣 A1 POLYGON',
+        icon: '⬢',
+        palette: ['#a78bfa', '#8b5cf6', '#ede9fe']
+      },
+      solana: {
+        currency: 'SOL',
+        label: 'Solana',
+        badge: '🟩 SOL VERIFIED',
+        icon: '◎',
+        palette: ['#22d3ee', '#34d399', '#d1fae5']
       }
-      return fallbackBadge;
-    }
+    };
+    const TOKEN_CURRENCY_META = Object.fromEntries(
+      Object.entries(TOKEN_NETWORKS).map(([chain, network]) => [chain, {
+        currency: network.currency,
+        label: network.label,
+        badge: network.badge,
+        icon: network.icon,
+        palette: network.palette
+      }])
+    );
 
     function currencyForChain(chain, fallback = 'ADA'){
       const lookup = Object.fromEntries(Object.entries(TOKEN_CURRENCY_META).map(([key, meta]) => [key, meta.currency]));
@@ -3539,38 +3541,20 @@ body.streams-flex-fit #video-container[hidden] {
       if(!validation || !validation.success){
         return null;
       }
-      const normalizedUser = (username || '').trim().toLowerCase();
       const chain = (validation.chain || 'cardano').toLowerCase();
-      const currency = (validation.currency || '').toUpperCase();
+      const chainMeta = TOKEN_CURRENCY_META[chain] || TOKEN_CURRENCY_META.cardano;
+      const currency = (validation.currency || chainMeta.currency || '').toUpperCase();
       const contract = String(validation.nativeContract || '').trim();
       const contractLower = contract.toLowerCase();
       const configuredContracts = tokenGateContracts();
       const expectedContract = String(configuredContracts[chain] || '').trim();
       const expectedContractLower = expectedContract.toLowerCase();
-      if(chain === 'polygon' && !expectedContractLower){
-        return null;
-      }
       if(expectedContractLower && expectedContractLower !== contractLower){
         return null;
       }
-      const userRules = USER_VALIDATION_RULES[normalizedUser];
-      if(userRules && userRules[chain]){
-        const matchedRule = userRules[chain];
-        if(matchedRule.contract.toLowerCase() !== contractLower){
-          return null;
-        }
-        return {
-          verified: true,
-          badge: verificationBadgeForChain(chain, matchedRule.contract, matchedRule.badge || 'Validated'),
-          chain,
-          currency,
-          contract: matchedRule.contract,
-          walletAddress: validation.walletAddress || ''
-        };
-      }
       return {
         verified: true,
-        badge: verificationBadgeForChain(chain, validation.nativeContract || '', CHAIN_BADGE_LABELS[chain] || '✅ Validated'),
+        badge: chainMeta.badge || '✅ Validated',
         chain,
         currency,
         contract: validation.nativeContract || '',
@@ -3610,7 +3594,7 @@ body.streams-flex-fit #video-container[hidden] {
       const ring = 22 + (h1 % 5);
       const core = 8 + (h2 % 8);
       const [c1, c2, c3] = meta.palette;
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.icon || '◈'}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
