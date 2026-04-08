@@ -8,6 +8,10 @@
     polygon: 'MATIC',
     solana: 'SOL'
   };
+  const EVM_CHAIN_IDS = {
+    ethereum: '0x1',
+    polygon: '0x89'
+  };
 
   const state = {
     overlay: null,
@@ -23,6 +27,7 @@
     availableWallets: [],
     selectedWallet: null,
     connectedApi: null,
+    connectedAddress: '',
     walletInfo: null,
     walletAddressHex: null,
     walletAddressBech32: null,
@@ -587,8 +592,18 @@
 
   function getAvailableWallets(){
     if(state.config && state.config.chain && state.config.chain !== 'cardano'){
+      if(state.config.chain === 'ethereum' || state.config.chain === 'polygon'){
+        if(window.ethereum && typeof window.ethereum.request === 'function'){
+          return [{
+            key: 'metamask',
+            name: window.ethereum.isMetaMask ? 'MetaMask' : 'EVM Wallet',
+            apiVersion: 'eip-1193'
+          }];
+        }
+        return [];
+      }
       const label = state.config.chain.charAt(0).toUpperCase() + state.config.chain.slice(1);
-      return [{ key: state.config.chain, name: `${label} token`, apiVersion: 'native-contract' }];
+      return [{ key: state.config.chain, name: `${label} wallet`, apiVersion: 'native-contract' }];
     }
     const provider = window.cardano;
     if(!provider) return [];
@@ -638,7 +653,36 @@
       throw new Error('Access validation is not configured.');
     }
     if(state.config.chain !== 'cardano'){
-      return true;
+      if(state.config.chain === 'ethereum' || state.config.chain === 'polygon'){
+        const owner = (state.connectedAddress || '').replace(/^0x/i, '').toLowerCase();
+        if(!owner){
+          throw new Error('Wallet address is unavailable. Reconnect MetaMask.');
+        }
+        const expectedChainId = EVM_CHAIN_IDS[state.config.chain];
+        if(expectedChainId){
+          let activeChainId = '';
+          try{
+            activeChainId = await api.request({ method: 'eth_chainId' });
+          }catch{}
+          if(activeChainId && activeChainId.toLowerCase() !== expectedChainId.toLowerCase()){
+            try{
+              await api.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: expectedChainId }]
+              });
+            }catch{
+              throw new Error(`Switch MetaMask to ${state.config.chain} before validating.`);
+            }
+          }
+        }
+        const payload = `0x70a08231000000000000000000000000${owner}`;
+        const balanceHex = await api.request({
+          method: 'eth_call',
+          params: [{ to: state.config.nativeContract, data: payload }, 'latest']
+        });
+        return BigInt(balanceHex || '0x0') > 0n;
+      }
+      return false;
     }
     const balanceHex = await api.getBalance();
     return balanceHasAsset(balanceHex, state.config.policyBytes, state.config.assetBytes);
@@ -651,6 +695,7 @@
   function resetWalletAddressCache(){
     state.walletAddressHex = null;
     state.walletAddressBech32 = null;
+    state.connectedAddress = '';
   }
 
   function storeWalletAddressHex(hex){
@@ -660,12 +705,23 @@
   }
 
   async function getWalletAddressHex(){
+    if(state.connectedAddress){
+      return state.connectedAddress;
+    }
     if(state.walletAddressHex){
       return state.walletAddressHex;
     }
     const api = state.connectedApi;
     if(!api){
       throw new Error('Wallet API is not available. Connect a wallet first.');
+    }
+    if((state.config?.chain === 'ethereum' || state.config?.chain === 'polygon') && typeof api.request === 'function'){
+      const accounts = await api.request({ method: 'eth_accounts' });
+      if(Array.isArray(accounts) && accounts[0]){
+        state.connectedAddress = accounts[0];
+        return state.connectedAddress;
+      }
+      throw new Error('No MetaMask account available. Unlock wallet and try again.');
     }
     if(typeof api.getChangeAddress === 'function'){
       try{
@@ -773,9 +829,43 @@
     }
     const wallets = state.availableWallets.length ? state.availableWallets : getAvailableWallets();
     if(state.config && state.config.chain !== 'cardano'){
-      const walletInfo = wallets[0] || { key: state.config.chain, name: `${state.config.chain} token` };
-      setStatus(`Validating ${state.config.chain} native contract…`);
-      onAccessGranted(walletInfo);
+      if(state.config.chain !== 'ethereum' && state.config.chain !== 'polygon'){
+        setStatus(`Wallet validation is unavailable for ${state.config.chain} on this device.`, 'error');
+        return;
+      }
+      const walletInfo = wallets[0] || { key: 'metamask', name: 'MetaMask' };
+      if(!window.ethereum || typeof window.ethereum.request !== 'function'){
+        setStatus('MetaMask is required to validate this contract on mobile or desktop.', 'error');
+        return;
+      }
+      try{
+        setStatus(`Connecting to ${walletInfo.name}…`);
+        if(state.connectBtn) state.connectBtn.disabled = true;
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if(!Array.isArray(accounts) || !accounts[0]){
+          throw new Error('MetaMask did not return an account.');
+        }
+        state.connectedApi = window.ethereum;
+        state.connectedAddress = accounts[0];
+        const hasToken = await verifyToken(state.connectedApi);
+        if(!hasToken){
+          setStatus('Access denied: wallet is valid but does not hold the configured contract token.', 'error');
+          state.connectedApi = null;
+          state.connectedAddress = '';
+          if(state.connectBtn && !state.accessGranted){
+            state.connectBtn.disabled = false;
+          }
+          return;
+        }
+        setStatus('Contract is valid in MetaMask wallet.', 'success');
+        onAccessGranted(walletInfo);
+      }catch(err){
+        console.error('Wallet connection failed', err);
+        setStatus(`Wallet connection failed: ${err?.message || 'MetaMask validation failed.'}`, 'error');
+        if(state.connectBtn && !state.accessGranted){
+          state.connectBtn.disabled = false;
+        }
+      }
       return;
     }
     if(wallets.length === 0){
@@ -1004,6 +1094,20 @@
 
     updateWalletSelect();
     window.addEventListener(CARDANO_EVENT, updateWalletSelect);
+    window.ethereum?.on?.('accountsChanged', (accounts) => {
+      if(!state.accessGranted) return;
+      if(!Array.isArray(accounts) || !accounts[0]){
+        state.accessGranted = false;
+        state.connectedApi = null;
+        state.connectedAddress = '';
+        if(state.walletBtn){
+          state.walletBtn.classList.remove('wallet-connected');
+          refreshWalletButtonLabel();
+        }
+        setStatus('MetaMask disconnected. Reconnect wallet to validate access.', 'error');
+        showOverlay();
+      }
+    });
 
     let attempts = 0;
     const discoverInterval = setInterval(() => {
