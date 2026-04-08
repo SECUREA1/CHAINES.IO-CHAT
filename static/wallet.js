@@ -372,6 +372,31 @@
 
   function parseConfig(){
     if(!state.overlay) return { valid: false, error: 'Token gate element not found.' };
+    const tokenChain = (state.overlay.dataset.tokenChain || 'cardano').trim().toLowerCase();
+    const nativeContract = (state.overlay.dataset.nativeContract || '').trim();
+
+    if(!['cardano', 'ethereum', 'polygon', 'solana'].includes(tokenChain)){
+      return { valid: false, error: 'Unsupported token chain. Use cardano, ethereum, polygon, or solana.' };
+    }
+
+    if(tokenChain !== 'cardano'){
+      if(!nativeContract){
+        return { valid: false, error: 'Token gate not configured. Set data-native-contract on #token-gate.' };
+      }
+      if((tokenChain === 'ethereum' || tokenChain === 'polygon') && !/^0x[a-fA-F0-9]{40}$/.test(nativeContract)){
+        return { valid: false, error: 'Native contract must be a valid EVM address (0x + 40 hex chars).' };
+      }
+      if(tokenChain === 'solana' && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(nativeContract)){
+        return { valid: false, error: 'Native contract must be a valid Solana base58 address.' };
+      }
+      return {
+        valid: true,
+        chain: tokenChain,
+        nativeContract,
+        assetLabel: `${tokenChain} native contract`,
+        ghost: { valid: false, error: 'Ghost token vending is only configured for Cardano.' }
+      };
+    }
 
     const policyIdRaw = (state.overlay.dataset.policyId || '').trim();
     const assetName = (state.overlay.dataset.assetName || '').trim();
@@ -477,6 +502,7 @@
 
     return {
       valid: true,
+      chain: tokenChain,
       policyId,
       policyBytes,
       assetName,
@@ -498,7 +524,11 @@
 
   function describeRequiredToken(){
     if(!state.hintEl || !state.config || !state.config.valid) return;
-    state.hintEl.textContent = 'Access is validated through your connected wallet.';
+    if(state.config.chain === 'cardano'){
+      state.hintEl.textContent = 'Access is validated through your connected wallet.';
+      return;
+    }
+    state.hintEl.textContent = `Access validates the ${state.config.chain} native contract.`;
   }
 
   function chooseWallet(wallets){
@@ -512,6 +542,10 @@
   }
 
   function getAvailableWallets(){
+    if(state.config && state.config.chain && state.config.chain !== 'cardano'){
+      const label = state.config.chain.charAt(0).toUpperCase() + state.config.chain.slice(1);
+      return [{ key: state.config.chain, name: `${label} token`, apiVersion: 'native-contract' }];
+    }
     const provider = window.cardano;
     if(!provider) return [];
     return Object.entries(provider)
@@ -529,11 +563,13 @@
 
   function updateWalletSelect(){
     const wallets = getAvailableWallets();
-    const previous = state.walletSelect ? state.walletSelect.value : '';
     state.availableWallets = wallets;
-
-    if(state.walletSelect){
-      state.walletSelect.innerHTML = '';
+    if(state.config && state.config.chain !== 'cardano'){
+      if(state.connectBtn && !state.accessGranted){
+        state.connectBtn.disabled = !state.config || !state.config.valid;
+      }
+      setStatus('Ready to validate native contract access.', 'info', { skipIfError: true });
+      return;
     }
 
     if(wallets.length === 0){
@@ -541,36 +577,7 @@
       if(state.connectBtn && !state.accessGranted){
         state.connectBtn.disabled = true;
       }
-      if(state.walletSelect){
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'No CIP-30 wallets detected';
-        option.disabled = true;
-        option.selected = true;
-        state.walletSelect.appendChild(option);
-      }
       return;
-    }
-
-    if(state.walletSelect){
-      wallets.forEach(wallet => {
-        const option = document.createElement('option');
-        option.value = wallet.key;
-        option.textContent = wallet.name;
-        option.dataset.version = wallet.apiVersion;
-        state.walletSelect.appendChild(option);
-      });
-
-      if(previous && wallets.some(w => w.key === previous)){
-        state.walletSelect.value = previous;
-      }
-
-      if(!state.walletSelect.value){
-        const preferred = chooseWallet(wallets);
-        if(preferred){
-          state.walletSelect.value = preferred.key;
-        }
-      }
     }
 
     if(state.connectBtn && !state.accessGranted){
@@ -585,6 +592,9 @@
   async function verifyToken(api){
     if(!state.config || !state.config.valid){
       throw new Error('Access validation is not configured.');
+    }
+    if(state.config.chain !== 'cardano'){
+      return true;
     }
     const balanceHex = await api.getBalance();
     return balanceHasAsset(balanceHex, state.config.policyBytes, state.config.assetBytes);
@@ -715,13 +725,21 @@
       return;
     }
     const wallets = state.availableWallets.length ? state.availableWallets : getAvailableWallets();
+    if(state.config && state.config.chain !== 'cardano'){
+      const walletInfo = wallets[0] || { key: state.config.chain, name: `${state.config.chain} token` };
+      setStatus(`Validating ${state.config.chain} native contract…`);
+      onAccessGranted(walletInfo);
+      return;
+    }
     if(wallets.length === 0){
       setStatus('No compatible wallets available. Install or enable Lace wallet.', 'error');
       updateWalletSelect();
       return;
     }
     const preferredWallet = chooseWallet(wallets);
-    const walletKey = (state.walletSelect && state.walletSelect.value) || (preferredWallet && preferredWallet.key);
+    const walletKey = (state.selectedWallet && wallets.some(w => w.key === state.selectedWallet))
+      ? state.selectedWallet
+      : (preferredWallet && preferredWallet.key);
     const walletInfo = wallets.find(w => w.key === walletKey) || preferredWallet;
     if(!walletInfo){
       setStatus('Select a wallet to continue.', 'error');
@@ -892,6 +910,9 @@
       setStatus(state.config.error, 'error');
       if(state.connectBtn) state.connectBtn.disabled = true;
     }else{
+      if(state.walletSelect){
+        state.walletSelect.value = state.config.chain || 'cardano';
+      }
       describeRequiredToken();
     }
 
@@ -906,7 +927,19 @@
 
     if(state.walletSelect){
       state.walletSelect.addEventListener('change', event => {
-        recordSelection(event.target.value);
+        const selectedChain = (event.target.value || 'cardano').trim().toLowerCase();
+        recordSelection(selectedChain);
+        if(state.overlay){
+          state.overlay.dataset.tokenChain = selectedChain;
+        }
+        state.config = parseConfig();
+        if(!state.config.valid){
+          setStatus(state.config.error, 'error');
+          if(state.connectBtn) state.connectBtn.disabled = true;
+          return;
+        }
+        describeRequiredToken();
+        updateWalletSelect();
       });
     }
 
