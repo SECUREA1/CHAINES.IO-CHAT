@@ -1,10 +1,19 @@
 (function(){
   const CARDANO_EVENT = 'cardano#initialized';
+  const CHAIN_KEY = 'mixer_current_chain';
+  const CURRENCY_KEY = 'mixer_current_currency';
+  const CHAIN_TO_CURRENCY = {
+    cardano: 'ADA',
+    ethereum: 'ETH',
+    polygon: 'MATIC',
+    solana: 'SOL'
+  };
 
   const state = {
     overlay: null,
     appShell: null,
     walletSelect: null,
+    currencySelect: null,
     statusEl: null,
     connectBtn: null,
     hintEl: null,
@@ -17,6 +26,7 @@
     walletInfo: null,
     walletAddressHex: null,
     walletAddressBech32: null,
+    selectedCurrency: 'ADA',
     ghostTokenCount: 0,
     pendingDispense: false
   };
@@ -373,7 +383,7 @@
   function parseConfig(){
     if(!state.overlay) return { valid: false, error: 'Token gate element not found.' };
     const tokenChain = (state.overlay.dataset.tokenChain || 'cardano').trim().toLowerCase();
-    const nativeContract = (state.overlay.dataset.nativeContract || '').trim();
+    const nativeContract = resolveNativeContract(tokenChain);
 
     if(!['cardano', 'ethereum', 'polygon', 'solana'].includes(tokenChain)){
       return { valid: false, error: 'Unsupported token chain. Use cardano, ethereum, polygon, or solana.' };
@@ -528,7 +538,41 @@
       state.hintEl.textContent = 'Access is validated through your connected wallet.';
       return;
     }
-    state.hintEl.textContent = `Access validates the ${state.config.chain} native contract.`;
+    state.hintEl.textContent = `Access validates the ${state.config.chain} native contract using ${state.selectedCurrency}.`;
+  }
+
+  function resolveNativeContract(chain){
+    if(!state.overlay) return '';
+    const configured = {
+      ethereum: state.overlay.dataset.ethereumContract || '',
+      polygon: state.overlay.dataset.polygonContract || '',
+      solana: state.overlay.dataset.solanaContract || ''
+    };
+    const fallback = state.overlay.dataset.nativeContract || '';
+    const chainContract = configured[chain] || fallback;
+    return chainContract.trim();
+  }
+
+  function setChainAndCurrency(chain, currency){
+    const normalizedChain = ['cardano', 'ethereum', 'polygon', 'solana'].includes((chain || '').toLowerCase())
+      ? chain.toLowerCase()
+      : 'cardano';
+    const normalizedCurrency = (currency || CHAIN_TO_CURRENCY[normalizedChain] || 'ADA').toUpperCase();
+    if(state.walletSelect){
+      state.walletSelect.value = normalizedChain;
+    }
+    if(state.currencySelect){
+      state.currencySelect.value = normalizedCurrency;
+    }
+    if(state.overlay){
+      state.overlay.dataset.tokenChain = normalizedChain;
+      state.overlay.dataset.nativeContract = resolveNativeContract(normalizedChain);
+    }
+    state.selectedCurrency = normalizedCurrency;
+    try{
+      localStorage.setItem(CHAIN_KEY, normalizedChain);
+      localStorage.setItem(CURRENCY_KEY, normalizedCurrency);
+    }catch{}
   }
 
   function chooseWallet(wallets){
@@ -663,7 +707,10 @@
     window.dispatchEvent(new CustomEvent('wallet:access-granted', {
       detail: {
         walletKey: walletInfo.key,
-        walletName: walletInfo.name
+        walletName: walletInfo.name,
+        chain: state.config?.chain || 'cardano',
+        currency: state.selectedCurrency || CHAIN_TO_CURRENCY[state.config?.chain] || 'ADA',
+        nativeContract: state.config?.nativeContract || ''
       }
     }));
   }
@@ -895,6 +942,7 @@
     state.overlay = document.getElementById('token-gate');
     state.appShell = document.querySelector('.wrap');
     state.walletSelect = document.getElementById('token-gate-wallet');
+    state.currencySelect = document.getElementById('token-gate-currency');
     state.statusEl = document.getElementById('token-gate-status');
     state.connectBtn = document.getElementById('token-gate-connect');
     state.hintEl = state.overlay ? state.overlay.querySelector('.token-gate__hint') : null;
@@ -905,14 +953,19 @@
     }
 
     hideOverlay();
+    let savedChain = 'cardano';
+    let savedCurrency = 'ADA';
+    try{
+      savedChain = (localStorage.getItem(CHAIN_KEY) || 'cardano').toLowerCase();
+      savedCurrency = (localStorage.getItem(CURRENCY_KEY) || CHAIN_TO_CURRENCY[savedChain] || 'ADA').toUpperCase();
+    }catch{}
+    setChainAndCurrency(savedChain, savedCurrency);
     state.config = parseConfig();
     if(!state.config.valid){
       setStatus(state.config.error, 'error');
       if(state.connectBtn) state.connectBtn.disabled = true;
     }else{
-      if(state.walletSelect){
-        state.walletSelect.value = state.config.chain || 'cardano';
-      }
+      setChainAndCurrency(state.config.chain || savedChain, savedCurrency);
       describeRequiredToken();
     }
 
@@ -929,9 +982,8 @@
       state.walletSelect.addEventListener('change', event => {
         const selectedChain = (event.target.value || 'cardano').trim().toLowerCase();
         recordSelection(selectedChain);
-        if(state.overlay){
-          state.overlay.dataset.tokenChain = selectedChain;
-        }
+        const mappedCurrency = CHAIN_TO_CURRENCY[selectedChain] || state.selectedCurrency || 'ADA';
+        setChainAndCurrency(selectedChain, mappedCurrency);
         state.config = parseConfig();
         if(!state.config.valid){
           setStatus(state.config.error, 'error');
@@ -940,6 +992,13 @@
         }
         describeRequiredToken();
         updateWalletSelect();
+      });
+    }
+
+    if(state.currencySelect){
+      state.currencySelect.addEventListener('change', event => {
+        const selectedCurrency = (event.target.value || CHAIN_TO_CURRENCY[state.config?.chain || 'cardano'] || 'ADA').toUpperCase();
+        setChainAndCurrency(state.config?.chain || 'cardano', selectedCurrency);
       });
     }
 
@@ -965,8 +1024,17 @@
       await connectAndValidate();
       return {
         success: !!state.accessGranted,
-        walletName: state.walletInfo?.name || ''
+        walletName: state.walletInfo?.name || '',
+        chain: state.config?.chain || 'cardano',
+        currency: state.selectedCurrency || CHAIN_TO_CURRENCY[state.config?.chain] || 'ADA',
+        nativeContract: state.config?.nativeContract || ''
       };
+    },
+    setSelection: (chain, currency) => {
+      setChainAndCurrency(chain, currency || CHAIN_TO_CURRENCY[(chain || '').toLowerCase()] || 'ADA');
+      state.config = parseConfig();
+      describeRequiredToken();
+      updateWalletSelect();
     },
     isAccessGranted: () => !!state.accessGranted,
     grantGhostToken,

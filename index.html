@@ -1316,7 +1316,7 @@ body.streams-flex-fit #video-container[hidden] {
   </style>
 </head>
 <body>
-  <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="">
+  <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="d1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0x60ff9952e0084a6deac44203838cdc91abec8736" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
     <div class="token-gate__panel">
       <div class="token-gate__art" aria-hidden="true">
         <p class="token-gate__eyebrow">CHAINeS access</p>
@@ -1334,6 +1334,15 @@ body.streams-flex-fit #video-container[hidden] {
             <option value="ethereum">Ethereum token</option>
             <option value="polygon">Polygon token</option>
             <option value="solana">Solana token</option>
+          </select>
+        </label>
+        <label class="token-gate__wallets">
+          <span>Currency</span>
+          <select id="token-gate-currency" aria-label="Token currency">
+            <option value="ADA">ADA</option>
+            <option value="ETH">ETH</option>
+            <option value="MATIC">MATIC</option>
+            <option value="SOL">SOL</option>
           </select>
         </label>
         <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
@@ -1545,6 +1554,18 @@ body.streams-flex-fit #video-container[hidden] {
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
+        <select id="auth-chain" aria-label="Blockchain">
+          <option value="cardano">Cardano</option>
+          <option value="ethereum">Ethereum</option>
+          <option value="polygon">Polygon</option>
+          <option value="solana">Solana</option>
+        </select>
+        <select id="auth-currency" aria-label="Currency">
+          <option value="ADA">ADA</option>
+          <option value="ETH">ETH</option>
+          <option value="MATIC">MATIC</option>
+          <option value="SOL">SOL</option>
+        </select>
       </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
@@ -1840,6 +1861,8 @@ body.streams-flex-fit #video-container[hidden] {
     const usernameInput = el('#username');
     const passwordInput = el('#password');
     const profileInput = el('#profile');
+    const authChainSelect = el('#auth-chain');
+    const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
     const skipBtn = el('#skip');
@@ -1857,6 +1880,18 @@ body.streams-flex-fit #video-container[hidden] {
     const wsEdit = el('#ws-edit');
     const wsCfg = el('#ws-config');
     const wsUrlInput = el('#ws-url');
+    const USER_VALIDATION_RULES = {
+      meknx: {
+        ethereum: {
+          contract: '0x60ff9952e0084a6deac44203838cdc91abec8736',
+          badge: 'Validated'
+        },
+        polygon: {
+          contract: '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0',
+          badge: 'A1 Validated'
+        }
+      }
+    };
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
     const themeToggleIcon = themeToggle.querySelector('img');
@@ -3198,18 +3233,71 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // --- Auth flow ---
-    function isUserVerified(username){
-      if(!username) return false;
+    function verifiedRecordFor(username){
+      if(!username) return null;
       const verified = store.verifiedUsers || {};
-      return !!verified[username];
+      const record = verified[username];
+      if(record && typeof record === 'object'){
+        return record;
+      }
+      if(record === true){
+        return { verified: true, badge: 'Validated' };
+      }
+      return null;
     }
 
-    function setUserVerified(username, isVerified){
+    function isUserVerified(username){
+      if(!username) return false;
+      const record = verifiedRecordFor(username);
+      return !!(record && record.verified !== false);
+    }
+
+    function setUserVerified(username, verification){
       if(!username) return;
       const verified = { ...(store.verifiedUsers || {}) };
-      if(isVerified) verified[username] = true;
+      if(verification){
+        verified[username] = typeof verification === 'object'
+          ? verification
+          : { verified: true, badge: 'Validated' };
+      }
       else delete verified[username];
       store.verifiedUsers = verified;
+    }
+
+    function syncAuthSelectors(chain, currency){
+      if(authChainSelect) authChainSelect.value = chain || 'cardano';
+      if(authCurrencySelect) authCurrencySelect.value = currency || 'ADA';
+    }
+
+    function evaluateValidationForUser(username, validation){
+      if(!validation || !validation.success){
+        return null;
+      }
+      const normalizedUser = (username || '').trim().toLowerCase();
+      const chain = (validation.chain || 'cardano').toLowerCase();
+      const currency = (validation.currency || '').toUpperCase();
+      const contract = (validation.nativeContract || '').toLowerCase();
+      const userRules = USER_VALIDATION_RULES[normalizedUser];
+      if(userRules && userRules[chain]){
+        const matchedRule = userRules[chain];
+        if(matchedRule.contract.toLowerCase() !== contract){
+          return null;
+        }
+        return {
+          verified: true,
+          badge: matchedRule.badge || 'Validated',
+          chain,
+          currency,
+          contract: matchedRule.contract
+        };
+      }
+      return {
+        verified: true,
+        badge: 'Validated',
+        chain,
+        currency,
+        contract: validation.nativeContract || ''
+      };
     }
 
     function setTokenLoginStatus(message, tone = 'info'){
@@ -3224,8 +3312,16 @@ body.streams-flex-fit #video-container[hidden] {
 
     async function ensureTokenValidated(){
       if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
+        const chain = authChainSelect?.value || 'cardano';
+        const currency = authCurrencySelect?.value || 'ADA';
         setTokenLoginStatus('Token validated. You are ready to sign in.', 'success');
-        return true;
+        return {
+          success: true,
+          walletName: 'wallet',
+          chain,
+          currency,
+          nativeContract: ''
+        };
       }
       if(!(window.GhostWallet && typeof window.GhostWallet.validateAccessForLogin === 'function')){
         setTokenLoginStatus('Wallet validation is unavailable right now.', 'error');
@@ -3234,11 +3330,12 @@ body.streams-flex-fit #video-container[hidden] {
       setTokenLoginStatus('Connecting wallet and validating token…');
       const result = await window.GhostWallet.validateAccessForLogin();
       if(result && result.success){
+        syncAuthSelectors(result.chain, result.currency);
         setTokenLoginStatus(`Token validated with ${result.walletName || 'wallet'}.`, 'success');
-        return true;
+        return result;
       }
       setTokenLoginStatus('Token validation failed. Please validate your wallet token first.', 'error');
-      return false;
+      return null;
     }
 
     function updateProfileVerificationBadge(username){
@@ -3266,7 +3363,7 @@ body.streams-flex-fit #video-container[hidden] {
     function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
-      setUserVerified(store.user, !!opts.verified);
+      setUserVerified(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
@@ -3294,7 +3391,9 @@ body.streams-flex-fit #video-container[hidden] {
       else sendJoin();
       if (!bc) setupLocal();
       input && input.focus();
-      systemNote(`You are signed in as @${store.user}${isUserVerified(store.user) ? ' ✅ validated' : ''}.`);
+      const record = verifiedRecordFor(store.user);
+      const badgeText = record && record.badge ? ` (${record.badge})` : '';
+      systemNote(`You are signed in as @${store.user}${isUserVerified(store.user) ? ` ✅ validated${badgeText}` : ''}.`);
       setupPush();
     }
 
@@ -3337,8 +3436,8 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      const validated = await ensureTokenValidated();
-      if(!validated){
+      const validation = await ensureTokenValidated();
+      if(!validation){
         alert('Please validate your token with the wallet first.');
         return;
       }
@@ -3349,7 +3448,8 @@ body.streams-flex-fit #video-container[hidden] {
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
-        enterChat(data.username, data.profilePic, { verified: true });
+        const verification = evaluateValidationForUser(data.username || name, validation);
+        enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         alert(data?.error || 'Login failed');
       }
@@ -3362,8 +3462,8 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      const validated = await ensureTokenValidated();
-      if(!validated){
+      const validation = await ensureTokenValidated();
+      if(!validation){
         alert('Please validate your token with the wallet first.');
         return;
       }
@@ -3372,7 +3472,11 @@ body.streams-flex-fit #video-container[hidden] {
       fd.append('password', pass);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       const res = await fetch('/register', { method:'POST', body: fd });
-      if(res.ok){ await doLogin(); }
+      if(res.ok){
+        const verification = evaluateValidationForUser(name, validation);
+        setUserVerified(name, verification);
+        await doLogin();
+      }
       else {
         const data = await res.json().catch(()=>({}));
         alert(data.error || 'Registration failed');
@@ -3390,7 +3494,27 @@ body.streams-flex-fit #video-container[hidden] {
       await ensureTokenValidated();
     });
 
-    window.addEventListener('wallet:access-granted', () => {
+    authChainSelect?.addEventListener('change', () => {
+      const chain = (authChainSelect.value || 'cardano').trim().toLowerCase();
+      syncAuthSelectors(chain, authCurrencySelect?.value || 'ADA');
+      if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
+        window.GhostWallet.setSelection(chain, authCurrencySelect?.value || '');
+      }
+    });
+
+    authCurrencySelect?.addEventListener('change', () => {
+      const chain = authChainSelect?.value || 'cardano';
+      const currency = authCurrencySelect?.value || 'ADA';
+      syncAuthSelectors(chain, currency);
+      if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
+        window.GhostWallet.setSelection(chain, currency);
+      }
+    });
+
+    window.addEventListener('wallet:access-granted', (event) => {
+      const chain = event?.detail?.chain || 'cardano';
+      const currency = event?.detail?.currency || 'ADA';
+      syncAuthSelectors(chain, currency);
       setTokenLoginStatus('Token validated. You can now login with a green verified badge.', 'success');
     });
 
