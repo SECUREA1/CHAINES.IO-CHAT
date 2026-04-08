@@ -3802,29 +3802,6 @@ body.streams-flex-fit #video-container[hidden] {
           return '';
         }
       };
-      if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
-        const chain = authChainSelect?.value || 'cardano';
-        const currency = authCurrencySelect?.value || 'ADA';
-        const contracts = tokenGateContracts();
-        const contract = contracts[chain] || '';
-        const walletAddress = await resolveWalletAddress();
-        const walletLink = explorerLinkForRecord({ chain, contract, walletAddress });
-        setTokenLoginStatus({
-          text: contractDisplayLabel(chain, contract),
-          seed: `${chain}:${contract}:validated`,
-          chain,
-          currency,
-          walletLink
-        }, 'success');
-        return {
-          success: true,
-          walletName: 'wallet',
-          chain,
-          currency,
-          nativeContract: contract,
-          walletAddress
-        };
-      }
       if(!(window.GhostWallet && typeof window.GhostWallet.validateAccessForLogin === 'function')){
         setTokenLoginStatus('Wallet validation is unavailable right now.', 'error');
         return false;
