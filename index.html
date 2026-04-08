@@ -711,7 +711,7 @@
       background-color: var(--caption-bg);
     }
 
-    .post-actions { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
+    .post-actions { margin-top:10px; display:flex; flex-wrap:nowrap; gap:8px; align-items:center; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
     .reaction-btn {
       border:1px solid var(--lining);
       background: color-mix(in oklab, var(--panel), transparent 10%);
@@ -724,7 +724,13 @@
       line-height:1;
       display:inline-flex;
       align-items:center;
+      justify-content:center;
+      flex:1 1 0;
+      min-width:0;
       gap:6px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
       transition: transform .15s ease, border-color .2s ease, background .2s ease;
     }
     .reaction-btn:hover,
@@ -735,7 +741,7 @@
       outline: none;
     }
     .like-btn { font-weight:700; }
-    .reaction-btn[data-kind="share"] { margin-left:auto; }
+    .reaction-btn[data-kind="share"] { margin-left:0; }
     .comments { margin-top:8px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
