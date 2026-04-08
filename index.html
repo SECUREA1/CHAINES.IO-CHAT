@@ -402,6 +402,21 @@
       font-size: 13px;
       color: var(--muted);
     }
+    .token-login-status__entry {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-weight:600;
+    }
+    .token-login-status__icon {
+      width:20px;
+      height:20px;
+      border-radius:7px;
+      border:1px solid rgba(255,255,255,.35);
+      object-fit:cover;
+      box-shadow:0 0 10px rgba(74, 222, 128, 0.35);
+      flex:0 0 auto;
+    }
     .token-login-status[data-tone="success"] { color: #4ade80; }
     .token-login-status[data-tone="error"] { color: var(--danger); }
     #live-chip { display:inline-flex; align-items:center; gap:4px; }
@@ -1583,6 +1598,14 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
         <button class="btn ghost" id="token-login-validate" type="button">Validate Token</button>
       </div>
+      <div class="fields" style="margin-top:8px">
+        <select id="token-login-contract" aria-label="Token contract">
+          <option value="cardano">Cardano contract</option>
+          <option value="ethereum">Ethereum contract</option>
+          <option value="polygon">Polygon contract</option>
+          <option value="solana">Solana contract</option>
+        </select>
+      </div>
       <p id="token-login-status" class="token-login-status" role="status" aria-live="polite"></p>
       <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
@@ -1877,6 +1900,7 @@ body.streams-flex-fit #video-container[hidden] {
     const registerBtn = el('#register');
     const skipBtn = el('#skip');
     const tokenLoginValidateBtn = el('#token-login-validate');
+    const tokenLoginContractSelect = el('#token-login-contract');
     const tokenLoginStatus = el('#token-login-status');
     const profileLink = el('#profile-link');
     const profilePicEl = el('#profile-pic');
@@ -3277,6 +3301,46 @@ body.streams-flex-fit #video-container[hidden] {
     function syncAuthSelectors(chain, currency){
       if(authChainSelect) authChainSelect.value = chain || 'cardano';
       if(authCurrencySelect) authCurrencySelect.value = currency || 'ADA';
+      if(tokenLoginContractSelect && chain){
+        tokenLoginContractSelect.value = chain;
+      }
+    }
+
+    function tokenGateContracts(){
+      const gate = el('#token-gate');
+      const read = (attr) => (gate?.dataset?.[attr] || '').trim();
+      return {
+        cardano: read('policyId'),
+        ethereum: read('ethereumContract'),
+        polygon: read('polygonContract'),
+        solana: read('solanaContract')
+      };
+    }
+
+    function contractDisplayLabel(chain, contract){
+      const labels = {
+        cardano: 'Cardano policy',
+        ethereum: 'Ethereum contract',
+        polygon: 'Polygon contract',
+        solana: 'Solana contract'
+      };
+      const normalizedChain = (chain || 'cardano').toLowerCase();
+      const compact = contract ? `${contract.slice(0, 6)}…${contract.slice(-4)}` : 'not set';
+      return `${labels[normalizedChain] || 'Contract'} ${compact}`;
+    }
+
+    function initTokenContractPicker(){
+      if(!tokenLoginContractSelect) return;
+      const contracts = tokenGateContracts();
+      tokenLoginContractSelect.innerHTML = '';
+      ['cardano', 'ethereum', 'polygon', 'solana'].forEach((chain) => {
+        const option = document.createElement('option');
+        option.value = chain;
+        option.textContent = contractDisplayLabel(chain, contracts[chain]);
+        tokenLoginContractSelect.appendChild(option);
+      });
+      const selectedChain = (authChainSelect?.value || 'cardano').toLowerCase();
+      tokenLoginContractSelect.value = selectedChain;
     }
 
     function evaluateValidationForUser(username, validation){
@@ -3371,7 +3435,22 @@ body.streams-flex-fit #video-container[hidden] {
 
     function setTokenLoginStatus(message, tone = 'info'){
       if(!tokenLoginStatus) return;
-      tokenLoginStatus.textContent = message || '';
+      tokenLoginStatus.textContent = '';
+      if(message && typeof message === 'object'){
+        const wrap = document.createElement('span');
+        wrap.className = 'token-login-status__entry';
+        const icon = document.createElement('img');
+        icon.className = 'token-login-status__icon';
+        icon.alt = '';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.src = tokenBadgeSvgDataUrl(message.seed || 'chaines-validated');
+        const label = document.createElement('span');
+        label.textContent = message.text || '';
+        wrap.append(icon, label);
+        tokenLoginStatus.appendChild(wrap);
+      } else {
+        tokenLoginStatus.textContent = message || '';
+      }
       if(tone === 'success' || tone === 'error'){
         tokenLoginStatus.dataset.tone = tone;
       } else {
@@ -3383,13 +3462,18 @@ body.streams-flex-fit #video-container[hidden] {
       if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
         const chain = authChainSelect?.value || 'cardano';
         const currency = authCurrencySelect?.value || 'ADA';
-        setTokenLoginStatus('Token validated. You are ready to sign in.', 'success');
+        const contracts = tokenGateContracts();
+        const contract = contracts[chain] || '';
+        setTokenLoginStatus({
+          text: contractDisplayLabel(chain, contract),
+          seed: `${chain}:${contract}:validated`
+        }, 'success');
         return {
           success: true,
           walletName: 'wallet',
           chain,
           currency,
-          nativeContract: ''
+          nativeContract: contract
         };
       }
       if(!(window.GhostWallet && typeof window.GhostWallet.validateAccessForLogin === 'function')){
@@ -3400,7 +3484,13 @@ body.streams-flex-fit #video-container[hidden] {
       const result = await window.GhostWallet.validateAccessForLogin();
       if(result && result.success){
         syncAuthSelectors(result.chain, result.currency);
-        setTokenLoginStatus(`Token validated with ${result.walletName || 'wallet'}.`, 'success');
+        const contracts = tokenGateContracts();
+        const chain = (result.chain || 'cardano').toLowerCase();
+        const contract = result.nativeContract || contracts[chain] || '';
+        setTokenLoginStatus({
+          text: contractDisplayLabel(chain, contract),
+          seed: `${chain}:${contract}:${result.walletName || 'wallet'}`
+        }, 'success');
         return result;
       }
       setTokenLoginStatus('Token validation failed. Please validate your wallet token first.', 'error');
@@ -3567,6 +3657,16 @@ body.streams-flex-fit #video-container[hidden] {
       await ensureTokenValidated();
     });
 
+    tokenLoginContractSelect?.addEventListener('change', () => {
+      const chain = (tokenLoginContractSelect.value || 'cardano').trim().toLowerCase();
+      const currency = authCurrencySelect?.value || 'ADA';
+      syncAuthSelectors(chain, currency);
+      if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
+        window.GhostWallet.setSelection(chain, currency);
+      }
+      setTokenLoginStatus(`Selected ${contractDisplayLabel(chain, tokenGateContracts()[chain])}.`);
+    });
+
     authChainSelect?.addEventListener('change', () => {
       const chain = (authChainSelect.value || 'cardano').trim().toLowerCase();
       syncAuthSelectors(chain, authCurrencySelect?.value || 'ADA');
@@ -3588,8 +3688,14 @@ body.streams-flex-fit #video-container[hidden] {
       const chain = event?.detail?.chain || 'cardano';
       const currency = event?.detail?.currency || 'ADA';
       syncAuthSelectors(chain, currency);
-      setTokenLoginStatus('Token validated. You can now login with a green verified badge.', 'success');
+      const contract = event?.detail?.contract || tokenGateContracts()[chain] || '';
+      setTokenLoginStatus({
+        text: contractDisplayLabel(chain, contract),
+        seed: `${chain}:${contract}:access-granted`
+      }, 'success');
     });
+
+    initTokenContractPicker();
 
     // Enter key on fields
     [usernameInput, passwordInput].forEach(inp => inp.addEventListener('keydown', (e) => {
