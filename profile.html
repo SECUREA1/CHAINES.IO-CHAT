@@ -52,6 +52,19 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .relation-list{list-style:none;margin:0;padding:0;}
 .relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
 .dating-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+.verified-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:3px 9px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  background:#14532d;
+  color:#bbf7d0;
+  border:1px solid #22c55e;
+}
+.verified-badge::before{content:'●';color:#22c55e;font-size:10px;}
 </style>
 </head>
 <body>
@@ -60,6 +73,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   <div class="profile-header">
     <img id="p-avatar" alt="avatar" />
     <h2 id="p-name"></h2>
+    <span id="p-verified" class="verified-badge" hidden>Validated</span>
     <button id="follow-btn" class="follow-btn"></button>
     <button id="message-btn" class="follow-btn" hidden>Message</button>
   </div>
@@ -118,6 +132,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   let currentUser = fallbackUser;
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
+  const verifiedEl = document.getElementById('p-verified');
   const descEl = document.getElementById('p-desc');
   const feedEl = document.getElementById('p-feed');
   const followBtn = document.getElementById('follow-btn');
@@ -141,6 +156,15 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   let profileData = null;
   let activeTab = 'posts';
+
+  function verifiedUsers(){
+    try{
+      const parsed = JSON.parse(localStorage.getItem('chaines_verified_users') || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    }catch{
+      return {};
+    }
+  }
 
   backBtn.onclick = () => { window.location.href = '/'; };
 
@@ -458,6 +482,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const data = normalizeProfileData(await res.json());
     profileData = data;
     nameEl.textContent = '@' + data.username;
+    verifiedEl.hidden = !verifiedUsers()[data.username];
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);

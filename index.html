@@ -371,6 +371,29 @@
     #invite-cc button + button { border-left:1px solid var(--lining); }
     #profile-link { display:inline-flex; align-items:center; gap:4px; }
     #profile-link img { width:24px; height:24px; border-radius:50%; }
+    .verified-badge {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:700;
+      line-height:1.2;
+      background:#14532d;
+      color:#bbf7d0;
+      border:1px solid #22c55e;
+      box-shadow:0 0 8px rgba(34, 197, 94, 0.35);
+    }
+    .verified-badge::before { content: '●'; color:#22c55e; margin-right:6px; font-size:10px; }
+    .token-login-status {
+      margin: 6px 0 0;
+      min-height: 1.3em;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .token-login-status[data-tone="success"] { color: #4ade80; }
+    .token-login-status[data-tone="error"] { color: var(--danger); }
     #live-chip { display:inline-flex; align-items:center; gap:4px; }
     #end-btn {
       background: var(--danger);
@@ -1474,7 +1497,7 @@ body.streams-flex-fit #video-container[hidden] {
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
-        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span></a>
+        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span><span id="profile-verified-badge" class="verified-badge" hidden>Validated</span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
         <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
       </div>
@@ -1518,7 +1541,9 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
+        <button class="btn ghost" id="token-login-validate" type="button">Validate Token</button>
       </div>
+      <p id="token-login-status" class="token-login-status" role="status" aria-live="polite"></p>
       <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
         <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
@@ -1809,9 +1834,12 @@ body.streams-flex-fit #video-container[hidden] {
     const loginBtn = el('#login');
     const registerBtn = el('#register');
     const skipBtn = el('#skip');
+    const tokenLoginValidateBtn = el('#token-login-validate');
+    const tokenLoginStatus = el('#token-login-status');
     const profileLink = el('#profile-link');
     const profilePicEl = el('#profile-pic');
     const profileNameEl = el('#profile-name');
+    const profileVerifiedBadgeEl = el('#profile-verified-badge');
     const logoutBtn = el('#logout-btn');
     const connChip = el('#conn-chip');
     const connIcon = el('#conn-icon');
@@ -2257,6 +2285,20 @@ body.streams-flex-fit #video-container[hidden] {
       set obsKey(v) {
         try { v ? localStorage.setItem('chaines_obs_key', v) : localStorage.removeItem('chaines_obs_key'); }
         catch {}
+      },
+      get verifiedUsers() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem('chaines_verified_users') || '{}');
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+          return {};
+        }
+      },
+      set verifiedUsers(value) {
+        try {
+          const safe = value && typeof value === 'object' ? value : {};
+          localStorage.setItem('chaines_verified_users', JSON.stringify(safe));
+        } catch {}
       },
       pushMsg(m) {
         try {
@@ -3147,9 +3189,57 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // --- Auth flow ---
+    function isUserVerified(username){
+      if(!username) return false;
+      const verified = store.verifiedUsers || {};
+      return !!verified[username];
+    }
+
+    function setUserVerified(username, isVerified){
+      if(!username) return;
+      const verified = { ...(store.verifiedUsers || {}) };
+      if(isVerified) verified[username] = true;
+      else delete verified[username];
+      store.verifiedUsers = verified;
+    }
+
+    function setTokenLoginStatus(message, tone = 'info'){
+      if(!tokenLoginStatus) return;
+      tokenLoginStatus.textContent = message || '';
+      if(tone === 'success' || tone === 'error'){
+        tokenLoginStatus.dataset.tone = tone;
+      } else {
+        delete tokenLoginStatus.dataset.tone;
+      }
+    }
+
+    async function ensureTokenValidated(){
+      if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
+        setTokenLoginStatus('Token validated. You are ready to sign in.', 'success');
+        return true;
+      }
+      if(!(window.GhostWallet && typeof window.GhostWallet.validateAccessForLogin === 'function')){
+        setTokenLoginStatus('Wallet validation is unavailable right now.', 'error');
+        return false;
+      }
+      setTokenLoginStatus('Connecting wallet and validating token…');
+      const result = await window.GhostWallet.validateAccessForLogin();
+      if(result && result.success){
+        setTokenLoginStatus(`Token validated with ${result.walletName || 'wallet'}.`, 'success');
+        return true;
+      }
+      setTokenLoginStatus('Token validation failed. Please validate your wallet token first.', 'error');
+      return false;
+    }
+
+    function updateProfileVerificationBadge(username){
+      if(!profileVerifiedBadgeEl) return;
+      profileVerifiedBadgeEl.hidden = !isUserVerified(username);
+    }
+
     function requireAuth(){
       if (store.user) {
-        enterChat(store.user, store.profilePic);
+        enterChat(store.user, store.profilePic, { verified: isUserVerified(store.user) });
       } else {
         auth.hidden = false;
         auth.classList.remove('is-hidden');
@@ -3159,17 +3249,20 @@ body.streams-flex-fit #video-container[hidden] {
         auth.style.top = top + 'px';
         auth.style.bottom = bottom + 'px';
         document.body.classList.add('auth-lock');
+        setTokenLoginStatus('');
         setTimeout(() => usernameInput && usernameInput.focus(), 50);
       }
     }
 
-    function enterChat(name, profilePic){
+    function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
+      setUserVerified(store.user, !!opts.verified);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
         profileNameEl.textContent = '@' + store.user;
+        updateProfileVerificationBadge(store.user);
         if(store.profilePic){
           profilePicEl.src = store.profilePic;
           profilePicEl.hidden = false;
@@ -3192,7 +3285,7 @@ body.streams-flex-fit #video-container[hidden] {
       else sendJoin();
       if (!bc) setupLocal();
       input && input.focus();
-      systemNote(`You are signed in as @${store.user}.`);
+      systemNote(`You are signed in as @${store.user}${isUserVerified(store.user) ? ' ✅ validated' : ''}.`);
       setupPush();
     }
 
@@ -3235,6 +3328,11 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      const validated = await ensureTokenValidated();
+      if(!validated){
+        alert('Please validate your token with the wallet first.');
+        return;
+      }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -3242,7 +3340,7 @@ body.streams-flex-fit #video-container[hidden] {
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
-        enterChat(data.username, data.profilePic);
+        enterChat(data.username, data.profilePic, { verified: true });
       } else {
         alert(data?.error || 'Login failed');
       }
@@ -3255,6 +3353,11 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      const validated = await ensureTokenValidated();
+      if(!validated){
+        alert('Please validate your token with the wallet first.');
+        return;
+      }
       const fd = new FormData();
       fd.append('username', name);
       fd.append('password', pass);
@@ -3270,7 +3373,16 @@ body.streams-flex-fit #video-container[hidden] {
     skipBtn.addEventListener('click', (e) => {
       e.preventDefault();
       store.profilePic='';
-      enterChat('guest-' + Math.floor(Math.random()*9999));
+      enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
+    });
+
+    tokenLoginValidateBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await ensureTokenValidated();
+    });
+
+    window.addEventListener('wallet:access-granted', () => {
+      setTokenLoginStatus('Token validated. You can now login with a green verified badge.', 'success');
     });
 
     // Enter key on fields
@@ -3428,6 +3540,7 @@ body.streams-flex-fit #video-container[hidden] {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
         type: 'chat',
         user: store.user,
+        verified: isUserVerified(store.user),
         profilePic: store.profilePic,
           text: text,
           room: room,
@@ -4344,7 +4457,22 @@ body.streams-flex-fit #video-container[hidden] {
 
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.innerHTML = `<span class="who">@${escapeHTML(m.user)}</span> · <span>${fmtTime(m.ts)}</span>`;
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = `@${m.user}`;
+      meta.appendChild(who);
+      if(m.verified){
+        const badge = document.createElement('span');
+        badge.className = 'verified-badge';
+        badge.textContent = 'Validated';
+        meta.appendChild(badge);
+      }
+      const dot = document.createElement('span');
+      dot.textContent = '·';
+      meta.appendChild(dot);
+      const time = document.createElement('span');
+      time.textContent = fmtTime(m.ts);
+      meta.appendChild(time);
       const listing = normalizeListing(m.listing || { category: m.category });
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
 
