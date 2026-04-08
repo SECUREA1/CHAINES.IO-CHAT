@@ -2219,7 +2219,6 @@ body.streams-flex-fit #video-container[hidden] {
         catch {}
       },
       get wsURL() {
-        if(wsOverrideFromUrl) return wsOverrideFromUrl;
         try { return localStorage.getItem('chaines_ws_url') || defaultWS(); }
         catch { return defaultWS(); }
       },
@@ -3018,34 +3017,12 @@ body.streams-flex-fit #video-container[hidden] {
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify({ type:'join', user: store.user })); } catch {}
     }
 
-    function normalizeWsOverride(raw){
-      if(!raw) return '';
-      const value = String(raw).trim();
-      if(!value) return '';
-      if(/^wss?:\/\//i.test(value)) return value;
-      if(/^https?:\/\//i.test(value)){
-        const parsed = new URL(value);
-        const proto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-        const pathname = (!parsed.pathname || parsed.pathname === '/') ? '/ws' : parsed.pathname;
-        return `${proto}//${parsed.host}${pathname}${parsed.search}`;
-      }
-      return '';
-    }
-
-    function readWsOverrideFromUrl(){
-      try{
-        const url = new URL(window.location.href);
-        const raw = url.searchParams.get('ws') || url.searchParams.get('wsUrl') || '';
-        return normalizeWsOverride(raw);
-      }catch{}
-      return '';
-    }
-    const wsOverrideFromUrl = readWsOverrideFromUrl();
-
     function defaultWS(){
+      const host = (location.hostname && !/localhost|127\\.0\\.0\\.1/.test(location.hostname))
+        ? 'chaines-io-chat.onrender.com'
+        : location.host;
       const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-      if(location.host) return proto + location.host + '/ws';
-      return 'wss://chaines-io-chat.onrender.com/ws';
+      return proto + host + '/ws';
     }
 
     function setStatus(mode){
@@ -4301,12 +4278,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     function sendSignal(data){
-      if(socket && socket.readyState === 1){
-        try { socket.send(JSON.stringify(data)); return; } catch {}
-      }
-      if(onlineMode === 'cloud' || broadcasting || pendingJoinHost || pendingMicHost){
-        sendCloudMessage(data);
-      }
+      try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
       function receive(m, isLocal=false){
