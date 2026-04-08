@@ -310,7 +310,7 @@
     .composer-actions .send { width:56px; height:56px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #omconsole-gaming-demos-btn { cursor:pointer; }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #streams-fit-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #omconsole-gaming-demos-btn { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -322,7 +322,7 @@
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
       #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
-      #streams-fit-btn img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #watchtower-btn-mobile img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img, #omconsole-gaming-demos-btn img {
+      #streams-fit-btn img, #streams-fit-btn-mobile img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #watchtower-btn-mobile img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img, #omconsole-gaming-demos-btn img {
         width:24px;
         height:24px;
         display:block;
@@ -1608,6 +1608,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
@@ -1831,6 +1832,8 @@ body.streams-flex-fit #video-container[hidden] {
     const messageBtn = el('#message-btn');
     const composerMinimizeBtn = el('#composer-minimize');
     const composerCloseBtn = el('#composer-close');
+    const isMobileViewport = () => window.matchMedia('(max-width: 600px)').matches;
+    let composerOpenedOnce = false;
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -1974,11 +1977,25 @@ body.streams-flex-fit #video-container[hidden] {
     syncMarketModeToggleLabel();
     syncMarketplaceHints();
 
+    function openComposer(){
+      form.hidden = false;
+      if(!composerOpenedOnce && isMobileViewport()){
+        form.classList.add('composer--minimized');
+        if(composerMinimizeBtn){
+          composerMinimizeBtn.setAttribute('aria-pressed', 'true');
+          composerMinimizeBtn.title = 'Expand comment panel';
+          composerMinimizeBtn.setAttribute('aria-label', 'Expand comment panel');
+        }
+      }
+      composerOpenedOnce = true;
+      autoResize(input);
+      input.focus();
+    }
     messageBtn.addEventListener('click', () => {
-      form.hidden = !form.hidden;
-      if(!form.hidden){
-        autoResize(input);
-        input.focus();
+      if(form.hidden){
+        openComposer();
+      } else {
+        form.hidden = true;
       }
     });
     composerMinimizeBtn?.addEventListener('click', () => {
@@ -2172,14 +2189,20 @@ body.streams-flex-fit #video-container[hidden] {
     const pendingThumbs = {};
     const videoToggle = el('#video-toggle');
     const streamsFitBtn = el('#streams-fit-btn');
+    const streamsFitBtnMobile = el('#streams-fit-btn-mobile');
     let streamsFlexFit = false;
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
       videoToggle.innerHTML = `<img src="static/screen.svg" alt="" aria-hidden="true" />${label}`;
     }
     function setStreamsFitLabel(label){
-      if(!streamsFitBtn) return;
-      streamsFitBtn.innerHTML = `<img src="static/split.svg" alt="" aria-hidden="true" />${label}`;
+      if(streamsFitBtn){
+        streamsFitBtn.innerHTML = `<img src="static/split.svg" alt="" aria-hidden="true" />${label}`;
+      }
+      if(streamsFitBtnMobile){
+        streamsFitBtnMobile.setAttribute('title', label);
+        streamsFitBtnMobile.setAttribute('aria-label', label);
+      }
     }
     function setWatchtowerLabel(isOpen){
       if(watchtowerBtn){
@@ -2199,8 +2222,11 @@ body.streams-flex-fit #video-container[hidden] {
       document.body.classList.toggle('streams-flex-fit', streamsFlexFit);
       if(streamsFitBtn){
         streamsFitBtn.setAttribute('aria-pressed', streamsFlexFit ? 'true' : 'false');
-        setStreamsFitLabel(streamsFlexFit ? 'Tiles Row' : 'Flex Fit');
       }
+      if(streamsFitBtnMobile){
+        streamsFitBtnMobile.setAttribute('aria-pressed', streamsFlexFit ? 'true' : 'false');
+      }
+      setStreamsFitLabel(streamsFlexFit ? 'Tiles Row' : 'Flex Fit');
       if(streamsFlexFit) showStream();
     }
     function showStream(){
@@ -2216,12 +2242,26 @@ body.streams-flex-fit #video-container[hidden] {
         document.body.classList.remove('streams-flex-fit');
         if(streamsFitBtn){
           streamsFitBtn.setAttribute('aria-pressed', 'false');
-          setStreamsFitLabel('Flex Fit');
         }
+        if(streamsFitBtnMobile){
+          streamsFitBtnMobile.setAttribute('aria-pressed', 'false');
+        }
+        setStreamsFitLabel('Flex Fit');
       }
       videoContainer.setAttribute('hidden','');
       feed.removeAttribute('hidden');
-      if(form) form.removeAttribute('hidden');
+      if(form){
+        form.removeAttribute('hidden');
+        if(!composerOpenedOnce && isMobileViewport()){
+          form.classList.add('composer--minimized');
+          if(composerMinimizeBtn){
+            composerMinimizeBtn.setAttribute('aria-pressed', 'true');
+            composerMinimizeBtn.title = 'Expand comment panel';
+            composerMinimizeBtn.setAttribute('aria-label', 'Expand comment panel');
+          }
+          composerOpenedOnce = true;
+        }
+      }
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       setVideoToggleLabel('Show Feed');
     }
@@ -2489,6 +2529,9 @@ body.streams-flex-fit #video-container[hidden] {
     syncAdditionalButtonsLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
+    }
+    if(streamsFitBtnMobile){
+      streamsFitBtnMobile.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
 
     // --- Basic state ---
