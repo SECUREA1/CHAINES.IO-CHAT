@@ -703,9 +703,32 @@
       background-color: var(--caption-bg);
     }
 
-    .actions { margin-top:6px; display:flex; gap:10px; }
-    .like-btn, .share-btn { background:transparent; border:0; cursor:pointer; color:var(--fg); }
-    .comments { margin-top:6px; }
+    .post-actions { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
+    .reaction-btn {
+      border:1px solid var(--lining);
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+      color:var(--fg);
+      cursor:pointer;
+      border-radius:999px;
+      padding:6px 10px;
+      font: inherit;
+      font-size:13px;
+      line-height:1;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transition: transform .15s ease, border-color .2s ease, background .2s ease;
+    }
+    .reaction-btn:hover,
+    .reaction-btn:focus-visible {
+      transform: translateY(-1px);
+      border-color: color-mix(in oklab, var(--accent-2), white 20%);
+      background: color-mix(in oklab, var(--panel), var(--accent) 22%);
+      outline: none;
+    }
+    .like-btn { font-weight:700; }
+    .reaction-btn[data-kind="share"] { margin-left:auto; }
+    .comments { margin-top:8px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
     .comment-form input { width:100%; padding:4px; border-radius:8px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); }
@@ -5289,16 +5312,38 @@ body.streams-flex-fit #video-container[hidden] {
 
       if(container === feed){
         const actions = document.createElement('div');
-        actions.className = 'actions';
+        actions.className = 'post-actions';
         const likeBtn = document.createElement('button');
-        likeBtn.className = 'like-btn';
+        likeBtn.className = 'reaction-btn like-btn';
+        likeBtn.type = 'button';
         likeBtn.textContent = `❤️ ${m.likes || 0}`;
+        likeBtn.title = 'Like this post';
         likeBtn.addEventListener('click', () => {
           try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
         });
         actions.appendChild(likeBtn);
+
+        const quickReactions = [
+          { emoji: '👏', label: 'Applaud' },
+          { emoji: '🔥', label: 'Hype' },
+          { emoji: '😂', label: 'Laugh' }
+        ];
+        quickReactions.forEach(r => {
+          const reactBtn = document.createElement('button');
+          reactBtn.className = 'reaction-btn';
+          reactBtn.type = 'button';
+          reactBtn.textContent = `${r.emoji} ${r.label}`;
+          reactBtn.title = `React with ${r.emoji}`;
+          reactBtn.addEventListener('click', () => {
+            try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: `${r.emoji}`, user: store.user })); } catch {}
+          });
+          actions.appendChild(reactBtn);
+        });
+
         const shareBtn = document.createElement('button');
-        shareBtn.className = 'share-btn';
+        shareBtn.className = 'reaction-btn';
+        shareBtn.type = 'button';
+        shareBtn.dataset.kind = 'share';
         shareBtn.textContent = '🔗 Share';
         shareBtn.title = 'Share this post to social platforms';
         shareBtn.addEventListener('click', () => {
