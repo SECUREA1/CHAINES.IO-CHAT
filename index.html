@@ -5123,6 +5123,18 @@ body.streams-flex-fit #video-container[hidden] {
       try { socket && socket.readyState === 1 && socket.send(JSON.stringify(data)); } catch {}
     }
 
+      function hasUserRepostedMessage(messageId){
+        if(!messageId || !store.user) return false;
+        const feedItems = Array.from(feed.querySelectorAll('li.msg'));
+        return feedItems.some(item => {
+          const dataId = item.dataset.id;
+          if(!dataId) return false;
+          const repostOf = item.dataset.repostOf;
+          const author = item.dataset.user;
+          return author === store.user && String(repostOf || dataId) === String(messageId);
+        });
+      }
+
       function receive(m, isLocal=false){
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
@@ -5149,6 +5161,8 @@ body.streams-flex-fit #video-container[hidden] {
         const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
       li.dataset.id = m.id;
+      li.dataset.user = m.user || '';
+      if(m.repostOf) li.dataset.repostOf = String(m.repostOf);
       const postIsMarket = isMarketplacePost(m);
       const postIsCloud = isCloudPost(m);
       li.dataset.marketMode = postIsMarket && postIsCloud ? 'market-cloud' : (postIsMarket ? 'market' : (postIsCloud ? 'cloud' : 'all'));
@@ -5208,6 +5222,15 @@ body.streams-flex-fit #video-container[hidden] {
       const text = document.createElement('div');
       text.className = 'msg-text';
       text.innerHTML = renderText(m.text || '', !!m.isAction);
+      let repostMeta = null;
+      if(m.repostOf){
+        repostMeta = document.createElement('div');
+        repostMeta.className = 'listing-meta';
+        const repostText = m.repostNote || `Reposted by @${m.user}`;
+        repostMeta.textContent = m.repostOriginalUser
+          ? `${repostText} · original @${m.repostOriginalUser}`
+          : repostText;
+      }
 
       if(mine){
         const btn = document.createElement('button');
@@ -5228,6 +5251,7 @@ body.streams-flex-fit #video-container[hidden] {
       categoryChip.textContent = categoryDef.label;
       bubble.appendChild(categoryChip);
       bubble.appendChild(text);
+      if(repostMeta) bubble.appendChild(repostMeta);
       const listingRows = [
         listing.price ? `Price / Salary: ${listing.price}` : '',
         listing.location ? `Location: ${listing.location}` : '',
@@ -5339,6 +5363,34 @@ body.streams-flex-fit #video-container[hidden] {
           });
           actions.appendChild(reactBtn);
         });
+
+        const repostBtn = document.createElement('button');
+        repostBtn.className = 'reaction-btn';
+        repostBtn.type = 'button';
+        repostBtn.dataset.kind = 'repost';
+        repostBtn.textContent = '🔁 Repost';
+        repostBtn.title = 'Repost this post to your timeline (one time only)';
+        const sourceMessageId = m.repostOf || m.id;
+        const alreadyReposted = hasUserRepostedMessage(sourceMessageId);
+        if(alreadyReposted){
+          repostBtn.disabled = true;
+          repostBtn.title = 'You already reposted this post';
+        }
+        repostBtn.addEventListener('click', () => {
+          if(repostBtn.disabled) return;
+          repostBtn.disabled = true;
+          try {
+            if(socket && socket.readyState === 1){
+              socket.send(JSON.stringify({ type:'repost', messageId: sourceMessageId, user: store.user }));
+            } else {
+              repostBtn.disabled = false;
+              systemNote('Connect to cloud to repost.');
+            }
+          } catch {
+            repostBtn.disabled = false;
+          }
+        });
+        actions.appendChild(repostBtn);
 
         const shareBtn = document.createElement('button');
         shareBtn.className = 'reaction-btn';

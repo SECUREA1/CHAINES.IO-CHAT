@@ -57,6 +57,14 @@ db.exec(`
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(message_id, user)
   );
+  CREATE TABLE IF NOT EXISTS reposts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    user TEXT NOT NULL,
+    repost_message_id INTEGER,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(message_id, user)
+  );
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
@@ -130,6 +138,8 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN category TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
@@ -1053,7 +1063,7 @@ function loadDirectHistory(userA = "", userB = "") {
 function loadHistory(room = null) {
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, c.verified, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, c.category, c.listing_data, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, c.verified, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, c.category, c.listing_data, c.repost_of, c.repost_note, o.user as repost_original_user, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username LEFT JOIN chat_messages o ON c.repost_of = o.id WHERE ${where} ORDER BY c.id`
   );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
@@ -1103,6 +1113,9 @@ function loadHistory(room = null) {
       ts: r.ts,
       likes: likes[r.id] || 0,
       comments: comments[r.id] || [],
+      repostOf: r.repost_of || null,
+      repostNote: r.repost_note || "",
+      repostOriginalUser: r.repost_original_user || "",
     };
   });
 }
@@ -1505,6 +1518,114 @@ wss.on("connection", (ws) => {
         const payload = { type: "like", messageId: msg.messageId, count };
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(JSON.stringify(payload));
+        }
+        return;
+      }
+      case "repost": {
+        if (!msg.messageId) return;
+        const actor = sanitizeUsername(msg.user || ws.username || "");
+        if (!actor) return;
+        const source = db
+          .prepare(
+            `SELECT id, user, verified, room, message, image, file, file_name, file_type, category, listing_data
+             FROM chat_messages WHERE id = ?`
+          )
+          .get(msg.messageId);
+        if (!source) return;
+        if (source.room) {
+          ws.send(
+            JSON.stringify({
+              type: "system",
+              text: "Only public feed posts can be reposted.",
+            })
+          );
+          return;
+        }
+        const existing = db
+          .prepare("SELECT id FROM reposts WHERE message_id = ? AND user = ?")
+          .get(msg.messageId, actor);
+        if (existing) {
+          ws.send(
+            JSON.stringify({
+              type: "system",
+              text: "You can repost this post only once.",
+            })
+          );
+          return;
+        }
+        const created = db
+          .prepare(
+            `INSERT INTO chat_messages
+             (user, verified, room, message, image, file, file_name, file_type, category, listing_data, repost_of, repost_note)
+             VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            actor,
+            ws.verified ? 1 : 0,
+            source.message,
+            source.image,
+            source.file,
+            source.file_name,
+            source.file_type,
+            source.category,
+            source.listing_data,
+            source.id,
+            `Reposted by @${actor}`
+          );
+        const repostMessageId = created.lastInsertRowid;
+        db.prepare(
+          "INSERT INTO reposts (message_id, user, repost_message_id) VALUES (?, ?, ?)"
+        ).run(source.id, actor, repostMessageId);
+        const actorProfilePic = db
+          .prepare("SELECT profile_pic FROM users WHERE username=?")
+          .get(actor)?.profile_pic || null;
+        const reposted = {
+          type: "chat",
+          id: repostMessageId,
+          user: actor,
+          verified: !!ws.verified,
+          profilePic: actorProfilePic,
+          room: null,
+          text: source.message,
+          image: source.image,
+          file: source.file,
+          fileName: source.file_name,
+          fileType: source.file_type,
+          category: source.category || "general",
+          listing: normalizeListingPayload(
+            (() => {
+              try {
+                return source.listing_data ? JSON.parse(source.listing_data) : {};
+              } catch {
+                return {};
+              }
+            })(),
+            source.category || "general"
+          ),
+          ts: Date.now(),
+          likes: 0,
+          comments: [],
+          repostOf: source.id,
+          repostNote: `Reposted by @${actor}`,
+          repostOriginalUser: source.user || "",
+        };
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(JSON.stringify(reposted));
+        }
+        if (source.user && source.user !== actor) {
+          db
+            .prepare(
+              "INSERT INTO notifications (username, type, data) VALUES (?, 'repost', ?)"
+            )
+            .run(
+              source.user,
+              JSON.stringify({ from: actor, messageId: source.id, repostMessageId })
+            );
+          sendPush(
+            source.user,
+            "New Repost",
+            `${actor} reposted your post #${source.id}`
+          );
         }
         return;
       }
