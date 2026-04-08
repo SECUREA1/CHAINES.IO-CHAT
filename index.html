@@ -5455,7 +5455,7 @@ body.streams-flex-fit #video-container[hidden] {
           const reactBtn = document.createElement('button');
           reactBtn.className = 'reaction-btn';
           reactBtn.type = 'button';
-          reactBtn.textContent = `${r.emoji} ${r.label}`;
+          reactBtn.textContent = r.emoji;
           reactBtn.title = `React with ${r.emoji}`;
           reactBtn.addEventListener('click', () => {
             try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: `${r.emoji}`, user: store.user })); } catch {}
@@ -5467,7 +5467,7 @@ body.streams-flex-fit #video-container[hidden] {
         repostBtn.className = 'reaction-btn';
         repostBtn.type = 'button';
         repostBtn.dataset.kind = 'repost';
-        repostBtn.textContent = '🔁 Repost';
+        repostBtn.textContent = '🔁';
         repostBtn.title = 'Repost this post to your timeline (one time only)';
         const sourceMessageId = m.repostOf || m.id;
         const alreadyReposted = hasUserRepostedMessage(sourceMessageId);
@@ -5493,7 +5493,7 @@ body.streams-flex-fit #video-container[hidden] {
         shareBtn.className = 'reaction-btn';
         shareBtn.type = 'button';
         shareBtn.dataset.kind = 'share';
-        shareBtn.textContent = '🔗 Share';
+        shareBtn.textContent = '🔗';
         shareBtn.title = 'Share this post to social platforms';
         shareBtn.addEventListener('click', () => {
           const payload = getPostSharePayload(m);
