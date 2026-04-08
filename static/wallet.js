@@ -69,6 +69,19 @@
     return normalized.toLowerCase();
   }
 
+  function isValidEvmAddress(value){
+    return /^0x[a-fA-F0-9]{40}$/.test((value || '').trim());
+  }
+
+  function normalizeEvmAddress(value, label){
+    const raw = (value || '').trim();
+    if(!isValidEvmAddress(raw)){
+      const prefix = label ? `${label} ` : '';
+      throw new Error(`${prefix}must be a valid EVM address (0x + 40 hex chars).`);
+    }
+    return `0x${raw.slice(2).toLowerCase()}`;
+  }
+
   function stringToBytes(str){
     return new TextEncoder().encode(str);
   }
@@ -700,10 +713,8 @@
     }
     if(state.config.chain !== 'cardano'){
       if(state.config.chain === 'ethereum' || state.config.chain === 'polygon'){
-        const owner = (state.connectedAddress || '').replace(/^0x/i, '').toLowerCase();
-        if(!owner){
-          throw new Error('Wallet address is unavailable. Reconnect MetaMask.');
-        }
+        const ownerAddress = normalizeEvmAddress(state.connectedAddress, 'Wallet address');
+        const owner = ownerAddress.slice(2);
         const expectedChainId = EVM_CHAIN_IDS[state.config.chain];
         if(expectedChainId){
           let activeChainId = '';
@@ -795,7 +806,7 @@
     if((state.config?.chain === 'ethereum' || state.config?.chain === 'polygon') && typeof api.request === 'function'){
       const accounts = await api.request({ method: 'eth_accounts' });
       if(Array.isArray(accounts) && accounts[0]){
-        state.connectedAddress = accounts[0];
+        state.connectedAddress = normalizeEvmAddress(accounts[0], 'MetaMask account');
         return state.connectedAddress;
       }
       throw new Error('No MetaMask account available. Unlock wallet and try again.');
@@ -949,7 +960,7 @@
             throw new Error('MetaMask did not return an account.');
           }
           state.connectedApi = window.ethereum;
-          state.connectedAddress = accounts[0];
+          state.connectedAddress = normalizeEvmAddress(accounts[0], 'MetaMask account');
         }
         const hasToken = await verifyToken(state.connectedApi);
         if(!hasToken){
@@ -1203,7 +1214,23 @@
     window.addEventListener(CARDANO_EVENT, updateWalletSelect);
     window.ethereum?.on?.('accountsChanged', (accounts) => {
       if(!state.accessGranted) return;
-      if(!Array.isArray(accounts) || !accounts[0]){
+      const nextAccount = Array.isArray(accounts) && accounts[0]
+        ? (() => {
+          try{
+            return normalizeEvmAddress(accounts[0], 'MetaMask account');
+          }catch{
+            return '';
+          }
+        })()
+        : '';
+      const activeAccount = (() => {
+        try{
+          return state.connectedAddress ? normalizeEvmAddress(state.connectedAddress, 'Wallet address') : '';
+        }catch{
+          return '';
+        }
+      })();
+      if(!nextAccount || (activeAccount && nextAccount !== activeAccount)){
         state.accessGranted = false;
         state.connectedApi = null;
         state.connectedAddress = '';
@@ -1211,7 +1238,7 @@
           state.walletBtn.classList.remove('wallet-connected');
           refreshWalletButtonLabel();
         }
-        setStatus('MetaMask disconnected. Reconnect wallet to validate access.', 'error');
+        setStatus('MetaMask account changed. Reconnect wallet to validate access.', 'error');
         showOverlay();
       }
     });
