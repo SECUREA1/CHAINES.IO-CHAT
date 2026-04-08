@@ -3392,6 +3392,16 @@ body.streams-flex-fit #video-container[hidden] {
       polygon: '🟣 A1 POLYGON'
     };
 
+    function verificationBadgeForChain(chain, contract, fallbackBadge = '✅ Validated'){
+      const normalizedChain = String(chain || '').trim().toLowerCase();
+      const compactContract = String(contract || '').trim();
+      if((normalizedChain === 'ethereum' || normalizedChain === 'polygon') && compactContract){
+        const chainLabel = normalizedChain === 'ethereum' ? 'ETH' : 'POLY';
+        return `✅ ${chainLabel} ${compactContract.slice(0, 6)}…${compactContract.slice(-4)}`;
+      }
+      return fallbackBadge;
+    }
+
     function currencyForChain(chain, fallback = 'ADA'){
       const lookup = Object.fromEntries(Object.entries(TOKEN_CURRENCY_META).map(([key, meta]) => [key, meta.currency]));
       const normalized = (chain || '').trim().toLowerCase();
@@ -3502,7 +3512,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         return {
           verified: true,
-          badge: matchedRule.badge || 'Validated',
+          badge: verificationBadgeForChain(chain, matchedRule.contract, matchedRule.badge || 'Validated'),
           chain,
           currency,
           contract: matchedRule.contract,
@@ -3511,7 +3521,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       return {
         verified: true,
-        badge: CHAIN_BADGE_LABELS[chain] || '✅ Validated',
+        badge: verificationBadgeForChain(chain, validation.nativeContract || '', CHAIN_BADGE_LABELS[chain] || '✅ Validated'),
         chain,
         currency,
         contract: validation.nativeContract || '',
