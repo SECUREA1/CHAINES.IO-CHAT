@@ -396,7 +396,10 @@
 
     if(tokenChain !== 'cardano'){
       if(!nativeContract){
-        return { valid: false, error: 'Token gate not configured. Set data-native-contract on #token-gate.' };
+        const attr = tokenChain === 'ethereum'
+          ? 'data-ethereum-contract'
+          : (tokenChain === 'polygon' ? 'data-polygon-contract' : 'data-solana-contract');
+        return { valid: false, error: `Token gate not configured. Set ${attr} on #token-gate.` };
       }
       if((tokenChain === 'ethereum' || tokenChain === 'polygon') && !/^0x[a-fA-F0-9]{40}$/.test(nativeContract)){
         return { valid: false, error: 'Native contract must be a valid EVM address (0x + 40 hex chars).' };
@@ -590,6 +593,25 @@
     return laceWallet || wallets[0];
   }
 
+  function revokeAccess(reason){
+    state.accessGranted = false;
+    state.connectedApi = null;
+    state.walletInfo = null;
+    state.pendingDispense = false;
+    state.ghostTokenCount = 0;
+    resetWalletAddressCache();
+    if(state.walletBtn){
+      state.walletBtn.classList.remove('wallet-connected');
+      refreshWalletButtonLabel();
+    }
+    if(state.connectBtn){
+      state.connectBtn.disabled = !state.config || !state.config.valid;
+    }
+    if(reason){
+      setStatus(reason, 'info', { skipIfError: true });
+    }
+  }
+
   function getAvailableWallets(){
     if(state.config && state.config.chain && state.config.chain !== 'cardano'){
       if(state.config.chain === 'ethereum' || state.config.chain === 'polygon'){
@@ -607,7 +629,7 @@
     }
     const provider = window.cardano;
     if(!provider) return [];
-    return Object.entries(provider)
+    const wallets = Object.entries(provider)
       .filter(([key, wallet]) => {
         if(key === 'hw' || key === 'namiObject' || key === '__zone_symbol__state') return false;
         return wallet && typeof wallet === 'object' && typeof wallet.enable === 'function';
@@ -618,6 +640,14 @@
         icon: wallet.icon || null,
         apiVersion: wallet.apiVersion || '1.0'
       }));
+    if(state.config?.chain === 'cardano'){
+      return wallets.filter(wallet => {
+        const key = (wallet.key || '').toLowerCase();
+        const name = (wallet.name || '').toLowerCase();
+        return key.includes('lace') || name.includes('lace');
+      });
+    }
+    return wallets;
   }
 
   function updateWalletSelect(){
@@ -1071,11 +1101,14 @@
     if(state.walletSelect){
       state.walletSelect.addEventListener('change', event => {
         const selectedChain = (event.target.value || 'cardano').trim().toLowerCase();
-        recordSelection(selectedChain);
+        if(state.accessGranted){
+          revokeAccess('Network changed. Reconnect wallet to validate the selected contract.');
+        }
         const mappedCurrency = CHAIN_TO_CURRENCY[selectedChain] || state.selectedCurrency || 'ADA';
         setChainAndCurrency(selectedChain, mappedCurrency);
         state.config = parseConfig();
         if(!state.config.valid){
+          revokeAccess();
           setStatus(state.config.error, 'error');
           if(state.connectBtn) state.connectBtn.disabled = true;
           return;
