@@ -650,6 +650,12 @@
       state.walletBtn.classList.add('wallet-connected');
       refreshWalletButtonLabel();
     }
+    window.dispatchEvent(new CustomEvent('wallet:access-granted', {
+      detail: {
+        walletKey: walletInfo.key,
+        walletName: walletInfo.name
+      }
+    }));
   }
 
   async function syncGhostTokenCount({ silent } = {}){
@@ -922,6 +928,14 @@
   }
 
   window.GhostWallet = Object.assign({}, window.GhostWallet, {
+    validateAccessForLogin: async () => {
+      await connectAndValidate();
+      return {
+        success: !!state.accessGranted,
+        walletName: state.walletInfo?.name || ''
+      };
+    },
+    isAccessGranted: () => !!state.accessGranted,
     grantGhostToken,
     getGhostTokenCount: () => state.ghostTokenCount,
     refreshGhostTokenCount: () => syncGhostTokenCount({ silent: true }),

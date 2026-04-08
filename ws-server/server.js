@@ -32,6 +32,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
+    verified INTEGER DEFAULT 0,
     room TEXT,
     message TEXT,
     image TEXT,
@@ -126,6 +127,7 @@ db.exec(`
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN category TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
@@ -1051,7 +1053,7 @@ function loadDirectHistory(userA = "", userB = "") {
 function loadHistory(room = null) {
   const where = room ? "c.room = ?" : "c.room IS NULL";
   const stmt = db.prepare(
-    `SELECT c.id, c.user, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, c.category, c.listing_data, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
+    `SELECT c.id, c.user, c.verified, u.profile_pic, c.room, c.message, c.image, c.file, c.file_name, c.file_type, c.category, c.listing_data, strftime('%s', c.timestamp) * 1000 as ts FROM chat_messages c LEFT JOIN users u ON c.user = u.username WHERE ${where} ORDER BY c.id`
   );
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
@@ -1088,6 +1090,7 @@ function loadHistory(room = null) {
       type: "chat",
       id: r.id,
       user: r.user,
+      verified: !!r.verified,
       profilePic: r.profile_pic,
       room: r.room,
       text: r.message,
@@ -1603,10 +1606,11 @@ wss.on("connection", (ws) => {
     msg.profilePic = u?.profile_pic || null;
     const info = db
       .prepare(
-        "INSERT INTO chat_messages (user, room, message, image, file, file_name, file_type, category, listing_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO chat_messages (user, verified, room, message, image, file, file_name, file_type, category, listing_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         msg.user || "",
+        msg.verified ? 1 : 0,
         msg.room || null,
         text,
         msg.image || null,
