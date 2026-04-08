@@ -3362,10 +3362,56 @@ body.streams-flex-fit #video-container[hidden] {
       return null;
     }
 
+    function sessionValidationRecordFor(username){
+      if(!username) return null;
+      try{
+        const raw = sessionStorage.getItem('chaines_session_validation');
+        if(!raw) return null;
+        const parsed = JSON.parse(raw);
+        if(!parsed || typeof parsed !== 'object') return null;
+        if(parsed.username !== username) return null;
+        const chain = String(parsed.chain || '').toLowerCase();
+        const contract = String(parsed.contract || '').trim();
+        if(!chain || !contract) return null;
+        return parsed;
+      }catch{
+        return null;
+      }
+    }
+
+    function setSessionValidationRecord(username, verification){
+      if(!username) return;
+      if(!verification || verification.verified === false){
+        sessionStorage.removeItem('chaines_session_validation');
+        return;
+      }
+      const chain = String(verification.chain || '').toLowerCase();
+      const contract = String(verification.contract || '').trim();
+      if(!chain || !contract){
+        sessionStorage.removeItem('chaines_session_validation');
+        return;
+      }
+      const payload = {
+        username,
+        chain,
+        contract,
+        currency: String(verification.currency || '').toUpperCase(),
+        badge: String(verification.badge || 'Validated')
+      };
+      try{
+        sessionStorage.setItem('chaines_session_validation', JSON.stringify(payload));
+      }catch{}
+    }
+
     function isUserVerified(username){
       if(!username) return false;
       const record = verifiedRecordFor(username);
-      return !!(record && record.verified !== false);
+      if(!(record && record.verified !== false)) return false;
+      const sessionRecord = sessionValidationRecordFor(username);
+      if(!sessionRecord) return false;
+      const recordChain = String(record.chain || '').toLowerCase();
+      const recordContract = String(record.contract || '').trim().toLowerCase();
+      return sessionRecord.chain === recordChain && sessionRecord.contract.toLowerCase() === recordContract;
     }
 
     function setUserVerified(username, verification){
@@ -3382,13 +3428,13 @@ body.streams-flex-fit #video-container[hidden] {
 
     const TOKEN_CURRENCY_META = {
       cardano: { currency: 'ADA', label: 'Cardano', palette: ['#0ea5e9', '#60a5fa', '#bae6fd'], glyph: '◈' },
-      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#818cf8', '#6366f1', '#e0e7ff'], glyph: '◆' },
+      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#818cf8', '#6366f1', '#e0e7ff'], glyph: '🤖' },
       polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ede9fe'], glyph: '⬢' },
       solana: { currency: 'SOL', label: 'Solana', palette: ['#22d3ee', '#34d399', '#d1fae5'], glyph: '◎' }
     };
     const CHAIN_BADGE_LABELS = {
       cardano: '💎 CHAINeS ADA',
-      ethereum: '⚡ MEKNX ETH',
+      ethereum: '🤖 MEKX ETH',
       polygon: '🟣 A1 POLYGON'
     };
 
@@ -3501,6 +3547,9 @@ body.streams-flex-fit #video-container[hidden] {
       const configuredContracts = tokenGateContracts();
       const expectedContract = String(configuredContracts[chain] || '').trim();
       const expectedContractLower = expectedContract.toLowerCase();
+      if(chain === 'polygon' && !expectedContractLower){
+        return null;
+      }
       if(expectedContractLower && expectedContractLower !== contractLower){
         return null;
       }
@@ -3772,6 +3821,7 @@ body.streams-flex-fit #video-container[hidden] {
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       setUserVerified(store.user, opts.verified || null);
+      setSessionValidationRecord(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
@@ -3904,6 +3954,7 @@ body.streams-flex-fit #video-container[hidden] {
     skipBtn.addEventListener('click', (e) => {
       e.preventDefault();
       store.profilePic='';
+      sessionStorage.removeItem('chaines_session_validation');
       enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
     });
 
@@ -3963,7 +4014,13 @@ body.streams-flex-fit #video-container[hidden] {
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); store.user=''; store.profilePic=''; location.reload(); });
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      store.user='';
+      store.profilePic='';
+      sessionStorage.removeItem('chaines_session_validation');
+      location.reload();
+    });
 
     wsEdit.addEventListener('click', () => {
       wsCfg.style.display = wsCfg.style.display==='none' ? 'grid' : 'none';
