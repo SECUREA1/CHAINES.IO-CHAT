@@ -208,15 +208,23 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     return [chain, currency, contract, badge, fallback].filter(Boolean).join('|');
   }
 
-  function tokenBadgeSvgDataUrl(tokenSeed){
+  function tokenBadgeSvgDataUrl(tokenSeed, chain = ''){
     const seed = tokenSeed || 'chaines-validated';
+    const normalizedChain = String(chain || '').toLowerCase();
     const h1 = hashTokenSeed(seed);
     const h2 = hashTokenSeed(`${seed}::alt`);
     const hueA = h1 % 360;
     const hueB = h2 % 360;
     const ring = 24 + (h1 % 26);
     const core = 8 + (h2 % 10);
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='hsl(${hueA} 88% 62%)'/><stop offset='100%' stop-color='hsl(${hueB} 88% 52%)'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='10 6'/><circle r='${core}' fill='url(#g)'/><circle r='${Math.max(core - 4, 2)}' fill='#dbeafe' opacity='.94'/><text x='11' y='-10' font-size='10'>✅</text></g></svg>`;
+    const centerArt = normalizedChain === 'ethereum'
+      ? `<g transform='translate(-10 -10)'><rect x='0' y='0' width='20' height='20' rx='5' fill='#0f172a' stroke='url(#g)' stroke-width='1.8'/><rect x='4' y='5' width='4' height='4' rx='1' fill='#dbeafe'/><rect x='12' y='5' width='4' height='4' rx='1' fill='#dbeafe'/><rect x='6' y='12' width='8' height='3' rx='1.5' fill='#818cf8'/></g>`
+      : normalizedChain === 'polygon'
+        ? `<g transform='translate(0 1)'><polygon points='0,-11 9,-6 9,4 0,9 -9,4 -9,-6' fill='#8b5cf6' opacity='.88'/><polygon points='0,-11 9,-6 0,-1 -9,-6' fill='#ddd6fe' opacity='.95'/><polygon points='0,-1 9,-6 9,4 0,9' fill='#a78bfa' opacity='.9'/></g>`
+        : normalizedChain === 'cardano'
+          ? `<g transform='translate(0 1)'><path d='M0 11C5 4 6 -1 0 -12C-6 -1 -5 4 0 11Z' fill='#f59e0b'/><path d='M-2 -11L0 -15L2 -11' stroke='#84cc16' stroke-width='1.8' fill='none' stroke-linecap='round'/><path d='M0 -6L0 8' stroke='#fde68a' stroke-opacity='.8' stroke-width='1.2'/></g>`
+          : `<circle r='${Math.max(core - 4, 2)}' fill='#dbeafe' opacity='.94'/>`;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='hsl(${hueA} 88% 62%)'/><stop offset='100%' stop-color='hsl(${hueB} 88% 52%)'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='10 6'/><circle r='${core}' fill='url(#g)' opacity='.32'/>${centerArt}<text x='11' y='-10' font-size='10'>✅</text></g></svg>`;
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }
 
@@ -248,7 +256,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       icon.className = 'verified-badge__icon';
       icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
-      icon.src = tokenBadgeSvgDataUrl(seed);
+      icon.src = tokenBadgeSvgDataUrl(seed, record?.chain);
       target.appendChild(icon);
       const walletLink = explorerLinkForRecord(record);
       if(walletLink){

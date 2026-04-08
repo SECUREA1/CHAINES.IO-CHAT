@@ -1,19 +1,12 @@
-<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CHAINeS Cardano gold carrot icon">
   <defs>
-    <linearGradient id="chaines" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00C6FF" />
-      <stop offset="100%" stop-color="#0072FF" />
+    <linearGradient id="carrotGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FACC15" />
+      <stop offset="55%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#B45309" />
     </linearGradient>
   </defs>
-  <circle cx="12" cy="12" r="1.5" fill="url(#chaines)" />
-  <g fill="url(#chaines)">
-    <circle cx="12" cy="4" r="1" />
-    <circle cx="12" cy="20" r="1" />
-    <circle cx="4" cy="12" r="1" />
-    <circle cx="20" cy="12" r="1" />
-    <circle cx="6" cy="6" r="1" />
-    <circle cx="18" cy="6" r="1" />
-    <circle cx="6" cy="18" r="1" />
-    <circle cx="18" cy="18" r="1" />
-  </g>
+  <path d="M12 21C16.5 15 17.8 10.6 12 3C6.2 10.6 7.5 15 12 21Z" fill="url(#carrotGold)" />
+  <path d="M10 4L12 1L14 4M12 2L9 5M12 2L15 5" stroke="#65A30D" stroke-width="1.4" stroke-linecap="round" fill="none" />
+  <path d="M12 7V17" stroke="#FDE68A" stroke-width="1" stroke-linecap="round" opacity="0.85" />
 </svg>

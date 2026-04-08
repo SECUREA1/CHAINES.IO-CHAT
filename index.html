@@ -3338,9 +3338,9 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     const TOKEN_CURRENCY_META = {
-      cardano: { currency: 'ADA', label: 'Cardano', palette: ['#0ea5e9', '#60a5fa', '#bae6fd'], glyph: '◈' },
-      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#818cf8', '#6366f1', '#e0e7ff'], glyph: '◆' },
-      polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ede9fe'], glyph: '⬢' },
+      cardano: { currency: 'ADA', label: 'Cardano', palette: ['#facc15', '#f59e0b', '#fde68a'], glyph: '🥕' },
+      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#93c5fd', '#6366f1', '#dbeafe'], glyph: '🤖' },
+      polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ddd6fe'], glyph: '🎮' },
       solana: { currency: 'SOL', label: 'Solana', palette: ['#22d3ee', '#34d399', '#d1fae5'], glyph: '◎' }
     };
     const CHAIN_BADGE_LABELS = {
@@ -3474,7 +3474,14 @@ body.streams-flex-fit #video-container[hidden] {
       const ring = 22 + (h1 % 5);
       const core = 8 + (h2 % 8);
       const [c1, c2, c3] = meta.palette;
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
+      const centerArt = resolvedChain === 'ethereum'
+        ? `<g transform='translate(-10 -10)'><rect x='0' y='0' width='20' height='20' rx='5' fill='#0f172a' stroke='url(#g)' stroke-width='1.8'/><rect x='4' y='5' width='4' height='4' rx='1' fill='${c3}'/><rect x='12' y='5' width='4' height='4' rx='1' fill='${c3}'/><rect x='6' y='12' width='8' height='3' rx='1.5' fill='${c2}'/></g>`
+        : resolvedChain === 'polygon'
+          ? `<g transform='translate(0 1)'><polygon points='0,-11 9,-6 9,4 0,9 -9,4 -9,-6' fill='${c2}' opacity='.88'/><polygon points='0,-11 9,-6 0,-1 -9,-6' fill='${c3}' opacity='.95'/><polygon points='0,-1 9,-6 9,4 0,9' fill='${c1}' opacity='.9'/></g>`
+          : resolvedChain === 'cardano'
+            ? `<g transform='translate(0 1)'><path d='M0 11C5 4 6 -1 0 -12C-6 -1 -5 4 0 11Z' fill='${c2}'/><path d='M-2 -11L0 -15L2 -11' stroke='#84cc16' stroke-width='1.8' fill='none' stroke-linecap='round'/><path d='M0 -6L0 8' stroke='${c3}' stroke-opacity='.8' stroke-width='1.2'/></g>`
+            : `<text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text>`;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)' opacity='.32'/>${centerArt}<text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
