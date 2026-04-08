@@ -64,7 +64,14 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   color:#bbf7d0;
   border:1px solid #22c55e;
 }
-.verified-badge::before{content:'●';color:#22c55e;font-size:10px;}
+.verified-badge__dot{color:#22c55e;font-size:10px;}
+.verified-badge__icon{
+  width:16px;
+  height:16px;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,0.3);
+  box-shadow:0 0 8px rgba(34,197,94,0.22);
+}
 </style>
 </head>
 <body>
@@ -164,6 +171,62 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     }catch{
       return {};
     }
+  }
+
+  function hashTokenSeed(seed){
+    let h = 2166136261;
+    const text = String(seed || 'chaines-token');
+    for(let i = 0; i < text.length; i += 1){
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function tokenSeedForRecord(record, fallbackUser = ''){
+    if(!record || record.verified === false) return '';
+    const chain = String(record.chain || '').toLowerCase();
+    const currency = String(record.currency || '').toUpperCase();
+    const contract = String(record.contract || '').toLowerCase();
+    const badge = String(record.badge || 'validated').toLowerCase();
+    const fallback = String(fallbackUser || '').toLowerCase();
+    return [chain, currency, contract, badge, fallback].filter(Boolean).join('|');
+  }
+
+  function tokenBadgeSvgDataUrl(tokenSeed){
+    const seed = tokenSeed || 'chaines-validated';
+    const h1 = hashTokenSeed(seed);
+    const h2 = hashTokenSeed(`${seed}::alt`);
+    const hueA = h1 % 360;
+    const hueB = h2 % 360;
+    const ring = 24 + (h1 % 26);
+    const core = 8 + (h2 % 10);
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='hsl(${hueA} 88% 62%)'/><stop offset='100%' stop-color='hsl(${hueB} 88% 52%)'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='10 6'/><circle r='${core}' fill='url(#g)'/><circle r='${Math.max(core - 4, 2)}' fill='#dbeafe' opacity='.94'/></g></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  function decorateVerifiedBadge(target, username){
+    if(!target) return;
+    const record = verifiedUsers()[username];
+    target.textContent = '';
+    const seed = tokenSeedForRecord(record, username);
+    if(seed){
+      const icon = document.createElement('img');
+      icon.className = 'verified-badge__icon';
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.src = tokenBadgeSvgDataUrl(seed);
+      target.appendChild(icon);
+    } else {
+      const dot = document.createElement('span');
+      dot.className = 'verified-badge__dot';
+      dot.textContent = '●';
+      dot.setAttribute('aria-hidden', 'true');
+      target.appendChild(dot);
+    }
+    const text = document.createElement('span');
+    text.textContent = record?.badge || 'Validated';
+    target.appendChild(text);
   }
 
   backBtn.onclick = () => { window.location.href = '/'; };
@@ -482,7 +545,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const data = normalizeProfileData(await res.json());
     profileData = data;
     nameEl.textContent = '@' + data.username;
-    verifiedEl.hidden = !verifiedUsers()[data.username];
+    const verifiedRecord = verifiedUsers()[data.username];
+    verifiedEl.hidden = !verifiedRecord;
+    if(verifiedRecord){
+      decorateVerifiedBadge(verifiedEl, data.username);
+    }
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
