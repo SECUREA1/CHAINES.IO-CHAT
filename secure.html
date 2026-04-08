@@ -2063,17 +2063,6 @@
         return `${location.protocol}//${raw.replace(/\/+$/, "")}`;
       }
 
-      function wsUrlFromHttpBase(base){
-        try{
-          const parsed = new URL(normalizeBroadcastBase(base));
-          const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
-          return `${proto}//${parsed.host}/ws`;
-        }catch{
-          const proto = location.protocol === "https:" ? "wss:" : "ws:";
-          return `${proto}//${location.host}/ws`;
-        }
-      }
-
       function getSelectedBroadcastServers(){
         const selected = Array.isArray(settings.broadcastServers) ? settings.broadcastServers : [];
         const picked = BROADCAST_SERVER_OPTIONS.filter((srv)=>selected.includes(srv.id));
@@ -2119,8 +2108,6 @@
         for(const srv of servers){
           const base = normalizeBroadcastBase(srv.base);
           if(!base) continue;
-          const wsUrl = wsUrlFromHttpBase(base);
-          const frameSrc = `${base}/index.html?ws=${encodeURIComponent(wsUrl)}&channel=${encodeURIComponent(srv.id)}`;
           const safeLabel = escapeHtml(srv.label);
           const safeBase = escapeHtml(base);
           const card = document.createElement("article");
@@ -2132,7 +2119,7 @@
             </div>
             <iframe
               class="broadcast-feed-frame"
-              src="${frameSrc}"
+              src="${base}/index.html"
               loading="lazy"
               allow="camera *; microphone *; autoplay *; fullscreen *; display-capture *"
               referrerpolicy="no-referrer-when-downgrade"
@@ -2255,20 +2242,6 @@
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
-
-      function normalizeWsOverride(raw){
-        if(!raw) return "";
-        const value = String(raw).trim();
-        if(!value) return "";
-        if(/^wss?:\/\//i.test(value)) return value;
-        if(/^https?:\/\//i.test(value)){
-          const parsed = new URL(value);
-          const proto = parsed.protocol === "https:" ? "wss:" : "ws:";
-          const pathname = (!parsed.pathname || parsed.pathname === "/") ? "/ws" : parsed.pathname;
-          return `${proto}//${parsed.host}${pathname}${parsed.search}`;
-        }
-        return "";
-      }
 
       function secureLiveWsUrl(){
         return "wss://chaines-io-chat.onrender.com/ws";
