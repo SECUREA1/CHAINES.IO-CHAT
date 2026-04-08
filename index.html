@@ -396,6 +396,28 @@
       object-fit:cover;
       flex:0 0 auto;
     }
+    .verified-badge__wallet-link {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:16px;
+      height:16px;
+      border-radius:6px;
+      border:1px solid rgba(255,255,255,0.34);
+      background:rgba(2, 6, 23, 0.35);
+      box-shadow:0 0 10px rgba(125, 211, 252, 0.2);
+      text-decoration:none;
+      transition:transform .15s ease, box-shadow .15s ease;
+    }
+    .verified-badge__wallet-link:hover {
+      transform: translateY(-1px);
+      box-shadow:0 0 12px rgba(125, 211, 252, 0.4);
+    }
+    .verified-badge__wallet-link img {
+      width:12px;
+      height:12px;
+      border-radius:0;
+    }
     .token-login-status {
       margin: 6px 0 0;
       min-height: 1.3em;
@@ -416,6 +438,22 @@
       object-fit:cover;
       box-shadow:0 0 10px rgba(74, 222, 128, 0.35);
       flex:0 0 auto;
+    }
+    .token-login-status__wallet-link {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:20px;
+      height:20px;
+      border-radius:7px;
+      border:1px solid rgba(255,255,255,.35);
+      background:rgba(2, 6, 23, 0.5);
+      box-shadow:0 0 10px rgba(125, 211, 252, 0.25);
+      text-decoration:none;
+    }
+    .token-login-status__wallet-link img {
+      width:14px;
+      height:14px;
     }
     .token-login-status[data-tone="success"] { color: #4ade80; }
     .token-login-status[data-tone="error"] { color: var(--danger); }
@@ -1906,13 +1944,17 @@ body.streams-flex-fit #video-container[hidden] {
     const wsUrlInput = el('#ws-url');
     const USER_VALIDATION_RULES = {
       meknx: {
+        cardano: {
+          contract: 'd1ec168628a7cdbb92e8d92a184503223626188ddd2d34811b7f5816',
+          badge: '💎 CHAINeS ADA'
+        },
         ethereum: {
           contract: '0x60ff9952e0084a6deac44203838cdc91abec8736',
-          badge: 'Validated'
+          badge: '⚡ MEKNX ETH'
         },
         polygon: {
           contract: '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0',
-          badge: 'A1 Validated'
+          badge: '🟣 A1 POLYGON'
         }
       }
     };
@@ -3301,6 +3343,11 @@ body.streams-flex-fit #video-container[hidden] {
       polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ede9fe'], glyph: '⬢' },
       solana: { currency: 'SOL', label: 'Solana', palette: ['#22d3ee', '#34d399', '#d1fae5'], glyph: '◎' }
     };
+    const CHAIN_BADGE_LABELS = {
+      cardano: '💎 CHAINeS ADA',
+      ethereum: '⚡ MEKNX ETH',
+      polygon: '🟣 A1 POLYGON'
+    };
 
     function currencyForChain(chain, fallback = 'ADA'){
       const lookup = Object.fromEntries(Object.entries(TOKEN_CURRENCY_META).map(([key, meta]) => [key, meta.currency]));
@@ -3381,15 +3428,17 @@ body.streams-flex-fit #video-container[hidden] {
           badge: matchedRule.badge || 'Validated',
           chain,
           currency,
-          contract: matchedRule.contract
+          contract: matchedRule.contract,
+          walletAddress: validation.walletAddress || ''
         };
       }
       return {
         verified: true,
-        badge: 'Validated',
+        badge: CHAIN_BADGE_LABELS[chain] || '✅ Validated',
         chain,
         currency,
-        contract: validation.nativeContract || ''
+        contract: validation.nativeContract || '',
+        walletAddress: validation.walletAddress || ''
       };
     }
 
@@ -3425,8 +3474,37 @@ body.streams-flex-fit #video-container[hidden] {
       const ring = 22 + (h1 % 5);
       const core = 8 + (h2 % 8);
       const [c1, c2, c3] = meta.palette;
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function walletBagSvgDataUrl(chain = ''){
+      const isEvm = chain === 'ethereum' || chain === 'polygon';
+      const orb = isEvm ? '#93c5fd' : '#67e8f9';
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' role='img' aria-label='Wallet explorer link'><rect width='24' height='24' rx='6' fill='#020617'/><text x='12' y='16' text-anchor='middle' font-size='12'>👜</text><circle cx='18' cy='6' r='3' fill='${orb}'/></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function explorerLinkForRecord(record){
+      if(!record) return '';
+      const chain = String(record.chain || '').toLowerCase();
+      const walletAddress = String(record.walletAddress || '').trim();
+      const contract = String(record.contract || '').trim();
+      const target = walletAddress || contract;
+      if(!target) return '';
+      if(chain === 'ethereum'){
+        return `https://etherscan.io/address/${target}`;
+      }
+      if(chain === 'polygon'){
+        return `https://polygonscan.com/address/${target}`;
+      }
+      if(chain === 'cardano'){
+        if(target.startsWith('addr')){
+          return `https://cardanoscan.io/address/${target}`;
+        }
+        return `https://cardanoscan.io/tokenPolicy/${target}`;
+      }
+      return '';
     }
 
     function decorateVerifiedBadge(badgeEl, username, fallbackText = 'Validated'){
@@ -3442,6 +3520,21 @@ body.streams-flex-fit #video-container[hidden] {
         icon.setAttribute('aria-hidden', 'true');
         icon.src = tokenBadgeSvgDataUrl(tokenSeed, { chain: record?.chain, currency: record?.currency });
         badgeEl.appendChild(icon);
+        const walletLink = explorerLinkForRecord(record);
+        if(walletLink){
+          const anchor = document.createElement('a');
+          anchor.className = 'verified-badge__wallet-link';
+          anchor.href = walletLink;
+          anchor.target = '_blank';
+          anchor.rel = 'noopener noreferrer';
+          anchor.title = `Open ${record?.chain || 'wallet'} explorer`;
+          const bag = document.createElement('img');
+          bag.src = walletBagSvgDataUrl(String(record?.chain || '').toLowerCase());
+          bag.alt = '';
+          bag.setAttribute('aria-hidden', 'true');
+          anchor.appendChild(bag);
+          badgeEl.appendChild(anchor);
+        }
       } else {
         const dot = document.createElement('span');
         dot.className = 'verified-badge__dot';
@@ -3468,9 +3561,24 @@ body.streams-flex-fit #video-container[hidden] {
           chain: message.chain,
           currency: message.currency
         });
+        wrap.appendChild(icon);
+        if(message.walletLink){
+          const anchor = document.createElement('a');
+          anchor.className = 'token-login-status__wallet-link';
+          anchor.href = message.walletLink;
+          anchor.target = '_blank';
+          anchor.rel = 'noopener noreferrer';
+          anchor.title = 'Open wallet explorer';
+          const bag = document.createElement('img');
+          bag.src = walletBagSvgDataUrl(String(message.chain || '').toLowerCase());
+          bag.alt = '';
+          bag.setAttribute('aria-hidden', 'true');
+          anchor.appendChild(bag);
+          wrap.appendChild(anchor);
+        }
         const label = document.createElement('span');
         label.textContent = message.text || '';
-        wrap.append(icon, label);
+        wrap.appendChild(label);
         tokenLoginStatus.appendChild(wrap);
       } else {
         tokenLoginStatus.textContent = message || '';
@@ -3483,23 +3591,37 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function ensureTokenValidated(){
+      const resolveWalletAddress = async () => {
+        if(!(window.GhostWallet && typeof window.GhostWallet.resolveWalletAddressHex === 'function')){
+          return '';
+        }
+        try{
+          return await window.GhostWallet.resolveWalletAddressHex();
+        }catch{
+          return '';
+        }
+      };
       if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
         const chain = authChainSelect?.value || 'cardano';
         const currency = authCurrencySelect?.value || 'ADA';
         const contracts = tokenGateContracts();
         const contract = contracts[chain] || '';
+        const walletAddress = await resolveWalletAddress();
+        const walletLink = explorerLinkForRecord({ chain, contract, walletAddress });
         setTokenLoginStatus({
           text: contractDisplayLabel(chain, contract),
           seed: `${chain}:${contract}:validated`,
           chain,
-          currency
+          currency,
+          walletLink
         }, 'success');
         return {
           success: true,
           walletName: 'wallet',
           chain,
           currency,
-          nativeContract: contract
+          nativeContract: contract,
+          walletAddress
         };
       }
       if(!(window.GhostWallet && typeof window.GhostWallet.validateAccessForLogin === 'function')){
@@ -3513,13 +3635,16 @@ body.streams-flex-fit #video-container[hidden] {
         const contracts = tokenGateContracts();
         const chain = (result.chain || 'cardano').toLowerCase();
         const contract = result.nativeContract || contracts[chain] || '';
+        const walletAddress = result.walletAddress || await resolveWalletAddress();
+        const walletLink = explorerLinkForRecord({ chain, contract, walletAddress });
         setTokenLoginStatus({
           text: contractDisplayLabel(chain, contract),
           seed: `${chain}:${contract}:${result.walletName || 'wallet'}`,
           chain,
-          currency: result.currency || currencyForChain(chain)
+          currency: result.currency || currencyForChain(chain),
+          walletLink
         }, 'success');
-        return result;
+        return { ...result, walletAddress };
       }
       setTokenLoginStatus('Token validation failed. Please validate your wallet token first.', 'error');
       return null;
@@ -3717,12 +3842,14 @@ body.streams-flex-fit #video-container[hidden] {
       const chain = event?.detail?.chain || 'cardano';
       const currency = event?.detail?.currency || 'ADA';
       syncAuthSelectors(chain, currency);
-      const contract = event?.detail?.contract || tokenGateContracts()[chain] || '';
+      const contract = event?.detail?.nativeContract || tokenGateContracts()[chain] || '';
+      const walletLink = explorerLinkForRecord({ chain, contract, walletAddress: event?.detail?.walletAddress || '' });
       setTokenLoginStatus({
         text: contractDisplayLabel(chain, contract),
         seed: `${chain}:${contract}:access-granted`,
         chain,
-        currency
+        currency,
+        walletLink
       }, 'success');
     });
 
