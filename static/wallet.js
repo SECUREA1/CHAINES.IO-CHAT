@@ -1050,7 +1050,7 @@
     };
 
     if(!state.accessGranted){
-      result.message = 'Connect a wallet to collect ghost tokens.';
+      result.message = 'Log in with a verified Cardano wallet to collect ghost tokens in your on-page wallet. Please reconnect.';
       if(!silent){
         setStatus(result.message, 'error', { skipIfError: true });
       }
