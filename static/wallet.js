@@ -1242,8 +1242,15 @@
       };
     },
     setSelection: (chain, currency) => {
+      const previousChain = state.config?.chain || '';
+      const previousContract = state.config?.nativeContract || state.config?.policyId || '';
       setChainAndCurrency(chain, currency || CHAIN_TO_CURRENCY[(chain || '').toLowerCase()] || 'ADA');
       state.config = parseConfig();
+      const nextChain = state.config?.chain || '';
+      const nextContract = state.config?.nativeContract || state.config?.policyId || '';
+      if(state.accessGranted && (previousChain !== nextChain || previousContract !== nextContract)){
+        revokeAccess('Selection changed. Revalidate the selected contract or policy to continue.');
+      }
       describeRequiredToken();
       updateWalletSelect();
     },

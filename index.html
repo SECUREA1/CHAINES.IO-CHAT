@@ -3487,6 +3487,11 @@ body.streams-flex-fit #video-container[hidden] {
       const chain = (validation.chain || 'cardano').toLowerCase();
       const currency = (validation.currency || '').toUpperCase();
       const contract = (validation.nativeContract || '').toLowerCase();
+      const configuredContracts = tokenGateContracts();
+      const expectedContract = (configuredContracts[chain] || '').toLowerCase();
+      if(expectedContract && contract && expectedContract !== contract){
+        return null;
+      }
       const userRules = USER_VALIDATION_RULES[normalizedUser];
       if(userRules && userRules[chain]){
         const matchedRule = userRules[chain];
@@ -3704,7 +3709,12 @@ body.streams-flex-fit #video-container[hidden] {
         syncAuthSelectors(result.chain, result.currency);
         const contracts = tokenGateContracts();
         const chain = (result.chain || 'cardano').toLowerCase();
-        const contract = result.nativeContract || contracts[chain] || '';
+        const expectedContract = contracts[chain] || '';
+        const contract = result.nativeContract || expectedContract;
+        if(expectedContract && contract && expectedContract.toLowerCase() !== String(contract).toLowerCase()){
+          setTokenLoginStatus(`Token validation failed. Selected ${contractDisplayLabel(chain, expectedContract)} but wallet validated a different contract.`, 'error');
+          return null;
+        }
         const walletAddress = result.walletAddress || await resolveWalletAddress();
         const walletLink = explorerLinkForRecord({ chain, contract, walletAddress });
         setTokenLoginStatus({
@@ -3835,6 +3845,11 @@ body.streams-flex-fit #video-container[hidden] {
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
         const verification = evaluateValidationForUser(data.username || name, validation);
+        if(!verification){
+          setTokenLoginStatus('Validation failed: wallet token does not match the selected contract/policy.', 'error');
+          alert('Validation failed: wallet token does not match the selected contract/policy.');
+          return;
+        }
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         alert(data?.error || 'Login failed');
@@ -3860,6 +3875,11 @@ body.streams-flex-fit #video-container[hidden] {
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
         const verification = evaluateValidationForUser(name, validation);
+        if(!verification){
+          setTokenLoginStatus('Validation failed: wallet token does not match the selected contract/policy.', 'error');
+          alert('Validation failed: wallet token does not match the selected contract/policy.');
+          return;
+        }
         setUserVerified(name, verification);
         await doLogin();
       }
