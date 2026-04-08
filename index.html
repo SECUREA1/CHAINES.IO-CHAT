@@ -688,13 +688,13 @@
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
 
-    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; flex:1; min-height:0; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
-    .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; }
+    .feed { list-style:none; margin:0; padding:18px; border-radius: var(--radius); background: color-mix(in oklab, var(--panel), transparent 5%); overflow-y: auto; overflow-x:hidden; flex:1; min-height:0; box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .msg { display:flex; gap:10px; margin-bottom:14px; width:100%; min-width:0; }
     .msg.mine { flex-direction: row-reverse; }
     .avatar { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700; background: #222a39; color:#c2d2ea; border:1px solid var(--lining); }
     .msg.mine .avatar { background: color-mix(in oklab, var(--accent), black 70%); color: var(--accent-2); }
 
-    .bubble { flex:1; position:relative; padding:10px 14px 10px; border-radius: 16px; background: color-mix(in oklab, var(--panel), transparent 10%); border:1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .bubble { flex:1; min-width:0; max-width:100%; position:relative; padding:10px 14px 10px; border-radius: 16px; background: color-mix(in oklab, var(--panel), transparent 10%); border:1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .msg.mine .bubble { background: color-mix(in oklab, var(--accent), var(--bg) 75%); border-color: var(--lining); }
 
     .meta { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12px; color: var(--muted); }
@@ -1359,6 +1359,24 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     @media (max-width: 600px) {
+      .wrap,
+      header,
+      main,
+      .feed,
+      .msg,
+      .bubble,
+      footer,
+      footer .status.bottom {
+        width:100%;
+        max-width:100%;
+        min-width:0;
+      }
+      .post-actions {
+        flex-wrap:wrap;
+      }
+      .reaction-btn {
+        flex:1 1 calc(33.333% - 8px);
+      }
       .mobile-only-chip {
         display:inline-flex;
       }
