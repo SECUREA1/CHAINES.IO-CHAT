@@ -285,11 +285,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     target.textContent = '';
     const seed = tokenSeedForRecord(record, username);
     if(seed){
-      const icon = document.createElement('img');
+      const icon = document.createElement('span');
       icon.className = 'verified-badge__icon';
-      icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
-      icon.src = tokenBadgeSvgDataUrl(seed);
+      const fallbackSvg = decodeURIComponent(tokenBadgeSvgDataUrl(seed).split(',')[1] || '');
+      icon.innerHTML = record?.badgeSvg || fallbackSvg;
       target.appendChild(icon);
       const walletLink = explorerLinkForRecord(record);
       if(walletLink){
@@ -313,8 +313,16 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       target.appendChild(dot);
     }
     const text = document.createElement('span');
-    text.textContent = record?.badge || 'Validated';
+    text.textContent = record?.badgeLabel || record?.badge || 'Validated';
     target.appendChild(text);
+  }
+
+  function applyVerificationToProfile(description, verification){
+    const base = String(description || '').trim();
+    const label = String(verification?.badgeLabel || verification?.badge || '').trim();
+    if(!label) return base;
+    if(base.includes(label)) return base;
+    return base ? `${base} • ${label}` : label;
   }
 
   function renderEntryValidation(username){
@@ -691,7 +699,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     }
     renderEntryValidation(data.username);
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
-    descEl.textContent = data.description || '';
+    descEl.textContent = applyVerificationToProfile(data.description || '', verifiedRecord);
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
     const followingCount = Number.isFinite(data.followingCount) ? data.followingCount : (data.following?.length || 0);
     followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount;

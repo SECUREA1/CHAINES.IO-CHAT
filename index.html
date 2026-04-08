@@ -3354,10 +3354,10 @@ body.streams-flex-fit #video-container[hidden] {
         const parsed = JSON.parse(raw);
         if(!parsed || typeof parsed !== 'object') return null;
         if(parsed.username !== username) return null;
-        const chain = String(parsed.chain || '').toLowerCase();
-        const contract = String(parsed.contract || '').trim();
+        const chain = normalizeChain(parsed.chain);
+        const contract = normalizeContract(chain, parsed.contract || '');
         if(!chain || !contract) return null;
-        return parsed;
+        return { ...parsed, chain, contract };
       }catch{
         return null;
       }
@@ -3369,8 +3369,8 @@ body.streams-flex-fit #video-container[hidden] {
         sessionStorage.removeItem('chaines_session_validation');
         return;
       }
-      const chain = String(verification.chain || '').toLowerCase();
-      const contract = String(verification.contract || '').trim();
+      const chain = normalizeChain(verification.chain);
+      const contract = normalizeContract(chain, verification.expectedContract || verification.contract || '');
       if(!chain || !contract){
         sessionStorage.removeItem('chaines_session_validation');
         return;
@@ -3393,9 +3393,11 @@ body.streams-flex-fit #video-container[hidden] {
       if(!(record && record.verified !== false)) return false;
       const sessionRecord = sessionValidationRecordFor(username);
       if(!sessionRecord) return false;
-      const recordChain = String(record.chain || '').toLowerCase();
-      const recordContract = String(record.contract || '').trim().toLowerCase();
-      return sessionRecord.chain === recordChain && sessionRecord.contract.toLowerCase() === recordContract;
+      const recordChain = normalizeChain(record.chain);
+      const sessionChain = normalizeChain(sessionRecord.chain);
+      const recordContract = normalizeContract(recordChain, record.expectedContract || record.contract || '');
+      const sessionContract = normalizeContract(sessionChain, sessionRecord.contract || '');
+      return Boolean(recordChain && sessionChain && recordChain === sessionChain && recordContract && recordContract === sessionContract);
     }
 
     function setUserVerified(username, verification){
@@ -3410,32 +3412,47 @@ body.streams-flex-fit #video-container[hidden] {
       store.verifiedUsers = verified;
     }
 
+    const USER_VALIDATION_RULES = Object.freeze({
+      cardano: {
+        badgeLabel: '💎 CHAINeS ADA',
+        contractLabel: 'Cardano policy'
+      },
+      ethereum: {
+        badgeLabel: '⚡ MEKX ETH',
+        contractLabel: 'Ethereum contract'
+      },
+      polygon: {
+        badgeLabel: '🟣 A1 POLYGON',
+        contractLabel: 'Polygon contract'
+      },
+      solana: {
+        badgeLabel: '🟩 SOL VERIFIED',
+        contractLabel: 'Solana contract'
+      }
+    });
+
     const TOKEN_NETWORKS = {
       cardano: {
         currency: 'ADA',
         label: 'Cardano',
-        badge: '💎 CHAINeS ADA',
         icon: '◈',
         palette: ['#0ea5e9', '#60a5fa', '#bae6fd']
       },
       ethereum: {
         currency: 'ETH',
         label: 'Ethereum',
-        badge: '⚡ MEKNX ETH',
         icon: 'Ξ',
         palette: ['#818cf8', '#6366f1', '#e0e7ff']
       },
       polygon: {
         currency: 'MATIC',
         label: 'Polygon',
-        badge: '🟣 A1 POLYGON',
         icon: '⬢',
         palette: ['#a78bfa', '#8b5cf6', '#ede9fe']
       },
       solana: {
         currency: 'SOL',
         label: 'Solana',
-        badge: '🟩 SOL VERIFIED',
         icon: '◎',
         palette: ['#22d3ee', '#34d399', '#d1fae5']
       }
@@ -3444,11 +3461,29 @@ body.streams-flex-fit #video-container[hidden] {
       Object.entries(TOKEN_NETWORKS).map(([chain, network]) => [chain, {
         currency: network.currency,
         label: network.label,
-        badge: network.badge,
         icon: network.icon,
         palette: network.palette
       }])
     );
+
+    function normalizeChain(chain){
+      const normalized = String(chain || '').trim().toLowerCase();
+      return Object.prototype.hasOwnProperty.call(USER_VALIDATION_RULES, normalized) ? normalized : '';
+    }
+
+    function normalizeContract(chain, contract){
+      const normalizedChain = normalizeChain(chain);
+      const value = String(contract || '').trim();
+      if(!value) return '';
+      if(normalizedChain === 'ethereum' || normalizedChain === 'polygon'){
+        return /^0x[0-9a-fA-F]{40}$/.test(value) ? value.toLowerCase() : value.toLowerCase();
+      }
+      if(normalizedChain === 'cardano'){
+        const compact = value.replace(/\s+/g, '').toLowerCase();
+        return /^[0-9a-f]{56}$/.test(compact) ? compact : compact;
+      }
+      return value.toLowerCase();
+    }
 
     function currencyForChain(chain, fallback = 'ADA'){
       const lookup = Object.fromEntries(Object.entries(TOKEN_CURRENCY_META).map(([key, meta]) => [key, meta.currency]));
@@ -3483,16 +3518,25 @@ body.streams-flex-fit #video-container[hidden] {
       };
     }
 
-    function contractDisplayLabel(chain, contract){
-      const labels = {
-        cardano: 'Cardano policy',
-        ethereum: 'Ethereum contract',
-        polygon: 'Polygon contract',
-        solana: 'Solana contract'
+    function getUserRule(chain){
+      const normalizedChain = normalizeChain(chain);
+      if(!normalizedChain) return null;
+      const configuredContracts = tokenGateContracts();
+      const expectedContract = normalizeContract(normalizedChain, configuredContracts[normalizedChain] || '');
+      const rule = USER_VALIDATION_RULES[normalizedChain];
+      return {
+        chain: normalizedChain,
+        expectedContract,
+        badgeLabel: rule.badgeLabel,
+        contractLabel: rule.contractLabel
       };
-      const normalizedChain = (chain || 'cardano').toLowerCase();
+    }
+
+    function contractDisplayLabel(chain, contract){
+      const normalizedChain = normalizeChain(chain) || 'cardano';
+      const labels = USER_VALIDATION_RULES;
       const compact = contract ? `${contract.slice(0, 6)}…${contract.slice(-4)}` : 'not set';
-      return `${labels[normalizedChain] || 'Contract'} ${compact}`;
+      return `${labels[normalizedChain]?.contractLabel || 'Contract'} ${compact}`;
     }
 
     function initTokenContractPicker(){
@@ -3537,29 +3581,72 @@ body.streams-flex-fit #video-container[hidden] {
       });
     }
 
-    function evaluateValidationForUser(username, validation){
-      if(!validation || !validation.success){
-        return null;
-      }
-      const chain = (validation.chain || 'cardano').toLowerCase();
-      const chainMeta = TOKEN_CURRENCY_META[chain] || TOKEN_CURRENCY_META.cardano;
-      const currency = (validation.currency || chainMeta.currency || '').toUpperCase();
-      const contract = String(validation.nativeContract || '').trim();
-      const contractLower = contract.toLowerCase();
-      const configuredContracts = tokenGateContracts();
-      const expectedContract = String(configuredContracts[chain] || '').trim();
-      const expectedContractLower = expectedContract.toLowerCase();
-      if(expectedContractLower && expectedContractLower !== contractLower){
-        return null;
-      }
+    function extractOwnedContracts(validation, chain){
+      const normalizedChain = normalizeChain(chain || validation?.chain);
+      if(!normalizedChain || !validation || typeof validation !== 'object') return [];
+      const candidates = [];
+      if(Array.isArray(validation.ownedContracts)) candidates.push(...validation.ownedContracts);
+      if(Array.isArray(validation.contracts)) candidates.push(...validation.contracts);
+      if(validation.nativeContract) candidates.push(validation.nativeContract);
+      if(validation.contract) candidates.push(validation.contract);
+      const fromMap = validation.ownedContractsByChain?.[normalizedChain];
+      if(Array.isArray(fromMap)) candidates.push(...fromMap);
+      return [...new Set(candidates.map((item) => normalizeContract(normalizedChain, item)).filter(Boolean))];
+    }
+
+    function tokenBadgeSvgMarkup(tokenSeed, { chain = '', currency = '' } = {}){
+      const resolvedChain = (chain || chainForCurrency(currency, 'cardano')).toLowerCase();
+      const resolvedCurrency = String(currency || currencyForChain(resolvedChain, 'ADA')).toUpperCase();
+      const meta = TOKEN_CURRENCY_META[resolvedChain] || TOKEN_CURRENCY_META.cardano;
+      const seed = tokenSeed || `${resolvedChain}:${resolvedCurrency}:chaines-validated`;
+      const h1 = hashTokenSeed(seed);
+      const h2 = hashTokenSeed(`${seed}::alt`);
+      const rotA = h1 % 170;
+      const rotB = h2 % 170;
+      const ring = 22 + (h1 % 5);
+      const core = 8 + (h2 % 8);
+      const [c1, c2, c3] = meta.palette;
+      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.icon || '◈'}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
+    }
+
+    function verifyUserOnChain(chain, walletAddress, ownedContracts){
+      const rule = getUserRule(chain);
+      if(!rule || !rule.expectedContract) return null;
+      const normalizedOwned = [...new Set((ownedContracts || []).map((item) => normalizeContract(rule.chain, item)).filter(Boolean))];
+      const verified = normalizedOwned.includes(rule.expectedContract);
+      if(!verified) return null;
+      const chainMeta = TOKEN_CURRENCY_META[rule.chain] || TOKEN_CURRENCY_META.cardano;
+      const badgeSvg = tokenBadgeSvgMarkup(`${rule.chain}:${rule.expectedContract}:${walletAddress || 'wallet'}`, {
+        chain: rule.chain,
+        currency: chainMeta.currency
+      });
       return {
         verified: true,
-        badge: chainMeta.badge || '✅ Validated',
-        chain,
-        currency,
-        contract: validation.nativeContract || '',
-        walletAddress: validation.walletAddress || ''
+        chain: rule.chain,
+        walletAddress: String(walletAddress || '').trim(),
+        expectedContract: rule.expectedContract,
+        contract: rule.expectedContract,
+        badgeLabel: rule.badgeLabel,
+        badge: rule.badgeLabel,
+        badgeSvg,
+        currency: chainMeta.currency
       };
+    }
+
+    function verifyUserWallets(validation){
+      if(!validation || !validation.success) return null;
+      const chain = normalizeChain(validation.chain);
+      if(!chain) return null;
+      const ownedContracts = extractOwnedContracts(validation, chain);
+      return verifyUserOnChain(chain, validation.walletAddress, ownedContracts);
+    }
+
+    function evaluateValidationForUser(username, validation){
+      const verification = verifyUserWallets(validation);
+      if(!verification || verification.verified === false){
+        return null;
+      }
+      return verification;
     }
 
     function hashTokenSeed(seed){
@@ -3583,18 +3670,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     function tokenBadgeSvgDataUrl(tokenSeed, { chain = '', currency = '' } = {}){
-      const resolvedChain = (chain || chainForCurrency(currency, 'cardano')).toLowerCase();
-      const resolvedCurrency = String(currency || currencyForChain(resolvedChain, 'ADA')).toUpperCase();
-      const meta = TOKEN_CURRENCY_META[resolvedChain] || TOKEN_CURRENCY_META.cardano;
-      const seed = tokenSeed || `${resolvedChain}:${resolvedCurrency}:chaines-validated`;
-      const h1 = hashTokenSeed(seed);
-      const h2 = hashTokenSeed(`${seed}::alt`);
-      const rotA = h1 % 170;
-      const rotB = h2 % 170;
-      const ring = 22 + (h1 % 5);
-      const core = 8 + (h2 % 8);
-      const [c1, c2, c3] = meta.palette;
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 31)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.icon || '◈'}</text><text x='13' y='-10' font-size='10'>✅</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
+      const svg = tokenBadgeSvgMarkup(tokenSeed, { chain, currency });
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
@@ -3627,19 +3703,24 @@ body.streams-flex-fit #video-container[hidden] {
       return '';
     }
 
+    function buildVerificationBadgeHTML(record, username, fallbackText = 'Validated'){
+      const labelText = record?.badgeLabel || record?.badge || fallbackText;
+      const tokenSeed = tokenSeedForRecord(record, username);
+      const svgMarkup = record?.badgeSvg || (tokenSeed ? tokenBadgeSvgMarkup(tokenSeed, { chain: record?.chain, currency: record?.currency }) : '');
+      return { labelText, tokenSeed, svgMarkup };
+    }
+
     function decorateVerifiedBadge(badgeEl, username, fallbackText = 'Validated'){
       if(!badgeEl) return;
       const record = verifiedRecordFor(username);
-      const labelText = record && record.badge ? record.badge : fallbackText;
+      const { labelText, tokenSeed, svgMarkup } = buildVerificationBadgeHTML(record, username, fallbackText);
       badgeEl.textContent = '';
-      const tokenSeed = tokenSeedForRecord(record, username);
       if(tokenSeed){
-        const icon = document.createElement('img');
-        icon.className = 'verified-badge__icon';
-        icon.alt = '';
-        icon.setAttribute('aria-hidden', 'true');
-        icon.src = tokenBadgeSvgDataUrl(tokenSeed, { chain: record?.chain, currency: record?.currency });
-        badgeEl.appendChild(icon);
+        const iconWrap = document.createElement('span');
+        iconWrap.className = 'verified-badge__icon';
+        iconWrap.setAttribute('aria-hidden', 'true');
+        iconWrap.innerHTML = svgMarkup;
+        badgeEl.appendChild(iconWrap);
         const walletLink = explorerLinkForRecord(record);
         if(walletLink){
           const anchor = document.createElement('a');
@@ -3754,9 +3835,9 @@ body.streams-flex-fit #video-container[hidden] {
         syncAuthSelectors(result.chain, result.currency);
         const contracts = tokenGateContracts();
         const chain = (result.chain || 'cardano').toLowerCase();
-        const expectedContract = String(contracts[chain] || '').trim();
-        const contract = String(result.nativeContract || '').trim();
-        if(expectedContract && expectedContract.toLowerCase() !== contract.toLowerCase()){
+        const expectedContract = normalizeContract(chain, contracts[chain] || '');
+        const contract = normalizeContract(chain, result.nativeContract || '');
+        if(expectedContract && expectedContract !== contract){
           setTokenLoginStatus(`Token validation failed. Selected ${contractDisplayLabel(chain, expectedContract)} but wallet validated a different contract.`, 'error');
           return null;
         }
@@ -3804,8 +3885,7 @@ body.streams-flex-fit #video-container[hidden] {
     function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
-      setUserVerified(store.user, opts.verified || null);
-      setSessionValidationRecord(store.user, opts.verified || null);
+      applyVerificationToProfile(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
@@ -3926,7 +4006,7 @@ body.streams-flex-fit #video-container[hidden] {
           alert('Validation failed: wallet token does not match the selected contract/policy.');
           return;
         }
-        setUserVerified(name, verification);
+        applyVerificationToProfile(name, verification);
         await doLogin();
       }
       else {
@@ -3990,6 +4070,18 @@ body.streams-flex-fit #video-container[hidden] {
         walletLink
       }, 'success');
     });
+
+    function applyVerificationToProfile(username, verification){
+      if(!username) return null;
+      if(!verification || verification.verified === false){
+        setUserVerified(username, null);
+        setSessionValidationRecord(username, null);
+        return null;
+      }
+      setUserVerified(username, verification);
+      setSessionValidationRecord(username, verification);
+      return verification;
+    }
 
     initTokenContractPicker();
 
