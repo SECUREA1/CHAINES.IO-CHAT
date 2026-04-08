@@ -3434,18 +3434,23 @@ body.streams-flex-fit #video-container[hidden] {
     };
     const CHAIN_BADGE_LABELS = {
       cardano: '💎 CHAINeS ADA',
-      ethereum: '🤖 MEKX ETH',
+      ethereum: '⚡ MEKNX ETH',
       polygon: '🟣 A1 POLYGON'
     };
 
     function verificationBadgeForChain(chain, contract, fallbackBadge = '✅ Validated'){
       const normalizedChain = String(chain || '').trim().toLowerCase();
       const compactContract = String(contract || '').trim();
+      const resolvedFallback = String(fallbackBadge || '✅ Validated');
+      const hasCustomBadge = resolvedFallback !== '✅ Validated' && resolvedFallback !== 'Validated';
+      if(hasCustomBadge){
+        return resolvedFallback;
+      }
       if((normalizedChain === 'ethereum' || normalizedChain === 'polygon') && compactContract){
         const chainLabel = normalizedChain === 'ethereum' ? 'ETH' : 'POLY';
         return `✅ ${chainLabel} ${compactContract.slice(0, 6)}…${compactContract.slice(-4)}`;
       }
-      return fallbackBadge;
+      return resolvedFallback;
     }
 
     function currencyForChain(chain, fallback = 'ADA'){
