@@ -375,6 +375,7 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
+      gap:6px;
       padding:2px 8px;
       border-radius:999px;
       font-size:11px;
@@ -385,7 +386,16 @@
       border:1px solid #22c55e;
       box-shadow:0 0 8px rgba(34, 197, 94, 0.35);
     }
-    .verified-badge::before { content: '●'; color:#22c55e; margin-right:6px; font-size:10px; }
+    .verified-badge__dot { color:#22c55e; font-size:10px; }
+    .verified-badge__icon {
+      width:16px;
+      height:16px;
+      border-radius:6px;
+      border:1px solid rgba(255,255,255,0.3);
+      box-shadow:0 0 8px rgba(34, 197, 94, 0.22);
+      object-fit:cover;
+      flex:0 0 auto;
+    }
     .token-login-status {
       margin: 6px 0 0;
       min-height: 1.3em;
@@ -3300,6 +3310,65 @@ body.streams-flex-fit #video-container[hidden] {
       };
     }
 
+    function hashTokenSeed(seed){
+      let h = 2166136261;
+      const text = String(seed || 'chaines-token');
+      for(let i = 0; i < text.length; i += 1){
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function tokenSeedForRecord(record, fallbackUser = ''){
+      if(!record || record.verified === false) return '';
+      const chain = String(record.chain || '').toLowerCase();
+      const currency = String(record.currency || '').toUpperCase();
+      const contract = String(record.contract || '').toLowerCase();
+      const badge = String(record.badge || 'validated').toLowerCase();
+      const fallback = String(fallbackUser || '').toLowerCase();
+      return [chain, currency, contract, badge, fallback].filter(Boolean).join('|');
+    }
+
+    function tokenBadgeSvgDataUrl(tokenSeed){
+      const seed = tokenSeed || 'chaines-validated';
+      const h1 = hashTokenSeed(seed);
+      const h2 = hashTokenSeed(`${seed}::alt`);
+      const hueA = h1 % 360;
+      const hueB = h2 % 360;
+      const rotA = h1 % 170;
+      const rotB = h2 % 170;
+      const ring = 24 + (h1 % 26);
+      const core = 8 + (h2 % 10);
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='Validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='hsl(${hueA} 88% 62%)'/><stop offset='100%' stop-color='hsl(${hueB} 88% 52%)'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='10 6' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.55' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><circle r='${Math.max(core - 4, 2)}' fill='#dbeafe' opacity='.94'/></g></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function decorateVerifiedBadge(badgeEl, username, fallbackText = 'Validated'){
+      if(!badgeEl) return;
+      const record = verifiedRecordFor(username);
+      const labelText = record && record.badge ? record.badge : fallbackText;
+      badgeEl.textContent = '';
+      const tokenSeed = tokenSeedForRecord(record, username);
+      if(tokenSeed){
+        const icon = document.createElement('img');
+        icon.className = 'verified-badge__icon';
+        icon.alt = '';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.src = tokenBadgeSvgDataUrl(tokenSeed);
+        badgeEl.appendChild(icon);
+      } else {
+        const dot = document.createElement('span');
+        dot.className = 'verified-badge__dot';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '●';
+        badgeEl.appendChild(dot);
+      }
+      const text = document.createElement('span');
+      text.textContent = labelText;
+      badgeEl.appendChild(text);
+    }
+
     function setTokenLoginStatus(message, tone = 'info'){
       if(!tokenLoginStatus) return;
       tokenLoginStatus.textContent = message || '';
@@ -3340,7 +3409,11 @@ body.streams-flex-fit #video-container[hidden] {
 
     function updateProfileVerificationBadge(username){
       if(!profileVerifiedBadgeEl) return;
-      profileVerifiedBadgeEl.hidden = !isUserVerified(username);
+      const verified = isUserVerified(username);
+      profileVerifiedBadgeEl.hidden = !verified;
+      if(verified){
+        decorateVerifiedBadge(profileVerifiedBadgeEl, username);
+      }
     }
 
     function requireAuth(){
@@ -4597,7 +4670,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(m.verified){
         const badge = document.createElement('span');
         badge.className = 'verified-badge';
-        badge.textContent = 'Validated';
+        decorateVerifiedBadge(badge, m.user, 'Validated');
         meta.appendChild(badge);
       }
       const dot = document.createElement('span');
