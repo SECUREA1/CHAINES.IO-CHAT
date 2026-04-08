@@ -1575,7 +1575,7 @@ body.streams-flex-fit #video-container[hidden] {
   <section id="auth" class="auth" hidden>
     <div class="card">
       <h2>Welcome to CHAINeS POST</h2>
-      <p>Enter the wolfpack grid—the web3 social of 2026. Log in and leave your signal.</p>
+      <p>Choose your network, validate your token on entry, then sign in to open your account.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
@@ -1597,10 +1597,10 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
-        <button class="btn ghost" id="token-login-validate" type="button">Validate Token</button>
+        <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
       </div>
       <div class="fields" style="margin-top:8px">
-        <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Token network for validation</label>
+        <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
         <select id="token-login-contract" aria-label="Token network">
           <option value="cardano">Cardano contract</option>
           <option value="ethereum">Ethereum contract</option>
@@ -3307,15 +3307,23 @@ body.streams-flex-fit #video-container[hidden] {
       store.verifiedUsers = verified;
     }
 
+    const TOKEN_CURRENCY_META = {
+      cardano: { currency: 'ADA', label: 'Cardano', palette: ['#0ea5e9', '#60a5fa', '#bae6fd'], glyph: '◈' },
+      ethereum: { currency: 'ETH', label: 'Ethereum', palette: ['#818cf8', '#6366f1', '#e0e7ff'], glyph: '◆' },
+      polygon: { currency: 'MATIC', label: 'Polygon', palette: ['#a78bfa', '#8b5cf6', '#ede9fe'], glyph: '⬢' },
+      solana: { currency: 'SOL', label: 'Solana', palette: ['#22d3ee', '#34d399', '#d1fae5'], glyph: '◎' }
+    };
+
     function currencyForChain(chain, fallback = 'ADA'){
-      const lookup = {
-        cardano: 'ADA',
-        ethereum: 'ETH',
-        polygon: 'MATIC',
-        solana: 'SOL'
-      };
+      const lookup = Object.fromEntries(Object.entries(TOKEN_CURRENCY_META).map(([key, meta]) => [key, meta.currency]));
       const normalized = (chain || '').trim().toLowerCase();
       return lookup[normalized] || (fallback || 'ADA');
+    }
+
+    function chainForCurrency(currency, fallback = 'cardano'){
+      const normalized = String(currency || '').trim().toUpperCase();
+      const pair = Object.entries(TOKEN_CURRENCY_META).find(([, meta]) => meta.currency === normalized);
+      return pair ? pair[0] : fallback;
     }
 
     function syncAuthSelectors(chain, currency){
@@ -3417,17 +3425,19 @@ body.streams-flex-fit #video-container[hidden] {
       return [chain, currency, contract, badge, fallback].filter(Boolean).join('|');
     }
 
-    function tokenBadgeSvgDataUrl(tokenSeed){
-      const seed = tokenSeed || 'chaines-validated';
+    function tokenBadgeSvgDataUrl(tokenSeed, { chain = '', currency = '' } = {}){
+      const resolvedChain = (chain || chainForCurrency(currency, 'cardano')).toLowerCase();
+      const resolvedCurrency = String(currency || currencyForChain(resolvedChain, 'ADA')).toUpperCase();
+      const meta = TOKEN_CURRENCY_META[resolvedChain] || TOKEN_CURRENCY_META.cardano;
+      const seed = tokenSeed || `${resolvedChain}:${resolvedCurrency}:chaines-validated`;
       const h1 = hashTokenSeed(seed);
       const h2 = hashTokenSeed(`${seed}::alt`);
-      const hueA = h1 % 360;
-      const hueB = h2 % 360;
       const rotA = h1 % 170;
       const rotB = h2 % 170;
-      const ring = 24 + (h1 % 26);
-      const core = 8 + (h2 % 10);
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='Validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='hsl(${hueA} 88% 62%)'/><stop offset='100%' stop-color='hsl(${hueB} 88% 52%)'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='10 6' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.55' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><circle r='${Math.max(core - 4, 2)}' fill='#dbeafe' opacity='.94'/></g></svg>`;
+      const ring = 22 + (h1 % 5);
+      const core = 8 + (h2 % 8);
+      const [c1, c2, c3] = meta.palette;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' role='img' aria-label='${meta.label} ${resolvedCurrency} validated token badge'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='55%' stop-color='${c2}'/><stop offset='100%' stop-color='${c3}'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='#051225'/><g transform='translate(32 32)'><circle r='${ring}' fill='none' stroke='url(#g)' stroke-width='6' stroke-dasharray='9 5' transform='rotate(${rotA})'/><path d='M0 -${ring - 6}L${(ring - 8).toFixed(1)} 0L0 ${ring - 6}L-${(ring - 8).toFixed(1)} 0Z' fill='url(#g)' opacity='.45' transform='rotate(${rotB})'/><circle r='${core}' fill='url(#g)'/><text x='0' y='4' text-anchor='middle' font-size='14' font-weight='700' fill='#f8fafc'>${meta.glyph}</text></g><text x='32' y='57' text-anchor='middle' font-size='8' font-weight='700' letter-spacing='.8' fill='#e2e8f0'>${resolvedCurrency}</text></svg>`;
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
@@ -3442,7 +3452,7 @@ body.streams-flex-fit #video-container[hidden] {
         icon.className = 'verified-badge__icon';
         icon.alt = '';
         icon.setAttribute('aria-hidden', 'true');
-        icon.src = tokenBadgeSvgDataUrl(tokenSeed);
+        icon.src = tokenBadgeSvgDataUrl(tokenSeed, { chain: record?.chain, currency: record?.currency });
         badgeEl.appendChild(icon);
       } else {
         const dot = document.createElement('span');
@@ -3466,7 +3476,10 @@ body.streams-flex-fit #video-container[hidden] {
         icon.className = 'token-login-status__icon';
         icon.alt = '';
         icon.setAttribute('aria-hidden', 'true');
-        icon.src = tokenBadgeSvgDataUrl(message.seed || 'chaines-validated');
+        icon.src = tokenBadgeSvgDataUrl(message.seed || 'chaines-validated', {
+          chain: message.chain,
+          currency: message.currency
+        });
         const label = document.createElement('span');
         label.textContent = message.text || '';
         wrap.append(icon, label);
@@ -3489,7 +3502,9 @@ body.streams-flex-fit #video-container[hidden] {
         const contract = contracts[chain] || '';
         setTokenLoginStatus({
           text: contractDisplayLabel(chain, contract),
-          seed: `${chain}:${contract}:validated`
+          seed: `${chain}:${contract}:validated`,
+          chain,
+          currency
         }, 'success');
         return {
           success: true,
@@ -3512,7 +3527,9 @@ body.streams-flex-fit #video-container[hidden] {
         const contract = result.nativeContract || contracts[chain] || '';
         setTokenLoginStatus({
           text: contractDisplayLabel(chain, contract),
-          seed: `${chain}:${contract}:${result.walletName || 'wallet'}`
+          seed: `${chain}:${contract}:${result.walletName || 'wallet'}`,
+          chain,
+          currency: result.currency || currencyForChain(chain)
         }, 'success');
         return result;
       }
@@ -3715,7 +3732,9 @@ body.streams-flex-fit #video-container[hidden] {
       const contract = event?.detail?.contract || tokenGateContracts()[chain] || '';
       setTokenLoginStatus({
         text: contractDisplayLabel(chain, contract),
-        seed: `${chain}:${contract}:access-granted`
+        seed: `${chain}:${contract}:access-granted`,
+        chain,
+        currency
       }, 'success');
     });
 
