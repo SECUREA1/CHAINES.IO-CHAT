@@ -1575,7 +1575,7 @@ body.streams-flex-fit #video-container[hidden] {
   <section id="auth" class="auth" hidden>
     <div class="card">
       <h2>Welcome to CHAINeS POST</h2>
-      <p>Choose your network, validate your token on entry, then sign in to open your account.</p>
+      <p>Sign in with any profile. Token validation is optional and can be done before login.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
@@ -1597,10 +1597,10 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
-        <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+        <button class="btn ghost" id="token-login-validate" type="button">Validate Selected Contract</button>
       </div>
       <div class="fields" style="margin-top:8px">
-        <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
+        <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Select contract for optional validation</label>
         <select id="token-login-contract" aria-label="Token network">
           <option value="cardano">Cardano contract</option>
           <option value="ethereum">Ethereum contract</option>
@@ -3495,9 +3495,15 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function ensureTokenValidated(){
+      const selectedChain = (tokenLoginContractSelect?.value || authChainSelect?.value || 'cardano').trim().toLowerCase();
+      const selectedCurrency = currencyForChain(selectedChain, authCurrencySelect?.value || 'ADA');
+      syncAuthSelectors(selectedChain, selectedCurrency);
+      if(window.GhostWallet && typeof window.GhostWallet.setSelection === 'function'){
+        window.GhostWallet.setSelection(selectedChain, selectedCurrency);
+      }
       if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
-        const chain = authChainSelect?.value || 'cardano';
-        const currency = authCurrencySelect?.value || 'ADA';
+        const chain = selectedChain;
+        const currency = selectedCurrency;
         const contracts = tokenGateContracts();
         const contract = contracts[chain] || '';
         setTokenLoginStatus({
@@ -3639,11 +3645,12 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      const validation = await ensureTokenValidated();
-      if(!validation){
-        alert('Please validate your token with the wallet first.');
-        return;
-      }
+      let validation = null;
+      try {
+        if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
+          validation = await ensureTokenValidated();
+        }
+      } catch {}
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -3651,7 +3658,7 @@ body.streams-flex-fit #video-container[hidden] {
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
-        const verification = evaluateValidationForUser(data.username || name, validation);
+        const verification = validation ? evaluateValidationForUser(data.username || name, validation) : null;
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         alert(data?.error || 'Login failed');
@@ -3665,18 +3672,19 @@ body.streams-flex-fit #video-container[hidden] {
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      const validation = await ensureTokenValidated();
-      if(!validation){
-        alert('Please validate your token with the wallet first.');
-        return;
-      }
+      let validation = null;
+      try {
+        if(window.GhostWallet && typeof window.GhostWallet.isAccessGranted === 'function' && window.GhostWallet.isAccessGranted()){
+          validation = await ensureTokenValidated();
+        }
+      } catch {}
       const fd = new FormData();
       fd.append('username', name);
       fd.append('password', pass);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
-        const verification = evaluateValidationForUser(name, validation);
+        const verification = validation ? evaluateValidationForUser(name, validation) : null;
         setUserVerified(name, verification);
         await doLogin();
       }
