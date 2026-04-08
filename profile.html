@@ -87,6 +87,27 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   width:12px;
   height:12px;
 }
+.entry-validation{
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color:var(--muted);
+}
+.entry-validation__label{
+  font-weight:700;
+  color:var(--fg);
+}
+.entry-validation__contract{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid var(--lining);
+  border-radius:999px;
+  padding:4px 8px;
+}
 </style>
 </head>
 <body>
@@ -96,6 +117,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <img id="p-avatar" alt="avatar" />
     <h2 id="p-name"></h2>
     <span id="p-verified" class="verified-badge" hidden>Validated</span>
+    <div id="p-entry-validation" class="entry-validation" hidden></div>
     <button id="follow-btn" class="follow-btn"></button>
     <button id="message-btn" class="follow-btn" hidden>Message</button>
   </div>
@@ -155,6 +177,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
   const verifiedEl = document.getElementById('p-verified');
+  const entryValidationEl = document.getElementById('p-entry-validation');
   const descEl = document.getElementById('p-desc');
   const feedEl = document.getElementById('p-feed');
   const followBtn = document.getElementById('follow-btn');
@@ -178,6 +201,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   let profileData = null;
   let activeTab = 'posts';
+  const TOKEN_CURRENCY_META = {
+    cardano: { currency: 'ADA', label: 'Cardano' },
+    ethereum: { currency: 'ETH', label: 'Ethereum' },
+    polygon: { currency: 'MATIC', label: 'Polygon' },
+    solana: { currency: 'SOL', label: 'Solana' }
+  };
 
   function verifiedUsers(){
     try{
@@ -223,6 +252,18 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   function walletBagSvgDataUrl(){
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='#020617'/><text x='12' y='16' text-anchor='middle' font-size='12'>👜</text></svg>`;
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  function contractDisplayLabel(chain, contract){
+    const names = {
+      cardano: 'Cardano policy',
+      ethereum: 'Ethereum contract',
+      polygon: 'Polygon contract',
+      solana: 'Solana contract'
+    };
+    const normalized = String(chain || 'cardano').toLowerCase();
+    if(!contract) return `${names[normalized] || 'Contract'} not set`;
+    return `${names[normalized] || 'Contract'} ${contract.slice(0, 6)}…${contract.slice(-4)}`;
   }
 
   function explorerLinkForRecord(record){
@@ -274,6 +315,55 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const text = document.createElement('span');
     text.textContent = record?.badge || 'Validated';
     target.appendChild(text);
+  }
+
+  function renderEntryValidation(username){
+    if(!entryValidationEl) return;
+    const record = verifiedUsers()[username];
+    if(!record || record.verified === false){
+      entryValidationEl.hidden = true;
+      entryValidationEl.textContent = '';
+      return;
+    }
+    const chain = String(record.chain || 'cardano').toLowerCase();
+    const currency = String(record.currency || TOKEN_CURRENCY_META[chain]?.currency || 'ADA');
+    const contract = String(record.contract || '');
+    const seed = tokenSeedForRecord(record, username) || `${chain}:${contract}:profile-entry`;
+    const walletLink = explorerLinkForRecord(record);
+    entryValidationEl.hidden = false;
+    entryValidationEl.textContent = '';
+
+    const label = document.createElement('span');
+    label.className = 'entry-validation__label';
+    label.textContent = 'Entry validation';
+
+    const chip = document.createElement('span');
+    chip.className = 'entry-validation__contract';
+    const icon = document.createElement('img');
+    icon.src = tokenBadgeSvgDataUrl(seed);
+    icon.alt = '';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.width = '16px';
+    icon.style.height = '16px';
+    icon.style.borderRadius = '6px';
+    const text = document.createElement('span');
+    text.textContent = `${contractDisplayLabel(chain, contract)} • ${currency}`;
+    chip.append(icon, text);
+
+    entryValidationEl.append(label, chip);
+    if(walletLink){
+      const anchor = document.createElement('a');
+      anchor.href = walletLink;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.className = 'verified-badge__wallet-link';
+      const bag = document.createElement('img');
+      bag.src = walletBagSvgDataUrl();
+      bag.alt = '';
+      bag.setAttribute('aria-hidden', 'true');
+      anchor.appendChild(bag);
+      entryValidationEl.appendChild(anchor);
+    }
   }
 
   backBtn.onclick = () => { window.location.href = '/'; };
@@ -570,6 +660,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     if(!currentUser){
       nameEl.textContent = '@unknown';
       descEl.textContent = 'Select a user profile to view full details.';
+      entryValidationEl.hidden = true;
       feedEl.innerHTML = '';
       return;
     }
@@ -579,6 +670,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       const err = await res.json().catch(() => ({}));
       nameEl.textContent = '@' + currentUser;
       descEl.textContent = err.error || 'Profile could not be loaded.';
+      renderEntryValidation(currentUser);
       profileData = normalizeProfileData({ username: currentUser });
       renderStats(profileData);
       renderRelationList(followersList, [], 'No followers yet.');
@@ -597,6 +689,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     if(verifiedRecord){
       decorateVerifiedBadge(verifiedEl, data.username);
     }
+    renderEntryValidation(data.username);
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = data.description || '';
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
