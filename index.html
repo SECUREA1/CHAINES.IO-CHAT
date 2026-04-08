@@ -735,7 +735,8 @@
       outline: none;
     }
     .like-btn { font-weight:700; }
-    .reaction-btn[data-kind="share"] { margin-left:auto; }
+    .reaction-btn[data-kind="repost"] { order: 5; }
+    .reaction-btn[data-kind="share"] { order: 6; }
     .comments { margin-top:8px; }
     .comments-list { margin-bottom:6px; }
     .comment { font-size:13px; margin-bottom:4px; }
@@ -5482,8 +5483,6 @@ body.streams-flex-fit #video-container[hidden] {
             repostBtn.disabled = false;
           }
         });
-        actions.appendChild(repostBtn);
-
         const shareBtn = document.createElement('button');
         shareBtn.className = 'reaction-btn';
         shareBtn.type = 'button';
@@ -5502,6 +5501,7 @@ body.streams-flex-fit #video-container[hidden] {
             { label: 'Copy link', onClick: () => copySharePayload(payload) }
           ]);
         });
+        actions.appendChild(repostBtn);
         actions.appendChild(shareBtn);
 
         const commentsBox = document.createElement('div');
