@@ -297,9 +297,17 @@
       text-align:center;
       white-space:nowrap;
     }
-    .composer-actions { display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px) auto; gap:4px; }
+    .composer-actions {
+      display:grid;
+      grid-template-columns:repeat(2,56px);
+      grid-template-rows:repeat(2,56px);
+      gap:4px;
+      align-content:end;
+      justify-content:end;
+      margin-top:auto;
+      padding-bottom:6px;
+    }
     .composer-actions .send { width:56px; height:56px; }
-    .composer-actions .copywriter { grid-column:span 2; font-size:12px; color:var(--muted); text-align:center; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
             border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
     #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #omconsole-gaming-demos-btn { cursor:pointer; }
@@ -772,6 +780,12 @@
     .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+    @media (min-width: 901px) {
+      #composer > div:first-child {
+        padding-bottom:58px;
+      }
+    }
 
     footer { padding: 0 18px 16px; color: var(--muted); text-align:center; font-size: 12px; }
     a { color: var(--accent-2); }
@@ -1623,7 +1637,6 @@ body.streams-flex-fit #video-container[hidden] {
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
           <button class="send" id="command-btn" type="button" aria-label="Show commands"><img src="static/whitehat.svg" alt="Command" /></button>
           <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
-          <div class="copywriter">CHAINeS POST Copywriter</div>
         </div>
       </form>
       <input id="file" type="file" hidden />
