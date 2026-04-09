@@ -621,6 +621,8 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      max-height: min(45vh, 320px);
+      overflow: hidden;
     }
     .cmd-panel__preview {
       border: 1px solid color-mix(in oklab, var(--lining), transparent 30%);
@@ -637,12 +639,10 @@
     }
     .cmd-grid {
       display:grid;
-      grid-template-rows: repeat(3, minmax(0, 1fr));
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(112px, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap:8px;
-      overflow-x:auto;
-      padding-bottom:4px;
+      overflow-y:auto;
+      padding-right:2px;
       scrollbar-width:thin;
     }
     .cmd-chip {
@@ -653,8 +653,8 @@
       border:1px solid color-mix(in oklab, #56ccff, transparent 25%);
       background: radial-gradient(circle at 20% 20%, rgba(90, 200, 255, .32), rgba(14, 31, 78, .85));
       border-radius: 14px;
-      min-height: 52px;
-      padding: 8px 10px;
+      min-height: 48px;
+      padding: 6px 8px;
       cursor:pointer;
       color: var(--fg);
       transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
@@ -673,12 +673,12 @@
       transform: translateY(-1px) scale(1.01);
     }
     .cmd-chip__icon {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       border-radius: 10px;
       display:grid;
       place-items:center;
-      flex: 0 0 30px;
+      flex: 0 0 32px;
       background: linear-gradient(145deg, var(--cmd-a, #4facfe), var(--cmd-b, #7b5cff));
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 0 12px rgba(98, 205, 255, .6);
     }
@@ -700,6 +700,26 @@
       text-overflow:ellipsis;
     }
     .cmd-chip svg { flex-shrink:0; }
+    @media (max-width: 900px) {
+      #cmd-panel {
+        max-height: min(36vh, 250px);
+        position: sticky;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+        z-index: 5;
+      }
+      .cmd-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .cmd-chip {
+        min-height: 44px;
+      }
+      .cmd-chip__icon {
+        width: 28px;
+        height: 28px;
+        flex-basis: 28px;
+      }
+    }
 
     .composer-action-board {
       margin: 8px 0 10px;
@@ -2139,6 +2159,9 @@ body.streams-flex-fit #video-container[hidden] {
       sing:      { text: 'sings off-key karaoke', emoji: '🎤', colors: ['#6fdfff','#4f95ff'], svg: '<path d="M15 6a4 4 0 1 1-6 3"/><path d="M9 9l-5 5 2 2 5-5"/><path d="M14 13v7"/><path d="M11 20h6"/>' },
       clap:      { text: 'claps wildly', emoji: '👏', colors: ['#6ad7ff','#5685ff'], svg: '<path d="M8 12l-2 2 4 6 2-1-2-7z"/><path d="M13 10l-2 1 2 9h3l1-8z"/><path d="M15 8l1-4"/><path d="M11 7V3"/><path d="M19 10l3-2"/>' },
       thumbsup:  { text: 'gives a thumbs up', emoji: '👍', colors: ['#66e1ff','#63a4ff'], svg: '<path d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M9 10l3-6c1-1 3 0 3 2v4h4c1 0 2 1 2 2l-1 7c0 1-1 2-2 2H9z"/>' },
+      heart:     { text: 'sends a heart', emoji: '❤️', colors: ['#ff78b3','#ff4f8f'], svg: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/>' },
+      fire:      { text: 'drops fire', emoji: '🔥', colors: ['#ffb25f','#ff5a4d'], svg: '<path d="M12 3c2 3 2 5 0 7 3-1 6 2 6 6a6 6 0 0 1-12 0c0-3 2-5 4-6-1-2 0-5 2-7z"/>' },
+      sparkle:   { text: 'adds sparkle', emoji: '✨', colors: ['#7de6ff','#7a7dff'], svg: '<path d="M12 3l1.7 4.8L18 9.5l-4.3 1.7L12 16l-1.7-4.8L6 9.5l4.3-1.7z"/><path d="M19 3l.7 2 .3.1-2 .7-.7 2-.7-2-2-.7.3-.1z"/><path d="M5 16l.9 2.5L8.5 20l-2.6 1-1 2.5-1-2.5-2.4-1 2.4-1.5z"/>' },
       party:     { text: 'throws a party', emoji: '🥳', colors: ['#6ad5ff','#5670ff'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
     };
     const actionEmojiToSvg = Object.values(actionCommands).reduce((map, def) => {
@@ -2177,6 +2200,7 @@ body.streams-flex-fit #video-container[hidden] {
       selectedComposerActions.forEach((action) => {
         const chip = document.createElement('span');
         chip.className = 'composer-action-chip';
+        chip.dataset.command = action.command || '';
         chip.title = action.command || 'emoji';
         chip.setAttribute('aria-label', `Selected emoji ${action.command || ''}`.trim());
         chip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${action.svg || ''}</svg>`;
@@ -2240,7 +2264,8 @@ body.streams-flex-fit #video-container[hidden] {
           }
           b.classList.add('is-selected');
           setTimeout(() => b.classList.remove('is-selected'), 220);
-          animateSvgTransfer(b, composerActionBoard || input, info);
+          const boardTarget = composerActionBoard?.querySelector(`[data-command="${cmd}"]`) || composerActionBoard || input;
+          animateSvgTransfer(b, boardTarget, info);
           preview.innerHTML = `<b>${info.emoji || '✨'} ${cmd}</b> added to comment board. Hit Send to move it into the feed.`;
         });
         grid.appendChild(b);
@@ -4385,7 +4410,10 @@ body.streams-flex-fit #video-container[hidden] {
       if(msgActions.length && postedMessage?.id){
         const postedRow = feed.querySelector(`li[data-id="${postedMessage.id}"] .message-actions`) || feed.querySelector('li.msg .message-actions');
         if(postedRow){
-          animateSvgTransfer(composerActionBoard || input, postedRow, msgActions[0]);
+          msgActions.forEach((action, idx) => {
+            const boardChip = composerActionBoard?.querySelector(`[data-command="${action.command || ''}"]`) || composerActionBoard || input;
+            setTimeout(() => animateSvgTransfer(boardChip, postedRow, action), idx * 80);
+          });
         }
       }
       input.value = '';
