@@ -242,7 +242,7 @@
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:8px;
+      gap:6px;
       padding:18px;
       position: sticky;
       bottom:0;
@@ -258,6 +258,7 @@
       align-items:center;
       gap:6px;
       grid-template-columns: repeat(6, minmax(0, 1fr));
+      order:3;
     }
     footer .status.bottom .chip {
       display:flex;
@@ -292,18 +293,19 @@
       justify-content:center;
       width:100%;
       min-height:20px;
-      margin:0;
+      margin:2px 0 0;
       font-size:11px;
       line-height:1.2;
       color:var(--muted);
       text-align:center;
       white-space:nowrap;
+      order:2;
     }
     .composer-actions {
       display:grid;
       grid-template-columns:repeat(2,56px);
       grid-template-rows:repeat(2,56px);
-      gap:2px;
+      gap:1px;
       align-content:end;
       justify-content:end;
       margin-top:auto;
@@ -920,7 +922,7 @@
 
     .system { text-align:center; color: var(--muted); font-size: 13px; margin: 12px 0; }
 
-    .composer { display:flex; align-items:stretch; gap:4px; margin:0; width:100%; }
+    .composer { display:flex; align-items:stretch; gap:2px; margin:0; width:100%; }
     .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
     .composer-main { flex:1; min-width:0; }
@@ -946,11 +948,11 @@
     .composer.composer--minimized .marketplace-tools,
     .composer.composer--minimized .marketplace-panel { display:none; }
     .composer.composer--minimized .composer-panel-title { opacity:.85; }
-    .marketplace-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; margin:0 0 8px; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 15%); }
+    .marketplace-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:4px; margin:0 0 6px; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 15%); }
     .marketplace-panel select,
     .marketplace-panel input { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
     .marketplace-note { font-size:12px; color: var(--muted); margin:0 0 6px; text-align:left; }
-    .marketplace-tools { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:6px; margin:0 0 8px; }
+    .marketplace-tools { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:4px; margin:0 0 6px; }
     .marketplace-tools input,
     .marketplace-tools select { width:100%; border-radius:10px; border:1px solid var(--lining); padding:8px 10px; background: color-mix(in oklab, var(--panel), transparent 4%); color: var(--fg); font: inherit; }
     .category-chip { display:inline-flex; align-items:center; font-size:11px; border-radius:999px; padding:2px 8px; border:1px solid var(--lining); color: var(--accent-2); background: color-mix(in oklab, var(--accent), transparent 80%); }
@@ -1600,15 +1602,16 @@ body.streams-flex-fit #video-container[hidden] {
         white-space:nowrap;
         text-align:left;
       }
-      footer { padding:0 12px 12px; gap:8px; }
+      footer { padding:0 12px 10px; gap:6px; }
       footer .status.bottom {
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap:6px;
       }
       footer .footer-copyright {
         grid-column: 1 / -1;
-        min-height:36px;
+        min-height:20px;
         font-size:11px;
+        margin:0;
       }
       .feed { padding:12px; }
       .composer { margin:0; }
