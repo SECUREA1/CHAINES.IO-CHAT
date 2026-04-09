@@ -286,7 +286,7 @@
       object-fit:contain;
     }
     footer .legal { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; color:var(--muted); text-align:center; }
-    footer .status.bottom .footer-copyright {
+    footer .footer-copyright {
       display:flex;
       align-items:center;
       justify-content:center;
@@ -1603,7 +1603,7 @@ body.streams-flex-fit #video-container[hidden] {
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap:6px;
       }
-      footer .status.bottom .footer-copyright {
+      footer .footer-copyright {
         grid-column: 1 / -1;
         min-height:36px;
         font-size:11px;
@@ -1930,6 +1930,7 @@ body.streams-flex-fit #video-container[hidden] {
         </label>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
+      <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
@@ -1938,7 +1939,6 @@ body.streams-flex-fit #video-container[hidden] {
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span><span id="profile-verified-badge" class="verified-badge" hidden>Validated</span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
-        <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
       </div>
     </footer>
   </div>
