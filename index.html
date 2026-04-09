@@ -2949,6 +2949,11 @@ body.streams-flex-fit #video-container[hidden] {
     });
     broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
+      const connected = await ensureCloudConnection();
+      if(!connected){
+        alert('Cloud connection unavailable. Try again in a moment.');
+        return;
+      }
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
         const hostId = others[0];
@@ -2957,29 +2962,13 @@ body.streams-flex-fit #video-container[hidden] {
         broadcastBtn.disabled = true;
         broadcastLabel.textContent = 'Pending';
       } else {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-            audio: true
-          });
-        } catch (err) {
-          console.warn('Primary media access failed, trying default devices', err);
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          } catch (err2) {
-            console.error('Unable to access camera/microphone', err2);
-            alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
-            return;
-          }
-        }
         broadcastThumb = await chooseThumbnail();
         if (broadcastThumb) {
           ensureStreamThumb(clientId, store.user, true);
           handleThumbnail(clientId, broadcastThumb);
           sendSignal({ type: 'thumb', thumb: broadcastThumb });
         }
-        startBroadcast(stream);
+        startBroadcast();
       }
     });
     streamCodeBtn.addEventListener('click', () => {
@@ -3169,8 +3158,83 @@ body.streams-flex-fit #video-container[hidden] {
         video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
         audio: true
       });
-      cameraStreams = [base];
-      return { stream: base, previews: [base], multiCam: false };
+      if(!navigator.mediaDevices?.enumerateDevices){
+        cameraStreams = [base];
+        return { stream: base, previews: [base], multiCam: false };
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices
+        .filter(d => d.kind === 'videoinput')
+        .slice(0, MAX_BROADCAST_CAMERAS);
+      if(videoInputs.length <= 1){
+        cameraStreams = [base];
+        return { stream: base, previews: [base], multiCam: false };
+      }
+      const opened = [base];
+      for(const d of videoInputs){
+        if(opened.length >= MAX_BROADCAST_CAMERAS) break;
+        const id = d.deviceId;
+        if(!id) continue;
+        try{
+          const extra = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
+          const extraTrack = extra.getVideoTracks()[0];
+          const baseTrack = base.getVideoTracks()[0];
+          const extraId = extraTrack?.getSettings?.().deviceId;
+          const baseId = baseTrack?.getSettings?.().deviceId;
+          if(baseId && extraId && baseId === extraId){
+            extra.getTracks().forEach(t => t.stop());
+            continue;
+          }
+          opened.push(extra);
+        } catch {}
+      }
+      if(opened.length > MAX_BROADCAST_CAMERAS){
+        opened.splice(MAX_BROADCAST_CAMERAS).forEach(s => {
+          try { s.getTracks().forEach(t => t.stop()); } catch {}
+        });
+      }
+      cameraStreams = opened;
+      if(opened.length <= 1){
+        return { stream: base, previews: [base], multiCam: false };
+      }
+
+      const entries = opened.map(s => ({ stream: s, track: s.getVideoTracks()[0], enabled: true }));
+      const vids = entries.map(entry => {
+        const v = document.createElement('video');
+        v.srcObject = entry.stream;
+        v.muted = true;
+        v.autoplay = true;
+        v.playsInline = true;
+        v.setAttribute('muted', '');
+        v.setAttribute('autoplay', '');
+        v.setAttribute('playsinline', '');
+        v.play().catch(() => {});
+        return v;
+      });
+      mixCanvas = document.createElement('canvas');
+      mixCtx = mixCanvas.getContext('2d');
+      const draw = () => {
+        const count = vids.length;
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const cellW = 640;
+        const cellH = 360;
+        mixCanvas.width = cols * cellW;
+        mixCanvas.height = rows * cellH;
+        mixCtx.fillStyle = 'black';
+        mixCtx.fillRect(0, 0, mixCanvas.width, mixCanvas.height);
+        vids.forEach((v, idx) => {
+          const x = (idx % cols) * cellW;
+          const y = Math.floor(idx / cols) * cellH;
+          try { mixCtx.drawImage(v, x, y, cellW, cellH); } catch {}
+        });
+        mixDrawHandle = requestAnimationFrame(draw);
+      };
+      draw();
+      const mixed = mixCanvas.captureStream(30);
+      base.getAudioTracks().forEach(t => mixed.addTrack(t));
+      renderMultiCamControls(entries);
+      return { stream: mixed, previews: opened, multiCam: true };
     }
 
     function removeExtraCameraPreviews(){
@@ -3198,7 +3262,40 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function addCameraToBroadcast(){
-      return;
+      if(!broadcasting || !localStream || screenSharing || multiCamBroadcast) return;
+      try{
+        const previousStream = localStream;
+        const bundle = await createBroadcastCameraBundle();
+        if(!bundle.multiCam || !bundle.stream){
+          alert('No additional camera found to add.');
+          return;
+        }
+        const nextStream = bundle.stream;
+        localStream = nextStream;
+        multiCamBroadcast = true;
+        if(cameraBtn) cameraBtn.hidden = true;
+        if(cameraFlipBtn) cameraFlipBtn.hidden = true;
+        if(addCameraBtn) addCameraBtn.hidden = true;
+        if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
+        renderExtraCameraPreviews(bundle.previews);
+        const nextVideoTrack = nextStream.getVideoTracks()[0];
+        const nextAudioTrack = nextStream.getAudioTracks()[0] || null;
+        for(const id in peerConnections){
+          const senders = peerConnections[id].getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if(videoSender && nextVideoTrack) videoSender.replaceTrack(nextVideoTrack);
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if(audioSender) audioSender.replaceTrack(nextAudioTrack);
+        }
+        const selfStream = streams[clientId];
+        if(selfStream?.vid) selfStream.vid.srcObject = nextStream;
+        if(previousStream && previousStream !== nextStream){
+          try { previousStream.getTracks().forEach(t => t.stop()); } catch {}
+        }
+      } catch(err){
+        console.error('Unable to add camera', err);
+        alert('Unable to add camera.');
+      }
     }
 
       function updateHeaderButtons(){
@@ -4577,12 +4674,6 @@ body.streams-flex-fit #video-container[hidden] {
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
-      if(addCameraBtn){
-        addCameraBtn.hidden = true;
-      }
-      if(cameraFlipBtn){
-        cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
-      }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
       mediaEl.srcObject = stream;
@@ -4744,7 +4835,6 @@ body.streams-flex-fit #video-container[hidden] {
           })
           .catch(() => endBroadcast(true));
         if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
-        if(addCameraBtn) addCameraBtn.hidden = true;
       }
 
       async function shareScreen(surface){
@@ -4827,6 +4917,8 @@ body.streams-flex-fit #video-container[hidden] {
         if(addCameraBtn){
           addCameraBtn.hidden = true;
         }
+        removeExtraCameraPreviews();
+        clearMultiCamControls();
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
       overlayMessages = [];
@@ -4841,9 +4933,10 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastLabel.textContent = 'Go Live';
       broadcastIcon.src = 'static/go-live.svg';
       broadcastIcon.alt = 'Go Live';
-      broadcastBtn.title = 'Go live';
+        broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
+        multiCamBroadcast = false;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
         const note = forced ? new Date().toLocaleString() : (share ?
