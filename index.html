@@ -683,8 +683,13 @@
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 0 12px rgba(98, 205, 255, .6);
     }
     .cmd-chip__icon svg { width:18px; height:18px; stroke:#fff; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
-    .cmd-chip__emoji { font-size: 16px; line-height:1; filter: drop-shadow(0 0 6px rgba(111, 222, 255, .9)); }
-    .cmd-chip__name { font-size: 12px; color: var(--fg); font-weight: 700; letter-spacing: .2px; }
+    .cmd-chip__icon svg,
+    .composer-action-chip svg,
+    .message-action-chip svg {
+      animation: emoji-pop .45s ease-out;
+      transform-origin: center;
+    }
+    .cmd-chip__name { display:none; }
     .cmd-chip__label {
       display:flex;
       align-items:center;
@@ -749,6 +754,11 @@
       from { transform: scale(.88); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
+    @keyframes emoji-pop {
+      0% { transform: scale(.55); opacity: .2; }
+      72% { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
 
     main { display:flex; flex-direction:column; gap:0; padding:0; flex:1; min-height:0; }
 
@@ -768,6 +778,21 @@
     .msg.mine .msg-text { text-align:right; }
 
     .msg-text { white-space: pre-wrap; word-wrap: break-word; }
+    .inline-svg-emoji {
+      display:inline-flex;
+      vertical-align: -0.2em;
+      margin: 0 .08em;
+    }
+    .inline-svg-emoji svg {
+      width: 1.1em;
+      height: 1.1em;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      animation: emoji-pop .45s ease-out;
+    }
 
     video::cue {
       font-family: var(--caption-font);
@@ -2116,6 +2141,10 @@ body.streams-flex-fit #video-container[hidden] {
       thumbsup:  { text: 'gives a thumbs up', emoji: '👍', colors: ['#66e1ff','#63a4ff'], svg: '<path d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M9 10l3-6c1-1 3 0 3 2v4h4c1 0 2 1 2 2l-1 7c0 1-1 2-2 2H9z"/>' },
       party:     { text: 'throws a party', emoji: '🥳', colors: ['#6ad5ff','#5670ff'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
     };
+    const actionEmojiToSvg = Object.values(actionCommands).reduce((map, def) => {
+      if(def?.emoji && def?.svg && !map[def.emoji]) map[def.emoji] = def.svg;
+      return map;
+    }, {});
     let selectedComposerActions = [];
 
     function animateSvgTransfer(sourceEl, targetEl, actionInfo){
@@ -2125,7 +2154,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!sourceRect.width || !targetRect.width) return;
       const flyer = document.createElement('div');
       flyer.className = 'flying-action';
-      flyer.innerHTML = `<span class="composer-action-chip"><svg viewBox="0 0 24 24">${actionInfo.svg || ''}</svg><span>${actionInfo.emoji || '✨'}</span></span>`;
+      flyer.innerHTML = `<span class="composer-action-chip"><svg viewBox="0 0 24 24" aria-hidden="true">${actionInfo.svg || ''}</svg></span>`;
       const startX = sourceRect.left + (sourceRect.width / 2);
       const startY = sourceRect.top + (sourceRect.height / 2);
       const endX = targetRect.left + 28;
@@ -2148,7 +2177,9 @@ body.streams-flex-fit #video-container[hidden] {
       selectedComposerActions.forEach((action) => {
         const chip = document.createElement('span');
         chip.className = 'composer-action-chip';
-        chip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${action.svg || ''}</svg><span>${action.emoji || '✨'} /${action.command}</span>`;
+        chip.title = action.command || 'emoji';
+        chip.setAttribute('aria-label', `Selected emoji ${action.command || ''}`.trim());
+        chip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${action.svg || ''}</svg>`;
         composerActionBoard.appendChild(chip);
       });
     }
@@ -2192,7 +2223,7 @@ body.streams-flex-fit #video-container[hidden] {
         b.style.setProperty('--cmd-b', info.colors?.[1] || '#7b5cff');
         b.innerHTML = `
           <span class="cmd-chip__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${info.svg || ''}</svg></span>
-          <span class="cmd-chip__label"><span class="cmd-chip__emoji" aria-hidden="true">${info.emoji || '✨'}</span><span class="cmd-chip__name">/${cmd}</span></span>
+          <span class="cmd-chip__label"><span class="cmd-chip__name">${cmd}</span></span>
         `;
         b.addEventListener('mouseenter', () => {
           preview.innerHTML = `<b>${info.emoji || '✨'} ${cmd}</b> → tap to add to message`;
@@ -2918,11 +2949,6 @@ body.streams-flex-fit #video-container[hidden] {
     });
     broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
-      const connected = await ensureCloudConnection();
-      if(!connected){
-        alert('Cloud connection unavailable. Try again in a moment.');
-        return;
-      }
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
         const hostId = others[0];
@@ -2931,13 +2957,29 @@ body.streams-flex-fit #video-container[hidden] {
         broadcastBtn.disabled = true;
         broadcastLabel.textContent = 'Pending';
       } else {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+            audio: true
+          });
+        } catch (err) {
+          console.warn('Primary media access failed, trying default devices', err);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          } catch (err2) {
+            console.error('Unable to access camera/microphone', err2);
+            alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
+            return;
+          }
+        }
         broadcastThumb = await chooseThumbnail();
         if (broadcastThumb) {
           ensureStreamThumb(clientId, store.user, true);
           handleThumbnail(clientId, broadcastThumb);
           sendSignal({ type: 'thumb', thumb: broadcastThumb });
         }
-        startBroadcast();
+        startBroadcast(stream);
       }
     });
     streamCodeBtn.addEventListener('click', () => {
@@ -3127,83 +3169,8 @@ body.streams-flex-fit #video-container[hidden] {
         video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
         audio: true
       });
-      if(!navigator.mediaDevices?.enumerateDevices){
-        cameraStreams = [base];
-        return { stream: base, previews: [base], multiCam: false };
-      }
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices
-        .filter(d => d.kind === 'videoinput')
-        .slice(0, MAX_BROADCAST_CAMERAS);
-      if(videoInputs.length <= 1){
-        cameraStreams = [base];
-        return { stream: base, previews: [base], multiCam: false };
-      }
-      const opened = [base];
-      for(const d of videoInputs){
-        if(opened.length >= MAX_BROADCAST_CAMERAS) break;
-        const id = d.deviceId;
-        if(!id) continue;
-        try{
-          const extra = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
-          const extraTrack = extra.getVideoTracks()[0];
-          const baseTrack = base.getVideoTracks()[0];
-          const extraId = extraTrack?.getSettings?.().deviceId;
-          const baseId = baseTrack?.getSettings?.().deviceId;
-          if(baseId && extraId && baseId === extraId){
-            extra.getTracks().forEach(t => t.stop());
-            continue;
-          }
-          opened.push(extra);
-        } catch {}
-      }
-      if(opened.length > MAX_BROADCAST_CAMERAS){
-        opened.splice(MAX_BROADCAST_CAMERAS).forEach(s => {
-          try { s.getTracks().forEach(t => t.stop()); } catch {}
-        });
-      }
-      cameraStreams = opened;
-      if(opened.length <= 1){
-        return { stream: base, previews: [base], multiCam: false };
-      }
-
-      const entries = opened.map(s => ({ stream: s, track: s.getVideoTracks()[0], enabled: true }));
-      const vids = entries.map(entry => {
-        const v = document.createElement('video');
-        v.srcObject = entry.stream;
-        v.muted = true;
-        v.autoplay = true;
-        v.playsInline = true;
-        v.setAttribute('muted', '');
-        v.setAttribute('autoplay', '');
-        v.setAttribute('playsinline', '');
-        v.play().catch(() => {});
-        return v;
-      });
-      mixCanvas = document.createElement('canvas');
-      mixCtx = mixCanvas.getContext('2d');
-      const draw = () => {
-        const count = vids.length;
-        const cols = Math.ceil(Math.sqrt(count));
-        const rows = Math.ceil(count / cols);
-        const cellW = 640;
-        const cellH = 360;
-        mixCanvas.width = cols * cellW;
-        mixCanvas.height = rows * cellH;
-        mixCtx.fillStyle = 'black';
-        mixCtx.fillRect(0, 0, mixCanvas.width, mixCanvas.height);
-        vids.forEach((v, idx) => {
-          const x = (idx % cols) * cellW;
-          const y = Math.floor(idx / cols) * cellH;
-          try { mixCtx.drawImage(v, x, y, cellW, cellH); } catch {}
-        });
-        mixDrawHandle = requestAnimationFrame(draw);
-      };
-      draw();
-      const mixed = mixCanvas.captureStream(30);
-      base.getAudioTracks().forEach(t => mixed.addTrack(t));
-      renderMultiCamControls(entries);
-      return { stream: mixed, previews: opened, multiCam: true };
+      cameraStreams = [base];
+      return { stream: base, previews: [base], multiCam: false };
     }
 
     function removeExtraCameraPreviews(){
@@ -3231,40 +3198,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function addCameraToBroadcast(){
-      if(!broadcasting || !localStream || screenSharing || multiCamBroadcast) return;
-      try{
-        const previousStream = localStream;
-        const bundle = await createBroadcastCameraBundle();
-        if(!bundle.multiCam || !bundle.stream){
-          alert('No additional camera found to add.');
-          return;
-        }
-        const nextStream = bundle.stream;
-        localStream = nextStream;
-        multiCamBroadcast = true;
-        if(cameraBtn) cameraBtn.hidden = true;
-        if(cameraFlipBtn) cameraFlipBtn.hidden = true;
-        if(addCameraBtn) addCameraBtn.hidden = true;
-        if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
-        renderExtraCameraPreviews(bundle.previews);
-        const nextVideoTrack = nextStream.getVideoTracks()[0];
-        const nextAudioTrack = nextStream.getAudioTracks()[0] || null;
-        for(const id in peerConnections){
-          const senders = peerConnections[id].getSenders();
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if(videoSender && nextVideoTrack) videoSender.replaceTrack(nextVideoTrack);
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if(audioSender) audioSender.replaceTrack(nextAudioTrack);
-        }
-        const selfStream = streams[clientId];
-        if(selfStream?.vid) selfStream.vid.srcObject = nextStream;
-        if(previousStream && previousStream !== nextStream){
-          try { previousStream.getTracks().forEach(t => t.stop()); } catch {}
-        }
-      } catch(err){
-        console.error('Unable to add camera', err);
-        alert('Unable to add camera.');
-      }
+      return;
     }
 
       function updateHeaderButtons(){
@@ -4643,6 +4577,12 @@ body.streams-flex-fit #video-container[hidden] {
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
+      if(addCameraBtn){
+        addCameraBtn.hidden = true;
+      }
+      if(cameraFlipBtn){
+        cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
+      }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
       mediaEl.srcObject = stream;
@@ -4804,6 +4744,7 @@ body.streams-flex-fit #video-container[hidden] {
           })
           .catch(() => endBroadcast(true));
         if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
+        if(addCameraBtn) addCameraBtn.hidden = true;
       }
 
       async function shareScreen(surface){
@@ -4886,8 +4827,6 @@ body.streams-flex-fit #video-container[hidden] {
         if(addCameraBtn){
           addCameraBtn.hidden = true;
         }
-        removeExtraCameraPreviews();
-        clearMultiCamControls();
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
       overlayMessages = [];
@@ -4905,7 +4844,6 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
-        multiCamBroadcast = false;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
         const note = forced ? new Date().toLocaleString() : (share ?
@@ -5499,11 +5437,12 @@ body.streams-flex-fit #video-container[hidden] {
         messageActions.forEach((action) => {
           const chip = document.createElement('span');
           chip.className = 'message-action-chip';
-          const safeLabel = action.command ? `/${escapeHTML(action.command)}` : '';
           const commandDef = action.command ? actionCommands[action.command] : null;
-          const safeSvg = commandDef?.svg || '';
-          const safeEmoji = commandDef?.emoji || action.emoji || '✨';
-          chip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${safeSvg}</svg><span>${escapeHTML(safeEmoji)} ${safeLabel}</span>`;
+          const safeSvg = commandDef?.svg || action.svg || '';
+          const actionLabel = action.command ? `Emoji ${action.command}` : 'Emoji';
+          chip.title = actionLabel;
+          chip.setAttribute('aria-label', actionLabel);
+          chip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${safeSvg}</svg>`;
           actionWrap.appendChild(chip);
         });
         bubble.appendChild(actionWrap);
@@ -5911,7 +5850,19 @@ body.streams-flex-fit #video-container[hidden] {
     function renderText(s, isAction=false){
       const safe = escapeHTML(s);
       const withLinks = linkify(safe);
-      return isAction ? `<em>${withLinks}</em>` : withLinks;
+      const withSvgEmoji = decorateInlineSvgEmoji(withLinks);
+      return isAction ? `<em>${withSvgEmoji}</em>` : withSvgEmoji;
+    }
+    function decorateInlineSvgEmoji(html){
+      const emojis = Object.keys(actionEmojiToSvg);
+      if(!html || !emojis.length) return html;
+      return emojis.reduce((updated, emoji) => {
+        const svg = actionEmojiToSvg[emoji];
+        if(!svg || !updated.includes(emoji)) return updated;
+        const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(escapedEmoji, 'g');
+        return updated.replace(pattern, `<span class="inline-svg-emoji" aria-hidden="true"><svg viewBox="0 0 24 24">${svg}</svg></span>`);
+      }, html);
     }
 
     async function addWatermark(dataUrl, text, wmDataUrl){
