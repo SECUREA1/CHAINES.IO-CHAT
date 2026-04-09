@@ -1571,38 +1571,40 @@ body.streams-flex-fit #video-container[hidden] {
       }
       header { padding:10px; gap:10px; border-radius:14px; }
       .bar {
-        flex-wrap:wrap;
+        flex-wrap:nowrap;
         align-items:center;
-        justify-content:center;
-        row-gap:8px;
+        justify-content:space-between;
+        row-gap:0;
       }
       .brand {
         min-width:0;
-        flex:1 1 100%;
-        justify-content:center;
+        flex:1 1 auto;
+        justify-content:flex-start;
       }
       .brand h1 {
         font-size:14px;
         line-height:1.2;
       }
       .bar-right {
-        flex:1 1 100%;
-        width:100%;
-        justify-content:center;
-        flex-wrap:wrap;
+        flex:0 0 auto;
+        width:auto;
+        justify-content:flex-end;
+        flex-wrap:nowrap;
         gap:6px;
-        margin-left:0;
+        margin-left:auto;
       }
       .self-destruct {
         font-size:11px;
-        white-space:normal;
-        text-align:center;
+        white-space:nowrap;
+        text-align:left;
       }
       footer { padding:0 12px 12px; gap:8px; }
       footer .status.bottom {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap:6px;
       }
       footer .status.bottom .footer-copyright {
+        grid-column: 1 / -1;
         min-height:36px;
         font-size:11px;
       }
@@ -1678,6 +1680,35 @@ body.streams-flex-fit #video-container[hidden] {
         top:calc(100% + 6px);
         margin-top:6px;
         width:min(90vw, 300px);
+      }
+      .composer-main {
+        display:flex;
+        flex-direction:column;
+      }
+      .composer-panel-title {
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+      .marketplace-note {
+        order: 20;
+        margin: 6px 0 0;
+      }
+      .marketplace-tools,
+      .marketplace-panel {
+        order: 5;
+      }
+      .composer-main .input {
+        order: 10;
+      }
+      .post-actions {
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        overflow-y:hidden;
+        -webkit-overflow-scrolling:touch;
+      }
+      .post-actions .reaction-btn {
+        flex:0 0 max(88px, 30%);
       }
       .ghost-ticker {
         left: 50%;
