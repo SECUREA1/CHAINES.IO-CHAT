@@ -1217,10 +1217,6 @@ wss.on("connection", (ws) => {
     }
     switch (msg?.type) {
       case "broadcaster":
-        if (broadcasters.size > 0 && ws.id !== guestApproved) {
-          ws.send(JSON.stringify({ type: "join-denied" }));
-          return;
-        }
         broadcasters.set(ws.id, ws);
         broadcastUsers();
         const followers = db
