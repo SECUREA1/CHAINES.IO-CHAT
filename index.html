@@ -4503,7 +4503,6 @@ body.streams-flex-fit #video-container[hidden] {
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
-        clearMultiCamControls();
         broadcasting = true;
         const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
         getStream.then(stream => {
@@ -4574,7 +4573,7 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastControls.removeAttribute('hidden');
       if(constButtons) constButtons.removeAttribute('hidden');
       if(cameraBtn){
-        cameraBtn.hidden = audioOnly || multiCamBroadcast;
+        cameraBtn.hidden = audioOnly;
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
@@ -4649,13 +4648,11 @@ body.streams-flex-fit #video-container[hidden] {
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
-          clearMultiCamControls();
           alert('Unable to access camera/microphone');
         });
       }
 
       function switchCamera(){
-        if(multiCamBroadcast) return;
         if(!localStream) return;
         usingFrontCamera = !usingFrontCamera;
         const videoTrack = localStream.getVideoTracks()[0];
@@ -4674,7 +4671,6 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
       function toggleCamera(){
-        if(multiCamBroadcast) return;
         if(!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
         if(!cameraOff){
@@ -4785,7 +4781,6 @@ body.streams-flex-fit #video-container[hidden] {
           screenTrack = track;
           screenSharing = true;
           if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
-          if(addCameraBtn) addCameraBtn.hidden = true;
           track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
           console.error('Screen share failed', err);

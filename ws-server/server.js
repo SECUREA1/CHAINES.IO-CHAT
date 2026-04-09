@@ -1131,28 +1131,6 @@ let guestApproved = null; // currently approved guest broadcaster
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
 
-function secureLiveUsers() {
-  const users = [];
-  for (const client of wss.clients) {
-    if (client.readyState === 1 && client.secureLive) {
-      users.push({
-        id: client.id,
-        user: client.username || "secure-user",
-      });
-    }
-  }
-  return users;
-}
-
-function broadcastSecureLiveUsers() {
-  const payload = JSON.stringify({ type: "secure-live-users", users: secureLiveUsers() });
-  for (const client of wss.clients) {
-    if (client.readyState === 1 && client.secureLive) {
-      client.send(payload);
-    }
-  }
-}
-
 function uid(){
   return Math.random().toString(36).slice(2,9);
 }
@@ -1209,10 +1187,6 @@ wss.on("connection", (ws) => {
       }
       thumbnails.delete(ws.id);
     }
-    if (ws.secureLive) {
-      ws.secureLive = false;
-      broadcastSecureLiveUsers();
-    }
     const watched = watching.get(ws.id);
     if(watched){
       for(const hostId of watched){
@@ -1242,19 +1216,6 @@ wss.on("connection", (ws) => {
       return;
     }
     switch (msg?.type) {
-      case "secure-live-join": {
-        ws.secureLive = true;
-        if (msg.user) ws.username = String(msg.user).slice(0, 32);
-        broadcastSecureLiveUsers();
-        return;
-      }
-      case "secure-live-leave": {
-        if (ws.secureLive) {
-          ws.secureLive = false;
-          broadcastSecureLiveUsers();
-        }
-        return;
-      }
       case "broadcaster":
         if (broadcasters.size > 0 && ws.id !== guestApproved) {
           ws.send(JSON.stringify({ type: "join-denied" }));
