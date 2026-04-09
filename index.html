@@ -1719,7 +1719,7 @@ body.streams-flex-fit #video-container[hidden] {
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
-          <button class="send" id="command-btn" type="button" aria-label="Show commands"><img src="static/whitehat.svg" alt="Command" /></button>
+          <button class="send" id="command-btn" type="button" aria-label="Show emoji keyboard"><img src="static/whitehat.svg" alt="Emoji keyboard" /></button>
           <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
         </div>
       </form>
@@ -2055,19 +2055,26 @@ body.streams-flex-fit #video-container[hidden] {
     cmdPanel.hidden = true;
     footer.insertBefore(cmdPanel, footer.querySelector('#broadcast-controls'));
 
-    let selectedActionCommand = '';
-    function clearSelectedAction(){
-      selectedActionCommand = '';
-      cmdPanel.querySelectorAll('.cmd-chip.is-selected').forEach((chip) => chip.classList.remove('is-selected'));
-    }
-    function selectedActionEntry(){
-      return selectedActionCommand ? actionCommands[selectedActionCommand] : null;
+    function insertEmojiIntoComposer(emoji){
+      if(!emoji) return;
+      const start = typeof input.selectionStart === 'number' ? input.selectionStart : input.value.length;
+      const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : input.value.length;
+      const before = input.value.slice(0, start);
+      const after = input.value.slice(end);
+      const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+      const needsTrailingSpace = after.length > 0 && !/^\s/.test(after);
+      const insertText = `${needsLeadingSpace ? ' ' : ''}${emoji}${needsTrailingSpace ? ' ' : ' '}`;
+      input.value = `${before}${insertText}${after}`;
+      const caret = before.length + insertText.length;
+      input.setSelectionRange(caret, caret);
+      autoResize(input);
+      input.focus();
     }
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
       const preview = document.createElement('div');
       preview.className = 'cmd-panel__preview';
-      preview.innerHTML = '<b>Action deck ready.</b> 3-row emoji moves stay at the bottom. Pick one, then tap Send.';
+      preview.innerHTML = '<b>Emoji keyboard ready.</b> Tap an icon to add it to your message, then hit Send.';
       const grid = document.createElement('div');
       grid.className = 'cmd-grid';
 
@@ -2075,34 +2082,24 @@ body.streams-flex-fit #video-container[hidden] {
         const b = document.createElement('button');
         b.className = 'cmd-chip';
         b.type = 'button';
-        b.title = `/${cmd}`;
+        b.title = `Add ${info.emoji || ''}`;
         b.dataset.command = cmd;
-        b.setAttribute('aria-label', `Queue action ${cmd}`);
+        b.setAttribute('aria-label', `Add ${cmd} emoji`);
         b.style.setProperty('--cmd-a', info.colors?.[0] || '#4facfe');
         b.style.setProperty('--cmd-b', info.colors?.[1] || '#7b5cff');
         b.innerHTML = `
           <span class="cmd-chip__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${info.svg || ''}</svg></span>
           <span class="cmd-chip__emoji" aria-hidden="true">${info.emoji || '✨'}</span>
-          <span class="cmd-chip__name">${info.emoji || ''} /${cmd}</span>
         `;
         b.addEventListener('mouseenter', () => {
-          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> → ${info.text}`;
+          preview.innerHTML = `<b>${info.emoji || '✨'} ${cmd}</b> → tap to add to message`;
         });
         b.addEventListener('focus', () => {
-          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> → ${info.text}`;
+          preview.innerHTML = `<b>${info.emoji || '✨'} ${cmd}</b> → tap to add to message`;
         });
         b.addEventListener('click', () => {
-          const wasSelected = selectedActionCommand === cmd;
-          clearSelectedAction();
-          if(wasSelected){
-            preview.innerHTML = '<b>Action cleared.</b> Pick another move then Send.';
-            input.focus();
-            return;
-          }
-          selectedActionCommand = cmd;
-          b.classList.add('is-selected');
-          input.focus();
-          preview.innerHTML = `<b>${info.emoji || '✨'} /${cmd}</b> queued. Tap Send for a fun action.`;
+          insertEmojiIntoComposer(info.emoji || '✨');
+          preview.innerHTML = `<b>${info.emoji || '✨'} ${cmd}</b> added. Continue typing and hit Send.`;
         });
         grid.appendChild(b);
       });
@@ -4299,11 +4296,11 @@ body.streams-flex-fit #video-container[hidden] {
       ev.preventDefault();
       if(fileLoading) return;
       const raw = (input.value || '').trim();
-      if(!raw && !pendingFile && !selectedActionEntry()) return;
+      if(!raw && !pendingFile) return;
 
       if(raw){
         // Commands
-        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; clearSelectedAction(); systemNote('Cleared local chat history.'); return; }
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; systemNote('Cleared local chat history.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
@@ -4311,45 +4308,13 @@ body.streams-flex-fit #video-container[hidden] {
           autoResize(input);
           input.placeholder = defaultPlaceholder;
           pendingFile = null;
-          clearSelectedAction();
           return;
         }
-        const simpleCmd = raw.match(/^\/([a-z]+)$/i);
-        if(simpleCmd){
-          const entry = actionCommands[simpleCmd[1].toLowerCase()];
-          if(entry){
-            const emoji = entry.emoji ? `${entry.emoji} ` : '';
-            postMessage({ text: `*${emoji}${entry.text}*`, isAction:true });
-            input.value='';
-            autoResize(input);
-            input.placeholder = defaultPlaceholder;
-            pendingFile = null;
-            clearSelectedAction();
-            return;
-          }
-        }
-      }
-
-      const queuedAction = selectedActionEntry();
-      if(queuedAction && !raw && !pendingFile){
-        const emoji = queuedAction.emoji ? `${queuedAction.emoji} ` : '';
-        postMessage({ text: `*${emoji}${queuedAction.text}*`, isAction:true, broadcast: broadcasting, listing: getListingFromComposer() });
-        showChat();
-        setMarketMode('all');
-        clearSelectedAction();
-        input.value = '';
-        autoResize(input);
-        input.placeholder = defaultPlaceholder;
-        return;
       }
 
       // append user signature for copyright
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
       let msgText = raw ? raw + signature : signature;
-      if(queuedAction){
-        const emoji = queuedAction.emoji ? `${queuedAction.emoji} ` : '';
-        msgText += `\n\n*${emoji}${queuedAction.text}*`;
-      }
       const msg = { text: msgText, broadcast: broadcasting, listing: getListingFromComposer() };
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
@@ -4367,7 +4332,6 @@ body.streams-flex-fit #video-container[hidden] {
       autoResize(input);
       input.placeholder = defaultPlaceholder;
       pendingFile = null;
-      clearSelectedAction();
     });
 
     broadcastComposer.addEventListener('submit', ev => {
