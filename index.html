@@ -4569,17 +4569,10 @@ body.streams-flex-fit #video-container[hidden] {
         overlayMessages = [];
         cameraOff = false;
         blankTrack = null;
-        clearMultiCamControls();
         broadcasting = true;
-        const getStream = stream
-          ? Promise.resolve({ stream, previews: [stream], multiCam: false })
-          : (audioOnly
-            ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
-            : createBroadcastCameraBundle());
-        getStream.then(bundle => {
-          const stream = bundle.stream;
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
+        getStream.then(stream => {
           localStream = stream;
-          multiCamBroadcast = !!bundle.multiCam;
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -4646,20 +4639,13 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastControls.removeAttribute('hidden');
       if(constButtons) constButtons.removeAttribute('hidden');
       if(cameraBtn){
-        cameraBtn.hidden = audioOnly || multiCamBroadcast;
+        cameraBtn.hidden = audioOnly;
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
-      if(addCameraBtn){
-        addCameraBtn.hidden = audioOnly || multiCamBroadcast;
-      }
-      if(cameraFlipBtn){
-        cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
-      }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      const previewStream = bundle.previews && bundle.previews[0] ? bundle.previews[0] : stream;
-      mediaEl.srcObject = previewStream;
+      mediaEl.srcObject = stream;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -4691,9 +4677,6 @@ body.streams-flex-fit #video-container[hidden] {
             }
           }
           videoContainer.appendChild(mediaEl);
-          if(!audioOnly && bundle.previews && bundle.previews.length > 1){
-            renderExtraCameraPreviews(bundle.previews);
-          }
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
@@ -4725,13 +4708,11 @@ body.streams-flex-fit #video-container[hidden] {
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
-          clearMultiCamControls();
           alert('Unable to access camera/microphone');
         });
       }
 
       function switchCamera(){
-        if(multiCamBroadcast) return;
         if(!localStream) return;
         usingFrontCamera = !usingFrontCamera;
         const videoTrack = localStream.getVideoTracks()[0];
@@ -4750,7 +4731,6 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
       function toggleCamera(){
-        if(multiCamBroadcast) return;
         if(!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
         if(!cameraOff){
@@ -4824,7 +4804,6 @@ body.streams-flex-fit #video-container[hidden] {
           })
           .catch(() => endBroadcast(true));
         if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
-        if(addCameraBtn) addCameraBtn.hidden = !broadcasting || multiCamBroadcast;
       }
 
       async function shareScreen(surface){
@@ -4861,7 +4840,6 @@ body.streams-flex-fit #video-container[hidden] {
           screenTrack = track;
           screenSharing = true;
           if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
-          if(addCameraBtn) addCameraBtn.hidden = true;
           track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
           console.error('Screen share failed', err);
