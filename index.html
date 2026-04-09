@@ -623,8 +623,39 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-height: min(45vh, 320px);
+      max-height: min(38vh, 280px);
       overflow: hidden;
+    }
+    .cmd-panel__head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cmd-panel__title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--fg);
+      letter-spacing: .01em;
+    }
+    .cmd-panel__close {
+      border:1px solid color-mix(in oklab, var(--lining), transparent 10%);
+      background: color-mix(in oklab, var(--btn), transparent 10%);
+      color: var(--fg);
+      border-radius: 10px;
+      width: 30px;
+      height: 30px;
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+    }
+    .cmd-panel__close:hover,
+    .cmd-panel__close:focus-visible {
+      background: color-mix(in oklab, var(--btn), var(--accent) 20%);
+      border-color: color-mix(in oklab, var(--accent), white 18%);
     }
     .cmd-panel__preview {
       border: 1px solid color-mix(in oklab, var(--lining), transparent 30%);
@@ -641,7 +672,7 @@
     }
     .cmd-grid {
       display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
       gap:8px;
       overflow-y:auto;
       overflow-x:hidden;
@@ -657,8 +688,7 @@
       background: radial-gradient(circle at 20% 20%, rgba(90, 200, 255, .32), rgba(14, 31, 78, .85));
       border-radius: 14px;
       width:100%;
-      min-height: 56px;
-      aspect-ratio: 1 / 1;
+      min-height: 44px;
       padding: 6px 8px;
       cursor:pointer;
       color: var(--fg);
@@ -707,7 +737,7 @@
     .cmd-chip svg { flex-shrink:0; }
     @media (max-width: 900px) {
       #cmd-panel {
-        max-height: min(42vh, 340px);
+        max-height: min(32vh, 260px);
         position: sticky;
         bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
         z-index: 5;
@@ -731,7 +761,7 @@
     }
     @media (max-width: 520px) {
       #cmd-panel {
-        max-height: min(46vh, 360px);
+        max-height: min(30vh, 230px);
       }
       .cmd-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2253,8 +2283,40 @@ body.streams-flex-fit #video-container[hidden] {
       autoResize(input);
       input.focus();
     }
+    function closeEmojiKeyboard(){
+      cmdPanel.hidden = true;
+      cmdBtn?.setAttribute('aria-expanded', 'false');
+    }
+    function openEmojiKeyboard(){
+      cmdPanel.hidden = false;
+      cmdBtn?.setAttribute('aria-expanded', 'true');
+    }
+    function toggleEmojiKeyboard(){
+      if(cmdPanel.hidden){
+        openEmojiKeyboard();
+      } else {
+        closeEmojiKeyboard();
+      }
+    }
+
     function renderCmdPanel(){
       cmdPanel.innerHTML = '';
+      const head = document.createElement('div');
+      head.className = 'cmd-panel__head';
+      const title = document.createElement('div');
+      title.className = 'cmd-panel__title';
+      title.textContent = 'Emoji keyboard';
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'cmd-panel__close';
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Close emoji keyboard');
+      closeBtn.title = 'Close';
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', () => {
+        closeEmojiKeyboard();
+        input.focus();
+      });
+      head.append(title, closeBtn);
       const preview = document.createElement('div');
       preview.className = 'cmd-panel__preview';
       preview.innerHTML = '<b>Emoji keyboard ready.</b> Tap an icon to add it to your message, then hit Send.';
@@ -2296,7 +2358,7 @@ body.streams-flex-fit #video-container[hidden] {
         grid.appendChild(b);
       });
 
-      cmdPanel.append(preview, grid);
+      cmdPanel.append(head, preview, grid);
     }
     renderCmdPanel();
     let pendingFile = null;
@@ -4558,12 +4620,19 @@ body.streams-flex-fit #video-container[hidden] {
 
     if(cmdListBtn){
       cmdListBtn.addEventListener('click', () => {
-        cmdPanel.hidden = !cmdPanel.hidden;
+        toggleEmojiKeyboard();
       });
     }
+    cmdBtn.setAttribute('aria-expanded', 'false');
     cmdBtn.addEventListener('click', () => {
-      cmdPanel.hidden = !cmdPanel.hidden;
+      toggleEmojiKeyboard();
     });
+    input.addEventListener('focus', () => {
+      if(!cmdPanel.hidden) closeEmojiKeyboard();
+    });
+    input.addEventListener('touchstart', () => {
+      if(!cmdPanel.hidden) closeEmojiKeyboard();
+    }, { passive: true });
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
