@@ -2918,11 +2918,6 @@ body.streams-flex-fit #video-container[hidden] {
     });
     broadcastBtn.addEventListener('click', async () => {
       if (broadcasting) { endBroadcast(); return; }
-      const connected = await ensureCloudConnection();
-      if(!connected){
-        alert('Cloud connection unavailable. Try again in a moment.');
-        return;
-      }
       const others = Object.keys(streams).filter(id => id !== clientId);
       if (others.length > 0 && !joinApproved) {
         const hostId = others[0];
@@ -2931,13 +2926,29 @@ body.streams-flex-fit #video-container[hidden] {
         broadcastBtn.disabled = true;
         broadcastLabel.textContent = 'Pending';
       } else {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+            audio: true
+          });
+        } catch (err) {
+          console.warn('Primary media access failed, trying default devices', err);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          } catch (err2) {
+            console.error('Unable to access camera/microphone', err2);
+            alert('Unable to access camera/microphone. Please check browser permissions and ensure no other app is using them.');
+            return;
+          }
+        }
         broadcastThumb = await chooseThumbnail();
         if (broadcastThumb) {
           ensureStreamThumb(clientId, store.user, true);
           handleThumbnail(clientId, broadcastThumb);
           sendSignal({ type: 'thumb', thumb: broadcastThumb });
         }
-        startBroadcast();
+        startBroadcast(stream);
       }
     });
     streamCodeBtn.addEventListener('click', () => {
@@ -4571,15 +4582,9 @@ body.streams-flex-fit #video-container[hidden] {
         blankTrack = null;
         clearMultiCamControls();
         broadcasting = true;
-        const getStream = stream
-          ? Promise.resolve({ stream, previews: [stream], multiCam: false })
-          : (audioOnly
-            ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
-            : createBroadcastCameraBundle());
-        getStream.then(bundle => {
-          const stream = bundle.stream;
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
+        getStream.then(stream => {
           localStream = stream;
-          multiCamBroadcast = !!bundle.multiCam;
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -4658,8 +4663,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      const previewStream = bundle.previews && bundle.previews[0] ? bundle.previews[0] : stream;
-      mediaEl.srcObject = previewStream;
+      mediaEl.srcObject = stream;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -4691,9 +4695,6 @@ body.streams-flex-fit #video-container[hidden] {
             }
           }
           videoContainer.appendChild(mediaEl);
-          if(!audioOnly && bundle.previews && bundle.previews.length > 1){
-            renderExtraCameraPreviews(bundle.previews);
-          }
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
@@ -4908,8 +4909,6 @@ body.streams-flex-fit #video-container[hidden] {
         if(addCameraBtn){
           addCameraBtn.hidden = true;
         }
-        removeExtraCameraPreviews();
-        clearMultiCamControls();
         cameraOff = false;
         if(blankTrack){ blankTrack.stop(); blankTrack = null; }
       overlayMessages = [];
@@ -4927,7 +4926,6 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastBtn.title = 'Go live';
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
-        multiCamBroadcast = false;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
         const note = forced ? new Date().toLocaleString() : (share ?
