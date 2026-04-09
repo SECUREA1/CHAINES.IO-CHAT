@@ -798,8 +798,8 @@
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
-    .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow:auto; }
-    .card { width:min(520px, 92vw); padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:flex-start; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow-y:auto; overflow-x:hidden; padding:12px 0; }
+    .card { width:min(520px, 92vw); margin:0 auto; max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
@@ -902,7 +902,7 @@
     }
 
     @media (max-width: 640px) {
-      .card { width: 100%; margin: 16px; padding: 18px; }
+      .card { width: 100%; margin: 8px 16px 16px; padding: 18px; }
       .fields { gap: 12px; }
       .fields input { font-size: 15px; }
       .actions { flex-direction: column; align-items: stretch; }
@@ -4046,6 +4046,9 @@ body.streams-flex-fit #video-container[hidden] {
         const bottom = footerBar.offsetHeight;
         auth.style.top = top + 'px';
         auth.style.bottom = bottom + 'px';
+        auth.scrollTop = 0;
+        const authCard = auth.querySelector('.card');
+        if(authCard) authCard.scrollTop = 0;
         document.body.classList.add('auth-lock');
         setTokenLoginStatus('');
         setTimeout(() => usernameInput && usernameInput.focus(), 50);
