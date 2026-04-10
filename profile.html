@@ -116,7 +116,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   <div class="profile-header">
     <img id="p-avatar" alt="avatar" />
     <h2 id="p-name"></h2>
-    <span id="p-verified" class="verified-badge" hidden>Validated</span>
+    <span id="p-verified" class="verified-badge" hidden aria-label="Validated account"></span>
     <div id="p-entry-validation" class="entry-validation" hidden></div>
     <button id="follow-btn" class="follow-btn"></button>
     <button id="message-btn" class="follow-btn" hidden>Message</button>
@@ -211,7 +211,22 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   function verifiedUsers(){
     try{
       const parsed = JSON.parse(localStorage.getItem('chaines_verified_users') || '{}');
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      if(!(parsed && typeof parsed === 'object')) return {};
+      return Object.fromEntries(
+        Object.entries(parsed).filter(([, record]) => {
+          if(!(record && typeof record === 'object')) return false;
+          if(record.verified === false || record.active !== true) return false;
+          const chain = String(record.chain || '').trim().toLowerCase();
+          const contract = String(record.expectedContract || record.contract || '').trim();
+          const hasValidatedOnce = Boolean(
+            record.validatedOnce ||
+            Number.isFinite(record.validatedAt) ||
+            (Number.isFinite(record.validatorSuccessCount) && record.validatorSuccessCount > 0) ||
+            (chain && contract)
+          );
+          return Boolean(chain && contract && hasValidatedOnce);
+        })
+      );
     }catch{
       return {};
     }
@@ -283,6 +298,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     if(!target) return;
     const record = verifiedUsers()[username];
     target.textContent = '';
+    target.setAttribute('aria-label', 'Validated account');
+    target.title = 'Validated account';
     const seed = tokenSeedForRecord(record, username);
     if(seed){
       const icon = document.createElement('span');
@@ -308,13 +325,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     } else {
       const dot = document.createElement('span');
       dot.className = 'verified-badge__dot';
-      dot.textContent = '●';
+      dot.textContent = '✅';
       dot.setAttribute('aria-hidden', 'true');
       target.appendChild(dot);
     }
-    const text = document.createElement('span');
-    text.textContent = record?.badgeLabel || record?.badge || 'Validated';
-    target.appendChild(text);
   }
 
   function applyVerificationToProfile(description, verification){
