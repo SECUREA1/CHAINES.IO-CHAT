@@ -244,13 +244,21 @@
       align-items:center;
       gap:6px;
       padding:18px;
-      position: sticky;
+      position: fixed;
+      left: 0;
+      right: 0;
       bottom:0;
       z-index:5;
       background: color-mix(in oklab, var(--panel), transparent 25%);
       backdrop-filter: blur(8px);
       box-shadow: var(--shadow);
       border:1px solid var(--lining);
+      transition: transform .22s ease, opacity .22s ease;
+      will-change: transform;
+    }
+    body.footer-scroll-active footer {
+      transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px)));
+      opacity: .96;
     }
     footer .status.bottom {
       display:grid;
@@ -1448,10 +1456,6 @@ body.streams-flex-fit #video-container[hidden] {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-      footer {
-        position: relative;
-        bottom: auto;
       }
     }
 
@@ -2766,6 +2770,21 @@ body.streams-flex-fit #video-container[hidden] {
     [headerBar, footerBar].forEach(el => {
       keepVisible(el);
       new MutationObserver(() => keepVisible(el)).observe(el, { attributes: true });
+    });
+
+    let footerScrollRevealTimer = null;
+    const revealFooter = () => {
+      document.body.classList.remove('footer-scroll-active');
+    };
+    const hideFooterWhileScrolling = () => {
+      if(!footerBar || footerBar.hasAttribute('hidden')) return;
+      document.body.classList.add('footer-scroll-active');
+      if(footerScrollRevealTimer) clearTimeout(footerScrollRevealTimer);
+      footerScrollRevealTimer = setTimeout(revealFooter, 220);
+    };
+    const scrollTargets = [window, feed, el('main')];
+    scrollTargets.forEach(target => {
+      target?.addEventListener('scroll', hideFooterWhileScrolling, { passive: true });
     });
 
     el('#year').textContent = new Date().getFullYear();
