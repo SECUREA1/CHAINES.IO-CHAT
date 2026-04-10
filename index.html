@@ -3013,6 +3013,22 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // --- Basic state ---
+    const MESSAGE_SOURCE_KEY = 'chaines_messages';
+    function loadPersistentMessages(){
+      try {
+        const parsed = JSON.parse(localStorage.getItem(MESSAGE_SOURCE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    function savePersistentMessages(items){
+      try {
+        const safeItems = Array.isArray(items) ? items : [];
+        localStorage.setItem(MESSAGE_SOURCE_KEY, JSON.stringify(safeItems));
+      } catch {}
+    }
+
     const store = {
       get user() {
         try { return localStorage.getItem('chaines_username') || ''; }
@@ -3085,29 +3101,19 @@ body.streams-flex-fit #video-container[hidden] {
         } catch {}
       },
       pushMsg(m) {
-        try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          items.push(m); while (items.length > 200) items.shift();
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
-        } catch {}
+        const items = loadPersistentMessages();
+        items.push(m);
+        savePersistentMessages(items);
       },
       removeMsg(id){
-        try{
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]').filter(x => x.id !== id);
-          localStorage.setItem('chaines_messages', JSON.stringify(items));
-        } catch{}
+        const items = loadPersistentMessages().filter(x => x.id !== id);
+        savePersistentMessages(items);
       },
       loadMsgs() {
-        try {
-          const items = JSON.parse(localStorage.getItem('chaines_messages') || '[]');
-          const now = Date.now();
-          const valid = items.filter(m => !m.selfDestruct || now - m.ts < m.selfDestruct);
-          localStorage.setItem('chaines_messages', JSON.stringify(valid));
-          return valid;
-        } catch { return []; }
+        return loadPersistentMessages();
       },
       clearMsgs() {
-        try { localStorage.removeItem('chaines_messages'); } catch {}
+        try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
       }
     };
 
