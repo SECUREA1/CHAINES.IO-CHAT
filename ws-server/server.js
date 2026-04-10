@@ -1130,6 +1130,7 @@ const watching = new Map();  // watcherId -> Set of hostIds
 let guestApproved = null; // currently approved guest broadcaster
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
+const secureLiveParticipants = new Map(); // ws.id -> { id, user }
 
 function uid(){
   return Math.random().toString(36).slice(2,9);
@@ -1162,6 +1163,14 @@ function sendListenerCount(id){
   }
 }
 
+function broadcastSecureLiveUsers() {
+  const users = Array.from(secureLiveParticipants.values());
+  const payload = JSON.stringify({ type: "secure-live-users", users });
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
 wss.on("connection", (ws) => {
   ws.id = uid();
   clients.set(ws.id, ws);
@@ -1174,6 +1183,9 @@ wss.on("connection", (ws) => {
   }
   ws.on("close", () => {
     clients.delete(ws.id);
+    if (secureLiveParticipants.delete(ws.id)) {
+      broadcastSecureLiveUsers();
+    }
     if (broadcasters.has(ws.id)) {
       broadcasters.delete(ws.id);
       micGuests.delete(ws.id);
@@ -1600,6 +1612,18 @@ wss.on("connection", (ws) => {
           if (msg.sdp) payload.sdp = msg.sdp;
           if (msg.candidate) payload.candidate = msg.candidate;
           dest.send(JSON.stringify(payload));
+        }
+        return;
+      }
+      case "secure-live-join": {
+        const user = (msg.user || ws.username || "").toString().trim() || `secure-${ws.id}`;
+        secureLiveParticipants.set(ws.id, { id: ws.id, user });
+        broadcastSecureLiveUsers();
+        return;
+      }
+      case "secure-live-leave": {
+        if (secureLiveParticipants.delete(ws.id)) {
+          broadcastSecureLiveUsers();
         }
         return;
       }
