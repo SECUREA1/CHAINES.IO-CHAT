@@ -5984,19 +5984,18 @@ body.streams-flex-fit #video-container[hidden] {
         repostBtn.type = 'button';
         repostBtn.dataset.kind = 'repost';
         repostBtn.textContent = '🔁';
-        repostBtn.title = 'Repost this post to your timeline (one time only)';
+        repostBtn.title = 'Repost or quote this post to your timeline (one time only)';
         const sourceMessageId = m.repostOf || m.id;
         const alreadyReposted = hasUserRepostedMessage(sourceMessageId);
         if(alreadyReposted){
           repostBtn.disabled = true;
           repostBtn.title = 'You already reposted this post';
         }
-        repostBtn.addEventListener('click', () => {
-          if(repostBtn.disabled) return;
+        const submitRepost = (quoteText = '') => {
           repostBtn.disabled = true;
           try {
             if(socket && socket.readyState === 1){
-              socket.send(JSON.stringify({ type:'repost', messageId: sourceMessageId, user: store.user }));
+              socket.send(JSON.stringify({ type:'repost', messageId: sourceMessageId, quoteText, user: store.user }));
             } else {
               repostBtn.disabled = false;
               systemNote('Connect to cloud to repost.');
@@ -6004,6 +6003,37 @@ body.streams-flex-fit #video-container[hidden] {
           } catch {
             repostBtn.disabled = false;
           }
+        };
+        repostBtn.addEventListener('click', () => {
+          if(repostBtn.disabled) return;
+          if(!(socket && socket.readyState === 1)){
+            systemNote('Connect to cloud to repost.');
+            return;
+          }
+          showPopup('How do you want to share this post?', [
+            {
+              label: 'Repost',
+              onClick: () => {
+                hidePopup();
+                submitRepost('');
+              }
+            },
+            {
+              label: 'Quote',
+              onClick: () => {
+                hidePopup();
+                const quote = prompt('Add a comment to your quote (optional, max 280 chars):', '');
+                if(quote === null) return;
+                submitRepost(String(quote || '').trim().slice(0, 280));
+              }
+            },
+            {
+              label: 'Cancel',
+              onClick: () => {
+                hidePopup();
+              }
+            }
+          ]);
         });
         const shareBtn = document.createElement('button');
         shareBtn.className = 'reaction-btn';
