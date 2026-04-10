@@ -5887,7 +5887,15 @@ body.streams-flex-fit #video-container[hidden] {
         });
         bubble.appendChild(listingMeta);
       }
-      const plain = text.textContent.trim();
+      const actionEmojiPlain = messageActions
+        .map((action) => {
+          if(action?.emoji) return String(action.emoji).trim();
+          if(action?.command && actionCommands[action.command]?.emoji) return String(actionCommands[action.command].emoji).trim();
+          return '';
+        })
+        .filter(Boolean)
+        .join(' ');
+      const plain = [String(m.text || '').trim(), actionEmojiPlain].filter(Boolean).join(' ').trim();
       if (broadcasting && plain) {
         const isMyRoom = (m.room === clientId);
         const isHostRoomWhileGuest = (pendingJoinHost && m.room === pendingJoinHost);
