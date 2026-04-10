@@ -1498,6 +1498,7 @@ wss.on("connection", (ws) => {
         if (!msg.messageId) return;
         const actor = sanitizeUsername(msg.user || ws.username || "");
         if (!actor) return;
+        const quoteText = String(msg.quoteText || "").trim().slice(0, 280);
         const source = db
           .prepare(
             `SELECT id, user, verified, room, message, image, file, file_name, file_type, category, listing_data
@@ -1543,7 +1544,7 @@ wss.on("connection", (ws) => {
             source.category,
             source.listing_data,
             source.id,
-            `Reposted by @${actor}`
+            quoteText ? `Quoted by @${actor}: ${quoteText}` : `Reposted by @${actor}`
           );
         const repostMessageId = created.lastInsertRowid;
         db.prepare(
@@ -1579,7 +1580,7 @@ wss.on("connection", (ws) => {
           likes: 0,
           comments: [],
           repostOf: source.id,
-          repostNote: `Reposted by @${actor}`,
+          repostNote: quoteText ? `Quoted by @${actor}: ${quoteText}` : `Reposted by @${actor}`,
           repostOriginalUser: source.user || "",
         };
         for (const client of wss.clients) {
