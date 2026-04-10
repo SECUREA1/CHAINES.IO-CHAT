@@ -1038,6 +1038,43 @@
     .omconsole-close { border:1px solid var(--lining); background: var(--btn); color: var(--fg); border-radius:12px; padding:6px 10px; cursor:pointer; }
     .omconsole-close:hover { background: color-mix(in oklab, var(--btn), transparent 10%); }
     .omconsole-modal__frame { flex:1; border:0; width:100%; background:#000; }
+    .drone-engine-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(3,8,26,0.85); z-index:25; padding:18px; }
+    .drone-engine-modal__dialog {
+      width:min(980px, 96vw);
+      max-height:92dvh;
+      overflow:auto;
+      border-radius:20px;
+      border:1px solid var(--lining);
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+      box-shadow: var(--shadow);
+      padding:20px;
+      display:grid;
+      gap:16px;
+    }
+    .drone-engine-modal__header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .drone-engine-modal__title { margin:0; font-size:clamp(18px, 3vw, 24px); }
+    .drone-engine-modal__close { border:1px solid var(--lining); background:var(--btn); color:var(--fg); border-radius:12px; padding:8px 12px; cursor:pointer; }
+    .drone-engine-modal__lead { margin:0; color:var(--muted); }
+    .drone-engine-model-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .drone-engine-metric {
+      border:1px solid var(--lining);
+      border-radius:14px;
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+      padding:12px;
+      display:grid;
+      gap:4px;
+    }
+    .drone-engine-metric strong { font-size:20px; }
+    .drone-engine-gallery { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .drone-engine-gallery figure {
+      margin:0;
+      border:1px solid var(--lining);
+      border-radius:14px;
+      overflow:hidden;
+      background: color-mix(in oklab, var(--panel), transparent 20%);
+    }
+    .drone-engine-gallery img { width:100%; height:220px; object-fit:cover; display:block; }
+    .drone-engine-gallery figcaption { padding:10px; font-size:12px; color:var(--muted); }
     .omconsole-mobile-exit {
       display:none;
       position:absolute;
@@ -1856,6 +1893,7 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" />Rednode AI</button></li>
                       <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" />Voice3 App</button></li>
                       <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" />Gaming Demos</button></li>
+                      <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" />Drone Engine</button></li>
                     </ul>
                   </details>
                 </div>
@@ -2007,6 +2045,32 @@ body.streams-flex-fit #video-container[hidden] {
         <button id="omconsole-close" class="omconsole-close" type="button" aria-label="Close OMConsole">Close</button>
       </div>
       <iframe id="omconsole-frame" class="omconsole-modal__frame" src="omconsole_render_single_games_ROUTING.html" title="OMConsole" loading="lazy" allow="camera *; microphone *; display-capture *; autoplay *; fullscreen *" allowfullscreen allowusermedia></iframe>
+    </div>
+  </div>
+
+  <div id="drone-engine-modal" class="drone-engine-modal" hidden>
+    <div class="drone-engine-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="drone-engine-title">
+      <div class="drone-engine-modal__header">
+        <h2 id="drone-engine-title" class="drone-engine-modal__title">Drone Engine | Investor Forward Model</h2>
+        <button id="drone-engine-close" class="drone-engine-modal__close" type="button" aria-label="Close drone engine panel">Close</button>
+      </div>
+      <p class="drone-engine-modal__lead">Most up-to-date forward model snapshot for investor review, including the full image deck and deployment outlook.</p>
+      <div class="drone-engine-model-grid" aria-label="Drone engine investor forward model">
+        <article class="drone-engine-metric"><span>Projected ARR run-rate</span><strong>$2.8M</strong><small>Model horizon: next 12 months</small></article>
+        <article class="drone-engine-metric"><span>Gross margin target</span><strong>67%</strong><small>Autonomy and fleet optimization blended case</small></article>
+        <article class="drone-engine-metric"><span>Forward EV / Revenue</span><strong>4.1x</strong><small>Comparable deep-tech surveillance cohort</small></article>
+        <article class="drone-engine-metric"><span>Deployment growth</span><strong>+31%</strong><small>Quarter-over-quarter enterprise expansions</small></article>
+      </div>
+      <div class="drone-engine-gallery" aria-label="Drone engine image gallery">
+        <figure>
+          <img src="/tune.png" alt="Drone engine tuning and telemetry interface" loading="lazy" />
+          <figcaption>Tuning surface and telemetry profile used in the forward planning model.</figcaption>
+        </figure>
+        <figure>
+          <img src="/cryo.png" alt="Drone engine cryogenic systems visual" loading="lazy" />
+          <figcaption>Cryo subsystem readiness image included in the investor pack.</figcaption>
+        </figure>
+      </div>
     </div>
   </div>
 
@@ -2510,6 +2574,7 @@ body.streams-flex-fit #video-container[hidden] {
     const rednodeBtn = el('#rednode-btn');
     const voice3Btn = el('#voice3-btn');
     const omconsoleGamingDemosBtn = el('#omconsole-gaming-demos-btn');
+    const droneEngineBtn = el('#drone-engine-btn');
     const voice3BtnDesktop = el('#voice3-btn-desktop');
     const watchtowerBtn = el('#watchtower-btn');
     const watchtowerBtnMobile = el('#watchtower-btn-mobile');
@@ -2517,6 +2582,8 @@ body.streams-flex-fit #video-container[hidden] {
     const omconsoleFrame = el('#omconsole-frame');
     const omconsoleClose = el('#omconsole-close');
     const omconsoleMobileExit = el('#omconsole-mobile-exit');
+    const droneEngineModal = el('#drone-engine-modal');
+    const droneEngineClose = el('#drone-engine-close');
     const streamsEl = el('#streams');
     const toolbarShell = el('#toolbar-shell');
     const toolbarToggle = el('#toolbar-toggle');
@@ -2765,6 +2832,29 @@ body.streams-flex-fit #video-container[hidden] {
         window.open('https://watchtower1-qfrz.onrender.com/games', '_blank', 'noopener,noreferrer');
       });
     }
+    const showDroneEngine = () => {
+      if(!droneEngineModal) return;
+      droneEngineModal.hidden = false;
+    };
+    const hideDroneEngine = () => {
+      if(!droneEngineModal) return;
+      droneEngineModal.hidden = true;
+      droneEngineBtn?.focus?.();
+    };
+    if(droneEngineBtn){
+      droneEngineBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        showDroneEngine();
+      });
+    }
+    if(droneEngineClose){
+      droneEngineClose.addEventListener('click', hideDroneEngine);
+    }
+    if(droneEngineModal){
+      droneEngineModal.addEventListener('click', (event) => {
+        if(event.target === droneEngineModal) hideDroneEngine();
+      });
+    }
     [watchtowerBtn, watchtowerBtnMobile].forEach((btn) => {
       if(!btn) return;
       btn.addEventListener('click', (event) => {
@@ -2808,6 +2898,8 @@ body.streams-flex-fit #video-container[hidden] {
     document.addEventListener('keydown', (event) => {
       if(event.key === 'Escape' && omconsoleModal && !omconsoleModal.hidden){
         hideOmconsole();
+      } else if(event.key === 'Escape' && droneEngineModal && !droneEngineModal.hidden){
+        hideDroneEngine();
       }
     });
 
