@@ -1980,7 +1980,7 @@ body.streams-flex-fit #video-container[hidden] {
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
-        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span><span id="profile-verified-badge" class="verified-badge" hidden>Validated</span></a>
+        <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span><span id="profile-verified-badge" class="verified-badge" hidden aria-label="Validated account"></span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
       </div>
     </footer>
@@ -3916,10 +3916,22 @@ body.streams-flex-fit #video-container[hidden] {
       const verified = store.verifiedUsers || {};
       const record = verified[username];
       if(record && typeof record === 'object'){
-        return record;
-      }
-      if(record === true){
-        return { verified: true, badge: 'Validated' };
+        const chain = normalizeChain(record.chain);
+        const contract = normalizeContract(chain, record.expectedContract || record.contract || '');
+        const hasValidatedOnce = Boolean(
+          record.validatedOnce ||
+          Number.isFinite(record.validatedAt) ||
+          (Number.isFinite(record.validatorSuccessCount) && record.validatorSuccessCount > 0) ||
+          (chain && contract)
+        );
+        if(hasValidatedOnce && chain && contract && record.verified !== false){
+          return {
+            ...record,
+            chain,
+            contract,
+            expectedContract: contract
+          };
+        }
       }
       return null;
     }
@@ -3969,6 +3981,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!username) return false;
       const record = verifiedRecordFor(username);
       if(!(record && record.verified !== false)) return false;
+      if(record.active !== true) return false;
       const sessionRecord = sessionValidationRecordFor(username);
       if(!sessionRecord) return false;
       const recordChain = normalizeChain(record.chain);
@@ -3982,11 +3995,37 @@ body.streams-flex-fit #video-container[hidden] {
       if(!username) return;
       const verified = { ...(store.verifiedUsers || {}) };
       if(verification){
+        const existing = (verified[username] && typeof verified[username] === 'object') ? verified[username] : {};
+        const priorCount = Number.isFinite(existing.validatorSuccessCount) ? existing.validatorSuccessCount : 0;
         verified[username] = typeof verification === 'object'
-          ? verification
-          : { verified: true, badge: 'Validated' };
+          ? {
+            ...existing,
+            ...verification,
+            verified: verification.verified !== false,
+            active: true,
+            validatedOnce: true,
+            validatedAt: Number.isFinite(verification.validatedAt) ? verification.validatedAt : Date.now(),
+            validatorSuccessCount: priorCount + 1
+          }
+          : {
+            ...existing,
+            verified: true,
+            active: true,
+            validatedOnce: true,
+            validatedAt: Date.now(),
+            validatorSuccessCount: priorCount + 1
+          };
       }
       else delete verified[username];
+      store.verifiedUsers = verified;
+    }
+
+    function setUserValidationActiveState(username, isActive){
+      if(!username) return;
+      const verified = { ...(store.verifiedUsers || {}) };
+      const record = verified[username];
+      if(!(record && typeof record === 'object')) return;
+      verified[username] = { ...record, active: Boolean(isActive) };
       store.verifiedUsers = verified;
     }
 
@@ -4289,17 +4328,18 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     function buildVerificationBadgeHTML(record, username, fallbackText = 'Validated'){
-      const labelText = record?.badgeLabel || record?.badge || fallbackText;
       const tokenSeed = tokenSeedForRecord(record, username);
       const svgMarkup = record?.badgeSvg || (tokenSeed ? tokenBadgeSvgMarkup(tokenSeed, { chain: record?.chain, currency: record?.currency }) : '');
-      return { labelText, tokenSeed, svgMarkup };
+      return { tokenSeed, svgMarkup };
     }
 
     function decorateVerifiedBadge(badgeEl, username, fallbackText = 'Validated'){
       if(!badgeEl) return;
       const record = verifiedRecordFor(username);
-      const { labelText, tokenSeed, svgMarkup } = buildVerificationBadgeHTML(record, username, fallbackText);
+      const { tokenSeed, svgMarkup } = buildVerificationBadgeHTML(record, username, fallbackText);
       badgeEl.textContent = '';
+      badgeEl.setAttribute('aria-label', 'Validated account');
+      badgeEl.title = 'Validated account';
       if(tokenSeed){
         const iconWrap = document.createElement('span');
         iconWrap.className = 'verified-badge__icon';
@@ -4325,12 +4365,9 @@ body.streams-flex-fit #video-container[hidden] {
         const dot = document.createElement('span');
         dot.className = 'verified-badge__dot';
         dot.setAttribute('aria-hidden', 'true');
-        dot.textContent = '●';
+        dot.textContent = '✅';
         badgeEl.appendChild(dot);
       }
-      const text = document.createElement('span');
-      text.textContent = labelText;
-      badgeEl.appendChild(text);
     }
 
     function setTokenLoginStatus(message, tone = 'info'){
@@ -4595,6 +4632,7 @@ body.streams-flex-fit #video-container[hidden] {
 
     skipBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      setUserValidationActiveState(store.user, false);
       store.profilePic='';
       sessionStorage.removeItem('chaines_session_validation');
       enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
@@ -4676,6 +4714,7 @@ body.streams-flex-fit #video-container[hidden] {
 
     logoutBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      setUserValidationActiveState(store.user, false);
       store.user='';
       store.profilePic='';
       sessionStorage.removeItem('chaines_session_validation');
