@@ -879,7 +879,7 @@
       background-color: var(--caption-bg);
     }
 
-    .post-actions { margin-top:10px; display:flex; flex-wrap:nowrap; gap:8px; align-items:center; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
+    .post-actions { margin-top:10px; display:flex; flex-wrap:nowrap; gap:8px; align-items:center; justify-content:flex-start; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
     .reaction-btn {
       border:1px solid var(--lining);
       background: color-mix(in oklab, var(--panel), transparent 10%);
@@ -893,8 +893,8 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      flex:1 1 0;
-      min-width:0;
+      flex:0 0 auto;
+      min-width:40px;
       gap:6px;
       white-space:nowrap;
       overflow:hidden;
@@ -1578,10 +1578,11 @@ body.streams-flex-fit #video-container[hidden] {
         min-width:0;
       }
       .post-actions {
-        flex-wrap:wrap;
+        flex-wrap:nowrap;
+        justify-content:flex-start;
       }
       .reaction-btn {
-        flex:1 1 calc(33.333% - 8px);
+        flex:0 0 auto;
       }
       .mobile-only-chip {
         display:inline-flex;
@@ -1751,7 +1752,7 @@ body.streams-flex-fit #video-container[hidden] {
         -webkit-overflow-scrolling:touch;
       }
       .post-actions .reaction-btn {
-        flex:0 0 max(88px, 30%);
+        flex:0 0 auto;
       }
       .ghost-ticker {
         left: 50%;
