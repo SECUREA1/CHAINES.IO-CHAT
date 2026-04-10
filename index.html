@@ -6521,7 +6521,6 @@ body.streams-flex-fit #video-container[hidden] {
         Promise.resolve(maybePromise)
           .then((result) => {
             if(result && !result.success && result.message){
-              systemNote(result.message);
               showGhostTicker({ message: result.message, count: result.count });
             }
           })
@@ -6535,9 +6534,6 @@ body.streams-flex-fit #video-container[hidden] {
       window.addEventListener('wallet:ghost-token', (event) => {
         const detail = event.detail || {};
         syncGhostBadge(detail.count);
-        if(detail.message){
-          systemNote(detail.message);
-        }
         showGhostTicker({ message: detail.message, count: detail.count });
       });
 
