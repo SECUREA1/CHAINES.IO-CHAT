@@ -1120,12 +1120,44 @@
   background: var(--panel);
   cursor: pointer;
   scroll-snap-align: start;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
 
 /* Expanded stream state */
 .stream.open {
   width: min(300px, 76vw);
   flex: 0 0 auto;
+}
+.stream.active {
+  border-color: color-mix(in oklab, var(--accent), #fff 20%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 25%), 0 12px 24px rgba(0,0,0,.2);
+}
+.stream--primary {
+  border-color: color-mix(in oklab, var(--accent), #fff 15%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 20%), 0 16px 32px rgba(0,0,0,.26);
+  transform: translateY(-1px);
+}
+.stream-live-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:700;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.stream-live-badge .dot {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#6d7685;
+}
+.stream.active .stream-live-badge,
+.stream--primary .stream-live-badge { color:#fff; }
+.stream.active .stream-live-badge .dot,
+.stream--primary .stream-live-badge .dot {
+  background: var(--danger);
+  animation: live-pulse 1s infinite;
 }
 
 body.streams-flex-fit #streams {
@@ -1142,6 +1174,12 @@ body.streams-flex-fit #streams .stream.open {
   width: 100%;
   min-height: 170px;
   flex: 1 1 auto;
+}
+body.streams-flex-fit #streams .stream--primary {
+  grid-column: span 2;
+}
+@media (max-width: 900px) {
+  body.streams-flex-fit #streams .stream--primary { grid-column: span 1; }
 }
 body.streams-flex-fit #streams .stream .video {
   display: block;
@@ -2492,6 +2530,7 @@ body.streams-flex-fit #video-container[hidden] {
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
+    const streamPresence = {};
     const videoToggle = el('#video-toggle');
     const streamsFitBtn = el('#streams-fit-btn');
     const streamsFitBtnMobile = el('#streams-fit-btn-mobile');
@@ -2533,6 +2572,47 @@ body.streams-flex-fit #video-container[hidden] {
       }
       setStreamsFitLabel(streamsFlexFit ? 'Tiles Row' : 'Flex Fit');
       if(streamsFlexFit) showStream();
+      refreshPrimaryStreamTile();
+    }
+    function getStreamSortScore(id){
+      const s = streams[id];
+      if(!s) return -1;
+      let score = 0;
+      if(id === clientId && broadcasting) score += 3000;
+      if(s.isPrimary) score += 2200;
+      if(s.liveActive) score += 1200;
+      if(s.started) score += 400;
+      if(s.self) score += 120;
+      return score;
+    }
+    function refreshPrimaryStreamTile(preferredId){
+      const ids = Object.keys(streams);
+      if(!ids.length) return;
+      let primaryId = preferredId && streams[preferredId] ? preferredId : null;
+      if(!primaryId){
+        if(broadcasting && streams[clientId]) primaryId = clientId;
+        if(!primaryId){
+          primaryId = ids
+            .filter(id => streams[id] && (streams[id].liveActive || streams[id].started))
+            .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))[0] || null;
+        }
+      }
+      ids.forEach(id => {
+        const stream = streams[id];
+        stream.isPrimary = id === primaryId;
+        stream.container.classList.toggle('stream--primary', stream.isPrimary);
+        stream.container.classList.toggle('active', !!(stream.liveActive || stream.isPrimary));
+      });
+      ids
+        .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))
+        .forEach(id => streamsEl.appendChild(streams[id].container));
+    }
+    function setStreamLiveState(id, stateText, isLive){
+      if(!streams[id]) return;
+      streams[id].liveActive = !!isLive;
+      if(streams[id].liveState) streams[id].liveState.textContent = stateText;
+      streams[id].container.classList.toggle('active', !!isLive);
+      refreshPrimaryStreamTile(id);
     }
     function showStream(){
       videoContainer.removeAttribute('hidden');
@@ -3460,7 +3540,7 @@ body.streams-flex-fit #video-container[hidden] {
       document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
     });
 
-    function updateUsers(list){
+      function updateUsers(list){
         userCache = list;
         liveCount.textContent = list.length;
         usersEl.innerHTML = '';
@@ -3478,7 +3558,11 @@ body.streams-flex-fit #video-container[hidden] {
             camIcon.title = 'Camera';
             li.appendChild(camIcon);
             liveIds.add(id);
+            streamPresence[id] = Date.now();
             ensureStreamThumb(id, name, id === clientId);
+            if(streams[id] && !streams[id].started && streams[id].liveState){
+              streams[id].liveState.textContent = 'Live';
+            }
           }
           if(u.mic){
             li.classList.add('mic-user');
@@ -3521,14 +3605,22 @@ body.streams-flex-fit #video-container[hidden] {
         });
         for(const id in streams){
           if(!liveIds.has(id)){
-            if(streams[id].started && !streams[id].self){
-              endWatching(id);
+            if(!streamPresence[id]) streamPresence[id] = Date.now();
+            const missingFor = Date.now() - streamPresence[id];
+            if(missingFor > 6000){
+              if(streams[id].started && !streams[id].self){
+                endWatching(id);
+              }
+              closePeerConnection(id);
+              streams[id].container.remove();
+              delete streams[id];
+              delete streamPresence[id];
             }
-            closePeerConnection(id);
-            streams[id].container.remove();
-            delete streams[id];
+          } else {
+            streamPresence[id] = Date.now();
           }
         }
+        refreshPrimaryStreamTile();
         if(autoWatchLiveFeeds){
           liveIds.forEach(id => {
             if(id === clientId || !streams[id] || streams[id].started) return;
@@ -3548,10 +3640,18 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
       function ensureStreamThumb(id, name, isSelf=false){
-        if(streams[id]) return;
+        if(streams[id]){
+          const title = streams[id].container.querySelector('.title');
+          if(title){
+            title.innerHTML = `@${name} (<span class="listener-count">${streams[id].count ? streams[id].count.textContent : '0'}</span>)`;
+            streams[id].count = title.querySelector('.listener-count');
+          }
+          refreshPrimaryStreamTile();
+          return;
+        }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -3561,6 +3661,7 @@ body.streams-flex-fit #video-container[hidden] {
         const camBtn = div.querySelector('.cam-btn');
         const micBtn = div.querySelector('.mic-btn');
         const joinBtns = div.querySelector('.join-btns');
+        const liveState = div.querySelector('.stream-live-state');
         if(!isSelf){
           camBtn.addEventListener('click', () => {
             sendSignal({ type: 'join-request', id, user: store.user });
@@ -3575,20 +3676,25 @@ body.streams-flex-fit #video-container[hidden] {
             if(streams[id].started){
               endWatching(id);
               streams[id].started = false;
+              streams[id].liveActive = false;
               div.classList.remove('open');
               tuneBtn.textContent = 'Tune In';
+              if(liveState) liveState.textContent = 'Standby';
               camBtn.hidden = true;
               micBtn.hidden = true;
               if(joinBtns) joinBtns.hidden = true;
+              refreshPrimaryStreamTile();
             } else {
               startWatching(id);
               streams[id].started = true;
               div.classList.add('open');
               tuneBtn.textContent = 'Leave';
+              if(liveState) liveState.textContent = 'Connecting…';
               camBtn.hidden = false;
               micBtn.hidden = false;
               if(joinBtns) joinBtns.hidden = false;
               div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+              refreshPrimaryStreamTile(id);
             }
           });
         } else {
@@ -3599,11 +3705,15 @@ body.streams-flex-fit #video-container[hidden] {
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, vid: null, captionTrack: null, thumbEl };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
+          streams[id].liveActive = !!broadcasting;
+          if(liveState) liveState.textContent = broadcasting ? 'Live now' : 'Preview';
         }
+        streamPresence[id] = Date.now();
+        refreshPrimaryStreamTile(isSelf ? id : null);
       }
       function chooseThumbnail(){
         return new Promise(resolve => {
@@ -3660,6 +3770,7 @@ body.streams-flex-fit #video-container[hidden] {
           startWatching(id);
           streams[id].started = true;
         }
+        refreshPrimaryStreamTile(id);
       }
 
       function updateListenerCount(id, n){
@@ -4887,9 +4998,12 @@ body.streams-flex-fit #video-container[hidden] {
             }
             selfStream.vid = tileEl;
             selfStream.started = true;
+            selfStream.liveActive = true;
+            if(selfStream.liveState) selfStream.liveState.textContent = 'Live now';
             updateVideoLayout(selfStream.video);
           }
           updateVideoLayout();
+          refreshPrimaryStreamTile(clientId);
           const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = mediaEl;
@@ -5154,10 +5268,14 @@ body.streams-flex-fit #video-container[hidden] {
       const selfStream = streams[clientId];
       if(selfStream){
         selfStream.feed.innerHTML = '';
-        selfStream.container.remove();
-        delete streams[clientId];
+        selfStream.video.innerHTML = '';
+        selfStream.started = false;
+        selfStream.liveActive = false;
+        if(selfStream.liveState) selfStream.liveState.textContent = 'Standby';
+        selfStream.container.classList.remove('open');
       }
       broadcastThumb = null;
+      refreshPrimaryStreamTile();
     }
 
       function updateVideoLayout(target){
@@ -5218,6 +5336,7 @@ body.streams-flex-fit #video-container[hidden] {
                 liveTrack.mode = 'showing';
                 videoContainer.appendChild(vid);
                 updateVideoLayout();
+                setStreamLiveState(msg.id, 'Live now', true);
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
                 for(const id in peerConnections){
                   if(id === msg.id) continue;
@@ -5287,6 +5406,7 @@ body.streams-flex-fit #video-container[hidden] {
                     attachCaptions(hostVid);
                     hostTarget.video.appendChild(hostVid);
                     updateVideoLayout(hostTarget.video);
+                    setStreamLiveState(guestMap[msg.id], 'Live now', true);
                     hostTarget.guestVid = hostVid;
                     hostVid.muted = false;
                     hostVid.removeAttribute('muted');
@@ -5307,6 +5427,7 @@ body.streams-flex-fit #video-container[hidden] {
                     liveTrack.mode = 'showing';
                     guestTarget.video.appendChild(guestVid);
                     updateVideoLayout(guestTarget.video);
+                    setStreamLiveState(msg.id, 'Live now', true);
                     if(!guestTarget.vid) guestTarget.vid = guestVid;
                     guestTarget.captionTrack = liveTrack;
                     guestVid.muted = false;
@@ -5331,6 +5452,7 @@ body.streams-flex-fit #video-container[hidden] {
                   if(box){
                     box.appendChild(vid);
                     updateVideoLayout(box);
+                    setStreamLiveState(msg.id, 'Live now', true);
                   }
                   vid.muted = false;
                   vid.removeAttribute('muted');
@@ -5402,6 +5524,7 @@ body.streams-flex-fit #video-container[hidden] {
         if(host && streams[host]){
           streams[host].guestVid = null;
           updateVideoLayout(streams[host].video);
+          setStreamLiveState(host, 'Live now', true);
           if(streams[msg.id]){
             streams[msg.id].started = false;
             streams[msg.id].video.innerHTML = '';
@@ -5410,6 +5533,7 @@ body.streams-flex-fit #video-container[hidden] {
             if(t) t.textContent = 'Tune In';
             streams[msg.id].vid = null;
             streams[msg.id].captionTrack = null;
+            setStreamLiveState(msg.id, 'Standby', false);
             updateVideoLayout(streams[msg.id].video);
           }
           delete guestMap[msg.id];
@@ -5423,6 +5547,7 @@ body.streams-flex-fit #video-container[hidden] {
             if(t) t.textContent = 'Tune In';
             streams[msg.id].vid = null;
             streams[msg.id].captionTrack = null;
+            setStreamLiveState(msg.id, 'Standby', false);
             updateVideoLayout(streams[msg.id].video);
           }
         }
@@ -5455,6 +5580,7 @@ body.streams-flex-fit #video-container[hidden] {
       showStream();
       updateVideoLayout();
       if(stream) updateVideoLayout(stream.video);
+      if(stream) setStreamLiveState(pendingJoinHost, 'Connecting…', true);
       // Keep pendingJoinHost so chat stays in host room
     }
 
@@ -5517,6 +5643,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(streams[id]){
         streams[id].container.classList.add('open');
         streams[id].started = true;
+        if(streams[id].liveState) streams[id].liveState.textContent = 'Connecting…';
       }
       const hostBox = hostStream && hostStream.video;
       const guestBox = streams[id] && streams[id].video;
@@ -5526,6 +5653,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       showStream();
       updateVideoLayout();
+      refreshPrimaryStreamTile(host || id);
     }
 
     function handleInvite({ id, mode, user }) {
