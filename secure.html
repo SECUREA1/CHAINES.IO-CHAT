@@ -1397,13 +1397,13 @@
                   </div>
 
                   <div class="hint" style="max-width:360px">
-                    On iOS, only one active camera is typical. Start with Camera 0 and use HTTPS.
+                    On iOS, only one active camera is typical. Start with Camera 1 and use HTTPS.
                   </div>
                 </div>
 
                 <div id="camSelect" class="row" style="gap:8px"></div>
                 <div class="hint" style="margin-top:10px">
-                  If you only have one webcam, select <b>Camera 0</b>. If multiple cameras exist, pick a device per slot.
+                  If you only have one webcam, select <b>Camera 1</b>. If multiple cameras exist, pick a device per slot.
                   Some browsers/devices limit simultaneous streams.
                 </div>
               </div>
@@ -1699,7 +1699,7 @@
       /*
         How to test Live CV (quick checklist)
         - HTTPS required for iOS camera (or localhost).
-        - iOS: only one camera stream is typical (Camera 0 only).
+        - iOS: only one camera stream is typical (Camera 1 only).
         - CV Status panel should show: permission granted, backend selected, model load steps.
         - Confirm backend + models in the CV Status / Debug panel before enabling Recognition.
       */
@@ -1806,7 +1806,8 @@
       let tunedAudioCtx = null;
 
       // Camera + render state
-      const MAX_CAM_UI = isLikelyMobile() ? 2 : 8;
+      const MAX_CAM_UI = isLikelyMobile() ? 2 : 10;
+      const camLabel = (idx)=>`Camera ${idx + 1}`;
       let camLatestLog = Array.from({ length: MAX_CAM_UI }, () => null);
       let camStreams = new Map();  // slotIdx -> MediaStream
       let camStates  = new Map();  // slotIdx -> state
@@ -2238,6 +2239,8 @@
         roster: [],
         peers: new Map(),
         localStream: null,
+        localCompositeCanvas: null,
+        localCompositeTimer: null,
         sharing: false,
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
@@ -2336,12 +2339,63 @@
         secureLiveSend({ type: "offer", id, sdp: peer.pc.localDescription });
       }
 
+      function secureLiveClearComposite(){
+        if(secureLive.localCompositeTimer){
+          clearInterval(secureLive.localCompositeTimer);
+          secureLive.localCompositeTimer = null;
+        }
+        secureLive.localCompositeCanvas = null;
+      }
+
+      function secureLiveBuildCompositeStream(){
+        const activeVideos = [];
+        for(let i=0;i<MAX_CAM_UI;i++){
+          if(!camStreams.has(i)) continue;
+          const v = el("vid_"+i);
+          if(v && v.readyState >= 2) activeVideos.push(v);
+        }
+        if(!activeVideos.length) return null;
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const cols = activeVideos.length <= 2 ? activeVideos.length : Math.ceil(Math.sqrt(activeVideos.length));
+        const rows = Math.ceil(activeVideos.length / cols);
+        const tileW = 640;
+        const tileH = 360;
+        canvas.width = Math.max(1, cols * tileW);
+        canvas.height = Math.max(1, rows * tileH);
+
+        secureLiveClearComposite();
+        secureLive.localCompositeCanvas = canvas;
+        const draw = ()=>{
+          ctx.fillStyle = "#05070B";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          for(let idx=0; idx<activeVideos.length; idx++){
+            const video = activeVideos[idx];
+            if(video.readyState < 2) continue;
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const x = col * tileW;
+            const y = row * tileH;
+            ctx.drawImage(video, x, y, tileW, tileH);
+            ctx.fillStyle = "rgba(0,0,0,.45)";
+            ctx.fillRect(x + 10, y + 10, 130, 30);
+            ctx.fillStyle = "#fff";
+            ctx.font = "600 16px ui-sans-serif";
+            ctx.fillText(camLabel(Number(video.id.split('_')[1] || idx) || idx), x + 20, y + 30);
+          }
+        };
+        draw();
+        secureLive.localCompositeTimer = setInterval(draw, 120);
+        return canvas.captureStream(Math.max(8, Number(settings.fpsCap || 12)));
+      }
+
       async function secureLiveStartSharing(){
         if(secureLive.sharing) return true;
         let stream = null;
-        const firstCamStream = camStreams.values().next().value || null;
-        if(firstCamStream && firstCamStream.getVideoTracks().length){
-          stream = new MediaStream([firstCamStream.getVideoTracks()[0].clone()]);
+        const composed = secureLiveBuildCompositeStream();
+        if(composed && composed.getVideoTracks().length){
+          stream = composed;
         }else{
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
@@ -2369,12 +2423,19 @@
 
       function secureLiveStopSharing(){
         secureLive.sharing = false;
+        secureLiveClearComposite();
         if(secureLive.localStream){
           secureLive.localStream.getTracks().forEach((track)=>track.stop());
           secureLive.localStream = null;
         }
         secureLiveRenderRows();
         setSecureLiveStatus("Live feed connected • local camera stopped");
+      }
+
+      async function secureLiveRefreshSharing(){
+        if(!secureLive.sharing) return;
+        secureLiveStopSharing();
+        await secureLiveStartSharing();
       }
 
       function secureLiveEnsureSocket(){
@@ -3265,6 +3326,10 @@
       });
 
       el("btnStart").addEventListener("click", async ()=>{
+        for(let i=0;i<MAX_CAM_UI;i++){
+          const cb = el("camChk_"+i);
+          if(cb) cb.checked = true;
+        }
         await startSelectedCameras(false);
       });
 
@@ -3834,7 +3899,7 @@
           });
 
           const label = document.createElement("span");
-          label.innerHTML = `<b>Camera ${i}</b>`;
+          label.innerHTML = `<b>${camLabel(i)}</b>`;
 
           const sel = document.createElement("select");
           sel.id = "camDev_"+i;
@@ -3995,7 +4060,7 @@
           card.innerHTML = `
             <div class="cam-top">
               <div>
-                <div class="cam-name">Camera ${i}</div>
+                <div class="cam-name">${camLabel(i)}</div>
                 <div class="cam-meta">
                   <span class="dot" id="camDot_${i}"></span>
                   <span id="camStatus_${i}">Off</span>
@@ -4084,7 +4149,7 @@
       function updateStreamStatus(){
         const active = Array.from(camStreams.keys()).sort((a,b)=>a-b);
         const label = active.length
-          ? `${active.length}/${MAX_CAM_UI} active (${active.map(i=>`Camera ${i}`).join(", ")})`
+          ? `${active.length}/${MAX_CAM_UI} active (${active.map(i=>camLabel(i)).join(", ")})`
           : "0 active";
         setCvStatus(cvStatusStreams, label);
       }
@@ -4122,8 +4187,8 @@
             const cb = el("camChk_"+i);
             if(cb) cb.checked = want.includes(i);
           }
-          toast("iOS supports one active camera. Starting Camera " + chosen + " only.");
-          addCvLog("iOS single-camera limit enforced. Starting Camera " + chosen + ".", "warn");
+          toast("iOS supports one active camera. Starting " + camLabel(chosen) + " only.");
+          addCvLog("iOS single-camera limit enforced. Starting " + camLabel(chosen) + ".", "warn");
         }
 
         // stop not wanted
@@ -4149,6 +4214,11 @@
           setGlobalPerm(false, "Camera: Not streaming");
         }
         updateStreamStatus();
+        if(secureLive.sharing){
+          secureLiveRefreshSharing().catch((err)=>{
+            setSecureLiveStatus(`Live feed refresh error: ${err?.message || err}`);
+          });
+        }
       }
 
       async function startCamera(slotIdx){
@@ -4162,7 +4232,7 @@
           }
 
           setCvStatus(cvStatusCamera, "Camera: Requesting permission…");
-          addCvLog(`Starting Camera ${slotIdx}…`);
+          addCvLog(`Starting ${camLabel(slotIdx)}…`);
           const pick = (camBindings[slotIdx] || "__default__");
           const fps = Number(settings.fpsCap || 12);
           const videoConstraints = {
@@ -4238,12 +4308,13 @@
           const ctx = ov.getContext("2d");
           ctx.clearRect(0,0,ov.width,ov.height);
         }
-        addCvLog(`Camera ${idx} stopped.`, "warn");
+        addCvLog(`${camLabel(idx)} stopped.`, "warn");
         updateStreamStatus();
       }
 
       function stopAllCameras(){
         for(const [idx] of camStreams.entries()) stopCamera(idx);
+        if(secureLive.sharing) secureLiveStopSharing();
         setGlobalPerm(false, "Camera: Not started");
       }
 
