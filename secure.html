@@ -608,13 +608,13 @@
     }
     .secure-live-status{
       font-size:11px;
-      line-height:1.35;
       color:var(--muted);
+      letter-spacing:.2px;
     }
     .secure-live-grid{
       display:grid;
       grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
-      gap:10px;
+      gap:8px;
     }
     @media (min-width: 1200px){
       .secure-live-grid{
@@ -626,37 +626,31 @@
       border-radius:12px;
       overflow:hidden;
       background:rgba(0,0,0,.28);
-      min-width:0;
+      min-height:152px;
     }
     .secure-live-row-head{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:8px;
-      padding:7px 9px;
+      gap:6px;
+      padding:6px 8px;
       border-bottom:1px solid rgba(255,255,255,.1);
-      font-size:11px;
+      font-size:10px;
       color:var(--muted);
     }
     .secure-live-row-head b{
-      white-space:nowrap;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.15px;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width:72%;
+      white-space:nowrap;
+      max-width:70%;
     }
-    .secure-live-row-state{
+    .secure-live-row-head .state{
       font-size:10px;
-      letter-spacing:.2px;
-      text-transform:uppercase;
-      border:1px solid rgba(255,255,255,.14);
-      border-radius:999px;
-      padding:2px 6px;
-      background:rgba(255,255,255,.03);
-    }
-    .secure-live-row-state.live{
-      color:rgba(167,243,208,.95);
-      border-color:rgba(34,197,94,.42);
-      background:rgba(34,197,94,.15);
+      color:var(--muted2);
+      white-space:nowrap;
     }
     .secure-live-row video{
       width:100%;
@@ -1448,7 +1442,7 @@
               <div class="secure-live-head">
                 <div>
                   <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
-                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams in compact monitoring tiles.</div>
+                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams shown as compact tiles.</div>
                 </div>
                 <div class="row">
                   <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
@@ -2289,21 +2283,21 @@
       function secureLiveRenderRows(){
         if(!secureLiveGrid) return;
         const ordered = [];
-        if(secureLive.selfId) ordered.push(secureLive.selfId);
+        if(secureLive.selfId && secureLive.localStream){
+          ordered.push(secureLive.selfId);
+        }
         for(const item of secureLive.roster){
           if(item?.id && item.id !== secureLive.selfId) ordered.push(item.id);
         }
-        const activeIds = ordered.filter((id)=>{
-          const isSelf = id === secureLive.selfId;
+        const liveIds = ordered.filter((id)=>{
+          if(id === secureLive.selfId) return !!secureLive.localStream;
           const peer = secureLive.peers.get(id);
-          const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
-          const liveVideoTrack = stream?.getVideoTracks?.().find((track)=>track.readyState === "live");
-          return !!liveVideoTrack;
+          return !!peer?.remoteStream;
         });
-        const visibleIds = activeIds.slice(0, MAX_SECURE_LIVE_ROWS);
+        const visibleIds = liveIds.slice(0, MAX_SECURE_LIVE_ROWS);
         secureLiveGrid.innerHTML = "";
         if(!visibleIds.length){
-          secureLiveGrid.innerHTML = `<div class="small">No active live cameras yet. Feeds auto-appear here after login.</div>`;
+          secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
           return;
         }
         for(const id of visibleIds){
@@ -2316,7 +2310,7 @@
           row.innerHTML = `
             <div class="secure-live-row-head">
               <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
-              <span class="secure-live-row-state live">${isSelf ? "Broadcasting" : "Live"}</span>
+              <span class="state">${isSelf ? (secureLive.sharing ? "Live feed connected" : "local camera stopped") : "Live feed connected"}</span>
             </div>
             <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
           `;
@@ -2450,7 +2444,7 @@
             secureLiveOfferTo(peer.id).catch(()=>{});
           }
         }
-        setSecureLiveStatus(`Live feed connected • sharing in compact tiles (up to ${MAX_SECURE_LIVE_ROWS})`);
+        setSecureLiveStatus(`Live feed connected • showing up to ${MAX_SECURE_LIVE_ROWS} live tiles`);
         secureLiveRenderRows();
         return true;
       }
@@ -2481,7 +2475,7 @@
           secureLive.reconnectDelayMs = 1200;
           secureLiveSend({ type: "join", user: secureLive.user });
           secureLiveSend({ type: "secure-live-join", user: secureLive.user });
-          setSecureLiveStatus("Live feed connected • waiting for live cameras…");
+          setSecureLiveStatus("Live feed connected • loading active camera tiles…");
         });
         ws.addEventListener("close", ()=>{
           secureLive.socketOpen = false;
