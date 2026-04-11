@@ -1411,11 +1411,15 @@
 
             <div class="cam-grid" id="camGrid"></div>
             <div id="broadcastFeedsWrap" class="broadcast-toggle-wrap" hidden>
-              <div class="row">
-                <div class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</div>
-                <span class="pill-mini">Source: Broadcast stream pages</span>
-              </div>
-              <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+              <details class="accordion">
+                <summary>
+                  <span class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</span>
+                  <span class="pill-mini">Source: Broadcast stream pages</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+                </div>
+              </details>
             </div>
             <div class="secure-live-wrap">
               <div class="secure-live-head">
