@@ -607,33 +607,49 @@
       flex-wrap:wrap;
     }
     .secure-live-status{
-      font-size:12px;
+      font-size:11px;
       color:var(--muted);
+      letter-spacing:.2px;
     }
     .secure-live-grid{
       display:grid;
-      grid-template-columns:1fr;
-      gap:10px;
+      grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+      gap:8px;
     }
     .secure-live-row{
       border:1px solid rgba(255,255,255,.12);
       border-radius:12px;
       overflow:hidden;
       background:rgba(0,0,0,.28);
+      min-height:152px;
     }
     .secure-live-row-head{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:8px;
-      padding:8px 10px;
+      gap:6px;
+      padding:6px 8px;
       border-bottom:1px solid rgba(255,255,255,.1);
-      font-size:12px;
+      font-size:10px;
       color:var(--muted);
+    }
+    .secure-live-row-head b{
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.15px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width:70%;
+    }
+    .secure-live-row-head .state{
+      font-size:10px;
+      color:var(--muted2);
+      white-space:nowrap;
     }
     .secure-live-row video{
       width:100%;
-      aspect-ratio:16/9;
+      aspect-ratio:4/3;
       display:block;
       background:#000;
       object-fit:cover;
@@ -1421,7 +1437,7 @@
               <div class="secure-live-head">
                 <div>
                   <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
-                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams (one row per user).</div>
+                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams shown as compact tiles.</div>
                 </div>
                 <div class="row">
                   <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
@@ -2262,14 +2278,21 @@
       function secureLiveRenderRows(){
         if(!secureLiveGrid) return;
         const ordered = [];
-        if(secureLive.selfId) ordered.push(secureLive.selfId);
+        if(secureLive.selfId && secureLive.localStream){
+          ordered.push(secureLive.selfId);
+        }
         for(const item of secureLive.roster){
           if(item?.id && item.id !== secureLive.selfId) ordered.push(item.id);
         }
-        const visibleIds = ordered.slice(0, MAX_SECURE_LIVE_ROWS);
+        const liveIds = ordered.filter((id)=>{
+          if(id === secureLive.selfId) return !!secureLive.localStream;
+          const peer = secureLive.peers.get(id);
+          return !!peer?.remoteStream;
+        });
+        const visibleIds = liveIds.slice(0, MAX_SECURE_LIVE_ROWS);
         secureLiveGrid.innerHTML = "";
         if(!visibleIds.length){
-          secureLiveGrid.innerHTML = `<div class="small">No active participants yet. Keep this page open to auto-join.</div>`;
+          secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
           return;
         }
         for(const id of visibleIds){
@@ -2282,7 +2305,7 @@
           row.innerHTML = `
             <div class="secure-live-row-head">
               <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
-              <span>${isSelf ? (secureLive.sharing ? "Broadcasting" : "Idle") : (stream ? "Live" : "Connecting...")}</span>
+              <span class="state">${isSelf ? (secureLive.sharing ? "Live feed connected" : "local camera stopped") : "Live feed connected"}</span>
             </div>
             <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
           `;
@@ -2416,7 +2439,7 @@
             secureLiveOfferTo(peer.id).catch(()=>{});
           }
         }
-        setSecureLiveStatus(`Live feed connected • sharing to up to ${MAX_SECURE_LIVE_ROWS} rows`);
+        setSecureLiveStatus(`Live feed connected • showing up to ${MAX_SECURE_LIVE_ROWS} live tiles`);
         secureLiveRenderRows();
         return true;
       }
@@ -2447,7 +2470,7 @@
           secureLive.reconnectDelayMs = 1200;
           secureLiveSend({ type: "join", user: secureLive.user });
           secureLiveSend({ type: "secure-live-join", user: secureLive.user });
-          setSecureLiveStatus("Live feed connected • waiting for peers…");
+          setSecureLiveStatus("Live feed connected • loading active camera tiles…");
         });
         ws.addEventListener("close", ()=>{
           secureLive.socketOpen = false;
