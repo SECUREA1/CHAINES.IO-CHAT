@@ -648,7 +648,7 @@
     }
     @media (min-width: 1200px){
       .secure-live-grid{
-        grid-template-columns:repeat(5, minmax(0, 1fr));
+        grid-template-columns:repeat(10, minmax(0, 1fr));
       }
     }
     .secure-live-row{
@@ -1867,7 +1867,7 @@
       let tunedAudioCtx = null;
 
       // Camera + render state
-      const MAX_CAM_UI = isLikelyMobile() ? 2 : 10;
+      const MAX_CAM_UI = isLikelyMobile() ? 2 : 20;
       const camLabel = (idx)=>`Camera ${idx + 1}`;
       let camLatestLog = Array.from({ length: MAX_CAM_UI }, () => null);
       let camStreams = new Map();  // slotIdx -> MediaStream
