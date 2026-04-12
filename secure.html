@@ -3354,10 +3354,6 @@
       });
 
       el("btnStart").addEventListener("click", async ()=>{
-        for(let i=0;i<MAX_CAM_UI;i++){
-          const cb = el("camChk_"+i);
-          if(cb) cb.checked = true;
-        }
         await startSelectedCameras(false);
       });
 
