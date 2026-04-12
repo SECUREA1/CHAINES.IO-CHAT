@@ -1471,9 +1471,11 @@
             <div id="broadcastFeedsWrap" class="broadcast-toggle-wrap" hidden>
               <div class="row">
                 <div class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</div>
-                <span class="pill-mini">Source: Broadcast stream pages</span>
+                <button id="btnToggleBroadcastFeedPanel" class="ghost" type="button" aria-expanded="true">Hide Feed Tiles</button>
               </div>
-              <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+              <div id="broadcastFeedsBody">
+                <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
+              </div>
             </div>
             <div class="secure-live-wrap">
               <div class="secure-live-head">
@@ -1791,6 +1793,7 @@
         logViewMode: "objects",
         clipViewMode: "objects",
         broadcastFeedsOn: false,
+        broadcastFeedsExpanded: true,
         broadcastServers: [],
 
         // Live CV tuning
@@ -1891,6 +1894,7 @@
       let logViewMode = settings.logViewMode || "objects";
       let clipViewMode = settings.clipViewMode || "objects";
       let broadcastFeedsOn = !!settings.broadcastFeedsOn;
+      let broadcastFeedsExpanded = settings.broadcastFeedsExpanded !== false;
       const clipPlaybackUrls = new Map();
 
       // Demo-only labels (kept)
@@ -2154,11 +2158,23 @@
         });
       }
 
+      function updateBroadcastFeedPanelToggle(){
+        if(!btnToggleBroadcastFeedPanel || !broadcastFeedsBody) return;
+        btnToggleBroadcastFeedPanel.textContent = broadcastFeedsExpanded ? "Hide Feed Tiles" : "Show Feed Tiles";
+        btnToggleBroadcastFeedPanel.setAttribute("aria-expanded", String(broadcastFeedsExpanded));
+        broadcastFeedsBody.hidden = !broadcastFeedsExpanded;
+      }
+
       function renderBroadcastFeedEmbeds(){
         if(!broadcastFeedsWrap || !broadcastFeedGrid) return;
         broadcastFeedsWrap.hidden = !broadcastFeedsOn;
         if(!broadcastFeedsOn){
           broadcastFeedGrid.innerHTML = "";
+          if(broadcastFeedsBody) broadcastFeedsBody.hidden = true;
+          return;
+        }
+        updateBroadcastFeedPanelToggle();
+        if(!broadcastFeedsExpanded){
           return;
         }
 
@@ -2208,6 +2224,8 @@
       const btnRefreshBroadcastFeeds = el("btnRefreshBroadcastFeeds");
       const broadcastServerGrid = el("broadcastServerGrid");
       const broadcastFeedsWrap = el("broadcastFeedsWrap");
+      const broadcastFeedsBody = el("broadcastFeedsBody");
+      const btnToggleBroadcastFeedPanel = el("btnToggleBroadcastFeedPanel");
       const broadcastFeedGrid = el("broadcastFeedGrid");
       const secureUrl = (()=>{ try{ return new URL(window.location.href); }catch{ return null; } })();
       const autoEnableLiveFeeds = (()=> {
@@ -3244,6 +3262,17 @@
         btnRefreshBroadcastFeeds.addEventListener("click", ()=>{
           renderBroadcastFeedEmbeds();
           toast("Broadcast feeds refreshed.");
+        });
+      }
+
+      if(btnToggleBroadcastFeedPanel){
+        updateBroadcastFeedPanelToggle();
+        btnToggleBroadcastFeedPanel.addEventListener("click", ()=>{
+          broadcastFeedsExpanded = !broadcastFeedsExpanded;
+          settings.broadcastFeedsExpanded = broadcastFeedsExpanded;
+          saveSettings();
+          updateBroadcastFeedPanelToggle();
+          if(broadcastFeedsExpanded) renderBroadcastFeedEmbeds();
         });
       }
 
