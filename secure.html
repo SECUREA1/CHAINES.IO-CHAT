@@ -67,6 +67,36 @@
       max-width:1400px; margin:0 auto; padding:14px 24px;
       display:flex; align-items:center; justify-content:space-between; gap:14px;
     }
+    .top-live-wrap{
+      max-width:1400px;
+      margin:0 auto;
+      padding:0 24px 12px;
+      display:grid;
+      gap:8px;
+    }
+    .top-live-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .top-live-grid{
+      display:grid;
+      gap:8px;
+      grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    }
+    .top-live-grid .secure-live-row{
+      min-height:124px;
+    }
+    .top-live-grid .secure-live-row-head{
+      padding:5px 7px;
+      font-size:9px;
+    }
+    .top-live-grid .secure-live-row-head b{
+      font-size:10px;
+    }
     .brand{
       display:flex; align-items:center; gap:12px;
       min-width: 220px;
@@ -1254,6 +1284,13 @@
         </div>
       </div>
     </div>
+    <div class="top-live-wrap">
+      <div class="top-live-head">
+        <span>🔴 Secure Live Header Feed</span>
+        <span class="small">All active live cameras shown here in real time.</span>
+      </div>
+      <div id="topSecureLiveGrid" class="top-live-grid"></div>
+    </div>
   </header>
 
   <main class="container">
@@ -1442,7 +1479,7 @@
               <div class="secure-live-head">
                 <div>
                   <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
-                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams shown as compact tiles.</div>
+                  <div class="subtitle">Everyone on this page shares camera live. Each active camera feed appears on its own tile.</div>
                 </div>
                 <div class="row">
                   <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
@@ -2243,6 +2280,7 @@
       const btnClearTune = el("btnClearTune");
       const tuneTargetTypeRadios = Array.from(document.querySelectorAll("input[name=\"tuneTargetType\"]"));
       const secureLiveGrid = el("secureLiveGrid");
+      const topSecureLiveGrid = el("topSecureLiveGrid");
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
       const btnSecureLiveStop = el("btnSecureLiveStop");
@@ -2251,7 +2289,6 @@
 
       let selectedLog = null;
       let selectedLogRow = null;
-      const MAX_SECURE_LIVE_ROWS = 5;
       const secureLive = {
         socket: null,
         socketOpen: false,
@@ -2280,6 +2317,27 @@
         try{ secureLive.socket.send(JSON.stringify(payload)); }catch(_err){ /* no-op */ }
       }
 
+      function buildSecureLiveRow(id){
+        const isSelf = id === secureLive.selfId;
+        const peer = secureLive.peers.get(id);
+        const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
+        const user = (secureLive.roster.find((entry)=>entry?.id === id)?.user || (isSelf ? secureLive.user : "secure-user"));
+        const row = document.createElement("article");
+        row.className = "secure-live-row";
+        row.innerHTML = `
+          <div class="secure-live-row-head">
+            <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
+            <span class="state">${isSelf ? (secureLive.sharing ? "Live feed connected" : "local camera stopped") : "Live feed connected"}</span>
+          </div>
+          <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
+        `;
+        const video = row.querySelector("video");
+        if(video){
+          video.srcObject = stream || null;
+        }
+        return row;
+      }
+
       function secureLiveRenderRows(){
         if(!secureLiveGrid) return;
         const ordered = [];
@@ -2294,31 +2352,22 @@
           const peer = secureLive.peers.get(id);
           return !!peer?.remoteStream;
         });
-        const visibleIds = liveIds.slice(0, MAX_SECURE_LIVE_ROWS);
         secureLiveGrid.innerHTML = "";
-        if(!visibleIds.length){
+        if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
+        if(!liveIds.length){
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
+          if(topSecureLiveGrid){
+            topSecureLiveGrid.innerHTML = `<div class="small">No live feeds yet.</div>`;
+          }
           return;
         }
-        for(const id of visibleIds){
-          const isSelf = id === secureLive.selfId;
-          const peer = secureLive.peers.get(id);
-          const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
-          const user = (secureLive.roster.find((entry)=>entry?.id === id)?.user || (isSelf ? secureLive.user : "secure-user"));
-          const row = document.createElement("article");
-          row.className = "secure-live-row";
-          row.innerHTML = `
-            <div class="secure-live-row-head">
-              <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
-              <span class="state">${isSelf ? (secureLive.sharing ? "Live feed connected" : "local camera stopped") : "Live feed connected"}</span>
-            </div>
-            <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
-          `;
-          const video = row.querySelector("video");
-          if(video){
-            video.srcObject = stream || null;
-          }
+        for(const id of liveIds){
+          const row = buildSecureLiveRow(id);
           secureLiveGrid.appendChild(row);
+          if(topSecureLiveGrid){
+            const topRow = buildSecureLiveRow(id);
+            topSecureLiveGrid.appendChild(topRow);
+          }
         }
       }
 
@@ -2444,7 +2493,7 @@
             secureLiveOfferTo(peer.id).catch(()=>{});
           }
         }
-        setSecureLiveStatus(`Live feed connected • showing up to ${MAX_SECURE_LIVE_ROWS} live tiles`);
+        setSecureLiveStatus("Live feed connected • showing all active live tiles");
         secureLiveRenderRows();
         return true;
       }
