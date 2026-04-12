@@ -612,8 +612,9 @@
     }
     .secure-live-grid{
       display:grid;
-      grid-template-columns:1fr;
+      grid-template-columns:repeat(5, minmax(140px, 1fr));
       gap:10px;
+      align-items:start;
     }
     .secure-live-row{
       border:1px solid rgba(255,255,255,.12);
@@ -633,10 +634,16 @@
     }
     .secure-live-row video{
       width:100%;
-      aspect-ratio:16/9;
+      aspect-ratio:4/3;
       display:block;
       background:#000;
       object-fit:cover;
+    }
+    @media (max-width: 1180px){
+      .secure-live-grid{ grid-template-columns:repeat(3, minmax(140px, 1fr)); }
+    }
+    @media (max-width: 760px){
+      .secure-live-grid{ grid-template-columns:repeat(2, minmax(120px, 1fr)); }
     }
 
     .labeling-grid{
@@ -1409,6 +1416,20 @@
               </div>
             </div>
 
+            <div class="secure-live-wrap">
+              <div class="secure-live-head">
+                <div>
+                  <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
+                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams in a compact top tile layout.</div>
+                </div>
+                <div class="row">
+                  <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
+                  <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
+                </div>
+              </div>
+              <div id="secureLiveStatus" class="secure-live-status">Live feed connected • waiting for peers…</div>
+              <div id="secureLiveGrid" class="secure-live-grid"></div>
+            </div>
             <div class="cam-grid" id="camGrid"></div>
             <div id="broadcastFeedsWrap" class="broadcast-toggle-wrap" hidden>
               <div class="row">
@@ -1416,20 +1437,6 @@
                 <span class="pill-mini">Source: Broadcast stream pages</span>
               </div>
               <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
-            </div>
-            <div class="secure-live-wrap">
-              <div class="secure-live-head">
-                <div>
-                  <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
-                  <div class="subtitle">Everyone on this page shares camera live. Up to 5 concurrent streams (one row per user).</div>
-                </div>
-                <div class="row">
-                  <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
-                  <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
-                </div>
-              </div>
-              <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
-              <div id="secureLiveGrid" class="secure-live-grid"></div>
             </div>
           </div>
         </section>
@@ -2230,7 +2237,7 @@
 
       let selectedLog = null;
       let selectedLogRow = null;
-      const MAX_SECURE_LIVE_ROWS = 5;
+      const MAX_SECURE_LIVE_TILES = 5;
       const secureLive = {
         socket: null,
         socketOpen: false,
@@ -2266,10 +2273,10 @@
         for(const item of secureLive.roster){
           if(item?.id && item.id !== secureLive.selfId) ordered.push(item.id);
         }
-        const visibleIds = ordered.slice(0, MAX_SECURE_LIVE_ROWS);
+        const visibleIds = ordered.slice(0, MAX_SECURE_LIVE_TILES);
         secureLiveGrid.innerHTML = "";
         if(!visibleIds.length){
-          secureLiveGrid.innerHTML = `<div class="small">No active participants yet. Keep this page open to auto-join.</div>`;
+          secureLiveGrid.innerHTML = `<div class="small">No active participants yet. Keep this page open and start sharing to populate the top tiles.</div>`;
           return;
         }
         for(const id of visibleIds){
@@ -2416,7 +2423,7 @@
             secureLiveOfferTo(peer.id).catch(()=>{});
           }
         }
-        setSecureLiveStatus(`Live feed connected • sharing to up to ${MAX_SECURE_LIVE_ROWS} rows`);
+        setSecureLiveStatus(`Live feed connected • sharing to up to ${MAX_SECURE_LIVE_TILES} tiles`);
         secureLiveRenderRows();
         return true;
       }
