@@ -641,22 +641,76 @@
       color:var(--muted);
       letter-spacing:.2px;
     }
+    .secure-live-toolbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .secure-live-view-toggle{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+    }
+    .secure-live-view-btn{
+      border:0;
+      border-radius:999px;
+      padding:7px 12px;
+      background:transparent;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      transition:.15s ease;
+    }
+    .secure-live-view-btn.active{
+      background:rgba(73,185,255,.2);
+      color:var(--text);
+    }
+    .secure-live-meta{
+      font-size:11px;
+      color:var(--muted2);
+    }
     .secure-live-grid{
       display:grid;
       grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
       gap:8px;
     }
+    .secure-live-grid.grid-4{
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+    }
+    .secure-live-grid.single{
+      grid-template-columns:minmax(0, 1fr);
+    }
     @media (min-width: 1200px){
       .secure-live-grid{
         grid-template-columns:repeat(10, minmax(0, 1fr));
       }
+      .secure-live-grid.grid-4{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 640px){
+      .secure-live-grid.grid-4{
+        grid-template-columns:1fr;
+      }
     }
     .secure-live-row{
+      position:relative;
       border:1px solid rgba(255,255,255,.12);
       border-radius:12px;
       overflow:hidden;
       background:rgba(0,0,0,.28);
       min-height:152px;
+      cursor:pointer;
+    }
+    .secure-live-grid.single .secure-live-row{
+      min-height:420px;
     }
     .secure-live-row-head{
       display:flex;
@@ -684,10 +738,34 @@
     }
     .secure-live-row video{
       width:100%;
-      aspect-ratio:4/3;
+      aspect-ratio:16/9;
       display:block;
       background:#000;
       object-fit:cover;
+    }
+    .secure-live-grid.single .secure-live-row video{
+      height:calc(100% - 34px);
+      min-height:380px;
+      aspect-ratio:auto;
+      object-fit:contain;
+      background:#000;
+    }
+    .secure-live-actions{
+      position:absolute;
+      right:8px;
+      bottom:8px;
+      display:flex;
+      gap:6px;
+      z-index:2;
+    }
+    .secure-live-action-btn{
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(10,12,30,.72);
+      color:var(--text);
+      font-size:11px;
+      border-radius:999px;
+      padding:6px 10px;
+      cursor:pointer;
     }
 
     .labeling-grid{
@@ -1489,6 +1567,16 @@
                 </div>
               </div>
               <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
+              <div class="secure-live-toolbar">
+                <div class="secure-live-view-toggle" role="group" aria-label="Secure live layout">
+                  <button id="btnSecureLiveSingleView" class="secure-live-view-btn active" type="button" aria-pressed="true">1-Camera View</button>
+                  <button id="btnSecureLiveGridView" class="secure-live-view-btn" type="button" aria-pressed="false">4-Camera Grid</button>
+                </div>
+                <div class="row">
+                  <button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 4-Grid</button>
+                </div>
+                <div id="secureLiveLayoutMeta" class="secure-live-meta">Showing 1 camera in focused view.</div>
+              </div>
               <div id="secureLiveGrid" class="secure-live-grid"></div>
             </div>
           </div>
@@ -2302,6 +2390,10 @@
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
       const btnSecureLiveStop = el("btnSecureLiveStop");
+      const btnSecureLiveSingleView = el("btnSecureLiveSingleView");
+      const btnSecureLiveGridView = el("btnSecureLiveGridView");
+      const btnSecureLiveReturnGrid = el("btnSecureLiveReturnGrid");
+      const secureLiveLayoutMeta = el("secureLiveLayoutMeta");
 
       el("year").textContent = new Date().getFullYear();
 
@@ -2318,6 +2410,8 @@
         localCompositeCanvas: null,
         localCompositeTimer: null,
         sharing: false,
+        viewMode: "single",
+        selectedId: "",
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
@@ -2335,24 +2429,95 @@
         try{ secureLive.socket.send(JSON.stringify(payload)); }catch(_err){ /* no-op */ }
       }
 
-      function buildSecureLiveRow(id){
+      function secureLiveSelectView(id, mode = "single"){
+        if(!id) return;
+        secureLive.selectedId = id;
+        secureLive.viewMode = mode;
+        secureLiveRenderRows();
+      }
+
+      function secureLiveGridIds(liveIds){
+        if(!Array.isArray(liveIds) || !liveIds.length) return [];
+        const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId)
+          ? secureLive.selectedId
+          : liveIds[0];
+        if(!focus) return liveIds.slice(0, 4);
+        const remainder = liveIds.filter((id)=>id !== focus).slice(0, 3);
+        return [focus, ...remainder];
+      }
+
+      function syncSecureLiveLayoutControls(liveIds, shownIds){
+        if(btnSecureLiveSingleView){
+          const active = secureLive.viewMode === "single";
+          btnSecureLiveSingleView.classList.toggle("active", active);
+          btnSecureLiveSingleView.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+        if(btnSecureLiveGridView){
+          const active = secureLive.viewMode === "grid4";
+          btnSecureLiveGridView.classList.toggle("active", active);
+          btnSecureLiveGridView.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+        if(btnSecureLiveReturnGrid){
+          btnSecureLiveReturnGrid.hidden = secureLive.viewMode === "grid4" || liveIds.length <= 1;
+        }
+        if(secureLiveLayoutMeta){
+          if(!liveIds.length){
+            secureLiveLayoutMeta.textContent = "No cameras are live yet.";
+          }else if(secureLive.viewMode === "single"){
+            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} camera in focused view.`;
+          }else{
+            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} of ${liveIds.length} cameras in 4-grid.`;
+          }
+        }
+      }
+
+      function buildSecureLiveRow(id, options = {}){
+        const compact = !!options.compact;
         const isSelf = id === secureLive.selfId;
         const peer = secureLive.peers.get(id);
         const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
         const user = (secureLive.roster.find((entry)=>entry?.id === id)?.user || (isSelf ? secureLive.user : "secure-user"));
         const row = document.createElement("article");
         row.className = "secure-live-row";
+        if(!compact){
+          row.setAttribute("role", "button");
+          row.setAttribute("tabindex", "0");
+          row.setAttribute("aria-label", `${user} camera feed`);
+        }
+        row.dataset.liveId = id;
         row.innerHTML = `
           <div class="secure-live-row-head">
             <b>${escapeHtml(user)} ${isSelf ? "(You)" : ""}</b>
             <span class="state">${isSelf ? (secureLive.sharing ? "Live feed connected" : "local camera stopped") : "Live feed connected"}</span>
           </div>
           <video playsinline autoplay ${isSelf ? "muted" : ""}></video>
+          ${compact ? "" : `<div class="secure-live-actions">
+            <button class="secure-live-action-btn" type="button" data-action="expand">${secureLive.viewMode === "single" ? "Focused" : "Expand"}</button>
+            <button class="secure-live-action-btn" type="button" data-action="fullscreen">Full Screen</button>
+          </div>`}
         `;
         const video = row.querySelector("video");
         if(video){
           video.srcObject = stream || null;
         }
+        if(compact) return row;
+        row.addEventListener("click", (event)=>{
+          const action = event.target?.closest?.("[data-action]")?.dataset?.action || "";
+          if(action === "fullscreen"){
+            event.stopPropagation();
+            if(typeof row.requestFullscreen === "function"){
+              row.requestFullscreen().catch(()=>{});
+            }
+            return;
+          }
+          secureLiveSelectView(id, "single");
+        });
+        row.addEventListener("keydown", (event)=>{
+          if(event.key === "Enter" || event.key === " "){
+            event.preventDefault();
+            secureLiveSelectView(id, "single");
+          }
+        });
         return row;
       }
 
@@ -2371,21 +2536,32 @@
           return !!peer?.remoteStream;
         });
         secureLiveGrid.innerHTML = "";
+        secureLiveGrid.classList.remove("single", "grid-4");
         if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
         if(!liveIds.length){
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
+          syncSecureLiveLayoutControls(liveIds, []);
           if(topSecureLiveGrid){
             topSecureLiveGrid.innerHTML = `<div class="small">No live feeds yet.</div>`;
           }
           return;
         }
-        for(const id of liveIds){
+        if(!secureLive.selectedId || !liveIds.includes(secureLive.selectedId)){
+          secureLive.selectedId = liveIds[0];
+        }
+        const shownIds = secureLive.viewMode === "grid4"
+          ? secureLiveGridIds(liveIds)
+          : [secureLive.selectedId];
+        secureLiveGrid.classList.add(secureLive.viewMode === "grid4" ? "grid-4" : "single");
+        syncSecureLiveLayoutControls(liveIds, shownIds);
+        for(const id of shownIds){
           const row = buildSecureLiveRow(id);
           secureLiveGrid.appendChild(row);
-          if(topSecureLiveGrid){
-            const topRow = buildSecureLiveRow(id);
-            topSecureLiveGrid.appendChild(topRow);
-          }
+        }
+        for(const id of liveIds){
+          if(!topSecureLiveGrid) break;
+          const topRow = buildSecureLiveRow(id, { compact: true });
+          topSecureLiveGrid.appendChild(topRow);
         }
       }
 
@@ -3292,6 +3468,24 @@
         btnSecureLiveStop.addEventListener("click", ()=>{
           secureLiveStopSharing();
           toast("Secure live sharing stopped.");
+        });
+      }
+      if(btnSecureLiveSingleView){
+        btnSecureLiveSingleView.addEventListener("click", ()=>{
+          secureLive.viewMode = "single";
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLiveGridView){
+        btnSecureLiveGridView.addEventListener("click", ()=>{
+          secureLive.viewMode = "grid4";
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLiveReturnGrid){
+        btnSecureLiveReturnGrid.addEventListener("click", ()=>{
+          secureLive.viewMode = "grid4";
+          secureLiveRenderRows();
         });
       }
 
