@@ -676,6 +676,12 @@
       font-size:11px;
       color:var(--muted2);
     }
+    .secure-live-cycle-controls{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
     .secure-live-grid{
       display:grid;
       grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
@@ -1573,6 +1579,16 @@
                   <button id="btnSecureLiveGridView" class="secure-live-view-btn" type="button" aria-pressed="false">4-Camera Grid</button>
                 </div>
                 <div class="row">
+                  <div class="secure-live-view-toggle" role="group" aria-label="Secure live camera pool">
+                    <button id="btnSecureLivePool2" class="secure-live-view-btn" type="button" aria-pressed="false">2-Feed Pool</button>
+                    <button id="btnSecureLivePool4" class="secure-live-view-btn active" type="button" aria-pressed="true">4-Feed Pool</button>
+                  </div>
+                </div>
+                <div class="secure-live-cycle-controls">
+                  <button id="btnSecureLiveNextCamera" class="ghost" type="button">Next Camera</button>
+                  <button id="btnSecureLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate: Off</button>
+                </div>
+                <div class="row">
                   <button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 4-Grid</button>
                 </div>
                 <div id="secureLiveLayoutMeta" class="secure-live-meta">Showing 1 camera in focused view.</div>
@@ -2392,6 +2408,10 @@
       const btnSecureLiveStop = el("btnSecureLiveStop");
       const btnSecureLiveSingleView = el("btnSecureLiveSingleView");
       const btnSecureLiveGridView = el("btnSecureLiveGridView");
+      const btnSecureLivePool2 = el("btnSecureLivePool2");
+      const btnSecureLivePool4 = el("btnSecureLivePool4");
+      const btnSecureLiveNextCamera = el("btnSecureLiveNextCamera");
+      const btnSecureLiveRotate = el("btnSecureLiveRotate");
       const btnSecureLiveReturnGrid = el("btnSecureLiveReturnGrid");
       const secureLiveLayoutMeta = el("secureLiveLayoutMeta");
 
@@ -2412,6 +2432,10 @@
         sharing: false,
         viewMode: "single",
         selectedId: "",
+        feedPoolSize: 4,
+        rotateEnabled: false,
+        rotateMs: 5000,
+        rotateTimer: null,
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
@@ -2436,17 +2460,44 @@
         secureLiveRenderRows();
       }
 
-      function secureLiveGridIds(liveIds){
+      function secureLivePoolIds(liveIds){
         if(!Array.isArray(liveIds) || !liveIds.length) return [];
-        const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId)
-          ? secureLive.selectedId
-          : liveIds[0];
-        if(!focus) return liveIds.slice(0, 4);
-        const remainder = liveIds.filter((id)=>id !== focus).slice(0, 3);
-        return [focus, ...remainder];
+        const poolSize = Math.max(2, Math.min(4, Number(secureLive.feedPoolSize) || 4));
+        const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId) ? secureLive.selectedId : liveIds[0];
+        const focusIndex = Math.max(0, liveIds.indexOf(focus));
+        const pool = [];
+        for(let i = 0; i < Math.min(poolSize, liveIds.length); i += 1){
+          pool.push(liveIds[(focusIndex + i) % liveIds.length]);
+        }
+        return pool;
       }
 
-      function syncSecureLiveLayoutControls(liveIds, shownIds){
+      function secureLiveCycleSelected(poolIds){
+        if(!Array.isArray(poolIds) || poolIds.length < 2) return;
+        const currentIndex = Math.max(0, poolIds.indexOf(secureLive.selectedId));
+        secureLive.selectedId = poolIds[(currentIndex + 1) % poolIds.length];
+      }
+
+      function syncSecureLiveRotateTimer(poolIds = []){
+        const canRotate = secureLive.rotateEnabled && secureLive.viewMode === "single" && poolIds.length > 1;
+        if(!canRotate){
+          if(secureLive.rotateTimer){
+            clearInterval(secureLive.rotateTimer);
+            secureLive.rotateTimer = null;
+          }
+          return;
+        }
+        if(secureLive.rotateTimer) return;
+        secureLive.rotateTimer = setInterval(()=>{
+          const liveIds = secureLiveGetLiveIds();
+          const livePoolIds = secureLivePoolIds(liveIds);
+          if(livePoolIds.length < 2) return;
+          secureLiveCycleSelected(livePoolIds);
+          secureLiveRenderRows();
+        }, secureLive.rotateMs);
+      }
+
+      function syncSecureLiveLayoutControls(liveIds, shownIds, poolIds = []){
         if(btnSecureLiveSingleView){
           const active = secureLive.viewMode === "single";
           btnSecureLiveSingleView.classList.toggle("active", active);
@@ -2457,6 +2508,23 @@
           btnSecureLiveGridView.classList.toggle("active", active);
           btnSecureLiveGridView.setAttribute("aria-pressed", active ? "true" : "false");
         }
+        if(btnSecureLivePool2){
+          const active = secureLive.feedPoolSize === 2;
+          btnSecureLivePool2.classList.toggle("active", active);
+          btnSecureLivePool2.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+        if(btnSecureLivePool4){
+          const active = secureLive.feedPoolSize === 4;
+          btnSecureLivePool4.classList.toggle("active", active);
+          btnSecureLivePool4.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+        if(btnSecureLiveRotate){
+          btnSecureLiveRotate.textContent = secureLive.rotateEnabled ? "Rotate: On" : "Rotate: Off";
+          btnSecureLiveRotate.setAttribute("aria-pressed", secureLive.rotateEnabled ? "true" : "false");
+        }
+        if(btnSecureLiveNextCamera){
+          btnSecureLiveNextCamera.disabled = poolIds.length <= 1;
+        }
         if(btnSecureLiveReturnGrid){
           btnSecureLiveReturnGrid.hidden = secureLive.viewMode === "grid4" || liveIds.length <= 1;
         }
@@ -2464,9 +2532,9 @@
           if(!liveIds.length){
             secureLiveLayoutMeta.textContent = "No cameras are live yet.";
           }else if(secureLive.viewMode === "single"){
-            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} camera in focused view.`;
+            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} camera in focused view (pool: ${Math.min(secureLive.feedPoolSize, liveIds.length)}).`;
           }else{
-            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} of ${liveIds.length} cameras in 4-grid.`;
+            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} of ${liveIds.length} cameras in 4-grid (pool: ${Math.min(secureLive.feedPoolSize, liveIds.length)}).`;
           }
         }
       }
@@ -2521,8 +2589,7 @@
         return row;
       }
 
-      function secureLiveRenderRows(){
-        if(!secureLiveGrid) return;
+      function secureLiveGetLiveIds(){
         const ordered = [];
         if(secureLive.selfId && secureLive.localStream){
           ordered.push(secureLive.selfId);
@@ -2530,17 +2597,23 @@
         for(const item of secureLive.roster){
           if(item?.id && item.id !== secureLive.selfId) ordered.push(item.id);
         }
-        const liveIds = ordered.filter((id)=>{
+        return ordered.filter((id)=>{
           if(id === secureLive.selfId) return !!secureLive.localStream;
           const peer = secureLive.peers.get(id);
           return !!peer?.remoteStream;
         });
+      }
+
+      function secureLiveRenderRows(){
+        if(!secureLiveGrid) return;
+        const liveIds = secureLiveGetLiveIds();
         secureLiveGrid.innerHTML = "";
         secureLiveGrid.classList.remove("single", "grid-4");
         if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
         if(!liveIds.length){
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
-          syncSecureLiveLayoutControls(liveIds, []);
+          syncSecureLiveLayoutControls(liveIds, [], []);
+          syncSecureLiveRotateTimer([]);
           if(topSecureLiveGrid){
             topSecureLiveGrid.innerHTML = `<div class="small">No live feeds yet.</div>`;
           }
@@ -2549,11 +2622,16 @@
         if(!secureLive.selectedId || !liveIds.includes(secureLive.selectedId)){
           secureLive.selectedId = liveIds[0];
         }
+        const poolIds = secureLivePoolIds(liveIds);
+        if(!poolIds.includes(secureLive.selectedId)){
+          secureLive.selectedId = poolIds[0];
+        }
         const shownIds = secureLive.viewMode === "grid4"
-          ? secureLiveGridIds(liveIds)
+          ? poolIds.slice(0, 4)
           : [secureLive.selectedId];
         secureLiveGrid.classList.add(secureLive.viewMode === "grid4" ? "grid-4" : "single");
-        syncSecureLiveLayoutControls(liveIds, shownIds);
+        syncSecureLiveLayoutControls(liveIds, shownIds, poolIds);
+        syncSecureLiveRotateTimer(poolIds);
         for(const id of shownIds){
           const row = buildSecureLiveRow(id);
           secureLiveGrid.appendChild(row);
@@ -3479,6 +3557,33 @@
       if(btnSecureLiveGridView){
         btnSecureLiveGridView.addEventListener("click", ()=>{
           secureLive.viewMode = "grid4";
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLivePool2){
+        btnSecureLivePool2.addEventListener("click", ()=>{
+          secureLive.feedPoolSize = 2;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLivePool4){
+        btnSecureLivePool4.addEventListener("click", ()=>{
+          secureLive.feedPoolSize = 4;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLiveNextCamera){
+        btnSecureLiveNextCamera.addEventListener("click", ()=>{
+          const poolIds = secureLivePoolIds(secureLiveGetLiveIds());
+          secureLiveCycleSelected(poolIds);
+          secureLive.viewMode = "single";
+          secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLiveRotate){
+        btnSecureLiveRotate.addEventListener("click", ()=>{
+          secureLive.rotateEnabled = !secureLive.rotateEnabled;
+          secureLive.viewMode = "single";
           secureLiveRenderRows();
         });
       }
