@@ -49,6 +49,7 @@
     .notif-btn { border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0c1635; color:var(--text); font-weight:700; cursor:pointer; }
     .notif-dot { color:#ff9cb8; margin-left:6px; font-size:12px; }
     .notif-panel { position:absolute; top:40px; right:0; width:min(340px, 90vw); max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:12px; background:#0a1430; padding:8px; z-index:9; display:grid; gap:6px; }
+    .notif-panel[hidden] { display:none !important; }
     .notif-item { border:1px solid var(--line); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
     .headline { margin:0; font-size:27px; }
     .sub { margin:0; color:var(--muted); max-width:920px; }
@@ -1607,6 +1608,7 @@
       renderDailyLineup();
       renderAdminOrderReceipts();
       updateSummary();
+      notifPanel.hidden = true;
       notifBell?.addEventListener('click', async () => {
         const willOpen = notifPanel.hidden;
         notifPanel.hidden = !willOpen;
@@ -1614,6 +1616,14 @@
           await loadNotifications();
           await fetch('/notifications/' + encodeURIComponent(activeViewer()) + '/read', { method: 'POST' }).catch(() => {});
         }
+      });
+      document.addEventListener('click', (event) => {
+        if (notifPanel.hidden) return;
+        if (notifBell?.contains(event.target) || notifPanel.contains(event.target)) return;
+        notifPanel.hidden = true;
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') notifPanel.hidden = true;
       });
       loadNotifications();
       adminOrderReceipts.addEventListener('click', (event) => {
