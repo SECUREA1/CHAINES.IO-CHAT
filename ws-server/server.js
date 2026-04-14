@@ -220,7 +220,7 @@ function sendPush(username, title, body, opts = {}) {
     webpush
       .sendNotification(
         JSON.parse(subscription),
-        JSON.stringify({ title, body })
+        JSON.stringify({ title, body, url: opts.url || "/" })
       )
       .catch((err) => {
         if (err && (err.statusCode === 404 || err.statusCode === 410)) {
@@ -236,14 +236,14 @@ function sendPush(username, title, body, opts = {}) {
   }
 }
 
-function addUserNotification(username = "", type = "", data = {}, pushTitle = "", pushBody = "") {
+function addUserNotification(username = "", type = "", data = {}, pushTitle = "", pushBody = "", pushOpts = {}) {
   const target = sanitizeUsername(username);
   if (!target || !type) return false;
   db.prepare(
     "INSERT INTO notifications (username, type, data) VALUES (?, ?, ?)"
   ).run(target, String(type).slice(0, 48), JSON.stringify(data || {}));
   if (pushTitle && pushBody) {
-    sendPush(target, pushTitle, pushBody);
+    sendPush(target, pushTitle, pushBody, pushOpts);
   }
   return true;
 }
@@ -950,6 +950,7 @@ app.post("/delivery-orders", (req, res) => {
 
   sendPush(adminUsername, "New delivery order", `${customerName} placed ${deliveryId}`, {
     requireLive: true,
+    url: "/delivery-services.html",
   });
 
   const receiptTargetEmail = String(payload.receiptEmail || DEFAULT_RECEIPT_EMAIL || "").trim() || DEFAULT_RECEIPT_EMAIL;
@@ -1111,7 +1112,8 @@ app.post("/profile/:username/follow", (req, res) => {
     sendPush(
       req.params.username,
       "New Follower",
-      `${follower} started following you`
+      `${follower} started following you`,
+      { url: `/profile.html?user=${encodeURIComponent(follower)}` }
     );
     res.json({ following: true });
   }
@@ -1142,7 +1144,7 @@ app.post("/dating/interactions/toggle-like", (req, res) => {
       target,
       JSON.stringify({ from: actor, messageId })
     );
-    sendPush(target, "New Dating Like", `${actor} liked your dating profile`);
+    sendPush(target, "New Dating Like", `${actor} liked your dating profile`, { url: "/marketplace.html?tab=dating" });
     const reciprocal = db
       .prepare("SELECT id FROM dating_likes WHERE liker=? AND liked=? LIMIT 1")
       .get(target, actor);
@@ -1163,8 +1165,8 @@ app.post("/dating/interactions/toggle-like", (req, res) => {
         target,
         JSON.stringify({ with: actor, messageId })
       );
-      sendPush(actor, "Dating Match", `You and ${target} liked each other`);
-      sendPush(target, "Dating Match", `You and ${actor} liked each other`);
+      sendPush(actor, "Dating Match", `You and ${target} liked each other`, { url: `/profile.html?user=${encodeURIComponent(target)}` });
+      sendPush(target, "Dating Match", `You and ${actor} liked each other`, { url: `/profile.html?user=${encodeURIComponent(actor)}` });
     }
   } else {
     db.prepare(
@@ -1203,12 +1205,19 @@ app.post("/notifications/emit", (req, res) => {
     "marketplace-contact": `${actor} sent you a marketplace contact message`,
     "delivery-request": `${actor} sent a delivery request linked to your listing`,
   };
+  const urlMap = {
+    "marketplace-like": "/marketplace.html",
+    "marketplace-comment": "/marketplace.html",
+    "marketplace-contact": "/marketplace.html",
+    "delivery-request": "/delivery-services.html",
+  };
   addUserNotification(
     target,
     type,
     { from: actor, messageId, text: String(req.body?.text || "").trim().slice(0, 280) },
     "CHAINeS Notification",
-    bodyMap[type]
+    bodyMap[type],
+    { url: urlMap[type] || "/" }
   );
   res.json({ success: true });
 });
@@ -1473,7 +1482,7 @@ wss.on("connection", (ws) => {
             follower,
             "New Broadcast",
             `${ws.username} is live`,
-            { requireLive: true }
+            { requireLive: true, url: "/?tab=broadcast" }
           );
         }
         const hostId = guestHosts.get(ws.id);
@@ -1534,7 +1543,8 @@ wss.on("connection", (ws) => {
           sendPush(
             host.username || "",
             "Broadcast Request",
-            `${ws.username || "Someone"} requested to join your broadcast`
+            `${ws.username || "Someone"} requested to join your broadcast`,
+            { url: "/?tab=broadcast" }
           );
         } else {
           ws.send(JSON.stringify({ type: "join-denied" }));
@@ -1558,7 +1568,8 @@ wss.on("connection", (ws) => {
           sendPush(
             host.username || "",
             "Broadcast Request",
-            `${ws.username || "Someone"} requested to join via mic`
+            `${ws.username || "Someone"} requested to join via mic`,
+            { url: "/?tab=broadcast" }
           );
         }
         return;
@@ -1706,7 +1717,8 @@ wss.on("connection", (ws) => {
             sendPush(
               owner,
               "New Like",
-              `${msg.user || "Someone"} liked your post #${msg.messageId}`
+              `${msg.user || "Someone"} liked your post #${msg.messageId}`,
+              { url: `/?focus=${encodeURIComponent(String(msg.messageId))}` }
             );
           }
         }
@@ -1823,7 +1835,8 @@ wss.on("connection", (ws) => {
           sendPush(
             source.user,
             "New Repost",
-            `${actor} reposted your post #${source.id}`
+            `${actor} reposted your post #${source.id}`,
+            { url: `/?focus=${encodeURIComponent(String(source.id))}` }
           );
         }
         return;
@@ -1893,7 +1906,8 @@ wss.on("connection", (ws) => {
           sendPush(
             to,
             "New Private Message",
-            `${from} sent you a private encrypted message`
+            `${from} sent you a private encrypted message`,
+            { url: `/private-chat.html?user=${encodeURIComponent(from)}` }
           );
         }
         const payload = JSON.stringify({
@@ -2002,7 +2016,8 @@ wss.on("connection", (ws) => {
         sendPush(
           msg.user || "",
           "Message Removed",
-          `Your post #${msg.id} self-destructed`
+          `Your post #${msg.id} self-destructed`,
+          { url: "/?tab=feed" }
         );
         for (const client of wss.clients) {
           if (client.readyState === 1 && client.username === (msg.user || "")) {

@@ -108,6 +108,17 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   border-radius:999px;
   padding:4px 8px;
 }
+.delivery-window{
+  margin-top:14px;
+  padding:12px;
+  border:1px solid var(--lining);
+  border-radius:12px;
+  background:color-mix(in oklab, var(--panel), transparent 25%);
+  box-shadow:var(--shadow);
+}
+.delivery-window__actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
+.delivery-window__receipt{padding:8px;border:1px solid var(--lining);border-radius:10px;margin:8px 0;background:rgba(2,6,23,0.25);}
+.delivery-window__meta{font-size:12px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -159,6 +170,14 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   <h3 class="section-title">Profile Feed</h3>
   <ul id="p-feed" class="posts"></ul>
+  <section id="delivery-window" class="delivery-window" hidden>
+    <h3 class="section-title" style="margin-top:0;">Delivery Window</h3>
+    <p class="delivery-window__meta">Receipt feed for your delivery orders and support shortcuts.</p>
+    <div class="delivery-window__actions">
+      <button id="delivery-help-btn" class="follow-btn" type="button">Help (Message Admin)</button>
+    </div>
+    <div id="delivery-receipts"></div>
+  </section>
 
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
@@ -197,6 +216,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
   const messageBtn = document.getElementById('message-btn');
+  const deliveryWindow = document.getElementById('delivery-window');
+  const deliveryReceipts = document.getElementById('delivery-receipts');
+  const deliveryHelpBtn = document.getElementById('delivery-help-btn');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -207,6 +229,42 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     polygon: { currency: 'MATIC', label: 'Polygon' },
     solana: { currency: 'SOL', label: 'Solana' }
   };
+  const DELIVERY_REQUESTS_KEY = 'chaines_delivery_requests';
+
+  function safeParse(raw, fallback){
+    try { return JSON.parse(raw); } catch { return fallback; }
+  }
+
+  function renderDeliveryWindow(username = ''){
+    if(!username){
+      deliveryWindow.hidden = true;
+      return;
+    }
+    const receipts = safeParse(localStorage.getItem(DELIVERY_REQUESTS_KEY) || '[]', [])
+      .filter((record) => {
+        if(!(record && typeof record === 'object')) return false;
+        const requester = String(record.requesterUsername || record.customer?.name || '').trim().toLowerCase();
+        return requester && requester === String(username).trim().toLowerCase();
+      })
+      .slice(0, 20);
+    deliveryReceipts.innerHTML = receipts.length
+      ? receipts.map((record) => {
+        const itemSummary = Array.isArray(record.items) && record.items.length
+          ? record.items.slice(0, 3).map((item) => `${item.qty || 1}x ${item.name || 'Item'}`).join(', ')
+          : 'No items listed';
+        return `<article class="delivery-window__receipt">
+          <strong>${record.id || 'Delivery receipt'}</strong>
+          <div class="delivery-window__meta">${new Date(record.createdAt || Date.now()).toLocaleString()}</div>
+          <div class="delivery-window__meta">${record.route?.pickup || 'Pickup TBD'} → ${record.route?.dropoff || 'Dropoff TBD'}</div>
+          <div class="delivery-window__meta">Items: ${itemSummary}</div>
+        </article>`;
+      }).join('')
+      : '<div class="delivery-window__meta">No delivery receipts yet.</div>';
+    deliveryWindow.hidden = false;
+    deliveryHelpBtn.onclick = () => {
+      window.location.href = '/private-chat.html?user=admin';
+    };
+  }
 
   function verifiedUsers(){
     try{
@@ -744,6 +802,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.onclick = () => {
         window.location.href = '/private-chat.html?user=' + encodeURIComponent(currentUser);
       };
+      deliveryWindow.hidden = true;
     } else if(!storeUser && currentUser){
       followBtn.style.display = '';
       followBtn.textContent = 'Log in to Follow';
@@ -751,6 +810,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.hidden = false;
       messageBtn.textContent = 'Log in to Chat';
       messageBtn.onclick = () => alert('Please log in to send encrypted private messages.');
+      deliveryWindow.hidden = true;
     } else {
       followBtn.style.display = '';
       followBtn.textContent = 'This is your profile';
@@ -785,6 +845,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       settingsSection.hidden = false;
       loadSettings();
       loadNotifs();
+      renderDeliveryWindow(storeUser);
+      if(params.get('delivery') === '1'){
+        setTimeout(() => deliveryWindow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      }
     }
     renderFeed();
   }
@@ -797,44 +861,30 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     data.forEach(n => {
       const li = document.createElement('li');
       li.className = 'post';
-      if(n.type === 'like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your post #' + n.data.messageId;
-      } else if(n.type === 'follow'){
-        li.textContent = (n.data.from || 'Someone') + ' started following you';
-      } else if(n.type === 'broadcast'){
-        li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
-      } else if(n.type === 'dm'){
-        const sender = n.data.from || 'Someone';
-        li.textContent = sender + ' sent you a private encrypted message';
-        li.style.cursor = 'pointer';
-        li.onclick = () => {
-          window.location.href = '/private-chat.html?user=' + encodeURIComponent(sender);
-        };
-      } else if(n.type === 'dating-like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your dating profile';
-      } else if(n.type === 'dating-match'){
-        li.textContent = '💘 You matched with ' + (n.data.with || 'someone');
-      } else if(n.type === 'marketplace-like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your marketplace listing';
-      } else if(n.type === 'marketplace-comment'){
-        li.textContent = (n.data.from || 'Someone') + ' commented on your marketplace listing';
-      } else if(n.type === 'marketplace-contact'){
-        li.textContent = (n.data.from || 'Someone') + ' sent you a marketplace contact message';
-      } else if(n.type === 'delivery-request'){
-        li.textContent = (n.data.from || 'Someone') + ' sent you a delivery request from marketplace';
-      } else if(n.type === 'self-destruct'){
-        li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
-      } else if(n.type === 'delivery-order'){
-        const deliveryId = n.data.id || 'delivery';
-        const customerName = n.data.customer?.name || 'Customer';
-        const route = `${n.data.route?.pickup || 'Pickup TBD'} → ${n.data.route?.dropoff || 'Dropoff TBD'}`;
-        const itemPreview = Array.isArray(n.data.items) ? n.data.items.slice(0, 3).map((item) => `${item.qty || 1}x ${item.name || 'Item'}`).join(', ') : '';
-        li.textContent = `Delivery order ${deliveryId} from ${customerName}`;
-        li.style.cursor = 'pointer';
-        li.onclick = () => {
-          window.alert(`Delivery ${deliveryId}\nCustomer: ${customerName}\nRoute: ${route}\nItems: ${itemPreview || 'No items listed'}`);
-        };
-      }
+      const actor = String(n.data?.from || 'Someone').replace(/[^a-zA-Z0-9_. -]/g, '').slice(0, 48) || 'Someone';
+      const withUser = String(n.data?.with || '').replace(/[^a-zA-Z0-9_. -]/g, '').slice(0, 48);
+      const messageId = String(n.data?.messageId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+      const meta = (() => {
+        if(n.type === 'like') return { text: `${actor} liked your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if(n.type === 'repost') return { text: `${actor} reposted your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if(n.type === 'follow') return { text: `${actor} started following you`, href: `/profile.html?user=${encodeURIComponent(actor)}` };
+        if(n.type === 'broadcast') return { text: `${actor} requested to ${n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`, href: '/?tab=broadcast' };
+        if(n.type === 'dm') return { text: `${actor} sent you a private encrypted message`, href: `/private-chat.html?user=${encodeURIComponent(actor)}` };
+        if(n.type === 'dating-like') return { text: `${actor} liked your dating profile`, href: '/marketplace.html?tab=dating' };
+        if(n.type === 'dating-match') return { text: `💘 You matched with ${withUser || 'someone'}`, href: withUser ? `/profile.html?user=${encodeURIComponent(withUser)}` : '/marketplace.html?tab=dating' };
+        if(n.type === 'marketplace-like') return { text: `${actor} liked your marketplace listing`, href: '/marketplace.html' };
+        if(n.type === 'marketplace-comment') return { text: `${actor} commented on your marketplace listing`, href: '/marketplace.html' };
+        if(n.type === 'marketplace-contact') return { text: `${actor} sent you a marketplace contact message`, href: '/marketplace.html' };
+        if(n.type === 'delivery-request') return { text: `${actor} sent you a delivery request from marketplace`, href: '/delivery-services.html' };
+        if(n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
+        if(n.type === 'delivery-order') return { text: `Delivery order ${n.data.id || 'delivery'} from ${n.data.customer?.name || 'Customer'}`, href: '/delivery-services.html' };
+        return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
+      })();
+      li.textContent = meta.text;
+      li.style.cursor = 'pointer';
+      li.onclick = () => {
+        window.location.href = meta.href || '/';
+      };
       notifsEl.appendChild(li);
     });
   }
