@@ -249,8 +249,8 @@
         </section>
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
-          <p class="section-title">Healthy Menus + Pringle Delivery Options</p>
-          <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, plus all Pringle variants.</p>
+          <p class="section-title">Healthy Menus + Drink + Pringle Delivery Options</p>
+          <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, drink menus (milkshakes, slurpies, smoothies, coffee, tea, soda, juice, and more), plus all Pringle variants.</p>
           <div id="daily-lineup" class="daily-lineup" aria-live="polite"></div>
           <div class="quick-grid" id="quick-menu-grid"></div>
           <div class="quick-controls">
@@ -630,7 +630,17 @@
           { name: 'Pure Leaf Sweet Tea', note: '18.5oz bottle' },
           { name: 'Red Bull Energy Drink', note: '8.4oz can' },
           { name: 'Monster Energy Original', note: '16oz can' },
-          { name: 'Starbucks Frappuccino Mocha', note: '13.7oz bottle' }
+          { name: 'Starbucks Frappuccino Mocha', note: '13.7oz bottle' },
+          { name: 'Vanilla Bean Milkshake', note: '16oz cup' },
+          { name: 'Chocolate Fudge Milkshake', note: '16oz cup' },
+          { name: 'Strawberry Cream Milkshake', note: '16oz cup' },
+          { name: 'Blue Raspberry Slurpy', note: '24oz frozen cup' },
+          { name: 'Cherry Lime Slurpy', note: '24oz frozen cup' },
+          { name: 'Mango Pineapple Smoothie', note: '20oz blended' },
+          { name: 'Strawberry Banana Smoothie', note: '20oz blended' },
+          { name: 'Iced Caramel Latte', note: '16oz' },
+          { name: 'Hot Chocolate', note: '16oz' },
+          { name: 'Fresh Orange Juice', note: '16oz bottle' }
         ]
       };
       const variantLibrary = {
@@ -638,7 +648,8 @@
         lunch: ['Original', 'Extra protein', 'Low-carb', 'Family portion'],
         dinner: ['Original', 'Spicy', 'Low sodium', 'Family tray'],
         dessert: ['Classic', 'Sugar-free', 'Dairy-free', 'Kid-size'],
-        pringles: ['Original can', 'Snack stack', 'Party size', 'Limited flavor']
+        pringles: ['Original can', 'Snack stack', 'Party size', 'Limited flavor'],
+        drinks: ['Regular', 'Sugar-free', 'Large', 'Kid-size', 'Iced', 'Hot', 'Frozen', 'Blend-in add-ons']
       };
       const defaultAdminConfig = {
         dailyMenu: {
@@ -647,7 +658,7 @@
           dinner: ['Baked salmon plate', 'Lean beef stir-fry', 'Herb tofu grain bowl'],
           dessert: ['Fresh fruit cup', 'Dark chocolate protein bites', 'Coconut chia pudding'],
           pringles: ['Pringles Original', 'Pringles Sour Cream & Onion', 'Pringles BBQ', 'Pringles Cheddar Cheese'],
-          drinks: ['Coca-Cola Classic', 'Sprite Lemon-Lime', 'Gatorade Glacier Freeze', 'Pure Leaf Sweet Tea']
+          drinks: ['Coca-Cola Classic', 'Vanilla Bean Milkshake', 'Blue Raspberry Slurpy', 'Mango Pineapple Smoothie', 'Iced Caramel Latte']
         },
         pricing: {
           baseFee: 5.75,
@@ -1020,7 +1031,7 @@
 
       function syncQuickSelectors(group = 'breakfast') {
         const sourceItems = quickMenuCatalog[group] || [];
-        const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles']
+        const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks']
           .map((value) => `<option value="${value}" ${value === group ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`)
           .join('');
         const itemOptions = sourceItems.map((item) => `<option value="${item.name}">${item.name}</option>`).join('');
@@ -1031,7 +1042,7 @@
       }
 
       function getSelectedQuickGroup() {
-        const groups = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'];
+        const groups = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'];
         if (groups.includes(quickItemSelect.value)) return quickItemSelect.value;
         return groups.find((group) => Array.from(quickMenuCatalog[group] || []).some((item) => item.name === quickItemSelect.value)) || 'breakfast';
       }
@@ -1041,7 +1052,7 @@
         const itemName = quickItemSelect.value;
         const variant = quickVariantSelect.value || 'Standard';
         const priceAdjust = Number(quickPriceAdjust.value || 0);
-        if (!itemName || ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'].includes(itemName)) {
+        if (!itemName || ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'].includes(itemName)) {
           status.classList.add('error');
           status.textContent = 'Choose a meal item before adding.';
           return;
