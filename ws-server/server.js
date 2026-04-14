@@ -240,6 +240,11 @@ function sanitizeUsername(name = "") {
   return String(name).replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24);
 }
 
+const ADMIN_ACCOUNT = Object.freeze({
+  username: "admin",
+  password: "giraff",
+});
+
 function ensureUserProfile(username = "") {
   const clean = sanitizeUsername(username);
   if (!clean) return "";
@@ -259,6 +264,46 @@ function ensureUserProfile(username = "") {
   }
   return clean;
 }
+
+function ensureAdminAccount() {
+  const username = sanitizeUsername(ADMIN_ACCOUNT.username);
+  if (!username) return;
+
+  const hash = bcrypt.hashSync(ADMIN_ACCOUNT.password, 10);
+  const dbUser = db
+    .prepare("SELECT username, password, profile_pic, description FROM users WHERE username=?")
+    .get(username);
+
+  if (!dbUser) {
+    try {
+      db.prepare(
+        "INSERT INTO users (username, password, profile_pic, description) VALUES (?,?,?,?)"
+      ).run(username, hash, null, "System admin account for routed delivery orders.");
+    } catch {}
+  } else {
+    const currentHash = dbUser.password || "";
+    const validHash = currentHash && bcrypt.compareSync(ADMIN_ACCOUNT.password, currentHash);
+    if (!validHash) {
+      try {
+        db.prepare("UPDATE users SET password=? WHERE username=?").run(hash, username);
+      } catch {}
+    }
+  }
+
+  const mem = profiles[username] || {};
+  profiles[username] = {
+    ...mem,
+    password: hash,
+    profilePic: mem.profilePic ?? dbUser?.profile_pic ?? null,
+    description:
+      mem.description ??
+      dbUser?.description ??
+      "System admin account for routed delivery orders.",
+  };
+  saveProfiles();
+}
+
+ensureAdminAccount();
 
 app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
@@ -756,6 +801,9 @@ app.post("/login", async (req, res) => {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
+  if (sanitizeUsername(username) === ADMIN_ACCOUNT.username) {
+    ensureAdminAccount();
+  }
   const dbUser = db
     .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
     .get(username);
@@ -779,6 +827,62 @@ app.post("/login", async (req, res) => {
   profiles[username] = { ...(memUser || {}), password: hash, profilePic };
   saveProfiles();
   res.json({ success: true, username, profilePic });
+});
+
+app.post("/delivery-orders", (req, res) => {
+  ensureAdminAccount();
+  const adminUsername = ADMIN_ACCOUNT.username;
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const deliveryId = String(payload.id || `DLV-${Date.now().toString(36).toUpperCase()}`);
+  const customerName = String(payload.customer?.name || "Customer").trim() || "Customer";
+  const serviceName = String(payload.service?.name || "Delivery request").trim() || "Delivery request";
+  const deliveryType = String(payload.service?.deliveryType || "meal").trim() || "meal";
+  const routeSummary = `${String(payload.route?.pickup || "Pickup TBD").trim()} → ${String(payload.route?.dropoff || "Dropoff TBD").trim()}`;
+  const itemSummary = Array.isArray(payload.items)
+    ? payload.items
+        .slice(0, 8)
+        .map((item) => `${Number(item?.qty || 1)}x ${String(item?.name || "Item").trim()}`)
+        .join(", ")
+    : "";
+  const message = `Delivery ${deliveryId} | ${customerName} | ${serviceName} (${deliveryType}) | ${routeSummary}${itemSummary ? ` | ${itemSummary}` : ""}`;
+
+  const notifPayload = {
+    id: deliveryId,
+    customer: payload.customer || {},
+    route: payload.route || {},
+    service: payload.service || {},
+    items: Array.isArray(payload.items) ? payload.items : [],
+    createdAt: payload.createdAt || new Date().toISOString(),
+  };
+
+  const notifResult = db
+    .prepare("INSERT INTO notifications (username, type, data) VALUES (?, 'delivery-order', ?)")
+    .run(adminUsername, JSON.stringify(notifPayload));
+  const messageResult = db
+    .prepare("INSERT INTO chat_messages (user, message, category, listing_data, room) VALUES (?, ?, ?, ?, ?)")
+    .run(
+      adminUsername,
+      message,
+      "meal-delivery",
+      JSON.stringify({
+        category: "meal-delivery",
+        serviceType: "delivery-order",
+        subcategory: deliveryType,
+        condition: serviceName,
+      }),
+      "main"
+    );
+
+  sendPush(adminUsername, "New delivery order", `${customerName} placed ${deliveryId}`, {
+    requireLive: true,
+  });
+
+  res.json({
+    success: true,
+    adminUsername,
+    notificationId: notifResult.lastInsertRowid,
+    messageId: messageResult.lastInsertRowid,
+  });
 });
 
 app.get(["/profile.html"], (req, res) =>
