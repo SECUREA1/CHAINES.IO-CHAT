@@ -103,6 +103,7 @@
           <option value="jobs">Jobs</option>
           <option value="for-sale">Items for sale</option>
           <option value="services">Services</option>
+          <option value="meal-delivery">Meals & delivery</option>
           <option value="housing">Housing</option>
           <option value="community">Community</option>
           <option value="dating">Dating</option>
@@ -138,6 +139,7 @@
             <option value="jobs">Jobs</option>
             <option value="for-sale">Items for sale</option>
             <option value="services">Services</option>
+            <option value="meal-delivery">Meals & delivery</option>
             <option value="housing">Housing</option>
             <option value="community">Community</option>
             <option value="dating">Dating</option>
@@ -157,6 +159,8 @@
               <option value="beauty">Beauty & wellness</option>
               <option value="fitness">Fitness coaching</option>
               <option value="events">Events & hospitality</option>
+              <option value="meal-packages">Custom meal packages</option>
+              <option value="pringle-options">Pringle delivery options</option>
               <option value="tech">Tech & IT support</option>
               <option value="transport">Transport & moving</option>
               <option value="education">Education & tutoring</option>
@@ -242,6 +246,7 @@
         jobs: { label: 'Jobs' },
         'for-sale': { label: 'Items for sale' },
         services: { label: 'Services' },
+        'meal-delivery': { label: 'Meals & delivery' },
         housing: { label: 'Housing' },
         community: { label: 'Community' },
         dating: { label: 'Dating' }
@@ -626,7 +631,7 @@
       const serviceBlock = document.querySelector('.service-block');
       const syncPostFieldsByCategory = () => {
         const showDating = postCategory.value === 'dating';
-        const showServices = postCategory.value === 'services';
+        const showServices = postCategory.value === 'services' || postCategory.value === 'meal-delivery';
         datingBlock?.classList.toggle('show', showDating);
         serviceBlock?.classList.toggle('show', showServices);
         postPrice.disabled = showDating;
