@@ -84,7 +84,13 @@
     .chip input { display:none; }
     .chip.active { border-color:var(--gold); color:var(--gold); }
     .menu-list { display:grid; gap:8px; }
-    .menu-item { display:grid; grid-template-columns:1.3fr .5fr 1fr auto; gap:8px; align-items:center; }
+    .menu-item { display:grid; grid-template-columns:1.2fr .9fr .5fr .7fr auto auto; gap:8px; align-items:center; }
+    .menu-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+    .menu-toggle input { width:auto; margin:0; }
+    .menu-stepper { white-space:nowrap; }
+    .quick-controls { display:grid; gap:8px; margin-top:8px; }
+    .quick-controls .row3 { grid-template-columns:1.2fr .9fr .7fr; }
+    .quick-controls .mini-btn { width:100%; }
     .menu-block { display:grid; gap:8px; }
     .menu-block-title { margin:0; font-size:12px; color:var(--muted); }
     .quick-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:8px; }
@@ -247,6 +253,18 @@
           <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, plus all Pringle variants.</p>
           <div id="daily-lineup" class="daily-lineup" aria-live="polite"></div>
           <div class="quick-grid" id="quick-menu-grid"></div>
+          <div class="quick-controls">
+            <div class="row3">
+              <select id="quick-item-select" aria-label="Quick meal item selection"></select>
+              <select id="quick-variant-select" aria-label="Quick item type or flavor selection"></select>
+              <input id="quick-price-adjust" type="number" min="-10" step="0.25" value="0" aria-label="Quick price adjustment" />
+            </div>
+            <div class="row3">
+              <button id="quick-add-item" type="button" class="mini-btn alt">Add selected item</button>
+              <button id="quick-add-more" type="button" class="mini-btn">Add more +1</button>
+              <label class="menu-toggle"><input id="quick-fast-toggle" type="checkbox" /> Fast +1 mode</label>
+            </div>
+          </div>
         </section>
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
@@ -405,6 +423,7 @@
         <div class="cost-line"><span>Delivery base</span><span id="base-fee">$6.00</span></div>
         <div class="cost-line"><span>Speed surcharge</span><span id="speed-fee">$0.00</span></div>
         <div class="cost-line"><span>Customization add-ons</span><span id="addon-fee">$0.00</span></div>
+        <div class="cost-line"><span>Menu price adjustments</span><span id="menu-adjust-fee">$0.00</span></div>
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
         <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
@@ -490,6 +509,13 @@
           { name: 'Pringles Hot & Spicy', note: 'full-size can' }
         ]
       };
+      const variantLibrary = {
+        breakfast: ['Classic', 'High-protein', 'Low sugar', 'Gluten-free'],
+        lunch: ['Original', 'Extra protein', 'Low-carb', 'Family portion'],
+        dinner: ['Original', 'Spicy', 'Low sodium', 'Family tray'],
+        dessert: ['Classic', 'Sugar-free', 'Dairy-free', 'Kid-size'],
+        pringles: ['Original can', 'Snack stack', 'Party size', 'Limited flavor']
+      };
       const defaultAdminConfig = {
         dailyMenu: {
           breakfast: ['Greek yogurt parfait', 'Egg white veggie scramble', 'Steel-cut oats bowl'],
@@ -528,6 +554,12 @@
       const mealPackage = document.querySelector('#meal-package');
       const applyPackageBtn = document.querySelector('#apply-package');
       const quickMenuGrid = document.querySelector('#quick-menu-grid');
+      const quickItemSelect = document.querySelector('#quick-item-select');
+      const quickVariantSelect = document.querySelector('#quick-variant-select');
+      const quickPriceAdjust = document.querySelector('#quick-price-adjust');
+      const quickAddItemBtn = document.querySelector('#quick-add-item');
+      const quickAddMoreBtn = document.querySelector('#quick-add-more');
+      const quickFastToggle = document.querySelector('#quick-fast-toggle');
       const dailyLineup = document.querySelector('#daily-lineup');
       const menuHost = document.querySelector('#menu-items');
       const addItemBtn = document.querySelector('#add-item');
@@ -549,6 +581,7 @@
         addonFee: document.querySelector('#admin-addon-fee')
       };
       let selectedPartner = partners[0];
+      let lastQuickSelection = null;
       let isAdminAuthed = false;
       let adminConfig = safeParse(localStorage.getItem(adminConfigKey) || '', null) || structuredClone(defaultAdminConfig);
       let quickMenuCatalog = {};
@@ -800,18 +833,32 @@
       function addMenuItemRow(initial = {}) {
         const row = document.createElement('div');
         row.className = 'menu-item';
+        const selectedGroup = initial.group && variantLibrary[initial.group] ? initial.group : 'breakfast';
+        const variants = variantLibrary[selectedGroup] || ['Standard'];
+        const variantOptions = variants
+          .map((variant) => `<option value="${variant}" ${variant === (initial.variant || 'Standard') ? 'selected' : ''}>${variant}</option>`)
+          .join('');
         row.innerHTML = `
           <input type="text" class="menu-name" maxlength="120" placeholder="Item name" value="${initial.name || ''}" />
+          <select class="menu-variant" aria-label="Item variant">${variantOptions}</select>
           <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
-          <input type="text" class="menu-note" maxlength="120" placeholder="Item notes" value="${initial.note || ''}" />
+          <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
+          <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
+          <button type="button" class="mini-btn menu-stepper">+1</button>
           <button type="button" class="mini-btn danger">Remove</button>
         `;
-        row.querySelector('button').addEventListener('click', () => {
+        row.querySelector('.mini-btn.danger').addEventListener('click', () => {
           row.remove();
           if (!menuHost.children.length) addMenuItemRow();
           updateSummary();
         });
-        row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateSummary));
+        row.querySelector('.menu-stepper').addEventListener('click', () => {
+          const qtyInput = row.querySelector('.menu-qty');
+          qtyInput.value = Number(qtyInput.value || 1) + 1;
+          if (row.querySelector('.menu-fast-add')?.checked) quickFastToggle.checked = true;
+          updateSummary();
+        });
+        row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', updateSummary));
         menuHost.append(row);
       }
 
@@ -839,6 +886,53 @@
             </article>
           `;
         }).join('');
+        syncQuickSelectors('breakfast');
+      }
+
+      function syncQuickSelectors(group = 'breakfast') {
+        const sourceItems = quickMenuCatalog[group] || [];
+        const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles']
+          .map((value) => `<option value="${value}" ${value === group ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`)
+          .join('');
+        const itemOptions = sourceItems.map((item) => `<option value="${item.name}">${item.name}</option>`).join('');
+        quickItemSelect.innerHTML = `${groupOptions}${itemOptions || '<option value="">No options today</option>'}`;
+        if (sourceItems[0]) quickItemSelect.value = sourceItems[0].name;
+        const variants = variantLibrary[group] || ['Standard'];
+        quickVariantSelect.innerHTML = variants.map((variant) => `<option value="${variant}">${variant}</option>`).join('');
+      }
+
+      function getSelectedQuickGroup() {
+        const groups = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'];
+        if (groups.includes(quickItemSelect.value)) return quickItemSelect.value;
+        return groups.find((group) => Array.from(quickMenuCatalog[group] || []).some((item) => item.name === quickItemSelect.value)) || 'breakfast';
+      }
+
+      function addQuickSelectedItem(addMore = false) {
+        const group = getSelectedQuickGroup();
+        const itemName = quickItemSelect.value;
+        const variant = quickVariantSelect.value || 'Standard';
+        const priceAdjust = Number(quickPriceAdjust.value || 0);
+        if (!itemName || ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'].includes(itemName)) {
+          status.classList.add('error');
+          status.textContent = 'Choose a meal item before adding.';
+          return;
+        }
+        if (addMore && lastQuickSelection && lastQuickSelection.name === itemName && lastQuickSelection.variant === variant) {
+          const existing = Array.from(menuHost.querySelectorAll('.menu-item')).find((row) =>
+            row.querySelector('.menu-name')?.value.trim() === itemName && row.querySelector('.menu-variant')?.value === variant
+          );
+          if (existing) {
+            const qtyInput = existing.querySelector('.menu-qty');
+            qtyInput.value = Number(qtyInput.value || 1) + 1;
+            updateSummary();
+            return;
+          }
+        }
+        addMenuItemRow({ name: itemName, group, variant, qty: 1, priceAdjust, fastAdd: quickFastToggle.checked });
+        lastQuickSelection = { name: itemName, variant };
+        status.classList.remove('error');
+        status.textContent = `${itemName} (${variant}) added.`;
+        updateSummary();
       }
 
       function mountPartners() {
@@ -917,8 +1011,11 @@
         return Array.from(menuHost.querySelectorAll('.menu-item'))
           .map((row) => ({
             name: row.querySelector('.menu-name')?.value.trim() || '',
+            variant: row.querySelector('.menu-variant')?.value || 'Standard',
             qty: Number(row.querySelector('.menu-qty')?.value || 1),
-            note: row.querySelector('.menu-note')?.value.trim() || ''
+            priceAdjust: Number(row.querySelector('.menu-price-adjust')?.value || 0),
+            fastAdd: Boolean(row.querySelector('.menu-fast-add')?.checked),
+            note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : ''
           }))
           .filter((item) => item.name);
       }
@@ -964,14 +1061,15 @@
         const menuItems = getMenuItems();
         const speedFee = speedFeeMap[speed.value] || 0;
         const addOnFee = selectedPrefs.length * Number(adminConfig.pricing.addonFee || 0);
+        const menuAdjustFee = menuItems.reduce((sum, item) => sum + (Number(item.priceAdjust || 0) * Number(item.qty || 1)), 0);
         const partnerFee = selectedPartner.fee || 0;
         const tipFee = Number(tip.value || 0);
         const budgetFee = Number(budget.value || 0);
         const baseFee = Number(adminConfig.pricing.baseFee || 0);
-        const total = baseFee + partnerFee + speedFee + addOnFee + tipFee + budgetFee;
+        const total = baseFee + partnerFee + speedFee + addOnFee + menuAdjustFee + tipFee + budgetFee;
 
         const menuSummary = menuItems.length
-          ? menuItems.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
+          ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
           : 'No menu items added';
 
         const mealDetails = [
@@ -1001,6 +1099,7 @@
         document.querySelector('#base-fee').textContent = toMoney(baseFee + partnerFee);
         document.querySelector('#speed-fee').textContent = toMoney(speedFee);
         document.querySelector('#addon-fee').textContent = toMoney(addOnFee);
+        document.querySelector('#menu-adjust-fee').textContent = toMoney(menuAdjustFee);
         document.querySelector('#tip-fee').textContent = toMoney(tipFee);
         document.querySelector('#budget-fee').textContent = toMoney(budgetFee);
         document.querySelector('#total-fee').textContent = toMoney(total);
@@ -1092,15 +1191,22 @@
         const button = event.target.closest('[data-quick-group]');
         if (!button) return;
         const group = button.getAttribute('data-quick-group');
-        const items = quickMenuCatalog[group];
-        if (!Array.isArray(items)) return;
+        const items = quickMenuCatalog[group] || [];
         if (!items.length) {
           status.classList.add('error');
           status.textContent = `No ${group} options are configured by admin for today.`;
           return;
         }
-        addItems(items.map((item) => ({ ...item, qty: 1 })));
+        syncQuickSelectors(group);
       });
+      quickItemSelect.addEventListener('change', () => {
+        const selectedValue = quickItemSelect.value;
+        if (['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'].includes(selectedValue)) {
+          syncQuickSelectors(selectedValue);
+        }
+      });
+      quickAddItemBtn.addEventListener('click', () => addQuickSelectedItem(false));
+      quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
 
       adminConfig = mergeAdminConfig(adminConfig);
       syncQuickMenuFromAdmin();
