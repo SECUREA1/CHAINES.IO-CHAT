@@ -111,6 +111,23 @@
     .finalized-item-cost { color:var(--gold); font-weight:700; }
     .finalized-item-actions { display:flex; align-items:center; gap:6px; }
     .finalized-item-qty { min-width:28px; text-align:center; color:var(--text); font-weight:700; }
+    .package-workbench { border:1px dashed var(--line); border-radius:10px; padding:10px; background:#09122a; display:grid; gap:8px; }
+    .package-workbench-list { display:grid; gap:6px; }
+    .package-workbench-item {
+      display:grid;
+      grid-template-columns:1.4fr .45fr .7fr auto;
+      gap:8px;
+      align-items:center;
+      border:1px solid color-mix(in oklab, var(--line), transparent 20%);
+      border-radius:8px;
+      padding:8px;
+      background:#0a1430;
+      font-size:12px;
+    }
+    .package-workbench-empty { color:var(--muted); font-style:italic; font-size:12px; }
+    .package-workbench-item strong { color:var(--text); }
+    .workflow-note { font-size:12px; color:var(--muted); }
+    .workflow-note strong { color:var(--gold); }
     .menu-toggle input { width:auto; margin:0; }
     .menu-stepper { white-space:nowrap; }
     .quick-controls { display:grid; gap:8px; margin-top:8px; }
@@ -294,8 +311,19 @@
               <option value="comfort-dinner">Comfort Dinner Pack</option>
               <option value="dessert-party">Dessert Party Pack</option>
             </select>
-            <button id="apply-package" type="button" class="mini-btn alt">Apply Package to Cart</button>
+            <select id="meal-package-pricing" name="meal-package-pricing">
+              <option value="balanced">Balanced pricing tier</option>
+              <option value="budget">Budget saver tier (-10%)</option>
+              <option value="premium">Premium prep tier (+20%)</option>
+              <option value="bulk">Bulk family tier (-5%)</option>
+            </select>
           </div>
+          <article class="package-workbench">
+            <p class="section-copy">Break down package items, tweak quantities, remove anything you do not want, then push the package into the menu builder.</p>
+            <div id="package-breakdown-list" class="package-workbench-list"></div>
+            <button id="apply-package" type="button" class="mini-btn alt">Apply Edited Package to Menu Builder</button>
+            <p id="package-workflow-note" class="workflow-note">Select a package to start the workflow.</p>
+          </article>
         </section>
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
@@ -824,7 +852,10 @@
       const serviceNameInput = document.querySelector('#service-name');
       const serviceCategoryInput = document.querySelector('#service-category');
       const mealPackage = document.querySelector('#meal-package');
+      const mealPackagePricing = document.querySelector('#meal-package-pricing');
       const applyPackageBtn = document.querySelector('#apply-package');
+      const packageBreakdownList = document.querySelector('#package-breakdown-list');
+      const packageWorkflowNote = document.querySelector('#package-workflow-note');
       const quickMenuGrid = document.querySelector('#quick-menu-grid');
       const quickItemSelect = document.querySelector('#quick-item-select');
       const quickVariantSelect = document.querySelector('#quick-variant-select');
@@ -864,6 +895,7 @@
       let lastQuickSelection = null;
       let isAdminAuthed = false;
       let finalizedOrderItems = [];
+      let activePackageBreakdown = [];
       let adminConfig = safeParse(localStorage.getItem(adminConfigKey) || '', null) || structuredClone(defaultAdminConfig);
       let quickMenuCatalog = {};
       const mealPackageProfiles = {
@@ -1017,6 +1049,12 @@
         Spinach: 3.8,
         Tomatoes: 3.95,
         'Cheddar cheese': 5.5
+      };
+      const packagePricingProfiles = {
+        balanced: { label: 'Balanced pricing', multiplier: 1 },
+        budget: { label: 'Budget saver', multiplier: 0.9 },
+        premium: { label: 'Premium prep', multiplier: 1.2 },
+        bulk: { label: 'Bulk family', multiplier: 0.95 }
       };
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
@@ -1796,7 +1834,11 @@
       }
 
       function applyMealPackage() {
-        if (!mealPackage.value) return;
+        if (!mealPackage.value || !activePackageBreakdown.length) {
+          status.classList.add('error');
+          status.textContent = 'Select a meal package and keep at least one item in the breakdown before applying.';
+          return;
+        }
         const pkg = mealPackageProfiles[mealPackage.value];
         if (!pkg) return;
         form.querySelector('#meal-format').value = pkg.format;
@@ -1804,7 +1846,61 @@
         form.querySelector('#spice-level').value = pkg.spiceLevel;
         form.querySelector('#sides').value = pkg.sides;
         form.querySelector('#custom-meal-notes').value = pkg.notes;
-        addItems(pkg.items);
+        addItems(activePackageBreakdown.map((item) => ({ ...item })));
+        status.classList.remove('error');
+        status.textContent = `${pkg.notes} Package items were added to the menu builder. Finalize them before checkout.`;
+      }
+
+      function hydrateActivePackageBreakdown() {
+        const pkg = mealPackageProfiles[mealPackage.value];
+        if (!pkg) {
+          activePackageBreakdown = [];
+          renderPackageBreakdown();
+          return;
+        }
+        const pricingTier = packagePricingProfiles[mealPackagePricing.value] || packagePricingProfiles.balanced;
+        activePackageBreakdown = (pkg.items || []).map((item) => {
+          const group = inferGroupFromItemName(item.name);
+          const basePrice = getBasePriceForItem({ name: item.name, group });
+          const tierPrice = normalizeCurrency(basePrice * pricingTier.multiplier, basePrice);
+          const priceAdjust = normalizeCurrency(tierPrice - basePrice, 0);
+          return {
+            name: item.name,
+            qty: Math.max(1, Number(item.qty || 1)),
+            variant: 'Standard',
+            group,
+            basePrice,
+            priceAdjust,
+            note: item.note || `${pricingTier.label} tier`
+          };
+        });
+        renderPackageBreakdown();
+      }
+
+      function renderPackageBreakdown() {
+        if (!packageBreakdownList) return;
+        if (!mealPackage.value) {
+          packageBreakdownList.innerHTML = '<div class="package-workbench-empty">No package selected yet.</div>';
+          packageWorkflowNote.textContent = 'Select a package to start the workflow.';
+          return;
+        }
+        if (!activePackageBreakdown.length) {
+          packageBreakdownList.innerHTML = '<div class="package-workbench-empty">All package items were removed. Add a package again or choose another package.</div>';
+          packageWorkflowNote.innerHTML = '<strong>Workflow:</strong> Add at least one item to continue.';
+          return;
+        }
+        packageBreakdownList.innerHTML = activePackageBreakdown.map((item, idx) => `
+          <div class="package-workbench-item">
+            <div>
+              <strong>${escapeHtml(item.name)}</strong><br />
+              <span>${toMoney(item.basePrice || 0)} each${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''}</span>
+            </div>
+            <input type="number" min="1" step="1" value="${Math.max(1, Number(item.qty || 1))}" aria-label="Quantity for ${escapeHtml(item.name)}" data-package-qty="${idx}" />
+            <span>${toMoney(Math.max(1, Number(item.qty || 1)) * (Number(item.basePrice || 0) + Number(item.priceAdjust || 0)))} total</span>
+            <button type="button" class="mini-btn danger" data-package-remove="${idx}">Remove</button>
+          </div>
+        `).join('');
+        packageWorkflowNote.innerHTML = '<strong>Workflow:</strong> 1) Edit/remove package items → 2) Apply package to menu builder → 3) Finalize menu rows → 4) Confirm delivery.';
       }
 
       function getNormalizedTip() {
@@ -1863,10 +1959,13 @@
         const menuSummary = menuItems.length
           ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
           : (deliveryType === 'groceries' ? 'No grocery items added' : (activeDraftItems.length ? `${activeDraftItems.length} active draft item${activeDraftItems.length === 1 ? '' : 's'} pending finalization` : 'No menu items added'));
-        const activePackage = mealPackageProfiles[data.get('meal-package')] || null;
-        const packageBreakdown = activePackage?.items?.length
-          ? activePackage.items.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
+        const packageBreakdown = activePackageBreakdown.length
+          ? activePackageBreakdown.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
           : 'Custom build';
+        const hasDraftItems = activeDraftItems.length > 0;
+        const workflowState = finalizedOrderItems.length
+          ? 'Ready for checkout'
+          : (hasDraftItems ? 'Finalize or remove draft menu items before checkout' : 'No finalized items yet');
 
         const mealDetails = [
           data.get('meal-format'),
@@ -1889,6 +1988,7 @@
           <div class="small"><strong>Pricing target:</strong> ${adminConfig.pricing.targetMargin}% margin vs ${toMoney(adminConfig.pricing.competitorFee)} avg competitor fee</div>
           <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
           <div class="small"><strong>Package breakdown:</strong> ${packageBreakdown}</div>
+          <div class="small"><strong>Checkout workflow:</strong> ${workflowState}</div>
           <div class="small"><strong>Meal profile:</strong> ${mealDetails}</div>
           <div class="small"><strong>Customizations:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'Standard handling'}</div>
         `;
@@ -1984,6 +2084,12 @@
 
         const deliveryType = String(data.get('delivery-type') || 'meal');
         const orderItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
+        const draftItems = getActiveMenuDraftItems();
+        if (deliveryType === 'meal' && draftItems.length) {
+          status.textContent = 'Finalize or remove all menu builder draft rows before checkout to complete the workflow.';
+          status.classList.add('error');
+          return;
+        }
         if (!orderItems.length) {
           status.textContent = deliveryType === 'groceries'
             ? 'Add at least one grocery log item before submitting.'
@@ -2010,7 +2116,8 @@
             category: String(data.get('service-category') || '').trim(),
             deliveryType,
             linkedMarketplaceMenu: String(data.get('marketplace-menu') || '').trim(),
-            package: String(data.get('meal-package') || '').trim()
+            package: String(data.get('meal-package') || '').trim(),
+            packagePricingTier: String(data.get('meal-package-pricing') || 'balanced').trim()
           },
           deliveryTypeDetails: getDeliveryTypeDetails(data, deliveryType),
           items: orderItems,
@@ -2023,6 +2130,13 @@
             beverage: String(data.get('beverage') || '').trim(),
             notes: String(data.get('custom-meal-notes') || '').trim()
           },
+          packageBreakdown: activePackageBreakdown.map((item) => ({
+            name: item.name,
+            qty: Math.max(1, Number(item.qty || 1)),
+            basePrice: normalizeCurrency(item.basePrice, 0),
+            priceAdjust: normalizeCurrency(item.priceAdjust, 0),
+            note: item.note || ''
+          })),
           preferences: selectedPrefs,
           partnerTier: selectedPartner,
           adminSetup: {
@@ -2131,7 +2245,34 @@
       });
       marketplaceService.addEventListener('change', syncServiceFromMarketplace);
       marketplaceMenu.addEventListener('change', syncMenuFromMarketplace);
+      mealPackage.addEventListener('change', () => {
+        hydrateActivePackageBreakdown();
+        updateSummary();
+      });
+      mealPackagePricing.addEventListener('change', () => {
+        if (!mealPackage.value) return;
+        hydrateActivePackageBreakdown();
+        updateSummary();
+      });
       applyPackageBtn.addEventListener('click', applyMealPackage);
+      packageBreakdownList.addEventListener('input', (event) => {
+        const qtyInput = event.target.closest('input[data-package-qty]');
+        if (!qtyInput) return;
+        const idx = Number(qtyInput.dataset.packageQty);
+        if (!Number.isInteger(idx) || !activePackageBreakdown[idx]) return;
+        activePackageBreakdown[idx].qty = Math.max(1, Number(qtyInput.value || 1));
+        renderPackageBreakdown();
+        updateSummary();
+      });
+      packageBreakdownList.addEventListener('click', (event) => {
+        const removeBtn = event.target.closest('button[data-package-remove]');
+        if (!removeBtn) return;
+        const idx = Number(removeBtn.dataset.packageRemove);
+        if (!Number.isInteger(idx) || !activePackageBreakdown[idx]) return;
+        activePackageBreakdown.splice(idx, 1);
+        renderPackageBreakdown();
+        updateSummary();
+      });
       addItemBtn.addEventListener('click', () => {
         addMenuItemRow();
         updateSummary();
@@ -2183,6 +2324,7 @@
       mountPartners();
       mountQuickMenu();
       renderFullMenuPanel();
+      renderPackageBreakdown();
       setTipToggleState();
       updateDeliveryTypeSections();
       renderDailyLineup();
