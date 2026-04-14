@@ -85,6 +85,19 @@
     .chip.active { border-color:var(--gold); color:var(--gold); }
     .menu-list { display:grid; gap:8px; }
     .menu-item { display:grid; grid-template-columns:1.3fr .5fr 1fr auto; gap:8px; align-items:center; }
+    .menu-block { display:grid; gap:8px; }
+    .menu-block-title { margin:0; font-size:12px; color:var(--muted); }
+    .quick-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:8px; }
+    .quick-card {
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:10px;
+      background:#0a1430;
+      display:grid;
+      gap:6px;
+    }
+    .quick-card h4 { margin:0; font-size:14px; color:var(--gold); }
+    .quick-card p { margin:0; font-size:12px; color:var(--muted); }
     .mini-btn {
       border-radius:10px;
       border:1px solid var(--line);
@@ -147,7 +160,7 @@
         </div>
       </div>
       <h1 class="headline">Customer-first delivery for services, menus, custom meals, and special requests.</h1>
-      <p class="sub">Create a complete delivery request with your preferred marketplace provider, exact menu items, tailored meal specifications, and handling details. Every request is saved with a booking reference so customers and providers can track fulfillment clearly.</p>
+      <p class="sub">Create a complete delivery request with your preferred marketplace provider, Pringle options, healthy menus for breakfast/lunch/dinner, dessert add-ons, and custom meal packages. Every request is saved with a booking reference so customers and providers can track fulfillment clearly.</p>
     </section>
 
     <section class="layout">
@@ -170,10 +183,35 @@
           <select id="marketplace-service" name="marketplace-service">
             <option value="">Use custom service details</option>
           </select>
+          <select id="marketplace-menu" name="marketplace-menu">
+            <option value="">No linked marketplace menu listing</option>
+          </select>
           <div class="row">
             <input id="service-name" name="service-name" type="text" maxlength="120" placeholder="Service or restaurant name" />
             <input id="service-category" name="service-category" type="text" maxlength="80" placeholder="Service category" />
           </div>
+        </section>
+
+        <section class="section section-shell">
+          <p class="section-title">Custom Meal Packages</p>
+          <p class="section-copy">Pick a standard CHAINeS package to auto-load menu items, sides, meats, and notes.</p>
+          <div class="row">
+            <select id="meal-package" name="meal-package">
+              <option value="">Choose custom meal package</option>
+              <option value="lean-reset">Lean Reset Pack</option>
+              <option value="family-classic">Family Classic Pack</option>
+              <option value="protein-plus">Protein Plus Pack</option>
+              <option value="keto-balance">Keto Balance Pack</option>
+              <option value="veggie-vitality">Veggie Vitality Pack</option>
+            </select>
+            <button id="apply-package" type="button" class="mini-btn alt">Apply Package to Cart</button>
+          </div>
+        </section>
+
+        <section class="section section-shell">
+          <p class="section-title">Healthy Menus + Pringle Delivery Options</p>
+          <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, plus all Pringle variants.</p>
+          <div class="quick-grid" id="quick-menu-grid"></div>
         </section>
 
         <section class="section section-shell">
@@ -290,11 +328,105 @@
       const tip = document.querySelector('#tip');
       const budget = document.querySelector('#budget');
       const marketplaceService = document.querySelector('#marketplace-service');
+      const marketplaceMenu = document.querySelector('#marketplace-menu');
       const serviceNameInput = document.querySelector('#service-name');
       const serviceCategoryInput = document.querySelector('#service-category');
+      const mealPackage = document.querySelector('#meal-package');
+      const applyPackageBtn = document.querySelector('#apply-package');
+      const quickMenuGrid = document.querySelector('#quick-menu-grid');
       const menuHost = document.querySelector('#menu-items');
       const addItemBtn = document.querySelector('#add-item');
       let selectedPartner = partners[0];
+      const quickMenuCatalog = {
+        breakfast: [
+          { name: 'Greek yogurt parfait', note: 'berries + chia' },
+          { name: 'Egg white veggie scramble', note: 'spinach, peppers' },
+          { name: 'Steel-cut oats bowl', note: 'banana + walnuts' }
+        ],
+        lunch: [
+          { name: 'Grilled chicken quinoa bowl', note: 'kale + vinaigrette' },
+          { name: 'Turkey avocado wrap', note: 'whole grain tortilla' },
+          { name: 'Lentil power salad', note: 'cucumber + tomato + herbs' }
+        ],
+        dinner: [
+          { name: 'Baked salmon plate', note: 'brown rice + broccoli' },
+          { name: 'Lean beef stir-fry', note: 'mixed vegetables' },
+          { name: 'Herb tofu grain bowl', note: 'farro + roasted carrots' }
+        ],
+        dessert: [
+          { name: 'Fresh fruit cup', note: 'seasonal mix' },
+          { name: 'Dark chocolate protein bites', note: '2 pieces' },
+          { name: 'Coconut chia pudding', note: 'lightly sweetened' }
+        ],
+        pringles: [
+          { name: 'Pringles Original', note: 'full-size can' },
+          { name: 'Pringles Sour Cream & Onion', note: 'full-size can' },
+          { name: 'Pringles BBQ', note: 'full-size can' },
+          { name: 'Pringles Cheddar Cheese', note: 'full-size can' },
+          { name: 'Pringles Pizza', note: 'full-size can' },
+          { name: 'Pringles Salt & Vinegar', note: 'full-size can' },
+          { name: 'Pringles Ranch', note: 'full-size can' },
+          { name: 'Pringles Hot & Spicy', note: 'full-size can' }
+        ]
+      };
+      const mealPackageProfiles = {
+        'lean-reset': {
+          format: 'meal-prep',
+          protein: 'Chicken',
+          spiceLevel: 'Mild',
+          sides: 'Quinoa, steamed vegetables, mixed greens',
+          items: [
+            { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
+            { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
+          ],
+          notes: 'Balanced macros, no fried foods.'
+        },
+        'family-classic': {
+          format: 'family',
+          protein: 'Mixed',
+          spiceLevel: 'Medium',
+          sides: 'Mashed potatoes, roasted vegetables, house salad',
+          items: [
+            { name: 'Roast chicken tray', qty: 1, note: 'family size' },
+            { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
+            { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
+          ],
+          notes: 'Family-friendly menu with meats and sides.'
+        },
+        'protein-plus': {
+          format: 'meal-prep',
+          protein: 'Mixed',
+          spiceLevel: 'Medium',
+          sides: 'Brown rice, asparagus, sweet potato',
+          items: [
+            { name: 'Baked salmon plate', qty: 3, note: 'high protein' },
+            { name: 'Grilled chicken quinoa bowl', qty: 3, note: 'high protein' }
+          ],
+          notes: 'Protein-focused with balanced carbohydrates.'
+        },
+        'keto-balance': {
+          format: 'single',
+          protein: 'Beef',
+          spiceLevel: 'Hot',
+          sides: 'Cauliflower mash, sautéed spinach',
+          items: [
+            { name: 'Lean beef stir-fry', qty: 2, note: 'no rice' },
+            { name: 'Egg white veggie scramble', qty: 2, note: 'extra avocado' }
+          ],
+          notes: 'Low-carb substitutions across all meals.'
+        },
+        'veggie-vitality': {
+          format: 'meal-prep',
+          protein: 'Plant-based',
+          spiceLevel: 'Mild',
+          sides: 'Farro, roasted squash, green beans',
+          items: [
+            { name: 'Herb tofu grain bowl', qty: 4, note: 'plant protein' },
+            { name: 'Lentil power salad', qty: 4, note: 'light dressing' }
+          ],
+          notes: 'Plant-based package with nutrient-dense sides.'
+        }
+      };
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
 
@@ -318,7 +450,9 @@
               details: String(entry.text || '').trim()
             };
           })
-          .filter((entry) => entry.category === 'services' || entry.serviceType || entry.subcategory || entry.serviceName);
+          .filter((entry) => entry.category === 'services' || entry.category === 'meal-delivery' || entry.serviceType || entry.subcategory || entry.serviceName);
+
+        const menuPosts = servicePosts.filter((entry) => entry.category === 'meal-delivery');
 
         marketplaceService.innerHTML = '<option value="">Use custom service details</option>';
         servicePosts.forEach((service) => {
@@ -327,6 +461,14 @@
           option.value = JSON.stringify(service);
           option.textContent = `${labelName} • ${service.user}`;
           marketplaceService.append(option);
+        });
+
+        marketplaceMenu.innerHTML = '<option value="">No linked marketplace menu listing</option>';
+        menuPosts.forEach((service) => {
+          const option = document.createElement('option');
+          option.value = JSON.stringify(service);
+          option.textContent = `${service.details.slice(0, 64) || service.serviceName || 'Meal listing'} • ${service.user}`;
+          marketplaceMenu.append(option);
         });
       }
 
@@ -346,6 +488,31 @@
         });
         row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateSummary));
         menuHost.append(row);
+      }
+
+      function addItems(items = []) {
+        items.forEach((item) => addMenuItemRow(item));
+        updateSummary();
+      }
+
+      function mountQuickMenu() {
+        const sections = [
+          ['breakfast', 'Breakfast (Healthy)'],
+          ['lunch', 'Lunch (Healthy)'],
+          ['dinner', 'Dinner (Healthy)'],
+          ['dessert', 'Dessert Menu'],
+          ['pringles', 'Pringle Options']
+        ];
+        quickMenuGrid.innerHTML = sections.map(([key, label]) => {
+          const items = quickMenuCatalog[key].map((item) => `${item.name}`).join(' • ');
+          return `
+            <article class="quick-card">
+              <h4>${label}</h4>
+              <p>${items}</p>
+              <button type="button" class="mini-btn alt" data-quick-group="${key}">Add ${label}</button>
+            </article>
+          `;
+        }).join('');
       }
 
       function mountPartners() {
@@ -412,6 +579,30 @@
         updateSummary();
       }
 
+      function syncMenuFromMarketplace() {
+        if (!marketplaceMenu.value) return;
+        const selected = safeParse(marketplaceMenu.value, null);
+        if (!selected) return;
+        addMenuItemRow({
+          name: selected.serviceName || selected.subcategory || 'Marketplace custom meal',
+          qty: 1,
+          note: selected.details ? selected.details.slice(0, 120) : 'Imported from marketplace listing'
+        });
+        updateSummary();
+      }
+
+      function applyMealPackage() {
+        if (!mealPackage.value) return;
+        const pkg = mealPackageProfiles[mealPackage.value];
+        if (!pkg) return;
+        form.querySelector('#meal-format').value = pkg.format;
+        form.querySelector('#protein').value = pkg.protein;
+        form.querySelector('#spice-level').value = pkg.spiceLevel;
+        form.querySelector('#sides').value = pkg.sides;
+        form.querySelector('#custom-meal-notes').value = pkg.notes;
+        addItems(pkg.items);
+      }
+
       function updateSummary() {
         const data = new FormData(form);
         const deliveryType = data.get('delivery-type') || 'meal';
@@ -441,6 +632,8 @@
           <div class="small"><strong>Customer:</strong> ${data.get('customer-name') || '—'}</div>
           <div class="small"><strong>Route:</strong> ${data.get('pickup') || '—'} → ${data.get('dropoff') || '—'}</div>
           <div class="small"><strong>Service:</strong> ${data.get('service-name') || 'Custom request'} (${data.get('service-category') || 'General'})</div>
+          <div class="small"><strong>Linked menu listing:</strong> ${data.get('marketplace-menu') ? 'Marketplace connected' : 'Not linked'}</div>
+          <div class="small"><strong>Meal package:</strong> ${data.get('meal-package') || 'Custom build'}</div>
           <div class="small"><strong>Delivery type:</strong> ${deliveryType}</div>
           <div class="small"><strong>Partner tier:</strong> ${selectedPartner.name}</div>
           <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
@@ -489,7 +682,9 @@
             source: marketplaceService.value ? 'marketplace' : 'custom',
             name: String(data.get('service-name') || '').trim(),
             category: String(data.get('service-category') || '').trim(),
-            deliveryType: String(data.get('delivery-type') || 'meal')
+            deliveryType: String(data.get('delivery-type') || 'meal'),
+            linkedMarketplaceMenu: String(data.get('marketplace-menu') || '').trim(),
+            package: String(data.get('meal-package') || '').trim()
           },
           items: menuItems,
           mealProfile: {
@@ -522,14 +717,25 @@
       form.addEventListener('input', updateSummary);
       document.querySelector('#book-btn').addEventListener('click', bookRequest);
       marketplaceService.addEventListener('change', syncServiceFromMarketplace);
+      marketplaceMenu.addEventListener('change', syncMenuFromMarketplace);
+      applyPackageBtn.addEventListener('click', applyMealPackage);
       addItemBtn.addEventListener('click', () => {
         addMenuItemRow();
         updateSummary();
+      });
+      quickMenuGrid.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-quick-group]');
+        if (!button) return;
+        const group = button.getAttribute('data-quick-group');
+        const items = quickMenuCatalog[group];
+        if (!Array.isArray(items)) return;
+        addItems(items.map((item) => ({ ...item, qty: 1 })));
       });
 
       loadMarketplaceServices();
       addMenuItemRow({ qty: 1 });
       mountPartners();
+      mountQuickMenu();
       updateSummary();
     })();
   </script>
