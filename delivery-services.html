@@ -182,6 +182,12 @@
     }
     .delivery-detail-group.active { display:grid; }
     .delivery-detail-title { margin:0; font-size:12px; color:var(--gold); }
+    .grocery-log-controls { display:grid; grid-template-columns:1.1fr 1fr .5fr auto; gap:8px; }
+    .grocery-log-list { margin:0; padding-left:18px; display:grid; gap:6px; color:var(--muted); font-size:12px; }
+    .grocery-log-list li { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .grocery-log-item-copy { color:var(--text); }
+    .grocery-log-empty { color:var(--muted); font-style:italic; }
+    .grocery-remove { font-size:11px; padding:4px 8px; border-radius:8px; }
     .receipt-sheet { border:1px dashed var(--line); border-radius:10px; background:#09122a; padding:10px; display:grid; gap:6px; font-size:12px; color:#dfe7ff; }
     .receipt-sheet .receipt-header { display:flex; justify-content:space-between; gap:8px; }
     .receipt-sheet .receipt-id { font-weight:800; color:var(--gold); }
@@ -378,6 +384,17 @@
                   <option>No substitutions</option>
                 </select>
               </div>
+              <div class="grocery-log-controls">
+                <select id="grocery-standard-item">
+                  <option value="">Select standard grocery item</option>
+                </select>
+                <input id="grocery-custom-item" maxlength="80" placeholder="Or add custom grocery item" />
+                <input id="grocery-item-qty" type="number" min="1" step="1" value="1" aria-label="Grocery item quantity" />
+                <button id="grocery-add-item" type="button" class="mini-btn">Add</button>
+              </div>
+              <ul id="grocery-log-list" class="grocery-log-list">
+                <li class="grocery-log-empty">No grocery items added yet.</li>
+              </ul>
             </article>
             <article class="delivery-detail-group" data-delivery-group="package">
               <p class="delivery-detail-title">Package drop request details</p>
@@ -754,6 +771,11 @@
       const quickFastToggle = document.querySelector('#quick-fast-toggle');
       const dailyLineup = document.querySelector('#daily-lineup');
       const menuHost = document.querySelector('#menu-items');
+      const groceryStandardItem = document.querySelector('#grocery-standard-item');
+      const groceryCustomItem = document.querySelector('#grocery-custom-item');
+      const groceryItemQty = document.querySelector('#grocery-item-qty');
+      const groceryAddItemBtn = document.querySelector('#grocery-add-item');
+      const groceryLogList = document.querySelector('#grocery-log-list');
       const addItemBtn = document.querySelector('#add-item');
       const finalizeAllItemsBtn = document.querySelector('#finalize-all-items');
       const finalizedItemsHost = document.querySelector('#finalized-items');
@@ -839,6 +861,7 @@
           notes: 'Plant-based package with nutrient-dense sides.'
         }
       };
+      const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
 
@@ -1339,9 +1362,13 @@
       }
 
       function getDeliveryTypeDetails(data, deliveryType) {
+        const groceryItems = getGroceryItems();
+        const groceryItemSummary = groceryItems.length
+          ? `${groceryItems.length} grocery list item${groceryItems.length > 1 ? 's' : ''}`
+          : '';
         const detailByType = {
           meal: [data.get('meal-window'), data.get('meal-temp'), data.get('meal-servings')],
-          groceries: [data.get('grocery-store'), data.get('grocery-lists'), data.get('grocery-subs')],
+          groceries: [data.get('grocery-store'), data.get('grocery-lists'), data.get('grocery-subs'), groceryItemSummary],
           package: [data.get('package-size'), data.get('package-weight'), data.get('package-value')],
           'multi-stop': [data.get('multi-stop-count'), data.get('multi-stop-order'), data.get('multi-stop-window'), data.get('multi-stop-destinations')],
           custom: [data.get('custom-concierge-brief')]
@@ -1360,6 +1387,70 @@
           .map((row) => readMenuRowItem(row))
           .filter((item) => item.name);
         return [...finalizedOrderItems, ...draft];
+      }
+
+      function populateStandardizedGroceries() {
+        groceryStandardItem.innerHTML = '<option value="">Select standard grocery item</option>';
+        standardizedGroceries.forEach((itemName) => {
+          const option = document.createElement('option');
+          option.value = itemName;
+          option.textContent = itemName;
+          groceryStandardItem.append(option);
+        });
+      }
+
+      function getGroceryItems() {
+        return Array.from(groceryLogList.querySelectorAll('li[data-item-name]')).map((row) => ({
+          name: row.dataset.itemName || '',
+          qty: Number(row.dataset.itemQty || 1),
+          variant: 'Grocery',
+          priceAdjust: 0,
+          fastAdd: false,
+          note: row.dataset.itemSource || 'Custom'
+        }));
+      }
+
+      function renderGroceryItems(items = []) {
+        if (!items.length) {
+          groceryLogList.innerHTML = '<li class="grocery-log-empty">No grocery items added yet.</li>';
+          return;
+        }
+        groceryLogList.innerHTML = '';
+        items.forEach((item) => {
+          const row = document.createElement('li');
+          row.dataset.itemName = item.name;
+          row.dataset.itemQty = String(item.qty || 1);
+          row.dataset.itemSource = item.note || 'Custom';
+          row.innerHTML = `<span class="grocery-log-item-copy">${item.qty}× ${item.name} <small>(${item.note || 'Custom'})</small></span><button type="button" class="mini-btn danger grocery-remove">Remove</button>`;
+          row.querySelector('.grocery-remove')?.addEventListener('click', () => {
+            row.remove();
+            if (!groceryLogList.querySelector('li[data-item-name]')) renderGroceryItems([]);
+            updateSummary();
+          });
+          groceryLogList.append(row);
+        });
+      }
+
+      function addGroceryLogItem() {
+        const standardName = String(groceryStandardItem.value || '').trim();
+        const customName = String(groceryCustomItem.value || '').trim();
+        const itemName = customName || standardName;
+        if (!itemName) {
+          status.classList.add('error');
+          status.textContent = 'Select a standardized grocery item or type a custom item before adding.';
+          return;
+        }
+        const qtyValue = Math.max(1, Number(groceryItemQty.value || 1));
+        const source = customName ? 'Custom' : 'Standardized';
+        const existing = getGroceryItems();
+        existing.push({ name: itemName, qty: qtyValue, note: source });
+        renderGroceryItems(existing);
+        groceryStandardItem.value = '';
+        groceryCustomItem.value = '';
+        groceryItemQty.value = '1';
+        status.classList.remove('error');
+        status.textContent = `Added grocery item: ${qtyValue}× ${itemName}.`;
+        updateSummary();
       }
 
       function syncServiceFromMarketplace() {
@@ -1407,7 +1498,7 @@
         const deliveryType = data.get('delivery-type') || 'meal';
         const deliveryTypeDetails = getDeliveryTypeDetails(data, deliveryType);
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
-        const menuItems = getMenuItems();
+        const menuItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
         const speedFee = speedFeeMap[speed.value] || 0;
         const addOnFee = selectedPrefs.length * Number(adminConfig.pricing.addonFee || 0);
         const menuAdjustFee = menuItems.reduce((sum, item) => sum + (Number(item.priceAdjust || 0) * Number(item.qty || 1)), 0);
@@ -1419,7 +1510,7 @@
 
         const menuSummary = menuItems.length
           ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
-          : 'No menu items added';
+          : (deliveryType === 'groceries' ? 'No grocery items added' : 'No menu items added');
 
         const mealDetails = [
           data.get('meal-format'),
@@ -1526,9 +1617,12 @@
           return;
         }
 
-        const menuItems = getMenuItems();
-        if (!menuItems.length) {
-          status.textContent = 'Add at least one menu or service item before submitting.';
+        const deliveryType = String(data.get('delivery-type') || 'meal');
+        const orderItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
+        if (!orderItems.length) {
+          status.textContent = deliveryType === 'groceries'
+            ? 'Add at least one grocery log item before submitting.'
+            : 'Add at least one menu or service item before submitting.';
           status.classList.add('error');
           return;
         }
@@ -1549,12 +1643,12 @@
             source: marketplaceService.value ? 'marketplace' : 'custom',
             name: String(data.get('service-name') || '').trim(),
             category: String(data.get('service-category') || '').trim(),
-            deliveryType: String(data.get('delivery-type') || 'meal'),
+            deliveryType,
             linkedMarketplaceMenu: String(data.get('marketplace-menu') || '').trim(),
             package: String(data.get('meal-package') || '').trim()
           },
-          deliveryTypeDetails: getDeliveryTypeDetails(data, String(data.get('delivery-type') || 'meal')),
-          items: menuItems,
+          deliveryTypeDetails: getDeliveryTypeDetails(data, deliveryType),
+          items: orderItems,
           mealProfile: {
             format: String(data.get('meal-format') || '').trim(),
             protein: String(data.get('protein') || '').trim(),
@@ -1628,6 +1722,12 @@
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
+      groceryAddItemBtn.addEventListener('click', addGroceryLogItem);
+      groceryCustomItem.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        addGroceryLogItem();
+      });
       document.querySelector('#book-btn').addEventListener('click', bookRequest);
       printReceiptBtn.addEventListener('click', () => {
         const preview = {
@@ -1651,7 +1751,7 @@
           speed: speed.value,
           tip: getNormalizedTip(),
           budget: Number(budget.value || 0),
-          items: getMenuItems(),
+          items: getDeliveryType() === 'groceries' ? getGroceryItems() : getMenuItems(),
           notes: form.querySelector('#notes').value.trim(),
           receiptComment: String(receiptCommentInput?.value || '').trim()
         };
@@ -1693,6 +1793,7 @@
 
       adminConfig = mergeAdminConfig(adminConfig);
       syncQuickMenuFromAdmin();
+      populateStandardizedGroceries();
       loadMarketplaceServices();
       addMenuItemRow({ qty: 1 });
       renderFinalizedItems();
