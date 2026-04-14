@@ -472,6 +472,7 @@
       const sourceKey = 'chaines_messages';
       const requestsKey = 'chaines_delivery_requests';
       const adminConfigKey = 'chaines_delivery_admin_config';
+      const receiptEmail = 'chadslondonrentals@gmail.com';
       const adminCredentials = { username: 'babe', password: 'giraff' };
       const optionLibrary = {
         breakfast: [
@@ -1105,6 +1106,39 @@
         document.querySelector('#total-fee').textContent = toMoney(total);
       }
 
+      function sendReceiptEmail(request) {
+        const itemSummary = (request.items || [])
+          .map((item) => `${item.qty || 1}x ${item.name || 'Item'}`)
+          .join(', ') || 'No items listed';
+        const subject = `Delivery Receipt ${request.id}`;
+        const body = [
+          'CHAINeS Delivery Receipt',
+          `Receipt ID: ${request.id}`,
+          `Created: ${new Date(request.createdAt).toLocaleString()}`,
+          '',
+          `Customer: ${request.customer?.name || ''}`,
+          `Phone: ${request.customer?.phone || ''}`,
+          `Pickup: ${request.route?.pickup || ''}`,
+          `Dropoff: ${request.route?.dropoff || ''}`,
+          `Service: ${request.service?.name || 'Custom request'} (${request.service?.category || 'General'})`,
+          `Delivery Type: ${request.service?.deliveryType || 'meal'}`,
+          `Type Details: ${request.deliveryTypeDetails || 'N/A'}`,
+          `Partner Tier: ${request.partnerTier?.name || ''}`,
+          `Speed: ${request.speed || 'standard'}`,
+          `Tip: ${toMoney(Number(request.tip || 0))}`,
+          `Budget: ${toMoney(Number(request.budget || 0))}`,
+          `Items: ${itemSummary}`,
+          `Notes: ${request.notes || 'None'}`
+        ].join('\n');
+        const href = `mailto:${encodeURIComponent(receiptEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const mailLink = document.createElement('a');
+        mailLink.href = href;
+        mailLink.style.display = 'none';
+        document.body.appendChild(mailLink);
+        mailLink.click();
+        mailLink.remove();
+      }
+
       function bookRequest() {
         const data = new FormData(form);
         const required = ['customer-name', 'customer-phone', 'pickup', 'dropoff'];
@@ -1168,9 +1202,10 @@
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
+        sendReceiptEmail(request);
 
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and saved to CHAINeS delivery queue.`;
+        status.textContent = `Request ${request.id} confirmed, saved to CHAINeS delivery queue, and receipt prepared for ${receiptEmail}.`;
       }
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
