@@ -861,44 +861,30 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     data.forEach(n => {
       const li = document.createElement('li');
       li.className = 'post';
-      if(n.type === 'like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your post #' + n.data.messageId;
-      } else if(n.type === 'follow'){
-        li.textContent = (n.data.from || 'Someone') + ' started following you';
-      } else if(n.type === 'broadcast'){
-        li.textContent = (n.data.from || 'Someone') + ' requested to ' + (n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast');
-      } else if(n.type === 'dm'){
-        const sender = n.data.from || 'Someone';
-        li.textContent = sender + ' sent you a private encrypted message';
-        li.style.cursor = 'pointer';
-        li.onclick = () => {
-          window.location.href = '/private-chat.html?user=' + encodeURIComponent(sender);
-        };
-      } else if(n.type === 'dating-like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your dating profile';
-      } else if(n.type === 'dating-match'){
-        li.textContent = '💘 You matched with ' + (n.data.with || 'someone');
-      } else if(n.type === 'marketplace-like'){
-        li.textContent = (n.data.from || 'Someone') + ' liked your marketplace listing';
-      } else if(n.type === 'marketplace-comment'){
-        li.textContent = (n.data.from || 'Someone') + ' commented on your marketplace listing';
-      } else if(n.type === 'marketplace-contact'){
-        li.textContent = (n.data.from || 'Someone') + ' sent you a marketplace contact message';
-      } else if(n.type === 'delivery-request'){
-        li.textContent = (n.data.from || 'Someone') + ' sent you a delivery request from marketplace';
-      } else if(n.type === 'self-destruct'){
-        li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
-      } else if(n.type === 'delivery-order'){
-        const deliveryId = n.data.id || 'delivery';
-        const customerName = n.data.customer?.name || 'Customer';
-        const route = `${n.data.route?.pickup || 'Pickup TBD'} → ${n.data.route?.dropoff || 'Dropoff TBD'}`;
-        const itemPreview = Array.isArray(n.data.items) ? n.data.items.slice(0, 3).map((item) => `${item.qty || 1}x ${item.name || 'Item'}`).join(', ') : '';
-        li.textContent = `Delivery order ${deliveryId} from ${customerName}`;
-        li.style.cursor = 'pointer';
-        li.onclick = () => {
-          window.alert(`Delivery ${deliveryId}\nCustomer: ${customerName}\nRoute: ${route}\nItems: ${itemPreview || 'No items listed'}`);
-        };
-      }
+      const actor = String(n.data?.from || 'Someone').replace(/[^a-zA-Z0-9_. -]/g, '').slice(0, 48) || 'Someone';
+      const withUser = String(n.data?.with || '').replace(/[^a-zA-Z0-9_. -]/g, '').slice(0, 48);
+      const messageId = String(n.data?.messageId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+      const meta = (() => {
+        if(n.type === 'like') return { text: `${actor} liked your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if(n.type === 'repost') return { text: `${actor} reposted your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if(n.type === 'follow') return { text: `${actor} started following you`, href: `/profile.html?user=${encodeURIComponent(actor)}` };
+        if(n.type === 'broadcast') return { text: `${actor} requested to ${n.data.mode === 'mic' ? 'join via mic' : 'join your broadcast'}`, href: '/?tab=broadcast' };
+        if(n.type === 'dm') return { text: `${actor} sent you a private encrypted message`, href: `/private-chat.html?user=${encodeURIComponent(actor)}` };
+        if(n.type === 'dating-like') return { text: `${actor} liked your dating profile`, href: '/marketplace.html?tab=dating' };
+        if(n.type === 'dating-match') return { text: `💘 You matched with ${withUser || 'someone'}`, href: withUser ? `/profile.html?user=${encodeURIComponent(withUser)}` : '/marketplace.html?tab=dating' };
+        if(n.type === 'marketplace-like') return { text: `${actor} liked your marketplace listing`, href: '/marketplace.html' };
+        if(n.type === 'marketplace-comment') return { text: `${actor} commented on your marketplace listing`, href: '/marketplace.html' };
+        if(n.type === 'marketplace-contact') return { text: `${actor} sent you a marketplace contact message`, href: '/marketplace.html' };
+        if(n.type === 'delivery-request') return { text: `${actor} sent you a delivery request from marketplace`, href: '/delivery-services.html' };
+        if(n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
+        if(n.type === 'delivery-order') return { text: `Delivery order ${n.data.id || 'delivery'} from ${n.data.customer?.name || 'Customer'}`, href: '/delivery-services.html' };
+        return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
+      })();
+      li.textContent = meta.text;
+      li.style.cursor = 'pointer';
+      li.onclick = () => {
+        window.location.href = meta.href || '/';
+      };
       notifsEl.appendChild(li);
     });
   }

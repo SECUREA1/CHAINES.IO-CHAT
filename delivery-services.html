@@ -831,16 +831,24 @@
         } catch {}
       }
 
-      function notificationText(n = {}) {
-        const actor = n.data?.from || 'Someone';
-        if (n.type === 'delivery-request') return `${actor} requested delivery from your listing`;
-        if (n.type === 'marketplace-contact') return `${actor} sent you a marketplace contact`;
-        if (n.type === 'marketplace-like') return `${actor} liked your marketplace listing`;
-        if (n.type === 'marketplace-comment') return `${actor} commented on your marketplace listing`;
-        if (n.type === 'dm') return `${actor} sent you a private message`;
-        if (n.type === 'like') return `${actor} liked your post`;
-        if (n.type === 'repost') return `${actor} reposted your post`;
-        return 'New notification';
+      function notificationMeta(n = {}) {
+        const actor = sanitizeUser(n.data?.from || 'Someone') || 'Someone';
+        const withUser = sanitizeUser(n.data?.with || '');
+        const messageId = String(n.data?.messageId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+        if (n.type === 'delivery-request') return { text: `${actor} requested delivery from your listing`, href: '/delivery-services.html' };
+        if (n.type === 'marketplace-contact') return { text: `${actor} sent you a marketplace contact`, href: '/marketplace.html' };
+        if (n.type === 'marketplace-like') return { text: `${actor} liked your marketplace listing`, href: '/marketplace.html' };
+        if (n.type === 'marketplace-comment') return { text: `${actor} commented on your marketplace listing`, href: '/marketplace.html' };
+        if (n.type === 'dm') return { text: `${actor} sent you a private message`, href: `/private-chat.html?user=${encodeURIComponent(actor)}` };
+        if (n.type === 'like') return { text: `${actor} liked your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if (n.type === 'repost') return { text: `${actor} reposted your post #${messageId || '?'}`, href: messageId ? `/?focus=${encodeURIComponent(messageId)}` : '/?tab=feed' };
+        if (n.type === 'follow') return { text: `${actor} followed you`, href: `/profile.html?user=${encodeURIComponent(actor)}` };
+        if (n.type === 'dating-like') return { text: `${actor} liked your dating profile`, href: '/marketplace.html?tab=dating' };
+        if (n.type === 'dating-match') return { text: `💘 You matched with ${withUser || 'someone'}`, href: withUser ? `/profile.html?user=${encodeURIComponent(withUser)}` : '/marketplace.html?tab=dating' };
+        if (n.type === 'broadcast') return { text: `${actor} requested to join your broadcast`, href: '/?tab=broadcast' };
+        if (n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
+        if (n.type === 'delivery-order') return { text: `Delivery order ${n.data?.id || ''} received`, href: '/delivery-services.html' };
+        return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
       }
 
       async function loadNotifications() {
@@ -852,9 +860,8 @@
         const unread = data.filter((item) => !item.read).length;
         notifDot.textContent = unread ? `(${unread})` : '';
         notifPanel.innerHTML = data.slice(0, 20).map((item) => {
-          const actor = sanitizeUser(item.data?.from || item.data?.with || '');
-          const link = actor ? `<div><a href="${profileHref(actor)}">Open @${actor} profile</a></div>` : '';
-          return `<div class="notif-item">${notificationText(item)}${link}</div>`;
+          const meta = notificationMeta(item);
+          return `<div class="notif-item"><a href="${escapeHtml(meta.href || '/')}">${escapeHtml(meta.text)}</a></div>`;
         }).join('') || '<div class="notif-item">No notifications yet.</div>';
       }
 
