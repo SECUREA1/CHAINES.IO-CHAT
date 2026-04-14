@@ -90,7 +90,7 @@
     .chip input { display:none; }
     .chip.active { border-color:var(--gold); color:var(--gold); }
     .menu-list { display:grid; gap:8px; }
-    .menu-item { display:grid; grid-template-columns:1.2fr .9fr .5fr .7fr auto auto auto auto auto; gap:8px; align-items:center; }
+    .menu-item { display:grid; grid-template-columns:1.2fr .9fr .5fr .75fr .7fr .85fr auto auto auto auto; gap:8px; align-items:center; }
     .menu-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
     .menu-builder-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .finalized-items { margin-top:10px; display:grid; gap:6px; }
@@ -288,7 +288,7 @@
             <div class="row3">
               <select id="quick-item-select" aria-label="Quick meal item selection"></select>
               <select id="quick-variant-select" aria-label="Quick item type or flavor selection"></select>
-              <input id="quick-price-adjust" type="number" min="-10" step="0.25" value="0" aria-label="Quick price adjustment" />
+              <input id="quick-price-adjust" type="number" min="-10" step="0.25" value="0" aria-label="Quick price adjustment" placeholder="Price adjustment" />
             </div>
             <div class="row3">
               <button id="quick-add-item" type="button" class="mini-btn alt">Add selected item</button>
@@ -477,6 +477,7 @@
         <div class="cost-line"><span>Delivery base</span><span id="base-fee">$6.00</span></div>
         <div class="cost-line"><span>Speed surcharge</span><span id="speed-fee">$0.00</span></div>
         <div class="cost-line"><span>Customization add-ons</span><span id="addon-fee">$0.00</span></div>
+        <div class="cost-line"><span>Items subtotal</span><span id="items-subtotal-fee">$0.00</span></div>
         <div class="cost-line"><span>Menu price adjustments</span><span id="menu-adjust-fee">$0.00</span></div>
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
         <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
@@ -862,8 +863,62 @@
         }
       };
       const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
+      const menuBasePriceByGroup = {
+        breakfast: 9.25,
+        lunch: 12.75,
+        dinner: 15.25,
+        dessert: 6.5,
+        pringles: 4.75,
+        drinks: 3.95
+      };
+      const groceryBasePrices = {
+        Milk: 4.25,
+        Eggs: 3.75,
+        Bread: 3.45,
+        Bananas: 2.5,
+        'Chicken breast': 8.75,
+        'Ground turkey': 7.8,
+        Rice: 3.2,
+        Pasta: 2.95,
+        'Olive oil': 8.5,
+        Spinach: 3.8,
+        Tomatoes: 3.95,
+        'Cheddar cheese': 5.5
+      };
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
+      const normalizeCurrency = (num, fallback = 0) => {
+        const parsed = Number(num);
+        return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : Number(fallback || 0);
+      };
+
+      function flattenOptionLookup() {
+        const entries = Object.entries(optionLibrary).flatMap(([group, items]) =>
+          items.map((item) => [item.name, { ...item, group }])
+        );
+        return new Map(entries);
+      }
+
+      const optionLookup = flattenOptionLookup();
+
+      function inferGroupFromItemName(name = '') {
+        const directMatch = optionLookup.get(name);
+        if (directMatch?.group) return directMatch.group;
+        const normalizedName = String(name || '').toLowerCase();
+        const matchedGroup = Object.entries(quickMenuCatalog).find(([, items]) =>
+          (items || []).some((item) => item.name.toLowerCase() === normalizedName)
+        )?.[0];
+        return matchedGroup || 'breakfast';
+      }
+
+      function getBasePriceForItem({ name = '', group = '' } = {}) {
+        if (!name) return normalizeCurrency(menuBasePriceByGroup[group] || menuBasePriceByGroup.breakfast, 0);
+        const option = optionLookup.get(name);
+        if (typeof option?.price === 'number') return normalizeCurrency(option.price, menuBasePriceByGroup[group] || menuBasePriceByGroup.breakfast);
+        if (group && typeof menuBasePriceByGroup[group] === 'number') return normalizeCurrency(menuBasePriceByGroup[group], menuBasePriceByGroup.breakfast);
+        const inferredGroup = inferGroupFromItemName(name);
+        return normalizeCurrency(menuBasePriceByGroup[inferredGroup], menuBasePriceByGroup.breakfast);
+      }
 
       function safeParse(raw, fallback) {
         try { return JSON.parse(raw); } catch { return fallback; }
@@ -959,7 +1014,13 @@
 
       function getMenuOptionsByName(type, names) {
         const source = optionLibrary[type] || [];
-        return source.filter((item) => names.includes(item.name));
+        return source
+          .filter((item) => names.includes(item.name))
+          .map((item) => ({
+            ...item,
+            group: type,
+            price: normalizeCurrency(item.price, menuBasePriceByGroup[type] || menuBasePriceByGroup.breakfast)
+          }));
       }
 
       function syncQuickMenuFromAdmin() {
@@ -1127,16 +1188,20 @@
         }
         const row = document.createElement('div');
         row.className = 'menu-item';
-        const selectedGroup = initial.group && variantLibrary[initial.group] ? initial.group : 'breakfast';
+        const selectedGroup = initial.group && variantLibrary[initial.group] ? initial.group : inferGroupFromItemName(initialName);
         const variants = variantLibrary[selectedGroup] || ['Standard'];
+        const basePrice = getBasePriceForItem({ name: initialName, group: selectedGroup });
         const variantOptions = variants
           .map((variant) => `<option value="${variant}" ${variant === (initial.variant || 'Standard') ? 'selected' : ''}>${variant}</option>`)
           .join('');
+        row.dataset.itemGroup = selectedGroup;
         row.innerHTML = `
           <input type="text" class="menu-name" maxlength="120" placeholder="Item name" value="${initial.name || ''}" />
           <select class="menu-variant" aria-label="Item variant">${variantOptions}</select>
           <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
+          <input type="number" class="menu-base-price" min="0" step="0.25" value="${normalizeCurrency(initial.basePrice, basePrice)}" aria-label="Base price" />
           <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
+          <span class="small menu-line-total">${toMoney((Number(initial.qty || 1) * (normalizeCurrency(initial.basePrice, basePrice) + Number(initial.priceAdjust || 0))))}</span>
           <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
           <button type="button" class="mini-btn alt menu-finalize">Add to order</button>
           <button type="button" class="mini-btn menu-stepper-down">-1</button>
@@ -1168,15 +1233,33 @@
           }
         });
         row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', updateSummary));
+        row.querySelector('.menu-name')?.addEventListener('change', () => {
+          const rowItem = readMenuRowItem(row);
+          if (!rowItem.name) return;
+          const inferredGroup = inferGroupFromItemName(rowItem.name);
+          row.dataset.itemGroup = inferredGroup;
+          const baseInput = row.querySelector('.menu-base-price');
+          if (baseInput && !Number(baseInput.value)) baseInput.value = String(getBasePriceForItem({ name: rowItem.name, group: inferredGroup }));
+          updateSummary();
+        });
         menuHost.append(row);
       }
 
       function readMenuRowItem(row) {
+        const qty = Number(row.querySelector('.menu-qty')?.value || 1);
+        const basePrice = normalizeCurrency(row.querySelector('.menu-base-price')?.value, getBasePriceForItem({
+          name: row.querySelector('.menu-name')?.value.trim() || '',
+          group: row.dataset.itemGroup || 'breakfast'
+        }));
+        const priceAdjust = normalizeCurrency(row.querySelector('.menu-price-adjust')?.value, 0);
         return {
           name: row.querySelector('.menu-name')?.value.trim() || '',
           variant: row.querySelector('.menu-variant')?.value || 'Standard',
-          qty: Number(row.querySelector('.menu-qty')?.value || 1),
-          priceAdjust: Number(row.querySelector('.menu-price-adjust')?.value || 0),
+          group: row.dataset.itemGroup || inferGroupFromItemName(row.querySelector('.menu-name')?.value.trim() || ''),
+          qty,
+          basePrice,
+          priceAdjust,
+          lineTotal: normalizeCurrency(qty * (basePrice + priceAdjust), 0),
           fastAdd: Boolean(row.querySelector('.menu-fast-add')?.checked),
           note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : ''
         };
@@ -1190,7 +1273,7 @@
         finalizedItemsHost.innerHTML = finalizedOrderItems.map((item, idx) => `
           <article class="finalized-item">
             <strong>${idx + 1}. ${item.qty}× ${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.variant || 'Standard')}${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''}</span>
+            <span>${escapeHtml(item.variant || 'Standard')} • ${toMoney(item.basePrice || 0)} each${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''} • ${toMoney((Number(item.qty || 1) * (Number(item.basePrice || 0) + Number(item.priceAdjust || 0))))}</span>
           </article>
         `).join('');
       }
@@ -1240,7 +1323,7 @@
         ];
         quickMenuGrid.innerHTML = sections.map(([key, label]) => {
           const groupItems = quickMenuCatalog[key] || [];
-          const items = groupItems.map((item) => `${item.name}`).join(' • ');
+          const items = groupItems.map((item) => `${item.name} (${toMoney(item.price || getBasePriceForItem({ name: item.name, group: key }))})`).join(' • ');
           return `
             <article class="quick-card">
               <h4>${label}</h4>
@@ -1252,18 +1335,12 @@
         syncQuickSelectors('breakfast');
       }
 
-      const consumedQuickItems = new Set();
-
-      function quickSelectionKey(group, itemName) {
-        return `${group}::${itemName}`;
-      }
-
       function syncQuickSelectors(group = 'breakfast') {
-        const sourceItems = (quickMenuCatalog[group] || []).filter((item) => !consumedQuickItems.has(quickSelectionKey(group, item.name)));
+        const sourceItems = quickMenuCatalog[group] || [];
         const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks']
           .map((value) => `<option value="${value}" ${value === group ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`)
           .join('');
-        const itemOptions = sourceItems.map((item) => `<option value="${item.name}">${item.name}</option>`).join('');
+        const itemOptions = sourceItems.map((item) => `<option value="${item.name}">${item.name} • ${toMoney(item.price || getBasePriceForItem({ name: item.name, group }))}</option>`).join('');
         quickItemSelect.innerHTML = `${groupOptions}${itemOptions || '<option value="">No options today</option>'}`;
         if (sourceItems[0]) quickItemSelect.value = sourceItems[0].name;
         const variants = variantLibrary[group] || ['Standard'];
@@ -1297,8 +1374,16 @@
             return;
           }
         }
-        addMenuItemRow({ name: itemName, group, variant, qty: 1, priceAdjust, fastAdd: quickFastToggle.checked });
-        consumedQuickItems.add(quickSelectionKey(group, itemName));
+        const quickOption = (quickMenuCatalog[group] || []).find((item) => item.name === itemName);
+        addMenuItemRow({
+          name: itemName,
+          group,
+          variant,
+          qty: 1,
+          basePrice: normalizeCurrency(quickOption?.price, getBasePriceForItem({ name: itemName, group })),
+          priceAdjust,
+          fastAdd: quickFastToggle.checked
+        });
         syncQuickSelectors(group);
         lastQuickSelection = { name: itemName, variant };
         status.classList.remove('error');
@@ -1386,7 +1471,18 @@
         const draft = Array.from(menuHost.querySelectorAll('.menu-item'))
           .map((row) => readMenuRowItem(row))
           .filter((item) => item.name);
-        return [...finalizedOrderItems, ...draft];
+        return [...finalizedOrderItems, ...draft].map((item) => {
+          const basePrice = normalizeCurrency(item.basePrice, getBasePriceForItem(item));
+          const qty = Math.max(1, Number(item.qty || 1));
+          const priceAdjust = normalizeCurrency(item.priceAdjust, 0);
+          return {
+            ...item,
+            qty,
+            basePrice,
+            priceAdjust,
+            lineTotal: normalizeCurrency(qty * (basePrice + priceAdjust), 0)
+          };
+        });
       }
 
       function populateStandardizedGroceries() {
@@ -1394,7 +1490,7 @@
         standardizedGroceries.forEach((itemName) => {
           const option = document.createElement('option');
           option.value = itemName;
-          option.textContent = itemName;
+          option.textContent = `${itemName} • ${toMoney(groceryBasePrices[itemName] || 3.5)}`;
           groceryStandardItem.append(option);
         });
       }
@@ -1404,6 +1500,7 @@
           name: row.dataset.itemName || '',
           qty: Number(row.dataset.itemQty || 1),
           variant: 'Grocery',
+          basePrice: normalizeCurrency(row.dataset.itemPrice || 3.5, 3.5),
           priceAdjust: 0,
           fastAdd: false,
           note: row.dataset.itemSource || 'Custom'
@@ -1421,7 +1518,8 @@
           row.dataset.itemName = item.name;
           row.dataset.itemQty = String(item.qty || 1);
           row.dataset.itemSource = item.note || 'Custom';
-          row.innerHTML = `<span class="grocery-log-item-copy">${item.qty}× ${item.name} <small>(${item.note || 'Custom'})</small></span><button type="button" class="mini-btn danger grocery-remove">Remove</button>`;
+          row.dataset.itemPrice = String(normalizeCurrency(item.basePrice, item.note === 'Custom' ? 3.5 : groceryBasePrices[item.name] || 3.5));
+          row.innerHTML = `<span class="grocery-log-item-copy">${item.qty}× ${item.name} <small>(${item.note || 'Custom'} • ${toMoney(row.dataset.itemPrice)})</small></span><button type="button" class="mini-btn danger grocery-remove">Remove</button>`;
           row.querySelector('.grocery-remove')?.addEventListener('click', () => {
             row.remove();
             if (!groceryLogList.querySelector('li[data-item-name]')) renderGroceryItems([]);
@@ -1442,8 +1540,9 @@
         }
         const qtyValue = Math.max(1, Number(groceryItemQty.value || 1));
         const source = customName ? 'Custom' : 'Standardized';
+        const basePrice = customName ? 3.5 : normalizeCurrency(groceryBasePrices[itemName], 3.5);
         const existing = getGroceryItems();
-        existing.push({ name: itemName, qty: qtyValue, note: source });
+        existing.push({ name: itemName, qty: qtyValue, basePrice, note: source });
         renderGroceryItems(existing);
         groceryStandardItem.value = '';
         groceryCustomItem.value = '';
@@ -1469,6 +1568,7 @@
         addMenuItemRow({
           name: selected.serviceName || selected.subcategory || 'Marketplace custom meal',
           qty: 1,
+          basePrice: getBasePriceForItem({ name: selected.serviceName || selected.subcategory || '' }),
           note: selected.details ? selected.details.slice(0, 120) : 'Imported from marketplace listing'
         });
         updateSummary();
@@ -1499,18 +1599,28 @@
         const deliveryTypeDetails = getDeliveryTypeDetails(data, deliveryType);
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
         const menuItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
+        Array.from(menuHost.querySelectorAll('.menu-item')).forEach((row) => {
+          const item = readMenuRowItem(row);
+          const lineTotalNode = row.querySelector('.menu-line-total');
+          if (lineTotalNode) lineTotalNode.textContent = toMoney(item.lineTotal || 0);
+        });
         const speedFee = speedFeeMap[speed.value] || 0;
         const addOnFee = selectedPrefs.length * Number(adminConfig.pricing.addonFee || 0);
+        const itemsSubtotal = menuItems.reduce((sum, item) => sum + (Number(item.basePrice || 0) * Number(item.qty || 1)), 0);
         const menuAdjustFee = menuItems.reduce((sum, item) => sum + (Number(item.priceAdjust || 0) * Number(item.qty || 1)), 0);
         const partnerFee = selectedPartner.fee || 0;
         const tipFee = getNormalizedTip();
         const budgetFee = Number(budget.value || 0);
         const baseFee = Number(adminConfig.pricing.baseFee || 0);
-        const total = baseFee + partnerFee + speedFee + addOnFee + menuAdjustFee + tipFee + budgetFee;
+        const total = baseFee + partnerFee + speedFee + addOnFee + itemsSubtotal + menuAdjustFee + tipFee + budgetFee;
 
         const menuSummary = menuItems.length
-          ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
+          ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
           : (deliveryType === 'groceries' ? 'No grocery items added' : 'No menu items added');
+        const activePackage = mealPackageProfiles[data.get('meal-package')] || null;
+        const packageBreakdown = activePackage?.items?.length
+          ? activePackage.items.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
+          : 'Custom build';
 
         const mealDetails = [
           data.get('meal-format'),
@@ -1532,6 +1642,7 @@
           <div class="small"><strong>Partner tier:</strong> ${selectedPartner.name}</div>
           <div class="small"><strong>Pricing target:</strong> ${adminConfig.pricing.targetMargin}% margin vs ${toMoney(adminConfig.pricing.competitorFee)} avg competitor fee</div>
           <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
+          <div class="small"><strong>Package breakdown:</strong> ${packageBreakdown}</div>
           <div class="small"><strong>Meal profile:</strong> ${mealDetails}</div>
           <div class="small"><strong>Customizations:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'Standard handling'}</div>
         `;
@@ -1539,6 +1650,7 @@
         document.querySelector('#base-fee').textContent = toMoney(baseFee + partnerFee);
         document.querySelector('#speed-fee').textContent = toMoney(speedFee);
         document.querySelector('#addon-fee').textContent = toMoney(addOnFee);
+        document.querySelector('#items-subtotal-fee').textContent = toMoney(itemsSubtotal);
         document.querySelector('#menu-adjust-fee').textContent = toMoney(menuAdjustFee);
         document.querySelector('#tip-fee').textContent = toMoney(tipFee);
         document.querySelector('#budget-fee').textContent = toMoney(budgetFee);
@@ -1559,7 +1671,7 @@
 
       function buildReceiptLines(request) {
         const itemSummary = (request.items || [])
-          .map((item) => `${item.qty || 1}x ${item.name || 'Item'}`)
+          .map((item) => `${item.qty || 1}x ${item.name || 'Item'} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`)
           .join(', ') || 'No items listed';
         return [
           `Receipt ID: ${request.id}`,
