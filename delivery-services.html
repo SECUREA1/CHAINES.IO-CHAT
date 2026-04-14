@@ -94,8 +94,12 @@
     .menu-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
     .menu-builder-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .finalized-items { margin-top:10px; display:grid; gap:6px; }
-    .finalized-item { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px 8px; }
+    .finalized-item { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:8px; }
     .finalized-item strong { color:var(--text); }
+    .finalized-item-meta { display:grid; gap:3px; }
+    .finalized-item-cost { color:var(--gold); font-weight:700; }
+    .finalized-item-actions { display:flex; align-items:center; gap:6px; }
+    .finalized-item-qty { min-width:28px; text-align:center; color:var(--text); font-weight:700; }
     .menu-toggle input { width:auto; margin:0; }
     .menu-stepper { white-space:nowrap; }
     .quick-controls { display:grid; gap:8px; margin-top:8px; }
@@ -1272,10 +1276,40 @@
         }
         finalizedItemsHost.innerHTML = finalizedOrderItems.map((item, idx) => `
           <article class="finalized-item">
-            <strong>${idx + 1}. ${item.qty}× ${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.variant || 'Standard')} • ${toMoney(item.basePrice || 0)} each${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''} • ${toMoney((Number(item.qty || 1) * (Number(item.basePrice || 0) + Number(item.priceAdjust || 0))))}</span>
+            <div class="finalized-item-meta">
+              <strong>${idx + 1}. ${escapeHtml(item.name)}</strong>
+              <span>${escapeHtml(item.variant || 'Standard')} • ${toMoney(item.basePrice || 0)} each${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''}</span>
+              <span class="finalized-item-cost">${toMoney((Number(item.qty || 1) * (Number(item.basePrice || 0) + Number(item.priceAdjust || 0))))} total</span>
+            </div>
+            <div class="finalized-item-actions">
+              <button type="button" class="mini-btn alt" data-finalized-down="${idx}" aria-label="Decrease quantity for ${escapeHtml(item.name)}">-</button>
+              <span class="finalized-item-qty">${Math.max(1, Number(item.qty || 1))}</span>
+              <button type="button" class="mini-btn alt" data-finalized-up="${idx}" aria-label="Increase quantity for ${escapeHtml(item.name)}">+</button>
+              <button type="button" class="mini-btn danger" data-finalized-remove="${idx}" aria-label="Remove ${escapeHtml(item.name)} from receipt">Remove</button>
+            </div>
           </article>
         `).join('');
+      }
+
+      function updateFinalizedItem(action, index) {
+        const safeIndex = Number(index);
+        if (!Number.isInteger(safeIndex) || safeIndex < 0 || safeIndex >= finalizedOrderItems.length) return;
+        if (action === 'remove') {
+          finalizedOrderItems.splice(safeIndex, 1);
+          renderFinalizedItems();
+          updateSummary();
+          status.classList.remove('error');
+          status.textContent = 'Item removed from order receipt.';
+          return;
+        }
+        const current = finalizedOrderItems[safeIndex];
+        if (!current) return;
+        const nextQty = action === 'up'
+          ? Math.max(1, Number(current.qty || 1) + 1)
+          : Math.max(1, Number(current.qty || 1) - 1);
+        current.qty = nextQty;
+        renderFinalizedItems();
+        updateSummary();
       }
 
       function finalizeMenuRow(row) {
@@ -1672,7 +1706,13 @@
 
       function buildReceiptLines(request) {
         const itemSummary = (request.items || [])
-          .map((item) => `${item.qty || 1}x ${item.name || 'Item'} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`)
+          .map((item) => {
+            const qty = Math.max(1, Number(item.qty || 1));
+            const basePrice = Number(item.basePrice || 0);
+            const priceAdjust = Number(item.priceAdjust || 0);
+            const lineTotal = qty * (basePrice + priceAdjust);
+            return `${qty}x ${item.name || 'Item'} @ ${toMoney(basePrice)}${priceAdjust ? ` (${toMoney(priceAdjust)} adj)` : ''} = ${toMoney(lineTotal)}`;
+          })
           .join(', ') || 'No items listed';
         return [
           `Receipt ID: ${request.id}`,
@@ -1836,6 +1876,13 @@
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
+      finalizedItemsHost.addEventListener('click', (event) => {
+        const control = event.target.closest('button[data-finalized-up], button[data-finalized-down], button[data-finalized-remove]');
+        if (!control) return;
+        if (control.dataset.finalizedUp !== undefined) updateFinalizedItem('up', control.dataset.finalizedUp);
+        if (control.dataset.finalizedDown !== undefined) updateFinalizedItem('down', control.dataset.finalizedDown);
+        if (control.dataset.finalizedRemove !== undefined) updateFinalizedItem('remove', control.dataset.finalizedRemove);
+      });
       groceryAddItemBtn.addEventListener('click', addGroceryLogItem);
       groceryCustomItem.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
