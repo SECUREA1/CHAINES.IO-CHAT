@@ -75,6 +75,7 @@
     .full-menu-column { border:1px solid color-mix(in oklab, var(--line), transparent 20%); border-radius:10px; padding:8px; display:grid; gap:5px; }
     .full-menu-column h4 { margin:0; color:var(--gold); font-size:13px; }
     .full-menu-column ul { margin:0; padding-left:16px; display:grid; gap:3px; color:var(--muted); font-size:12px; }
+    .full-menu-column li.active { color:var(--text); font-weight:600; }
     input, select, textarea, button {
       width:100%;
       border-radius:10px;
@@ -342,10 +343,6 @@
               <option value="protein-plus">Protein Plus Pack</option>
               <option value="keto-balance">Keto Balance Pack</option>
               <option value="veggie-vitality">Veggie Vitality Pack</option>
-              <option value="classic-burger-combo">Classic Burger Combo Pack</option>
-              <option value="breakfast-favorites">Breakfast Favorites Pack</option>
-              <option value="comfort-dinner">Comfort Dinner Pack</option>
-              <option value="dessert-party">Dessert Party Pack</option>
             </select>
             <select id="meal-package-pricing" name="meal-package-pricing">
               <option value="balanced">Balanced pricing tier</option>
@@ -712,12 +709,7 @@
           { name: 'Breakfast quinoa salad', note: 'egg + herbs' },
           { name: 'Strawberry waffle wedges', note: 'whole wheat batter' },
           { name: 'Veggie omelet roll-up', note: 'mushroom + spinach' },
-          { name: 'Apple cinnamon protein muffin', note: 'single-serve' },
-          { name: 'Classic buttermilk pancakes', note: 'maple syrup + butter' },
-          { name: 'Belgian waffle plate', note: 'berries + whipped cream' },
-          { name: 'Biscuits and sausage gravy', note: 'southern style' },
-          { name: 'Hash brown breakfast platter', note: 'eggs + toast' },
-          { name: 'French toast combo', note: 'eggs + breakfast potatoes' }
+          { name: 'Apple cinnamon protein muffin', note: 'single-serve' }
         ],
         lunch: [
           { name: 'Grilled chicken quinoa bowl', note: 'kale + vinaigrette' },
@@ -744,12 +736,7 @@
           { name: 'Asian sesame tuna salad', note: 'cabbage crunch' },
           { name: 'Italian deli protein box', note: 'lean meats + olives' },
           { name: 'Greek chicken pita', note: 'tzatziki + greens' },
-          { name: 'Lemon herb cod plate', note: 'wild rice + beans' },
-          { name: 'Classic cheeseburger', note: 'lettuce + tomato + onion' },
-          { name: 'Crispy chicken burger', note: 'pickle + mayo' },
-          { name: 'Loaded fries basket', note: 'cheddar + scallions' },
-          { name: 'Bacon burger combo', note: 'fries + drink' },
-          { name: 'Patty melt sandwich', note: 'grilled onions + rye' }
+          { name: 'Lemon herb cod plate', note: 'wild rice + beans' }
         ],
         dinner: [
           { name: 'Baked salmon plate', note: 'brown rice + broccoli' },
@@ -776,12 +763,7 @@
           { name: 'Roasted cod and asparagus', note: 'lemon herb oil' },
           { name: 'BBQ tofu sheet pan', note: 'cauliflower + squash' },
           { name: 'Chicken parmesan bake', note: 'light mozzarella' },
-          { name: 'Korean beef bowl', note: 'kimchi + rice' },
-          { name: 'Classic burger steak dinner', note: 'gravy + mashed potatoes' },
-          { name: 'Southern fried chicken dinner', note: 'coleslaw + fries' },
-          { name: 'BBQ ribs platter', note: 'beans + cornbread' },
-          { name: 'Homestyle meatloaf plate', note: 'green beans + mash' },
-          { name: 'Chicken fried steak plate', note: 'country gravy' }
+          { name: 'Korean beef bowl', note: 'kimchi + rice' }
         ],
         dessert: [
           { name: 'Fresh fruit cup', note: 'seasonal mix' },
@@ -808,15 +790,10 @@
           { name: 'Pumpkin spice mousse', note: 'seasonal favorite' },
           { name: 'Chocolate banana mini loaf', note: 'slice pack' },
           { name: 'Vanilla bean rice pudding', note: 'creamy cup' },
-          { name: 'Lime coconut bar', note: 'zesty finish' },
-          { name: 'Cherry pie sliders', note: 'mini hand pies' },
-          { name: 'Classic apple pie slice', note: 'cinnamon filling' },
-          { name: 'Brownie sundae cup', note: 'fudge + vanilla cream' },
-          { name: 'Chocolate chip cookie skillet', note: 'warm + gooey' },
-          { name: 'Banana pudding parfait', note: 'vanilla wafers' }
+          { name: 'Lime coconut bar', note: 'zesty finish' }
         ],
         pringles: [
-          { name: 'Pringles Original', note: 'full-size can (snack)' },
+          { name: 'Pringles Original', note: 'full-size can' },
           { name: 'Pringles Sour Cream & Onion', note: 'full-size can' },
           { name: 'Pringles BBQ', note: 'full-size can' },
           { name: 'Doritos Nacho Cheese', note: '9.25oz party bag' },
@@ -988,10 +965,8 @@
           spiceLevel: 'Mild',
           sides: 'Quinoa, steamed vegetables, mixed greens',
           items: [
-            { name: 'Lemon garlic chicken tray', qty: 3, note: 'low sodium' },
-            { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' },
-            { name: 'Coca-Cola Classic', qty: 3, note: 'drink add-on' },
-            { name: 'Pringles Original', qty: 2, note: 'snack add-on' }
+            { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
+            { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
           ],
           notes: 'Balanced macros, no fried foods.'
         },
@@ -1001,11 +976,9 @@
           spiceLevel: 'Medium',
           sides: 'Mashed potatoes, roasted vegetables, house salad',
           items: [
-            { name: 'Rotisserie chicken dinner', qty: 2, note: 'family size' },
-            { name: 'Lean beef stir-fry', qty: 2, note: 'family size' },
-            { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' },
-            { name: 'Sprite Lemon-Lime', qty: 4, note: 'family drinks' },
-            { name: "Lay's Classic", qty: 2, note: 'shareable snacks' }
+            { name: 'Roast chicken tray', qty: 1, note: 'family size' },
+            { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
+            { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
           ],
           notes: 'Family-friendly menu with meats and sides.'
         },
@@ -1041,70 +1014,18 @@
             { name: 'Lentil power salad', qty: 4, note: 'light dressing' }
           ],
           notes: 'Plant-based package with nutrient-dense sides.'
-        },
-        'classic-burger-combo': {
-          format: 'family',
-          protein: 'Mixed',
-          spiceLevel: 'Medium',
-          sides: 'Fries, onion rings, house pickles',
-          items: [
-            { name: 'Classic cheeseburger', qty: 4, note: 'family burger tray' },
-            { name: 'Crispy chicken burger', qty: 2, note: 'crispy style' },
-            { name: 'Loaded fries basket', qty: 2, note: 'shareable sides' }
-          ],
-          notes: 'Classic grill-style burger combo with shareable sides.'
-        },
-        'breakfast-favorites': {
-          format: 'meal-prep',
-          protein: 'Mixed',
-          spiceLevel: 'Mild',
-          sides: 'Hash browns, fruit cup, toast',
-          items: [
-            { name: 'Classic buttermilk pancakes', qty: 3, note: 'breakfast staple' },
-            { name: 'French toast combo', qty: 3, note: 'traditional breakfast' },
-            { name: 'Hash brown breakfast platter', qty: 2, note: 'extra eggs' }
-          ],
-          notes: 'Traditional breakfast meals with familiar diner options.'
-        },
-        'comfort-dinner': {
-          format: 'family',
-          protein: 'Chicken',
-          spiceLevel: 'Medium',
-          sides: 'Mashed potatoes, gravy, seasonal vegetables',
-          items: [
-            { name: 'Southern fried chicken dinner', qty: 2, note: 'family dinner' },
-            { name: 'Homestyle meatloaf plate', qty: 2, note: 'comfort classic' },
-            { name: 'Chicken fried steak plate', qty: 2, note: 'country style' }
-          ],
-          notes: 'Hearty comfort dinner plan with classic mains and sides.'
-        },
-        'dessert-party': {
-          format: 'party',
-          protein: 'Mixed',
-          spiceLevel: 'Mild',
-          sides: 'Whipped cream, caramel, chocolate drizzle',
-          items: [
-            { name: 'Cherry pie sliders', qty: 6, note: 'party minis' },
-            { name: 'Classic apple pie slice', qty: 6, note: 'dessert classic' },
-            { name: 'Brownie sundae cup', qty: 6, note: 'chilled dessert set' }
-          ],
-          notes: 'Party-ready dessert bundle with classic pie and brownie favorites.'
         }
       };
       const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
       const comboBreakdownLibrary = {
         'lean reset pack': [
-          { name: 'Lemon garlic chicken tray', qty: 3, note: 'low sodium' },
-          { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' },
-          { name: 'Coca-Cola Classic', qty: 3, note: 'drink add-on' },
-          { name: 'Pringles Original', qty: 2, note: 'snack add-on' }
+          { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
+          { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
         ],
         'family classic pack': [
-          { name: 'Rotisserie chicken dinner', qty: 2, note: 'family size' },
-          { name: 'Lean beef stir-fry', qty: 2, note: 'family size' },
-          { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' },
-          { name: 'Sprite Lemon-Lime', qty: 4, note: 'family drinks' },
-          { name: "Lay's Classic", qty: 2, note: 'shareable snacks' }
+          { name: 'Roast chicken tray', qty: 1, note: 'family size' },
+          { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
+          { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
         ],
         'protein plus pack': [
           { name: 'Baked salmon plate', qty: 3, note: 'high protein' },
@@ -1373,6 +1294,7 @@
         syncQuickMenuFromAdmin();
         mountQuickMenu();
         renderDailyLineup();
+        renderFullMenuPanel();
         updateSummary();
         setAdminState(true, "Today's meal choices saved.");
       }
@@ -2043,7 +1965,8 @@
         ];
         fullMenuColumns.innerHTML = sections.map(([group, label]) => {
           const items = optionLibrary[group] || [];
-          const list = items.map((item) => `<li>${item.name}</li>`).join('');
+          const enabled = new Set((adminConfig?.dailyMenu?.[group] || []).map((name) => String(name)));
+          const list = items.map((item) => `<li class="${enabled.has(item.name) ? 'active' : ''}">${enabled.has(item.name) ? '✓ ' : ''}${item.name}</li>`).join('');
           return `<section class="full-menu-column"><h4>${label}</h4><ul>${list}</ul></section>`;
         }).join('');
       }
