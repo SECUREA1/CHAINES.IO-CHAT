@@ -596,28 +596,33 @@
           { name: 'Pringles Original', note: 'full-size can' },
           { name: 'Pringles Sour Cream & Onion', note: 'full-size can' },
           { name: 'Pringles BBQ', note: 'full-size can' },
-          { name: 'Pringles Cheddar Cheese', note: 'full-size can' },
-          { name: 'Pringles Pizza', note: 'full-size can' },
-          { name: 'Pringles Salt & Vinegar', note: 'full-size can' },
-          { name: 'Pringles Ranch', note: 'full-size can' },
-          { name: 'Pringles Hot & Spicy', note: 'full-size can' },
-          { name: 'Pringles Jalapeño', note: 'full-size can' },
-          { name: 'Pringles Honey Mustard', note: 'full-size can' },
-          { name: 'Pringles Dill Pickle', note: 'full-size can' },
-          { name: 'Pringles Scorchin Chili & Lime', note: 'full-size can' },
-          { name: 'Pringles Scorchin BBQ', note: 'full-size can' },
-          { name: 'Pringles Rotisserie Chicken', note: 'full-size can' },
-          { name: 'Pringles Wavy Classic', note: 'full-size can' },
-          { name: 'Pringles Wavy Fire Roasted Jalapeño', note: 'full-size can' },
-          { name: 'Pringles Lightly Salted Original', note: 'full-size can' },
-          { name: 'Pringles Memphis BBQ', note: 'full-size can' },
-          { name: 'Pringles Ranch Blasted', note: 'full-size can' },
-          { name: 'Pringles Buffalo Ranch', note: 'full-size can' },
-          { name: 'Pringles French Onion Dip', note: 'full-size can' },
-          { name: 'Pringles Harvest Blends Multigrain', note: 'full-size can' },
-          { name: 'Pringles Mingles Cheddar & Sour Cream', note: 'share pack' },
-          { name: 'Pringles Mingles Dill Pickle & Ranch', note: 'share pack' },
-          { name: 'Pringles Original Snack Stacks', note: 'grab-and-go pack' }
+          { name: 'Doritos Nacho Cheese', note: '9.25oz party bag' },
+          { name: 'Doritos Cool Ranch', note: '9.25oz party bag' },
+          { name: 'Doritos Spicy Sweet Chili', note: '9.25oz party bag' },
+          { name: "Lay's Classic", note: '8oz family bag' },
+          { name: "Lay's Sour Cream & Onion", note: '7.75oz family bag' },
+          { name: "Lay's Barbecue", note: '7.75oz family bag' },
+          { name: 'Cheetos Crunchy', note: '8.5oz family bag' },
+          { name: "Cheetos Flamin' Hot", note: '8.5oz family bag' },
+          { name: 'Cheetos Puffs White Cheddar', note: '8oz family bag' },
+          { name: 'Ruffles Original', note: '8.5oz family bag' },
+          { name: 'Ruffles Cheddar & Sour Cream', note: '8.5oz family bag' },
+          { name: "Ruffles Flamin' Hot BBQ", note: '8.5oz family bag' },
+          { name: 'Kettle Brand Sea Salt', note: '8.5oz kettle bag' },
+          { name: 'Kettle Brand Jalapeño', note: '8.5oz kettle bag' },
+          { name: 'Kettle Brand Backyard BBQ', note: '8.5oz kettle bag' },
+          { name: 'PopCorners Kettle Corn', note: '7oz share bag' },
+          { name: 'PopCorners White Cheddar', note: '7oz share bag' },
+          { name: 'PopCorners Spicy Queso', note: '7oz share bag' },
+          { name: 'SunChips Harvest Cheddar', note: '7oz multigrain bag' },
+          { name: 'SunChips Garden Salsa', note: '7oz multigrain bag' },
+          { name: 'SunChips Original', note: '7oz multigrain bag' },
+          { name: 'Takis Fuego', note: '9.9oz fiesta bag' },
+          { name: 'Takis Blue Heat', note: '9.9oz fiesta bag' },
+          { name: 'Takis Nitro', note: '9.9oz fiesta bag' },
+          { name: 'Chex Mix Traditional', note: '8.75oz mix bag' },
+          { name: 'Chex Mix Bold', note: '8.75oz mix bag' },
+          { name: 'Chex Mix Cheddar', note: '8.75oz mix bag' }
         ],
         drinks: [
           { name: 'Coca-Cola Classic', note: '12oz can' },
@@ -657,7 +662,7 @@
         lunch: ['Original', 'Extra protein', 'Low-carb', 'Family portion'],
         dinner: ['Original', 'Spicy', 'Low sodium', 'Family tray'],
         dessert: ['Classic', 'Sugar-free', 'Dairy-free', 'Kid-size'],
-        pringles: ['Original can', 'Snack stack', 'Party size', 'Limited flavor'],
+        pringles: ['Single-serve', 'Share bag', 'Family bag', 'Party size', 'Limited flavor'],
         drinks: ['Regular', 'Sugar-free', 'Large', 'Kid-size', 'Iced', 'Hot', 'Frozen', 'Blend-in add-ons']
       };
       const defaultAdminConfig = {
@@ -666,7 +671,7 @@
           lunch: ['Grilled chicken quinoa bowl', 'Turkey avocado wrap', 'Lentil power salad'],
           dinner: ['Baked salmon plate', 'Lean beef stir-fry', 'Herb tofu grain bowl'],
           dessert: ['Fresh fruit cup', 'Dark chocolate protein bites', 'Coconut chia pudding'],
-          pringles: ['Pringles Original', 'Pringles Sour Cream & Onion', 'Pringles BBQ', 'Pringles Cheddar Cheese'],
+          pringles: ['Pringles Original', 'Doritos Nacho Cheese', "Lay's Classic", 'Cheetos Crunchy'],
           drinks: ['Coca-Cola Classic', 'Vanilla Bean Milkshake', 'Blue Raspberry Slurpy', 'Mango Pineapple Smoothie', 'Iced Caramel Latte']
         },
         pricing: {
@@ -905,7 +910,7 @@
           ['lunch', 'Lunch'],
           ['dinner', 'Dinner'],
           ['dessert', 'Dessert'],
-          ['pringles', 'Pringles'],
+          ['pringles', 'Snacks'],
           ['drinks', 'Drinks']
         ];
         adminMenuControls.innerHTML = sections.map(([key, label]) => {
@@ -1073,7 +1078,7 @@
           ['lunch', 'Lunch (Healthy)'],
           ['dinner', 'Dinner (Healthy)'],
           ['dessert', 'Dessert Menu'],
-          ['pringles', 'Pringle Options'],
+          ['pringles', 'Snack Options'],
           ['drinks', 'Drink Options']
         ];
         quickMenuGrid.innerHTML = sections.map(([key, label]) => {
