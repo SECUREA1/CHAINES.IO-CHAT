@@ -1087,6 +1087,7 @@
           <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
           <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
           <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
+          <button type="button" class="mini-btn menu-stepper-down">-1</button>
           <button type="button" class="mini-btn menu-stepper">+1</button>
           <button type="button" class="mini-btn danger">Remove</button>
         `;
@@ -1099,6 +1100,11 @@
           const qtyInput = row.querySelector('.menu-qty');
           qtyInput.value = Number(qtyInput.value || 1) + 1;
           if (row.querySelector('.menu-fast-add')?.checked) quickFastToggle.checked = true;
+          updateSummary();
+        });
+        row.querySelector('.menu-stepper-down').addEventListener('click', () => {
+          const qtyInput = row.querySelector('.menu-qty');
+          qtyInput.value = Math.max(1, Number(qtyInput.value || 1) - 1);
           updateSummary();
         });
         row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', updateSummary));
@@ -1133,8 +1139,14 @@
         syncQuickSelectors('breakfast');
       }
 
+      const consumedQuickItems = new Set();
+
+      function quickSelectionKey(group, itemName) {
+        return `${group}::${itemName}`;
+      }
+
       function syncQuickSelectors(group = 'breakfast') {
-        const sourceItems = quickMenuCatalog[group] || [];
+        const sourceItems = (quickMenuCatalog[group] || []).filter((item) => !consumedQuickItems.has(quickSelectionKey(group, item.name)));
         const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks']
           .map((value) => `<option value="${value}" ${value === group ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`)
           .join('');
@@ -1173,6 +1185,8 @@
           }
         }
         addMenuItemRow({ name: itemName, group, variant, qty: 1, priceAdjust, fastAdd: quickFastToggle.checked });
+        consumedQuickItems.add(quickSelectionKey(group, itemName));
+        syncQuickSelectors(group);
         lastQuickSelection = { name: itemName, variant };
         status.classList.remove('error');
         status.textContent = `${itemName} (${variant}) added.`;
@@ -1574,9 +1588,11 @@
       });
       quickItemSelect.addEventListener('change', () => {
         const selectedValue = quickItemSelect.value;
-        if (['breakfast', 'lunch', 'dinner', 'dessert', 'pringles'].includes(selectedValue)) {
+        if (['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'].includes(selectedValue)) {
           syncQuickSelectors(selectedValue);
+          return;
         }
+        addQuickSelectedItem(false);
       });
       quickAddItemBtn.addEventListener('click', () => addQuickSelectedItem(false));
       quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
