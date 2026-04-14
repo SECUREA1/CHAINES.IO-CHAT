@@ -13,6 +13,9 @@
     .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
     header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
     .title { margin:0; font-size:20px; }
+    .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .top-link { color:var(--gold); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0d1733; font-weight:600; }
+    .top-link:hover { border-color:var(--gold); }
     .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
     .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
     .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
@@ -86,7 +89,10 @@
   <div class="wrap">
     <header class="panel">
       <h1 class="title">CHAINeS Marketplace Explorer</h1>
-      <a href="/index.html" style="color:var(--gold)">← Back to feed</a>
+      <div class="top-actions">
+        <a class="top-link" href="/delivery-services.html">Delivery Requests</a>
+        <a class="top-link" href="/index.html">← Back to feed</a>
+      </div>
     </header>
 
     <section class="panel">
