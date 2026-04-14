@@ -136,9 +136,13 @@
     .small { color:var(--muted); font-size:12px; }
     .summary { padding:14px; display:grid; gap:10px; height:max-content; position:sticky; top:14px; }
     .summary h2 { margin:0; font-size:18px; }
+    .summary-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .summary-head .mini-btn { padding:6px 10px; font-size:12px; }
     .cost-line { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
     .cost-line.total { font-size:16px; color:var(--text); font-weight:700; border-top:1px dashed var(--line); padding-top:8px; }
     .book-btn { cursor:pointer; font-weight:800; background:linear-gradient(180deg, var(--brand), var(--brand-2)); }
+    .receipt-toggle { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+    .receipt-toggle input { width:auto; margin:0; }
     .status { min-height:1.2em; color:var(--ok); font-size:12px; }
     .status.error { color:var(--warn); }
     .admin-panel { padding:14px; display:grid; gap:10px; }
@@ -173,6 +177,13 @@
     }
     .delivery-detail-group.active { display:grid; }
     .delivery-detail-title { margin:0; font-size:12px; color:var(--gold); }
+    .receipt-sheet { border:1px dashed var(--line); border-radius:10px; background:#09122a; padding:10px; display:grid; gap:6px; font-size:12px; color:#dfe7ff; }
+    .receipt-sheet .receipt-header { display:flex; justify-content:space-between; gap:8px; }
+    .receipt-sheet .receipt-id { font-weight:800; color:var(--gold); }
+    .receipt-sheet .receipt-row { display:flex; justify-content:space-between; gap:8px; }
+    .receipt-sheet .receipt-total { border-top:1px dashed var(--line); padding-top:6px; font-weight:800; }
+    .receipt-comment-list { display:grid; gap:6px; margin-top:6px; }
+    .receipt-comment-item { border:1px solid var(--line); border-radius:8px; padding:6px 8px; background:#0a1430; color:var(--muted); }
 
     @media (max-width: 980px) {
       .layout { grid-template-columns:1fr; }
@@ -432,7 +443,10 @@
       </form>
 
       <aside class="panel summary">
-        <h2>Live Delivery Summary</h2>
+        <div class="summary-head">
+          <h2>Live Delivery Summary</h2>
+          <button id="print-receipt-btn" class="mini-btn alt" type="button">Print receipt</button>
+        </div>
         <div id="summary-lines"></div>
         <div class="cost-line"><span>Delivery base</span><span id="base-fee">$6.00</span></div>
         <div class="cost-line"><span>Speed surcharge</span><span id="speed-fee">$0.00</span></div>
@@ -441,6 +455,8 @@
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
         <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
+        <label class="receipt-toggle"><input id="email-receipt-to-customer" type="checkbox" checked /> Send customer receipt email from server during checkout</label>
+        <textarea id="receipt-comment" maxlength="260" placeholder="Receipt communication comment for admin + customer (order context, substitutions, handoff notes)"></textarea>
         <button id="book-btn" class="book-btn" type="button">Confirm Delivery Request</button>
         <div id="status" class="status" aria-live="polite"></div>
       </aside>
@@ -455,6 +471,11 @@
         <button id="admin-login-btn" type="button" class="mini-btn">Admin Sign In</button>
       </div>
       <div id="admin-auth-status" class="status" aria-live="polite"></div>
+      <section class="section-shell">
+        <p class="section-title">Receipt-ready Delivery Orders</p>
+        <p class="admin-note">Orders render as printable receipts for admin processing. Comments are attached to each receipt as a communication channel.</p>
+        <div id="admin-order-receipts" class="receipt-comment-list"></div>
+      </section>
       <div id="admin-controls" class="admin-controls">
         <section class="section-shell">
           <p class="section-title">Daily Meal Choices</p>
@@ -698,6 +719,9 @@
       const form = document.querySelector('#delivery-form');
       const summaryLines = document.querySelector('#summary-lines');
       const status = document.querySelector('#status');
+      const receiptCommentInput = document.querySelector('#receipt-comment');
+      const printReceiptBtn = document.querySelector('#print-receipt-btn');
+      const emailReceiptToCustomer = document.querySelector('#email-receipt-to-customer');
       const partnerHost = document.querySelector('#partners');
       const speed = document.querySelector('#speed');
       const tip = document.querySelector('#tip');
@@ -725,6 +749,7 @@
       const adminControls = document.querySelector('#admin-controls');
       const adminAuthStatus = document.querySelector('#admin-auth-status');
       const adminMenuControls = document.querySelector('#admin-menu-controls');
+      const adminOrderReceipts = document.querySelector('#admin-order-receipts');
       const adminUsername = document.querySelector('#admin-username');
       const adminPassword = document.querySelector('#admin-password');
       const adminLoginBtn = document.querySelector('#admin-login-btn');
@@ -1317,15 +1342,24 @@
       }
 
       function sendReceiptEmail(request) {
+        return fetch('/receipt-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            request,
+            to: receiptEmail,
+            sendCustomerCopy: Boolean(emailReceiptToCustomer?.checked)
+          })
+        }).then((res) => res.ok).catch(() => false);
+      }
+
+      function buildReceiptLines(request) {
         const itemSummary = (request.items || [])
           .map((item) => `${item.qty || 1}x ${item.name || 'Item'}`)
           .join(', ') || 'No items listed';
-        const subject = `Delivery Receipt ${request.id}`;
-        const body = [
-          'CHAINeS Delivery Receipt',
+        return [
           `Receipt ID: ${request.id}`,
           `Created: ${new Date(request.createdAt).toLocaleString()}`,
-          '',
           `Customer: ${request.customer?.name || ''}`,
           `Phone: ${request.customer?.phone || ''}`,
           `Pickup: ${request.route?.pickup || ''}`,
@@ -1338,15 +1372,33 @@
           `Tip: ${toMoney(Number(request.tip || 0))}`,
           `Budget: ${toMoney(Number(request.budget || 0))}`,
           `Items: ${itemSummary}`,
+          `Receipt Comment: ${request.receiptComment || 'None'}`,
           `Notes: ${request.notes || 'None'}`
-        ].join('\n');
-        const href = `mailto:${encodeURIComponent(receiptEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        const mailLink = document.createElement('a');
-        mailLink.href = href;
-        mailLink.style.display = 'none';
-        document.body.appendChild(mailLink);
-        mailLink.click();
-        mailLink.remove();
+        ];
+      }
+
+      function printReceipt(request) {
+        const lines = buildReceiptLines(request).map((line) => `<div>${line.replaceAll('<', '&lt;')}</div>`).join('');
+        const html = `<html><head><title>Receipt ${request.id}</title><style>body{font-family:ui-monospace,Menlo,monospace;padding:24px;color:#111}.r{max-width:560px;margin:auto;border:1px dashed #333;padding:14px}.h{display:flex;justify-content:space-between;font-weight:800;border-bottom:1px solid #aaa;padding-bottom:8px;margin-bottom:8px}</style></head><body><section class="r"><div class="h"><span>CHAINeS DELIVERY RECEIPT</span><span>${request.id}</span></div>${lines}</section></body></html>`;
+        const printWindow = window.open('', '_blank', 'width=860,height=900');
+        if (!printWindow) return;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+      }
+
+      function renderAdminOrderReceipts() {
+        const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
+        if (!requests.length) {
+          adminOrderReceipts.innerHTML = '<div class="receipt-comment-item">No delivery receipts logged yet.</div>';
+          return;
+        }
+        adminOrderReceipts.innerHTML = requests.slice(0, 8).map((request) => {
+          const comments = Array.isArray(request.receiptComments) ? request.receiptComments : [];
+          const commentHtml = comments.map((comment) => `<div class="receipt-comment-item">${comment.author || 'user'}: ${String(comment.text || '').replaceAll('<', '&lt;')}</div>`).join('');
+          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row receipt-total"><span>Total</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
+        }).join('');
       }
 
       async function bookRequest() {
@@ -1403,17 +1455,24 @@
             dailyMenu: adminConfig.dailyMenu,
             pricing: adminConfig.pricing
           },
+          receiptEmail,
           speed: String(data.get('speed') || 'standard'),
           tip: Number(data.get('tip') || 0),
           budget: Number(data.get('budget') || 0),
           notes: String(data.get('notes') || '').trim()
         };
+        const computedTotal = Number((document.querySelector('#total-fee').textContent || '').replace(/[^0-9.-]/g, '')) || 0;
+        request.total = computedTotal;
+        request.receiptComment = String(receiptCommentInput?.value || '').trim();
+        request.receiptComments = request.receiptComment
+          ? [{ author: 'user', text: request.receiptComment, timestamp: new Date().toISOString() }]
+          : [];
 
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
         request.assignedAccount = 'admin';
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
-        sendReceiptEmail(request);
+        renderAdminOrderReceipts();
         const linkedService = safeParse(marketplaceService.value, null);
         const targetUser = sanitizeUser(linkedService?.user || '');
         const actor = sanitizeUser(localStorage.getItem('chaines_username') || request.customer?.name || '');
@@ -1440,14 +1499,43 @@
           return;
         }
 
+        const emailSent = await sendReceiptEmail(request);
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}. Request ID logged.${emailSent ? ' Email sent from server.' : ' Email dispatch queued on server.'}`;
       }
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
       document.querySelector('#book-btn').addEventListener('click', bookRequest);
+      printReceiptBtn.addEventListener('click', () => {
+        const preview = {
+          id: 'PREVIEW-RECEIPT',
+          createdAt: new Date().toISOString(),
+          customer: {
+            name: form.querySelector('#customer-name').value.trim(),
+            phone: form.querySelector('#customer-phone').value.trim()
+          },
+          route: {
+            pickup: form.querySelector('#pickup').value.trim(),
+            dropoff: form.querySelector('#dropoff').value.trim()
+          },
+          service: {
+            name: form.querySelector('#service-name').value.trim() || 'Custom request',
+            category: form.querySelector('#service-category').value.trim() || 'General',
+            deliveryType: getDeliveryType()
+          },
+          deliveryTypeDetails: 'Live preview',
+          partnerTier: selectedPartner,
+          speed: speed.value,
+          tip: Number(tip.value || 0),
+          budget: Number(budget.value || 0),
+          items: getMenuItems(),
+          notes: form.querySelector('#notes').value.trim(),
+          receiptComment: String(receiptCommentInput?.value || '').trim()
+        };
+        printReceipt(preview);
+      });
       marketplaceService.addEventListener('change', syncServiceFromMarketplace);
       marketplaceMenu.addEventListener('change', syncMenuFromMarketplace);
       applyPackageBtn.addEventListener('click', applyMealPackage);
@@ -1487,6 +1575,7 @@
       mountQuickMenu();
       updateDeliveryTypeSections();
       renderDailyLineup();
+      renderAdminOrderReceipts();
       updateSummary();
       notifBell?.addEventListener('click', async () => {
         const willOpen = notifPanel.hidden;
@@ -1497,6 +1586,13 @@
         }
       });
       loadNotifications();
+      adminOrderReceipts.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-admin-print]');
+        if (!button) return;
+        const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
+        const request = requests.find((entry) => entry.id === button.getAttribute('data-admin-print'));
+        if (request) printReceipt(request);
+      });
     })();
   </script>
 </body>
