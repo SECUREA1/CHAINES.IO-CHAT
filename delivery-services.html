@@ -364,7 +364,7 @@
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Healthy Menus + Drink + Pringle Delivery Options</p>
-          <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, drink menus (milkshakes, slurpies, smoothies, coffee, tea, soda, juice, and more), plus all Pringle variants.</p>
+          <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, snack menus (Pringles, chips, and share bags), and drink menus (milkshakes, slurpies, smoothies, coffee, tea, soda, juice, and more).</p>
           <div id="daily-lineup" class="daily-lineup" aria-live="polite"></div>
           <button id="toggle-full-menu" type="button" class="mini-btn alt">View Entire Menu (Daily specials only available)</button>
           <article id="full-menu-panel" class="full-menu-panel" hidden>
@@ -816,7 +816,7 @@
           { name: 'Banana pudding parfait', note: 'vanilla wafers' }
         ],
         pringles: [
-          { name: 'Pringles Original', note: 'full-size can' },
+          { name: 'Pringles Original', note: 'full-size can (snack)' },
           { name: 'Pringles Sour Cream & Onion', note: 'full-size can' },
           { name: 'Pringles BBQ', note: 'full-size can' },
           { name: 'Doritos Nacho Cheese', note: '9.25oz party bag' },
@@ -988,8 +988,10 @@
           spiceLevel: 'Mild',
           sides: 'Quinoa, steamed vegetables, mixed greens',
           items: [
-            { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
-            { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
+            { name: 'Lemon garlic chicken tray', qty: 3, note: 'low sodium' },
+            { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' },
+            { name: 'Coca-Cola Classic', qty: 3, note: 'drink add-on' },
+            { name: 'Pringles Original', qty: 2, note: 'snack add-on' }
           ],
           notes: 'Balanced macros, no fried foods.'
         },
@@ -999,9 +1001,11 @@
           spiceLevel: 'Medium',
           sides: 'Mashed potatoes, roasted vegetables, house salad',
           items: [
-            { name: 'Roast chicken tray', qty: 1, note: 'family size' },
-            { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
-            { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
+            { name: 'Rotisserie chicken dinner', qty: 2, note: 'family size' },
+            { name: 'Lean beef stir-fry', qty: 2, note: 'family size' },
+            { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' },
+            { name: 'Sprite Lemon-Lime', qty: 4, note: 'family drinks' },
+            { name: "Lay's Classic", qty: 2, note: 'shareable snacks' }
           ],
           notes: 'Family-friendly menu with meats and sides.'
         },
@@ -1090,13 +1094,17 @@
       const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
       const comboBreakdownLibrary = {
         'lean reset pack': [
-          { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
-          { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
+          { name: 'Lemon garlic chicken tray', qty: 3, note: 'low sodium' },
+          { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' },
+          { name: 'Coca-Cola Classic', qty: 3, note: 'drink add-on' },
+          { name: 'Pringles Original', qty: 2, note: 'snack add-on' }
         ],
         'family classic pack': [
-          { name: 'Roast chicken tray', qty: 1, note: 'family size' },
-          { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
-          { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
+          { name: 'Rotisserie chicken dinner', qty: 2, note: 'family size' },
+          { name: 'Lean beef stir-fry', qty: 2, note: 'family size' },
+          { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' },
+          { name: 'Sprite Lemon-Lime', qty: 4, note: 'family drinks' },
+          { name: "Lay's Classic", qty: 2, note: 'shareable snacks' }
         ],
         'protein plus pack': [
           { name: 'Baked salmon plate', qty: 3, note: 'high protein' },
