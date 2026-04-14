@@ -390,6 +390,11 @@
                 </select>
                 <input name="multi-stop-window" maxlength="60" placeholder="Completion time window" />
               </div>
+              <textarea
+                name="multi-stop-destinations"
+                maxlength="500"
+                placeholder="Destination breakdown (one stop per line):&#10;1) Pickup: 123 Main St, Apt 4B&#10;2) Dropoff: 455 Pine Ave, Front Desk&#10;3) Return: 18 Market St, Loading Dock&#10;Include contact names, package notes, and special handoff details."
+              ></textarea>
             </article>
             <article class="delivery-detail-group" data-delivery-group="custom">
               <p class="delivery-detail-title">Custom concierge request details</p>
@@ -1201,7 +1206,7 @@
           meal: [data.get('meal-window'), data.get('meal-temp'), data.get('meal-servings')],
           groceries: [data.get('grocery-store'), data.get('grocery-lists'), data.get('grocery-subs')],
           package: [data.get('package-size'), data.get('package-weight'), data.get('package-value')],
-          'multi-stop': [data.get('multi-stop-count'), data.get('multi-stop-order'), data.get('multi-stop-window')],
+          'multi-stop': [data.get('multi-stop-count'), data.get('multi-stop-order'), data.get('multi-stop-window'), data.get('multi-stop-destinations')],
           custom: [data.get('custom-concierge-brief')]
         };
         return (detailByType[deliveryType] || []).filter(Boolean).join(' • ') || 'No extra details provided';
