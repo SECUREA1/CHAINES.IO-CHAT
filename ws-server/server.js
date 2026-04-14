@@ -256,6 +256,9 @@ const ADMIN_ACCOUNT = Object.freeze({
   username: "admin",
   password: "giraff",
 });
+const DEFAULT_RECEIPT_EMAIL = (process.env.DELIVERY_RECEIPT_EMAIL || "chadslondonrentals@gmail.com").trim();
+const RESEND_API_KEY = (process.env.RESEND_API_KEY || "").trim();
+const RECEIPT_FROM_EMAIL = (process.env.RECEIPT_FROM_EMAIL || "CHAINeS Delivery <onboarding@resend.dev>").trim();
 
 function ensureUserProfile(username = "") {
   const clean = sanitizeUsername(username);
@@ -313,6 +316,66 @@ function ensureAdminAccount() {
       "System admin account for routed delivery orders.",
   };
   saveProfiles();
+}
+
+function buildReceiptText(request = {}) {
+  const itemSummary = Array.isArray(request.items)
+    ? request.items.map((item) => `${Number(item?.qty || 1)}x ${String(item?.name || "Item").trim()}`).join(", ")
+    : "";
+  return [
+    "CHAINeS Delivery Receipt",
+    `Receipt ID: ${request.id || `DLV-${Date.now().toString(36).toUpperCase()}`}`,
+    `Created: ${request.createdAt || new Date().toISOString()}`,
+    `Customer: ${request.customer?.name || ""}`,
+    `Phone: ${request.customer?.phone || ""}`,
+    `Pickup: ${request.route?.pickup || ""}`,
+    `Dropoff: ${request.route?.dropoff || ""}`,
+    `Service: ${request.service?.name || "Custom request"} (${request.service?.category || "General"})`,
+    `Delivery Type: ${request.service?.deliveryType || "meal"}`,
+    `Type Details: ${request.deliveryTypeDetails || "N/A"}`,
+    `Partner Tier: ${request.partnerTier?.name || ""}`,
+    `Speed: ${request.speed || "standard"}`,
+    `Tip: $${Number(request.tip || 0).toFixed(2)}`,
+    `Budget: $${Number(request.budget || 0).toFixed(2)}`,
+    `Total: $${Number(request.total || 0).toFixed(2)}`,
+    `Items: ${itemSummary || "No items listed"}`,
+    `Receipt Comment: ${request.receiptComment || "None"}`,
+    `Notes: ${request.notes || "None"}`,
+  ].join("\n");
+}
+
+async function sendDeliveryReceiptEmail(request = {}, to = DEFAULT_RECEIPT_EMAIL) {
+  const target = String(to || DEFAULT_RECEIPT_EMAIL).trim() || DEFAULT_RECEIPT_EMAIL;
+  if (!RESEND_API_KEY) {
+    console.warn(`[delivery-receipt] RESEND_API_KEY missing. Receipt ${request.id || "N/A"} queued for ${target}.`);
+    return { success: false, queued: true, reason: "missing_resend_api_key", to: target };
+  }
+  const subject = `Delivery Receipt ${request.id || `DLV-${Date.now().toString(36).toUpperCase()}`}`;
+  const text = buildReceiptText(request);
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RECEIPT_FROM_EMAIL,
+        to: [target],
+        subject,
+        text,
+      }),
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.error(`[delivery-receipt] Email failed ${response.status}: ${details}`);
+      return { success: false, queued: false, status: response.status, to: target };
+    }
+    return { success: true, to: target };
+  } catch (error) {
+    console.error(`[delivery-receipt] Email error for ${target}:`, error);
+    return { success: false, queued: true, reason: "network_error", to: target };
+  }
 }
 
 ensureAdminAccount();
@@ -890,11 +953,28 @@ app.post("/delivery-orders", (req, res) => {
     url: "/delivery-services.html",
   });
 
+  const receiptTargetEmail = String(payload.receiptEmail || DEFAULT_RECEIPT_EMAIL || "").trim() || DEFAULT_RECEIPT_EMAIL;
+  console.log(`[delivery-orders] ${deliveryId} confirmed and routed to @admin. Receipt target: ${receiptTargetEmail}`);
+  sendDeliveryReceiptEmail({ ...payload, id: deliveryId }, receiptTargetEmail).catch(() => {});
+
   res.json({
     success: true,
     adminUsername,
     notificationId: notifResult.lastInsertRowid,
     messageId: messageResult.lastInsertRowid,
+    receiptTargetEmail,
+  });
+});
+
+app.post("/receipt-email", async (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const requestData = payload.request && typeof payload.request === "object" ? payload.request : {};
+  const to = String(payload.to || DEFAULT_RECEIPT_EMAIL).trim() || DEFAULT_RECEIPT_EMAIL;
+  const result = await sendDeliveryReceiptEmail(requestData, to);
+  res.status(result.success ? 200 : 202).json({
+    success: Boolean(result.success),
+    queued: Boolean(result.queued),
+    to: result.to || to,
   });
 });
 
