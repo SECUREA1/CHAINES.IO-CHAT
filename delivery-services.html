@@ -973,6 +973,29 @@
         }
       };
       const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
+      const comboBreakdownLibrary = {
+        'lean reset pack': [
+          { name: 'Lean chicken meal prep', qty: 5, note: 'low sodium' },
+          { name: 'Greek yogurt parfait', qty: 3, note: 'breakfast prep' }
+        ],
+        'family classic pack': [
+          { name: 'Roast chicken tray', qty: 1, note: 'family size' },
+          { name: 'Lean beef stir-fry tray', qty: 1, note: 'family size' },
+          { name: 'Fresh fruit cup', qty: 6, note: 'dessert side' }
+        ],
+        'protein plus pack': [
+          { name: 'Baked salmon plate', qty: 3, note: 'high protein' },
+          { name: 'Grilled chicken quinoa bowl', qty: 3, note: 'high protein' }
+        ],
+        'keto balance pack': [
+          { name: 'Lean beef stir-fry', qty: 2, note: 'no rice' },
+          { name: 'Egg white veggie scramble', qty: 2, note: 'extra avocado' }
+        ],
+        'veggie vitality pack': [
+          { name: 'Herb tofu grain bowl', qty: 4, note: 'plant protein' },
+          { name: 'Lentil power salad', qty: 4, note: 'light dressing' }
+        ]
+      };
       const menuBasePriceByGroup = {
         breakfast: 9.25,
         lunch: 12.75,
@@ -1313,6 +1336,7 @@
           <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
           <span class="small menu-line-total">${toMoney((Number(initial.qty || 1) * (normalizeCurrency(initial.basePrice, basePrice) + Number(initial.priceAdjust || 0))))}</span>
           <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
+          <button type="button" class="mini-btn menu-breakdown">Break down combo</button>
           <button type="button" class="mini-btn alt menu-finalize">Add to order</button>
           <button type="button" class="mini-btn menu-stepper-down">-1</button>
           <button type="button" class="mini-btn menu-stepper">+1</button>
@@ -1342,7 +1366,14 @@
             updateSummary();
           }
         });
-        row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', updateSummary));
+        row.querySelector('.menu-breakdown')?.addEventListener('click', () => {
+          const expanded = expandComboRow(row);
+          if (expanded) updateSummary();
+        });
+        row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', () => {
+          syncComboBreakdownAvailability(row);
+          updateSummary();
+        }));
         row.querySelector('.menu-name')?.addEventListener('change', () => {
           const rowItem = readMenuRowItem(row);
           if (!rowItem.name) return;
@@ -1350,9 +1381,56 @@
           row.dataset.itemGroup = inferredGroup;
           const baseInput = row.querySelector('.menu-base-price');
           if (baseInput && !Number(baseInput.value)) baseInput.value = String(getBasePriceForItem({ name: rowItem.name, group: inferredGroup }));
+          syncComboBreakdownAvailability(row);
           updateSummary();
         });
         menuHost.append(row);
+        syncComboBreakdownAvailability(row);
+      }
+
+      function syncComboBreakdownAvailability(row) {
+        const comboBtn = row.querySelector('.menu-breakdown');
+        if (!comboBtn) return;
+        comboBtn.disabled = !getComboBreakdown(readMenuRowItem(row)).length;
+      }
+
+      function getComboBreakdown(item = {}) {
+        const normalizedName = String(item.name || '').trim().toLowerCase();
+        if (!normalizedName) return [];
+        const directMatch = comboBreakdownLibrary[normalizedName];
+        if (Array.isArray(directMatch) && directMatch.length) return directMatch;
+        if (normalizedName.includes('combo') || normalizedName.includes('pack')) {
+          const packageMatch = Object.entries(mealPackageProfiles).find(([, profile]) =>
+            String(profile?.items?.[0]?.name || '').toLowerCase() === normalizedName ||
+            normalizedName.includes(String(profile?.notes || '').toLowerCase())
+          )?.[1];
+          if (Array.isArray(packageMatch?.items) && packageMatch.items.length) return packageMatch.items;
+        }
+        return [];
+      }
+
+      function expandComboRow(row) {
+        const source = readMenuRowItem(row);
+        const parts = getComboBreakdown(source);
+        if (!parts.length) {
+          status.classList.add('error');
+          status.textContent = 'No combo breakdown profile found for this row.';
+          return false;
+        }
+        const multiplier = Math.max(1, Number(source.qty || 1));
+        parts.forEach((part) => {
+          addMenuItemRow({
+            name: part.name,
+            qty: Math.max(1, Number(part.qty || 1)) * multiplier,
+            note: part.note || `From ${source.name}`,
+            basePrice: getBasePriceForItem({ name: part.name, group: inferGroupFromItemName(part.name) })
+          });
+        });
+        row.remove();
+        if (!menuHost.children.length) addMenuItemRow();
+        status.classList.remove('error');
+        status.textContent = `${source.name} was broken down into ${parts.length} menu item${parts.length === 1 ? '' : 's'}.`;
+        return true;
       }
 
       function readMenuRowItem(row) {
