@@ -461,7 +461,7 @@
               <option value="express">Express ETA (20-35 mins)</option>
               <option value="priority">Priority ETA (fastest available)</option>
             </select>
-            <input id="tip" name="tip" type="number" min="1" max="35" step="1" value="5" placeholder="Tip amount ($1-$35)" />
+            <input id="tip" name="tip" type="number" min="0" step="0.01" value="5" placeholder="Custom tip amount" />
             <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Item budget" />
           </div>
           <textarea id="notes" name="notes" maxlength="450" placeholder="Gate code, call on arrival, handoff instructions, other custom requests"></textarea>
@@ -1588,9 +1588,10 @@
 
       function getNormalizedTip() {
         const rawTip = Number(tip.value || 0);
-        const normalizedTip = Number.isFinite(rawTip) ? Math.min(35, Math.max(1, rawTip)) : 1;
-        if (Number(tip.value) !== normalizedTip) tip.value = String(normalizedTip);
-        return normalizedTip;
+        const normalizedTip = Number.isFinite(rawTip) ? Math.max(0, rawTip) : 0;
+        const roundedTip = Math.round(normalizedTip * 100) / 100;
+        if (Number(tip.value) !== roundedTip) tip.value = String(roundedTip);
+        return roundedTip;
       }
 
       function updateSummary() {
@@ -1687,6 +1688,7 @@
           `Speed: ${request.speed || 'standard'}`,
           `Tip: ${toMoney(Number(request.tip || 0))}`,
           `Budget: ${toMoney(Number(request.budget || 0))}`,
+          `Delivery Total: ${toMoney(Number(request.total || 0))}`,
           `Items: ${itemSummary}`,
           `Receipt Comment: ${request.receiptComment || 'None'}`,
           `Notes: ${request.notes || 'None'}`
@@ -1713,7 +1715,7 @@
         adminOrderReceipts.innerHTML = requests.slice(0, 8).map((request) => {
           const comments = Array.isArray(request.receiptComments) ? request.receiptComments : [];
           const commentHtml = comments.map((comment) => `<div class="receipt-comment-item">${comment.author || 'user'}: ${String(comment.text || '').replaceAll('<', '&lt;')}</div>`).join('');
-          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row receipt-total"><span>Total</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
+          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row"><span>Tip</span><strong>${toMoney(Number(request.tip || 0))}</strong></div><div class="receipt-row receipt-total"><span>Delivery total</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
         }).join('');
       }
 
