@@ -149,6 +149,19 @@
     .admin-option-list input { width:auto; margin-top:3px; }
     .admin-note { margin:0; font-size:12px; color:var(--muted); }
     .daily-lineup { border:1px dashed var(--line); border-radius:10px; padding:10px; font-size:12px; color:var(--muted); }
+    .delivery-scope { display:none; }
+    .delivery-scope.active { display:grid; }
+    .delivery-detail-grid { display:grid; gap:8px; }
+    .delivery-detail-group {
+      display:none;
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:10px;
+      background:#0a1430;
+      gap:8px;
+    }
+    .delivery-detail-group.active { display:grid; }
+    .delivery-detail-title { margin:0; font-size:12px; color:var(--gold); }
 
     @media (max-width: 980px) {
       .layout { grid-template-columns:1fr; }
@@ -213,7 +226,7 @@
           </div>
         </section>
 
-        <section class="section section-shell">
+        <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Custom Meal Packages</p>
           <p class="section-copy">Pick a standard CHAINeS package to auto-load menu items, sides, meats, and notes.</p>
           <div class="row">
@@ -229,21 +242,21 @@
           </div>
         </section>
 
-        <section class="section section-shell">
+        <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Healthy Menus + Pringle Delivery Options</p>
           <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, plus all Pringle variants.</p>
           <div id="daily-lineup" class="daily-lineup" aria-live="polite"></div>
           <div class="quick-grid" id="quick-menu-grid"></div>
         </section>
 
-        <section class="section section-shell">
+        <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Menu & Item Builder</p>
           <p class="section-copy">Add every item the customer wants delivered.</p>
           <div id="menu-items" class="menu-list"></div>
           <button id="add-item" type="button" class="mini-btn">+ Add menu item</button>
         </section>
 
-        <section class="section section-shell">
+        <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Custom Meal Configuration</p>
           <div class="row3">
             <select id="meal-format" name="meal-format">
@@ -285,6 +298,76 @@
             <label class="chip"><input type="radio" name="delivery-type" value="package" />Package Drop</label>
             <label class="chip"><input type="radio" name="delivery-type" value="multi-stop" />Multi-stop</label>
             <label class="chip"><input type="radio" name="delivery-type" value="custom" />Custom concierge</label>
+          </div>
+          <div class="delivery-detail-grid" id="delivery-detail-grid">
+            <article class="delivery-detail-group active" data-delivery-group="meal">
+              <p class="delivery-detail-title">Meals request details</p>
+              <div class="row3">
+                <select name="meal-window">
+                  <option value="">Meal window</option>
+                  <option>Breakfast</option>
+                  <option>Lunch</option>
+                  <option>Dinner</option>
+                  <option>Mixed meal windows</option>
+                </select>
+                <select name="meal-temp">
+                  <option value="">Temperature handling</option>
+                  <option>Hot hold</option>
+                  <option>Cold hold</option>
+                  <option>Mixed hot/cold</option>
+                </select>
+                <input name="meal-servings" maxlength="40" placeholder="Servings requested" />
+              </div>
+            </article>
+            <article class="delivery-detail-group" data-delivery-group="groceries">
+              <p class="delivery-detail-title">Groceries request details</p>
+              <div class="row3">
+                <input name="grocery-store" maxlength="80" placeholder="Preferred store" />
+                <input name="grocery-lists" maxlength="40" placeholder="Number of shopping lists" />
+                <select name="grocery-subs">
+                  <option value="">Substitution policy</option>
+                  <option>Allow substitutions</option>
+                  <option>Contact before substituting</option>
+                  <option>No substitutions</option>
+                </select>
+              </div>
+            </article>
+            <article class="delivery-detail-group" data-delivery-group="package">
+              <p class="delivery-detail-title">Package drop request details</p>
+              <div class="row3">
+                <select name="package-size">
+                  <option value="">Package size</option>
+                  <option>Small envelope</option>
+                  <option>Medium box</option>
+                  <option>Large box</option>
+                  <option>Oversized</option>
+                </select>
+                <input name="package-weight" maxlength="40" placeholder="Estimated weight" />
+                <select name="package-value">
+                  <option value="">Value protection</option>
+                  <option>Standard coverage</option>
+                  <option>Signature required</option>
+                  <option>High-value handling</option>
+                </select>
+              </div>
+            </article>
+            <article class="delivery-detail-group" data-delivery-group="multi-stop">
+              <p class="delivery-detail-title">Multi-stop request details</p>
+              <div class="row3">
+                <input name="multi-stop-count" maxlength="30" placeholder="Number of stops" />
+                <select name="multi-stop-order">
+                  <option value="">Stop order type</option>
+                  <option>Strict route order</option>
+                  <option>Driver optimized</option>
+                  <option>Priority first drop</option>
+                </select>
+                <input name="multi-stop-window" maxlength="60" placeholder="Completion time window" />
+              </div>
+            </article>
+            <article class="delivery-detail-group" data-delivery-group="custom">
+              <p class="delivery-detail-title">Custom concierge request details</p>
+              <textarea name="custom-concierge-brief" maxlength="300" placeholder="Describe custom errands, purchase tasks, and handoff expectations"></textarea>
+            </article>
           </div>
 
           <p class="section-title">Customer Customizations</p>
@@ -448,6 +531,7 @@
       const dailyLineup = document.querySelector('#daily-lineup');
       const menuHost = document.querySelector('#menu-items');
       const addItemBtn = document.querySelector('#add-item');
+      const deliveryDetailGrid = document.querySelector('#delivery-detail-grid');
       const adminControls = document.querySelector('#admin-controls');
       const adminAuthStatus = document.querySelector('#admin-auth-status');
       const adminMenuControls = document.querySelector('#admin-menu-controls');
@@ -790,10 +874,37 @@
         if (input.type === 'radio') {
           event.currentTarget.querySelectorAll('.chip').forEach((chip) => chip.classList.remove('active'));
           input.closest('.chip')?.classList.add('active');
+          updateDeliveryTypeSections();
         } else {
           input.closest('.chip')?.classList.toggle('active', input.checked);
         }
         updateSummary();
+      }
+
+      function getDeliveryType() {
+        return document.querySelector('#delivery-types input[name="delivery-type"]:checked')?.value || 'meal';
+      }
+
+      function updateDeliveryTypeSections() {
+        const deliveryType = getDeliveryType();
+        document.querySelectorAll('.delivery-scope').forEach((section) => {
+          const isMatch = section.classList.contains(`delivery-scope-${deliveryType}`);
+          section.classList.toggle('active', isMatch);
+        });
+        deliveryDetailGrid.querySelectorAll('[data-delivery-group]').forEach((group) => {
+          group.classList.toggle('active', group.dataset.deliveryGroup === deliveryType);
+        });
+      }
+
+      function getDeliveryTypeDetails(data, deliveryType) {
+        const detailByType = {
+          meal: [data.get('meal-window'), data.get('meal-temp'), data.get('meal-servings')],
+          groceries: [data.get('grocery-store'), data.get('grocery-lists'), data.get('grocery-subs')],
+          package: [data.get('package-size'), data.get('package-weight'), data.get('package-value')],
+          'multi-stop': [data.get('multi-stop-count'), data.get('multi-stop-order'), data.get('multi-stop-window')],
+          custom: [data.get('custom-concierge-brief')]
+        };
+        return (detailByType[deliveryType] || []).filter(Boolean).join(' • ') || 'No extra details provided';
       }
 
       function getSelected(selector) {
@@ -848,6 +959,7 @@
       function updateSummary() {
         const data = new FormData(form);
         const deliveryType = data.get('delivery-type') || 'meal';
+        const deliveryTypeDetails = getDeliveryTypeDetails(data, deliveryType);
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
         const menuItems = getMenuItems();
         const speedFee = speedFeeMap[speed.value] || 0;
@@ -878,6 +990,7 @@
           <div class="small"><strong>Linked menu listing:</strong> ${data.get('marketplace-menu') ? 'Marketplace connected' : 'Not linked'}</div>
           <div class="small"><strong>Meal package:</strong> ${data.get('meal-package') || 'Custom build'}</div>
           <div class="small"><strong>Delivery type:</strong> ${deliveryType}</div>
+          <div class="small"><strong>Type details:</strong> ${deliveryTypeDetails}</div>
           <div class="small"><strong>Partner tier:</strong> ${selectedPartner.name}</div>
           <div class="small"><strong>Pricing target:</strong> ${adminConfig.pricing.targetMargin}% margin vs ${toMoney(adminConfig.pricing.competitorFee)} avg competitor fee</div>
           <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
@@ -930,6 +1043,7 @@
             linkedMarketplaceMenu: String(data.get('marketplace-menu') || '').trim(),
             package: String(data.get('meal-package') || '').trim()
           },
+          deliveryTypeDetails: getDeliveryTypeDetails(data, String(data.get('delivery-type') || 'meal')),
           items: menuItems,
           mealProfile: {
             format: String(data.get('meal-format') || '').trim(),
@@ -994,6 +1108,7 @@
       addMenuItemRow({ qty: 1 });
       mountPartners();
       mountQuickMenu();
+      updateDeliveryTypeSections();
       renderDailyLineup();
       updateSummary();
     })();
