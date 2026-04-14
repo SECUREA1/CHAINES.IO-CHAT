@@ -436,7 +436,7 @@
               <option value="express">Express ETA (20-35 mins)</option>
               <option value="priority">Priority ETA (fastest available)</option>
             </select>
-            <input id="tip" name="tip" type="number" min="0" step="1" value="5" placeholder="Tip amount" />
+            <input id="tip" name="tip" type="number" min="1" max="35" step="1" value="5" placeholder="Tip amount ($1-$35)" />
             <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Item budget" />
           </div>
           <textarea id="notes" name="notes" maxlength="450" placeholder="Gate code, call on arrival, handoff instructions, other custom requests"></textarea>
@@ -1312,6 +1312,13 @@
         addItems(pkg.items);
       }
 
+      function getNormalizedTip() {
+        const rawTip = Number(tip.value || 0);
+        const normalizedTip = Number.isFinite(rawTip) ? Math.min(35, Math.max(1, rawTip)) : 1;
+        if (Number(tip.value) !== normalizedTip) tip.value = String(normalizedTip);
+        return normalizedTip;
+      }
+
       function updateSummary() {
         const data = new FormData(form);
         const deliveryType = data.get('delivery-type') || 'meal';
@@ -1322,7 +1329,7 @@
         const addOnFee = selectedPrefs.length * Number(adminConfig.pricing.addonFee || 0);
         const menuAdjustFee = menuItems.reduce((sum, item) => sum + (Number(item.priceAdjust || 0) * Number(item.qty || 1)), 0);
         const partnerFee = selectedPartner.fee || 0;
-        const tipFee = Number(tip.value || 0);
+        const tipFee = getNormalizedTip();
         const budgetFee = Number(budget.value || 0);
         const baseFee = Number(adminConfig.pricing.baseFee || 0);
         const total = baseFee + partnerFee + speedFee + addOnFee + menuAdjustFee + tipFee + budgetFee;
@@ -1425,6 +1432,8 @@
       }
 
       async function bookRequest() {
+        const normalizedTip = getNormalizedTip();
+        updateSummary();
         const data = new FormData(form);
         const required = ['customer-name', 'customer-phone', 'pickup', 'dropoff'];
         const missing = required.find((field) => !String(data.get(field) || '').trim());
@@ -1480,7 +1489,7 @@
           },
           receiptEmail,
           speed: String(data.get('speed') || 'standard'),
-          tip: Number(data.get('tip') || 0),
+          tip: normalizedTip,
           budget: Number(data.get('budget') || 0),
           notes: String(data.get('notes') || '').trim()
         };
@@ -1557,7 +1566,7 @@
           deliveryTypeDetails: 'Live preview',
           partnerTier: selectedPartner,
           speed: speed.value,
-          tip: Number(tip.value || 0),
+          tip: getNormalizedTip(),
           budget: Number(budget.value || 0),
           items: getMenuItems(),
           notes: form.querySelector('#notes').value.trim(),
