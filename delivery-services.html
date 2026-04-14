@@ -45,6 +45,11 @@
       background:#0c1635;
       font-weight:700;
     }
+    .notif-wrap { position:relative; display:inline-block; margin-right:8px; }
+    .notif-btn { border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0c1635; color:var(--text); font-weight:700; cursor:pointer; }
+    .notif-dot { color:#ff9cb8; margin-left:6px; font-size:12px; }
+    .notif-panel { position:absolute; top:40px; right:0; width:min(340px, 90vw); max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:12px; background:#0a1430; padding:8px; z-index:9; display:grid; gap:6px; }
+    .notif-item { border:1px solid var(--line); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
     .headline { margin:0; font-size:27px; }
     .sub { margin:0; color:var(--muted); max-width:920px; }
     .layout { display:grid; grid-template-columns:1.8fr 1fr; gap:12px; }
@@ -195,6 +200,10 @@
           <span>CHAINeS Concierge Delivery</span>
         </div>
         <div>
+          <div class="notif-wrap">
+            <button id="notif-bell" class="notif-btn" type="button">🔔 Notifications <span id="notif-dot" class="notif-dot"></span></button>
+            <div id="notif-panel" class="notif-panel" hidden></div>
+          </div>
           <a class="top-link" href="/marketplace.html">← Marketplace</a>
           <a class="top-link" href="/index.html">Main Feed</a>
         </div>
@@ -685,6 +694,9 @@
       const budget = document.querySelector('#budget');
       const marketplaceService = document.querySelector('#marketplace-service');
       const marketplaceMenu = document.querySelector('#marketplace-menu');
+      const notifBell = document.querySelector('#notif-bell');
+      const notifPanel = document.querySelector('#notif-panel');
+      const notifDot = document.querySelector('#notif-dot');
       const serviceNameInput = document.querySelector('#service-name');
       const serviceCategoryInput = document.querySelector('#service-category');
       const mealPackage = document.querySelector('#meal-package');
@@ -784,6 +796,55 @@
 
       function safeParse(raw, fallback) {
         try { return JSON.parse(raw); } catch { return fallback; }
+      }
+
+      function sanitizeUser(name = '') {
+        return String(name || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24);
+      }
+
+      function activeViewer() {
+        return sanitizeUser(localStorage.getItem('chaines_username') || '');
+      }
+
+      function profileHref(name = '') {
+        return `/profile.html?user=${encodeURIComponent(sanitizeUser(name || ''))}`;
+      }
+
+      async function emitNotification(payload = {}) {
+        try {
+          await fetch('/notifications/emit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch {}
+      }
+
+      function notificationText(n = {}) {
+        const actor = n.data?.from || 'Someone';
+        if (n.type === 'delivery-request') return `${actor} requested delivery from your listing`;
+        if (n.type === 'marketplace-contact') return `${actor} sent you a marketplace contact`;
+        if (n.type === 'marketplace-like') return `${actor} liked your marketplace listing`;
+        if (n.type === 'marketplace-comment') return `${actor} commented on your marketplace listing`;
+        if (n.type === 'dm') return `${actor} sent you a private message`;
+        if (n.type === 'like') return `${actor} liked your post`;
+        if (n.type === 'repost') return `${actor} reposted your post`;
+        return 'New notification';
+      }
+
+      async function loadNotifications() {
+        const viewer = activeViewer();
+        if (!viewer) return;
+        const res = await fetch('/notifications/' + encodeURIComponent(viewer)).catch(() => null);
+        if (!res || !res.ok) return;
+        const data = await res.json().catch(() => []);
+        const unread = data.filter((item) => !item.read).length;
+        notifDot.textContent = unread ? `(${unread})` : '';
+        notifPanel.innerHTML = data.slice(0, 20).map((item) => {
+          const actor = sanitizeUser(item.data?.from || item.data?.with || '');
+          const link = actor ? `<div><a href="${profileHref(actor)}">Open @${actor} profile</a></div>` : '';
+          return `<div class="notif-item">${notificationText(item)}${link}</div>`;
+        }).join('') || '<div class="notif-item">No notifications yet.</div>';
       }
 
       function mergeAdminConfig(rawConfig) {
@@ -1342,6 +1403,18 @@
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
         sendReceiptEmail(request);
+        const linkedService = safeParse(marketplaceService.value, null);
+        const targetUser = sanitizeUser(linkedService?.user || '');
+        const actor = sanitizeUser(localStorage.getItem('chaines_username') || request.customer?.name || '');
+        if (targetUser && actor && targetUser !== actor) {
+          emitNotification({
+            actor,
+            target: targetUser,
+            type: 'delivery-request',
+            messageId: linkedService?.id || request.id,
+            text: request.notes || ''
+          });
+        }
 
         status.classList.remove('error');
         status.textContent = `Request ${request.id} confirmed, saved to CHAINeS delivery queue, and receipt prepared for ${receiptEmail}.`;
@@ -1391,6 +1464,15 @@
       updateDeliveryTypeSections();
       renderDailyLineup();
       updateSummary();
+      notifBell?.addEventListener('click', async () => {
+        const willOpen = notifPanel.hidden;
+        notifPanel.hidden = !willOpen;
+        if (willOpen) {
+          await loadNotifications();
+          await fetch('/notifications/' + encodeURIComponent(activeViewer()) + '/read', { method: 'POST' }).catch(() => {});
+        }
+      });
+      loadNotifications();
     })();
   </script>
 </body>

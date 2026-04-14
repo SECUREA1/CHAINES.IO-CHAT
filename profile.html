@@ -814,6 +814,14 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         li.textContent = (n.data.from || 'Someone') + ' liked your dating profile';
       } else if(n.type === 'dating-match'){
         li.textContent = '💘 You matched with ' + (n.data.with || 'someone');
+      } else if(n.type === 'marketplace-like'){
+        li.textContent = (n.data.from || 'Someone') + ' liked your marketplace listing';
+      } else if(n.type === 'marketplace-comment'){
+        li.textContent = (n.data.from || 'Someone') + ' commented on your marketplace listing';
+      } else if(n.type === 'marketplace-contact'){
+        li.textContent = (n.data.from || 'Someone') + ' sent you a marketplace contact message';
+      } else if(n.type === 'delivery-request'){
+        li.textContent = (n.data.from || 'Someone') + ' sent you a delivery request from marketplace';
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
       }

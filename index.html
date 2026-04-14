@@ -391,6 +391,25 @@
     #invite-cc button + button { border-left:1px solid var(--lining); }
     #profile-link { display:inline-flex; align-items:center; gap:4px; }
     #profile-link img { width:24px; height:24px; border-radius:50%; }
+    .footer-notif-wrap { position:relative; display:inline-flex; }
+    #notif-bell { min-width:42px; }
+    #notif-dot { color:#ff9cb8; font-size:12px; margin-left:4px; }
+    #notif-panel {
+      position:absolute;
+      right:0;
+      bottom:42px;
+      width:min(340px, 90vw);
+      max-height:320px;
+      overflow:auto;
+      border:1px solid var(--lining);
+      border-radius:12px;
+      background: color-mix(in oklab, var(--panel), transparent 8%);
+      padding:8px;
+      display:grid;
+      gap:6px;
+      z-index:30;
+    }
+    .notif-item { border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
     .verified-badge {
       display:inline-flex;
       align-items:center;
@@ -2023,6 +2042,10 @@ body.streams-flex-fit #video-container[hidden] {
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
+        <span class="footer-notif-wrap">
+          <button class="chip" id="notif-bell" title="Notifications" aria-label="Notifications">🔔<span id="notif-dot"></span></button>
+          <div id="notif-panel" hidden></div>
+        </span>
         <a id="profile-link" class="chip" href="/profile.html"><img id="profile-pic" src="static/user.svg" alt="Profile" hidden><span id="profile-name">Profile</span><span id="profile-verified-badge" class="verified-badge" hidden aria-label="Validated account"></span></a>
         <a id="market-page-btn" class="chip footer-market-btn" href="/marketplace.html" title="Open CHAINeS Explorer" aria-label="Open CHAINeS Explorer"><img src="static/marketplace.svg" alt="" aria-hidden="true" /></a>
       </div>
@@ -2157,10 +2180,14 @@ body.streams-flex-fit #video-container[hidden] {
     const cmdBtn = el('#command-btn');
     const composerActionBoard = el('#composer-action-board');
     const messageBtn = el('#message-btn');
+    const notifBell = el('#notif-bell');
+    const notifPanel = el('#notif-panel');
+    const notifDot = el('#notif-dot');
     const composerMinimizeBtn = el('#composer-minimize');
     const composerCloseBtn = el('#composer-close');
     const isMobileViewport = () => window.matchMedia('(max-width: 600px)').matches;
     let composerOpenedOnce = false;
+    let notifPollTimer = null;
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
@@ -2323,6 +2350,14 @@ body.streams-flex-fit #video-container[hidden] {
         openComposer();
       } else {
         form.hidden = true;
+      }
+    });
+    notifBell?.addEventListener('click', async () => {
+      const willOpen = notifPanel.hidden;
+      notifPanel.hidden = !willOpen;
+      if(willOpen){
+        await loadNotifications();
+        await fetch('/notifications/' + encodeURIComponent(store.user || '') + '/read', { method:'POST' }).catch(() => {});
       }
     });
     composerMinimizeBtn?.addEventListener('click', () => {
@@ -4643,6 +4678,9 @@ body.streams-flex-fit #video-container[hidden] {
       const badgeText = record && record.badge ? ` (${record.badge})` : '';
       systemNote(`You are signed in as @${store.user}${isUserVerified(store.user) ? ` ✅ validated${badgeText}` : ''}.`);
       setupPush();
+      loadNotifications();
+      if(notifPollTimer) clearInterval(notifPollTimer);
+      notifPollTimer = setInterval(() => { loadNotifications(); }, 30000);
     }
 
     async function setupPush(){
@@ -4678,6 +4716,37 @@ body.streams-flex-fit #video-container[hidden] {
         outputArray[i] = rawData.charCodeAt(i);
       }
       return outputArray;
+    }
+
+    function notificationText(n = {}){
+      const actor = n.data?.from || 'Someone';
+      if(n.type === 'like') return `${actor} liked your post`;
+      if(n.type === 'repost') return `${actor} reposted your post`;
+      if(n.type === 'dm') return `${actor} sent you a private message`;
+      if(n.type === 'follow') return `${actor} followed you`;
+      if(n.type === 'marketplace-like') return `${actor} liked your marketplace listing`;
+      if(n.type === 'marketplace-comment') return `${actor} commented on your marketplace listing`;
+      if(n.type === 'marketplace-contact') return `${actor} sent you a marketplace contact`;
+      if(n.type === 'delivery-request') return `${actor} requested delivery from your listing`;
+      if(n.type === 'dating-like') return `${actor} liked your dating profile`;
+      if(n.type === 'dating-match') return `💘 You matched with ${n.data?.with || 'someone'}`;
+      return 'New notification';
+    }
+
+    async function loadNotifications(){
+      if(!store.user || !notifPanel) return;
+      try{
+        const res = await fetch('/notifications/' + encodeURIComponent(store.user));
+        if(!res.ok) return;
+        const data = await res.json().catch(()=>[]);
+        const unread = data.filter(item => !item.read).length;
+        if(notifDot) notifDot.textContent = unread ? `(${unread})` : '';
+        notifPanel.innerHTML = data.slice(0, 20).map((item) => {
+          const actor = (item.data?.from || item.data?.with || '').toString().replace(/[^a-zA-Z0-9_.-]/g,'').slice(0,24);
+          const link = actor ? `<div><a href="/profile.html?user=${encodeURIComponent(actor)}">Open @${actor} profile</a></div>` : '';
+          return `<div class="notif-item">${notificationText(item)}${link}</div>`;
+        }).join('') || '<div class="notif-item">No notifications yet.</div>';
+      } catch {}
     }
 
     async function doLogin(prevalidated = undefined){

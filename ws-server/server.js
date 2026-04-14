@@ -236,6 +236,18 @@ function sendPush(username, title, body, opts = {}) {
   }
 }
 
+function addUserNotification(username = "", type = "", data = {}, pushTitle = "", pushBody = "") {
+  const target = sanitizeUsername(username);
+  if (!target || !type) return false;
+  db.prepare(
+    "INSERT INTO notifications (username, type, data) VALUES (?, ?, ?)"
+  ).run(target, String(type).slice(0, 48), JSON.stringify(data || {}));
+  if (pushTitle && pushBody) {
+    sendPush(target, pushTitle, pushBody);
+  }
+  return true;
+}
+
 function sanitizeUsername(name = "") {
   return String(name).replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24);
 }
@@ -989,6 +1001,32 @@ app.post("/dating/interactions/toggle-like", (req, res) => {
     likedUsers: likedRows.map((row) => row.liked),
     matchedUsers: [...new Set(matchRows)],
   });
+});
+
+app.post("/notifications/emit", (req, res) => {
+  const actor = sanitizeUsername(req.body?.actor || "");
+  const target = sanitizeUsername(req.body?.target || "");
+  const type = String(req.body?.type || "").trim().toLowerCase();
+  const messageId = String(req.body?.messageId || "").trim().slice(0, 64);
+  const allowedTypes = new Set(["marketplace-like", "marketplace-comment", "marketplace-contact", "delivery-request"]);
+  if (!actor || !target || !type || actor === target || !allowedTypes.has(type)) {
+    res.status(400).json({ error: "Invalid notification payload" });
+    return;
+  }
+  const bodyMap = {
+    "marketplace-like": `${actor} liked your marketplace listing`,
+    "marketplace-comment": `${actor} commented on your marketplace listing`,
+    "marketplace-contact": `${actor} sent you a marketplace contact message`,
+    "delivery-request": `${actor} sent a delivery request linked to your listing`,
+  };
+  addUserNotification(
+    target,
+    type,
+    { from: actor, messageId, text: String(req.body?.text || "").trim().slice(0, 280) },
+    "CHAINeS Notification",
+    bodyMap[type]
+  );
+  res.json({ success: true });
 });
 
 app.get("/notifications/:username", (req, res) => {
