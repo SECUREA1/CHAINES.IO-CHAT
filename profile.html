@@ -108,6 +108,17 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   border-radius:999px;
   padding:4px 8px;
 }
+.delivery-window{
+  margin-top:14px;
+  padding:12px;
+  border:1px solid var(--lining);
+  border-radius:12px;
+  background:color-mix(in oklab, var(--panel), transparent 25%);
+  box-shadow:var(--shadow);
+}
+.delivery-window__actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
+.delivery-window__receipt{padding:8px;border:1px solid var(--lining);border-radius:10px;margin:8px 0;background:rgba(2,6,23,0.25);}
+.delivery-window__meta{font-size:12px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -159,6 +170,14 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   <h3 class="section-title">Profile Feed</h3>
   <ul id="p-feed" class="posts"></ul>
+  <section id="delivery-window" class="delivery-window" hidden>
+    <h3 class="section-title" style="margin-top:0;">Delivery Window</h3>
+    <p class="delivery-window__meta">Receipt feed for your delivery orders and support shortcuts.</p>
+    <div class="delivery-window__actions">
+      <button id="delivery-help-btn" class="follow-btn" type="button">Help (Message Admin)</button>
+    </div>
+    <div id="delivery-receipts"></div>
+  </section>
 
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
@@ -197,6 +216,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
   const messageBtn = document.getElementById('message-btn');
+  const deliveryWindow = document.getElementById('delivery-window');
+  const deliveryReceipts = document.getElementById('delivery-receipts');
+  const deliveryHelpBtn = document.getElementById('delivery-help-btn');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -207,6 +229,42 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     polygon: { currency: 'MATIC', label: 'Polygon' },
     solana: { currency: 'SOL', label: 'Solana' }
   };
+  const DELIVERY_REQUESTS_KEY = 'chaines_delivery_requests';
+
+  function safeParse(raw, fallback){
+    try { return JSON.parse(raw); } catch { return fallback; }
+  }
+
+  function renderDeliveryWindow(username = ''){
+    if(!username){
+      deliveryWindow.hidden = true;
+      return;
+    }
+    const receipts = safeParse(localStorage.getItem(DELIVERY_REQUESTS_KEY) || '[]', [])
+      .filter((record) => {
+        if(!(record && typeof record === 'object')) return false;
+        const requester = String(record.requesterUsername || record.customer?.name || '').trim().toLowerCase();
+        return requester && requester === String(username).trim().toLowerCase();
+      })
+      .slice(0, 20);
+    deliveryReceipts.innerHTML = receipts.length
+      ? receipts.map((record) => {
+        const itemSummary = Array.isArray(record.items) && record.items.length
+          ? record.items.slice(0, 3).map((item) => `${item.qty || 1}x ${item.name || 'Item'}`).join(', ')
+          : 'No items listed';
+        return `<article class="delivery-window__receipt">
+          <strong>${record.id || 'Delivery receipt'}</strong>
+          <div class="delivery-window__meta">${new Date(record.createdAt || Date.now()).toLocaleString()}</div>
+          <div class="delivery-window__meta">${record.route?.pickup || 'Pickup TBD'} → ${record.route?.dropoff || 'Dropoff TBD'}</div>
+          <div class="delivery-window__meta">Items: ${itemSummary}</div>
+        </article>`;
+      }).join('')
+      : '<div class="delivery-window__meta">No delivery receipts yet.</div>';
+    deliveryWindow.hidden = false;
+    deliveryHelpBtn.onclick = () => {
+      window.location.href = '/private-chat.html?user=admin';
+    };
+  }
 
   function verifiedUsers(){
     try{
@@ -744,6 +802,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.onclick = () => {
         window.location.href = '/private-chat.html?user=' + encodeURIComponent(currentUser);
       };
+      deliveryWindow.hidden = true;
     } else if(!storeUser && currentUser){
       followBtn.style.display = '';
       followBtn.textContent = 'Log in to Follow';
@@ -751,6 +810,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.hidden = false;
       messageBtn.textContent = 'Log in to Chat';
       messageBtn.onclick = () => alert('Please log in to send encrypted private messages.');
+      deliveryWindow.hidden = true;
     } else {
       followBtn.style.display = '';
       followBtn.textContent = 'This is your profile';
@@ -785,6 +845,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       settingsSection.hidden = false;
       loadSettings();
       loadNotifs();
+      renderDeliveryWindow(storeUser);
+      if(params.get('delivery') === '1'){
+        setTimeout(() => deliveryWindow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      }
     }
     renderFeed();
   }

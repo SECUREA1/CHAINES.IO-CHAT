@@ -487,6 +487,7 @@
       const requestsKey = 'chaines_delivery_requests';
       const adminConfigKey = 'chaines_delivery_admin_config';
       const receiptEmail = 'chadslondonrentals@gmail.com';
+      const adminSupportUsername = 'admin';
       const adminCredentials = { username: 'admin', password: 'giraff' };
       const optionLibrary = {
         breakfast: [
@@ -1409,14 +1410,15 @@
           notes: String(data.get('notes') || '').trim()
         };
 
+        const actor = sanitizeUser(localStorage.getItem('chaines_username') || request.customer?.name || '');
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
-        request.assignedAccount = 'admin';
+        request.assignedAccount = adminSupportUsername;
+        request.requesterUsername = actor || sanitizeUser(request.customer?.name || '');
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
         sendReceiptEmail(request);
         const linkedService = safeParse(marketplaceService.value, null);
         const targetUser = sanitizeUser(linkedService?.user || '');
-        const actor = sanitizeUser(localStorage.getItem('chaines_username') || request.customer?.name || '');
         if (targetUser && actor && targetUser !== actor) {
           emitNotification({
             actor,
@@ -1441,7 +1443,11 @@
         }
 
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}.`;
+        const profileUser = sanitizeUser(localStorage.getItem('chaines_username') || actor || '');
+        if (profileUser) {
+          window.open(`/profile.html?user=${encodeURIComponent(profileUser)}&delivery=1`, '_blank', 'noopener');
+        }
       }
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
