@@ -824,6 +824,16 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         li.textContent = (n.data.from || 'Someone') + ' sent you a delivery request from marketplace';
       } else if(n.type === 'self-destruct'){
         li.textContent = 'Your post #' + n.data.messageId + ' self-destructed';
+      } else if(n.type === 'delivery-order'){
+        const deliveryId = n.data.id || 'delivery';
+        const customerName = n.data.customer?.name || 'Customer';
+        const route = `${n.data.route?.pickup || 'Pickup TBD'} → ${n.data.route?.dropoff || 'Dropoff TBD'}`;
+        const itemPreview = Array.isArray(n.data.items) ? n.data.items.slice(0, 3).map((item) => `${item.qty || 1}x ${item.name || 'Item'}`).join(', ') : '';
+        li.textContent = `Delivery order ${deliveryId} from ${customerName}`;
+        li.style.cursor = 'pointer';
+        li.onclick = () => {
+          window.alert(`Delivery ${deliveryId}\nCustomer: ${customerName}\nRoute: ${route}\nItems: ${itemPreview || 'No items listed'}`);
+        };
       }
       notifsEl.appendChild(li);
     });

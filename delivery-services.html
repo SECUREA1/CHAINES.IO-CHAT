@@ -482,7 +482,7 @@
       const requestsKey = 'chaines_delivery_requests';
       const adminConfigKey = 'chaines_delivery_admin_config';
       const receiptEmail = 'chadslondonrentals@gmail.com';
-      const adminCredentials = { username: 'babe', password: 'giraff' };
+      const adminCredentials = { username: 'admin', password: 'giraff' };
       const optionLibrary = {
         breakfast: [
           { name: 'Greek yogurt parfait', note: 'berries + chia' },
@@ -1339,7 +1339,7 @@
         mailLink.remove();
       }
 
-      function bookRequest() {
+      async function bookRequest() {
         const data = new FormData(form);
         const required = ['customer-name', 'customer-phone', 'pickup', 'dropoff'];
         const missing = required.find((field) => !String(data.get(field) || '').trim());
@@ -1400,6 +1400,7 @@
         };
 
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
+        request.assignedAccount = 'admin';
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
         sendReceiptEmail(request);
@@ -1416,8 +1417,21 @@
           });
         }
 
+        try {
+          const relay = await fetch('/delivery-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+          });
+          if (!relay.ok) throw new Error(`Delivery relay failed (${relay.status})`);
+        } catch (error) {
+          status.classList.add('error');
+          status.textContent = `Request ${request.id} saved locally, but routing to @admin failed. Please retry.`;
+          return;
+        }
+
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed, saved to CHAINeS delivery queue, and receipt prepared for ${receiptEmail}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}.`;
       }
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
