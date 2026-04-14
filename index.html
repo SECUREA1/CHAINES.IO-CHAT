@@ -1704,8 +1704,15 @@ body.streams-flex-fit #video-container[hidden] {
       }
       footer { padding:0 12px 10px; gap:6px; }
       footer .status.bottom {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap:6px;
+      }
+      footer .status.bottom .chip {
+        gap:4px;
+        padding:6px;
+      }
+      #broadcast-btn .label {
+        display:none;
       }
       footer .footer-copyright {
         grid-column: 1 / -1;
