@@ -409,6 +409,7 @@
       gap:6px;
       z-index:30;
     }
+    #notif-panel[hidden] { display:none !important; }
     .notif-item { border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
     .verified-badge {
       display:inline-flex;
@@ -2352,6 +2353,7 @@ body.streams-flex-fit #video-container[hidden] {
         form.hidden = true;
       }
     });
+    notifPanel.hidden = true;
     notifBell?.addEventListener('click', async () => {
       const willOpen = notifPanel.hidden;
       notifPanel.hidden = !willOpen;
@@ -2359,6 +2361,14 @@ body.streams-flex-fit #video-container[hidden] {
         await loadNotifications();
         await fetch('/notifications/' + encodeURIComponent(store.user || '') + '/read', { method:'POST' }).catch(() => {});
       }
+    });
+    document.addEventListener('click', (event) => {
+      if(notifPanel.hidden) return;
+      if(notifBell?.contains(event.target) || notifPanel.contains(event.target)) return;
+      notifPanel.hidden = true;
+    });
+    document.addEventListener('keydown', (event) => {
+      if(event.key === 'Escape') notifPanel.hidden = true;
     });
     composerMinimizeBtn?.addEventListener('click', () => {
       const isMinimized = form.classList.toggle('composer--minimized');

@@ -20,6 +20,7 @@
     .notif-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 12px; cursor:pointer; font-weight:700; }
     .notif-dot { color:#ff9cb8; margin-left:6px; font-size:12px; }
     .notif-panel { position:absolute; top:42px; right:0; width:min(340px, 90vw); max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:12px; background:#0d1733; padding:8px; z-index:5; display:grid; gap:6px; }
+    .notif-panel[hidden] { display:none !important; }
     .notif-item { border:1px solid var(--line); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
     .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
     .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
@@ -780,6 +781,7 @@
       });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
       postUser.addEventListener('input', () => renderInbox());
+      notifPanel.hidden = true;
       notifBell?.addEventListener('click', async () => {
         const willOpen = notifPanel.hidden;
         notifPanel.hidden = !willOpen;
@@ -787,6 +789,14 @@
           await loadNotifications();
           await fetch('/notifications/' + encodeURIComponent(activeViewer()) + '/read', { method: 'POST' }).catch(() => {});
         }
+      });
+      document.addEventListener('click', (event) => {
+        if (notifPanel.hidden) return;
+        if (notifBell?.contains(event.target) || notifPanel.contains(event.target)) return;
+        notifPanel.hidden = true;
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') notifPanel.hidden = true;
       });
       syncPostFieldsByCategory();
       postForm.addEventListener('submit', postListing);
