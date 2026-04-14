@@ -64,6 +64,17 @@
     }
     .row { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
     .row3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+    .field-stack { display:grid; gap:6px; }
+    .field-label { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+    .tip-toggle-control { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#0a1430; }
+    .tip-icon { display:inline-flex; width:16px; height:16px; color:var(--gold); }
+    .tip-icon svg { width:100%; height:100%; }
+    .full-menu-panel { border:1px dashed var(--line); border-radius:10px; padding:10px; background:#0a1430; display:grid; gap:10px; }
+    .full-menu-panel[hidden] { display:none !important; }
+    .full-menu-columns { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:8px; }
+    .full-menu-column { border:1px solid color-mix(in oklab, var(--line), transparent 20%); border-radius:10px; padding:8px; display:grid; gap:5px; }
+    .full-menu-column h4 { margin:0; color:var(--gold); font-size:13px; }
+    .full-menu-column ul { margin:0; padding-left:16px; display:grid; gap:3px; color:var(--muted); font-size:12px; }
     input, select, textarea, button {
       width:100%;
       border-radius:10px;
@@ -269,7 +280,7 @@
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Custom Meal Packages</p>
-          <p class="section-copy">Pick a standard CHAINeS package to auto-load menu items, sides, meats, and notes.</p>
+          <p class="section-copy">Pick a standard CHAINeS package to auto-load menu items, sides, meats, and notes with expanded classic meal plan options.</p>
           <div class="row">
             <select id="meal-package" name="meal-package">
               <option value="">Choose custom meal package</option>
@@ -278,6 +289,10 @@
               <option value="protein-plus">Protein Plus Pack</option>
               <option value="keto-balance">Keto Balance Pack</option>
               <option value="veggie-vitality">Veggie Vitality Pack</option>
+              <option value="classic-burger-combo">Classic Burger Combo Pack</option>
+              <option value="breakfast-favorites">Breakfast Favorites Pack</option>
+              <option value="comfort-dinner">Comfort Dinner Pack</option>
+              <option value="dessert-party">Dessert Party Pack</option>
             </select>
             <button id="apply-package" type="button" class="mini-btn alt">Apply Package to Cart</button>
           </div>
@@ -287,6 +302,11 @@
           <p class="section-title">Healthy Menus + Drink + Pringle Delivery Options</p>
           <p class="section-copy">Quick-add options for breakfast, lunch, dinner, dessert, drink menus (milkshakes, slurpies, smoothies, coffee, tea, soda, juice, and more), plus all Pringle variants.</p>
           <div id="daily-lineup" class="daily-lineup" aria-live="polite"></div>
+          <button id="toggle-full-menu" type="button" class="mini-btn alt">View Entire Menu (Daily specials only available)</button>
+          <article id="full-menu-panel" class="full-menu-panel" hidden>
+            <p class="section-copy">Full menu is displayed for planning. Orders can only include items enabled in today's specials.</p>
+            <div id="full-menu-columns" class="full-menu-columns"></div>
+          </article>
           <div class="quick-grid" id="quick-menu-grid"></div>
           <div class="quick-controls">
             <div class="row3">
@@ -465,8 +485,22 @@
               <option value="express">Express ETA (20-35 mins)</option>
               <option value="priority">Priority ETA (fastest available)</option>
             </select>
-            <input id="tip" name="tip" type="number" min="0" step="0.01" value="5" placeholder="Custom tip amount" />
-            <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Item budget" />
+            <div class="field-stack">
+              <label class="field-label" for="tip">
+                <span class="tip-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l2.9 5.88 6.5.95-4.7 4.58 1.1 6.47L12 16.9 6.2 19.88l1.1-6.47L2.6 8.83l6.5-.95L12 2z" stroke="currentColor" stroke-width="1.4" />
+                  </svg>
+                </span>
+                Driver tip (optional)
+              </label>
+              <label class="tip-toggle-control"><span>Include tip in total</span><input id="tip-toggle" type="checkbox" checked /></label>
+              <input id="tip" name="tip" type="number" min="0" step="0.01" value="5" placeholder="Tip amount" />
+            </div>
+            <div class="field-stack">
+              <label class="field-label" for="budget">Purchase budget cap (items only)</label>
+              <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Budget cap amount" />
+            </div>
           </div>
           <textarea id="notes" name="notes" maxlength="450" placeholder="Gate code, call on arrival, handoff instructions, other custom requests"></textarea>
         </section>
@@ -484,7 +518,7 @@
         <div class="cost-line"><span>Items subtotal</span><span id="items-subtotal-fee">$0.00</span></div>
         <div class="cost-line"><span>Menu price adjustments</span><span id="menu-adjust-fee">$0.00</span></div>
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
-        <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
+        <div class="cost-line"><span>Purchase budget cap</span><span id="budget-fee">$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
         <label class="receipt-toggle"><input id="email-receipt-to-customer" type="checkbox" checked /> Send customer receipt email from server during checkout</label>
         <textarea id="receipt-comment" maxlength="260" placeholder="Receipt communication comment for admin + customer (order context, substitutions, handoff notes)"></textarea>
@@ -567,7 +601,12 @@
           { name: 'Breakfast quinoa salad', note: 'egg + herbs' },
           { name: 'Strawberry waffle wedges', note: 'whole wheat batter' },
           { name: 'Veggie omelet roll-up', note: 'mushroom + spinach' },
-          { name: 'Apple cinnamon protein muffin', note: 'single-serve' }
+          { name: 'Apple cinnamon protein muffin', note: 'single-serve' },
+          { name: 'Classic buttermilk pancakes', note: 'maple syrup + butter' },
+          { name: 'Belgian waffle plate', note: 'berries + whipped cream' },
+          { name: 'Biscuits and sausage gravy', note: 'southern style' },
+          { name: 'Hash brown breakfast platter', note: 'eggs + toast' },
+          { name: 'French toast combo', note: 'eggs + breakfast potatoes' }
         ],
         lunch: [
           { name: 'Grilled chicken quinoa bowl', note: 'kale + vinaigrette' },
@@ -594,7 +633,12 @@
           { name: 'Asian sesame tuna salad', note: 'cabbage crunch' },
           { name: 'Italian deli protein box', note: 'lean meats + olives' },
           { name: 'Greek chicken pita', note: 'tzatziki + greens' },
-          { name: 'Lemon herb cod plate', note: 'wild rice + beans' }
+          { name: 'Lemon herb cod plate', note: 'wild rice + beans' },
+          { name: 'Classic cheeseburger', note: 'lettuce + tomato + onion' },
+          { name: 'Crispy chicken burger', note: 'pickle + mayo' },
+          { name: 'Loaded fries basket', note: 'cheddar + scallions' },
+          { name: 'Bacon burger combo', note: 'fries + drink' },
+          { name: 'Patty melt sandwich', note: 'grilled onions + rye' }
         ],
         dinner: [
           { name: 'Baked salmon plate', note: 'brown rice + broccoli' },
@@ -621,7 +665,12 @@
           { name: 'Roasted cod and asparagus', note: 'lemon herb oil' },
           { name: 'BBQ tofu sheet pan', note: 'cauliflower + squash' },
           { name: 'Chicken parmesan bake', note: 'light mozzarella' },
-          { name: 'Korean beef bowl', note: 'kimchi + rice' }
+          { name: 'Korean beef bowl', note: 'kimchi + rice' },
+          { name: 'Classic burger steak dinner', note: 'gravy + mashed potatoes' },
+          { name: 'Southern fried chicken dinner', note: 'coleslaw + fries' },
+          { name: 'BBQ ribs platter', note: 'beans + cornbread' },
+          { name: 'Homestyle meatloaf plate', note: 'green beans + mash' },
+          { name: 'Chicken fried steak plate', note: 'country gravy' }
         ],
         dessert: [
           { name: 'Fresh fruit cup', note: 'seasonal mix' },
@@ -648,7 +697,12 @@
           { name: 'Pumpkin spice mousse', note: 'seasonal favorite' },
           { name: 'Chocolate banana mini loaf', note: 'slice pack' },
           { name: 'Vanilla bean rice pudding', note: 'creamy cup' },
-          { name: 'Lime coconut bar', note: 'zesty finish' }
+          { name: 'Lime coconut bar', note: 'zesty finish' },
+          { name: 'Cherry pie sliders', note: 'mini hand pies' },
+          { name: 'Classic apple pie slice', note: 'cinnamon filling' },
+          { name: 'Brownie sundae cup', note: 'fudge + vanilla cream' },
+          { name: 'Chocolate chip cookie skillet', note: 'warm + gooey' },
+          { name: 'Banana pudding parfait', note: 'vanilla wafers' }
         ],
         pringles: [
           { name: 'Pringles Original', note: 'full-size can' },
@@ -758,6 +812,10 @@
       const speed = document.querySelector('#speed');
       const tip = document.querySelector('#tip');
       const budget = document.querySelector('#budget');
+      const tipToggle = document.querySelector('#tip-toggle');
+      const fullMenuToggleBtn = document.querySelector('#toggle-full-menu');
+      const fullMenuPanel = document.querySelector('#full-menu-panel');
+      const fullMenuColumns = document.querySelector('#full-menu-columns');
       const marketplaceService = document.querySelector('#marketplace-service');
       const marketplaceMenu = document.querySelector('#marketplace-menu');
       const notifBell = document.querySelector('#notif-bell');
@@ -864,6 +922,54 @@
             { name: 'Lentil power salad', qty: 4, note: 'light dressing' }
           ],
           notes: 'Plant-based package with nutrient-dense sides.'
+        },
+        'classic-burger-combo': {
+          format: 'family',
+          protein: 'Mixed',
+          spiceLevel: 'Medium',
+          sides: 'Fries, onion rings, house pickles',
+          items: [
+            { name: 'Classic cheeseburger', qty: 4, note: 'family burger tray' },
+            { name: 'Crispy chicken burger', qty: 2, note: 'crispy style' },
+            { name: 'Loaded fries basket', qty: 2, note: 'shareable sides' }
+          ],
+          notes: 'Classic grill-style burger combo with shareable sides.'
+        },
+        'breakfast-favorites': {
+          format: 'meal-prep',
+          protein: 'Mixed',
+          spiceLevel: 'Mild',
+          sides: 'Hash browns, fruit cup, toast',
+          items: [
+            { name: 'Classic buttermilk pancakes', qty: 3, note: 'breakfast staple' },
+            { name: 'French toast combo', qty: 3, note: 'traditional breakfast' },
+            { name: 'Hash brown breakfast platter', qty: 2, note: 'extra eggs' }
+          ],
+          notes: 'Traditional breakfast meals with familiar diner options.'
+        },
+        'comfort-dinner': {
+          format: 'family',
+          protein: 'Chicken',
+          spiceLevel: 'Medium',
+          sides: 'Mashed potatoes, gravy, seasonal vegetables',
+          items: [
+            { name: 'Southern fried chicken dinner', qty: 2, note: 'family dinner' },
+            { name: 'Homestyle meatloaf plate', qty: 2, note: 'comfort classic' },
+            { name: 'Chicken fried steak plate', qty: 2, note: 'country style' }
+          ],
+          notes: 'Hearty comfort dinner plan with classic mains and sides.'
+        },
+        'dessert-party': {
+          format: 'party',
+          protein: 'Mixed',
+          spiceLevel: 'Mild',
+          sides: 'Whipped cream, caramel, chocolate drizzle',
+          items: [
+            { name: 'Cherry pie sliders', qty: 6, note: 'party minis' },
+            { name: 'Classic apple pie slice', qty: 6, note: 'dessert classic' },
+            { name: 'Brownie sundae cup', qty: 6, note: 'chilled dessert set' }
+          ],
+          notes: 'Party-ready dessert bundle with classic pie and brownie favorites.'
         }
       };
       const standardizedGroceries = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Chicken breast', 'Ground turkey', 'Rice', 'Pasta', 'Olive oil', 'Spinach', 'Tomatoes', 'Cheddar cheese'];
@@ -1624,11 +1730,34 @@
       }
 
       function getNormalizedTip() {
+        if (!tipToggle?.checked) return 0;
         const rawTip = Number(tip.value || 0);
         const normalizedTip = Number.isFinite(rawTip) ? Math.max(0, rawTip) : 0;
         const roundedTip = Math.round(normalizedTip * 100) / 100;
         if (Number(tip.value) !== roundedTip) tip.value = String(roundedTip);
         return roundedTip;
+      }
+
+      function setTipToggleState() {
+        if (!tipToggle) return;
+        tip.disabled = !tipToggle.checked;
+      }
+
+      function renderFullMenuPanel() {
+        if (!fullMenuColumns) return;
+        const sections = [
+          ['breakfast', 'Breakfast'],
+          ['lunch', 'Lunch'],
+          ['dinner', 'Dinner'],
+          ['dessert', 'Dessert'],
+          ['pringles', 'Snacks'],
+          ['drinks', 'Drinks']
+        ];
+        fullMenuColumns.innerHTML = sections.map(([group, label]) => {
+          const items = optionLibrary[group] || [];
+          const list = items.map((item) => `<li>${item.name}</li>`).join('');
+          return `<section class="full-menu-column"><h4>${label}</h4><ul>${list}</ul></section>`;
+        }).join('');
       }
 
       function updateSummary() {
@@ -1731,7 +1860,7 @@
           `Partner Tier: ${request.partnerTier?.name || ''}`,
           `Speed: ${request.speed || 'standard'}`,
           `Tip: ${toMoney(Number(request.tip || 0))}`,
-          `Budget: ${toMoney(Number(request.budget || 0))}`,
+          `Budget cap: ${toMoney(Number(request.budget || 0))}`,
           `Delivery Total: ${toMoney(Number(request.total || 0))}`,
           `Items: ${itemSummary}`,
           `Receipt Comment: ${request.receiptComment || 'None'}`,
@@ -1955,6 +2084,17 @@
       });
       quickAddItemBtn.addEventListener('click', () => addQuickSelectedItem(false));
       quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
+      tipToggle?.addEventListener('change', () => {
+        setTipToggleState();
+        updateSummary();
+      });
+      fullMenuToggleBtn?.addEventListener('click', () => {
+        const showMenu = fullMenuPanel.hidden;
+        fullMenuPanel.hidden = !showMenu;
+        fullMenuToggleBtn.textContent = showMenu
+          ? 'Hide Entire Menu'
+          : 'View Entire Menu (Daily specials only available)';
+      });
 
       adminConfig = mergeAdminConfig(adminConfig);
       syncQuickMenuFromAdmin();
@@ -1964,6 +2104,8 @@
       renderFinalizedItems();
       mountPartners();
       mountQuickMenu();
+      renderFullMenuPanel();
+      setTipToggleState();
       updateDeliveryTypeSections();
       renderDailyLineup();
       renderAdminOrderReceipts();
