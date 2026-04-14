@@ -3,49 +3,59 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CHAINeS Delivery Services</title>
+  <title>CHAINeS Concierge Delivery</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <style>
     :root {
-      --bg:#050a1f;
-      --panel:#0f1838;
-      --line:#2e457f;
+      --bg:#060b20;
+      --panel:#101a3c;
+      --line:#35508d;
       --text:#f7f9ff;
-      --muted:#a5b4d6;
-      --brand:#3a72f8;
-      --brand-2:#173d99;
+      --muted:#aab8dd;
+      --brand:#3b78ff;
+      --brand-2:#1b429f;
       --ok:#86efac;
-      --gold:#f9d17d;
+      --gold:#ffd68b;
+      --warn:#fca5a5;
     }
     * { box-sizing:border-box; }
     body {
       margin:0;
       font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       color:var(--text);
-      background:radial-gradient(1100px 760px at 10% -20%, #203f93 0%, transparent 55%), var(--bg);
+      background:radial-gradient(1200px 800px at 8% -15%, #25459e 0%, transparent 55%), var(--bg);
     }
-    .wrap { width:min(1200px, 100%); margin:0 auto; padding:18px; display:grid; gap:14px; }
+    .wrap { width:min(1240px, 100%); margin:0 auto; padding:18px; display:grid; gap:14px; }
     .panel {
       background:color-mix(in oklab, var(--panel), transparent 12%);
       border:1px solid var(--line);
       border-radius:14px;
-      box-shadow:0 0 20px rgba(14,31,74,.35);
+      box-shadow:0 0 24px rgba(14,31,74,.35);
     }
-    .hero { padding:16px; display:grid; gap:10px; }
-    .top-links { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .hero { padding:18px; display:grid; gap:10px; }
+    .top-links { display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
+    .brand { display:flex; gap:10px; align-items:center; font-weight:800; color:var(--gold); }
+    .brand img { width:28px; height:28px; }
     .top-link {
       color:var(--gold);
       text-decoration:none;
       border:1px solid var(--line);
       border-radius:999px;
       padding:6px 12px;
-      background:#0b1532;
+      background:#0c1635;
       font-weight:700;
     }
-    .headline { margin:0; font-size:26px; }
-    .sub { margin:0; color:var(--muted); max-width:900px; }
-    .layout { display:grid; grid-template-columns:1.6fr 1fr; gap:12px; }
-    .order-section { padding:14px; display:grid; gap:12px; }
+    .headline { margin:0; font-size:27px; }
+    .sub { margin:0; color:var(--muted); max-width:920px; }
+    .layout { display:grid; grid-template-columns:1.8fr 1fr; gap:12px; }
+    .order-section { padding:14px; display:grid; gap:14px; }
+    .section { display:grid; gap:8px; }
+    .section-shell {
+      border:1px solid color-mix(in oklab, var(--line), transparent 28%);
+      border-radius:12px;
+      padding:12px;
+      background:color-mix(in oklab, #0a1430, transparent 10%);
+    }
     .row { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
     .row3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
     input, select, textarea, button {
@@ -58,7 +68,8 @@
       font:inherit;
     }
     textarea { min-height:90px; resize:vertical; }
-    .section-title { margin:6px 0 2px; font-size:13px; color:var(--gold); text-transform:uppercase; letter-spacing:.02em; }
+    .section-title { margin:0; font-size:13px; color:var(--gold); text-transform:uppercase; letter-spacing:.03em; }
+    .section-copy { margin:0; color:var(--muted); font-size:12px; }
     .chip-grid { display:flex; flex-wrap:wrap; gap:8px; }
     .chip {
       border:1px solid var(--line);
@@ -72,8 +83,22 @@
     }
     .chip input { display:none; }
     .chip.active { border-color:var(--gold); color:var(--gold); }
-    .driver-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
-    .driver-card {
+    .menu-list { display:grid; gap:8px; }
+    .menu-item { display:grid; grid-template-columns:1.3fr .5fr 1fr auto; gap:8px; align-items:center; }
+    .mini-btn {
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#12326f;
+      color:var(--text);
+      padding:8px 10px;
+      cursor:pointer;
+      font-weight:700;
+      width:auto;
+    }
+    .mini-btn.alt { background:#0a1430; }
+    .mini-btn.danger { background:#38122d; border-color:#8b2e59; }
+    .partner-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+    .partner-card {
       border:1px solid var(--line);
       background:#0a1430;
       border-radius:12px;
@@ -82,30 +107,29 @@
       gap:6px;
       cursor:pointer;
     }
-    .driver-card.active { border-color:#7db6ff; box-shadow:0 0 0 1px #7db6ff inset; }
-    .driver-name { margin:0; font-size:14px; }
+    .partner-card.active { border-color:#91c4ff; box-shadow:0 0 0 1px #91c4ff inset; }
+    .partner-name { margin:0; font-size:14px; }
     .small { color:var(--muted); font-size:12px; }
     .summary { padding:14px; display:grid; gap:10px; height:max-content; position:sticky; top:14px; }
     .summary h2 { margin:0; font-size:18px; }
     .cost-line { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
     .cost-line.total { font-size:16px; color:var(--text); font-weight:700; border-top:1px dashed var(--line); padding-top:8px; }
-    .book-btn {
-      cursor:pointer;
-      font-weight:800;
-      background:linear-gradient(180deg, var(--brand), var(--brand-2));
-    }
+    .book-btn { cursor:pointer; font-weight:800; background:linear-gradient(180deg, var(--brand), var(--brand-2)); }
     .status { min-height:1.2em; color:var(--ok); font-size:12px; }
-    .status.error { color:#fda4af; }
+    .status.error { color:var(--warn); }
 
     @media (max-width: 980px) {
       .layout { grid-template-columns:1fr; }
       .summary { position:static; }
-      .driver-grid { grid-template-columns:1fr 1fr; }
+      .partner-grid { grid-template-columns:1fr 1fr; }
+      .menu-item { grid-template-columns:1fr 1fr; }
+      .menu-item .mini-btn { grid-column:1 / -1; }
     }
     @media (max-width: 640px) {
       .wrap { padding:12px; }
       .headline { font-size:22px; }
-      .row, .row3, .driver-grid { grid-template-columns:1fr; }
+      .row, .row3, .partner-grid { grid-template-columns:1fr; }
+      .menu-item { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -113,102 +137,135 @@
   <main class="wrap">
     <section class="panel hero">
       <div class="top-links">
-        <a class="top-link" href="/marketplace.html">← Back to Marketplace</a>
-        <a class="top-link" href="/index.html">Main Feed</a>
+        <div class="brand">
+          <img src="/static/logo.svg" alt="CHAINeS" />
+          <span>CHAINeS Concierge Delivery</span>
+        </div>
+        <div>
+          <a class="top-link" href="/marketplace.html">← Marketplace</a>
+          <a class="top-link" href="/index.html">Main Feed</a>
+        </div>
       </div>
-      <h1 class="headline">Delivery Requests • Uber + Skip Style Ordering</h1>
-      <p class="sub">Build your perfect delivery: meals, groceries, personal package drop-offs, and fully customized requests. Pick your own driver style, route urgency, food preferences, and special handling in one booking flow.</p>
+      <h1 class="headline">Customer-first delivery for services, menus, custom meals, and special requests.</h1>
+      <p class="sub">Create a complete delivery request with your preferred marketplace provider, exact menu items, tailored meal specifications, and handling details. Every request is saved with a booking reference so customers and providers can track fulfillment clearly.</p>
     </section>
 
     <section class="layout">
       <form id="delivery-form" class="panel order-section">
-        <div class="row">
-          <input id="customer-name" type="text" maxlength="60" required placeholder="Your name" />
-          <input id="customer-phone" type="tel" maxlength="30" required placeholder="Phone number" />
-        </div>
+        <section class="section section-shell">
+          <p class="section-title">Customer & Route</p>
+          <div class="row">
+            <input id="customer-name" name="customer-name" type="text" maxlength="60" required placeholder="Full name" />
+            <input id="customer-phone" name="customer-phone" type="tel" maxlength="30" required placeholder="Phone number" />
+          </div>
+          <div class="row">
+            <input id="pickup" name="pickup" type="text" maxlength="120" required placeholder="Pickup address" />
+            <input id="dropoff" name="dropoff" type="text" maxlength="120" required placeholder="Dropoff address" />
+          </div>
+        </section>
 
-        <div class="row">
-          <input id="pickup" type="text" maxlength="120" required placeholder="Pickup location" />
-          <input id="dropoff" type="text" maxlength="120" required placeholder="Dropoff location" />
-        </div>
-
-        <p class="section-title">Delivery Type</p>
-        <div class="chip-grid" id="delivery-types">
-          <label class="chip active"><input type="radio" name="delivery-type" value="meal" checked />Meals</label>
-          <label class="chip"><input type="radio" name="delivery-type" value="groceries" />Groceries</label>
-          <label class="chip"><input type="radio" name="delivery-type" value="package" />Package Drop</label>
-          <label class="chip"><input type="radio" name="delivery-type" value="multi-stop" />Multi-stop Delivery</label>
-          <label class="chip"><input type="radio" name="delivery-type" value="custom" />Custom Concierge</label>
-        </div>
-
-        <p class="section-title">Meal Customizations</p>
-        <div class="row3">
-          <select id="cuisine">
-            <option value="">Favorite cuisine</option>
-            <option>Japanese</option>
-            <option>Mexican</option>
-            <option>Italian</option>
-            <option>Thai</option>
-            <option>Indian</option>
-            <option>Burgers</option>
-            <option>Vegan</option>
+        <section class="section section-shell">
+          <p class="section-title">Marketplace Service Source</p>
+          <p class="section-copy">Select a marketplace service provider, or enter your own service details.</p>
+          <select id="marketplace-service" name="marketplace-service">
+            <option value="">Use custom service details</option>
           </select>
-          <select id="dietary">
-            <option value="">Dietary preference</option>
-            <option>None</option>
-            <option>Halal</option>
-            <option>Kosher</option>
-            <option>Vegan</option>
-            <option>Vegetarian</option>
-            <option>Gluten-free</option>
-          </select>
-          <select id="spice-level">
-            <option value="">Spice level</option>
-            <option>Mild</option>
-            <option>Medium</option>
-            <option>Hot</option>
-            <option>Extra hot</option>
-          </select>
-        </div>
+          <div class="row">
+            <input id="service-name" name="service-name" type="text" maxlength="120" placeholder="Service or restaurant name" />
+            <input id="service-category" name="service-category" type="text" maxlength="80" placeholder="Service category" />
+          </div>
+        </section>
 
-        <p class="section-title">Service Preferences</p>
-        <div class="chip-grid" id="service-preferences">
-          <label class="chip"><input type="checkbox" value="Contactless dropoff" />Contactless dropoff</label>
-          <label class="chip"><input type="checkbox" value="Insulated hot bag" />Insulated hot bag</label>
-          <label class="chip"><input type="checkbox" value="Cold-chain support" />Cold-chain support</label>
-          <label class="chip"><input type="checkbox" value="Photo proof" />Photo proof</label>
-          <label class="chip"><input type="checkbox" value="Fragile handling" />Fragile handling</label>
-          <label class="chip"><input type="checkbox" value="Live text updates" />Live text updates</label>
-          <label class="chip"><input type="checkbox" value="Need help carrying" />Need help carrying</label>
-          <label class="chip"><input type="checkbox" value="Priority dispatch" />Priority dispatch</label>
-        </div>
+        <section class="section section-shell">
+          <p class="section-title">Menu & Item Builder</p>
+          <p class="section-copy">Add every item the customer wants delivered.</p>
+          <div id="menu-items" class="menu-list"></div>
+          <button id="add-item" type="button" class="mini-btn">+ Add menu item</button>
+        </section>
 
-        <p class="section-title">Choose Your Driver</p>
-        <div id="drivers" class="driver-grid"></div>
+        <section class="section section-shell">
+          <p class="section-title">Custom Meal Configuration</p>
+          <div class="row3">
+            <select id="meal-format" name="meal-format">
+              <option value="">Meal format</option>
+              <option value="single">Single serving</option>
+              <option value="family">Family tray</option>
+              <option value="meal-prep">Meal prep pack</option>
+              <option value="party">Party platter</option>
+            </select>
+            <select id="protein" name="protein">
+              <option value="">Protein</option>
+              <option>Chicken</option>
+              <option>Beef</option>
+              <option>Seafood</option>
+              <option>Plant-based</option>
+              <option>Mixed</option>
+            </select>
+            <select id="spice-level" name="spice-level">
+              <option value="">Spice level</option>
+              <option>Mild</option>
+              <option>Medium</option>
+              <option>Hot</option>
+              <option>Extra hot</option>
+            </select>
+          </div>
+          <div class="row3">
+            <input id="sides" name="sides" maxlength="120" placeholder="Sides (e.g. rice, salad)" />
+            <input id="allergens" name="allergens" maxlength="120" placeholder="Allergen exclusions" />
+            <input id="beverage" name="beverage" maxlength="120" placeholder="Beverage options" />
+          </div>
+          <textarea id="custom-meal-notes" name="custom-meal-notes" maxlength="400" placeholder="Meal prep notes, substitutions, packaging format, serving instructions"></textarea>
+        </section>
 
-        <div class="row3">
-          <select id="speed">
-            <option value="standard">Standard ETA (45-60 mins)</option>
-            <option value="express">Express ETA (20-35 mins)</option>
-            <option value="priority">Priority VIP (asap)</option>
-          </select>
-          <input id="tip" type="number" min="0" step="1" value="5" placeholder="Tip amount" />
-          <input id="budget" type="number" min="5" step="1" value="35" placeholder="Meal/item budget" />
-        </div>
+        <section class="section section-shell">
+          <p class="section-title">Delivery Type</p>
+          <div class="chip-grid" id="delivery-types">
+            <label class="chip active"><input type="radio" name="delivery-type" value="meal" checked />Meals</label>
+            <label class="chip"><input type="radio" name="delivery-type" value="groceries" />Groceries</label>
+            <label class="chip"><input type="radio" name="delivery-type" value="package" />Package Drop</label>
+            <label class="chip"><input type="radio" name="delivery-type" value="multi-stop" />Multi-stop</label>
+            <label class="chip"><input type="radio" name="delivery-type" value="custom" />Custom concierge</label>
+          </div>
 
-        <textarea id="notes" maxlength="450" placeholder="Anything else? Restaurant name, exact items, substitutions, gate code, driver instructions, or any custom request."></textarea>
+          <p class="section-title">Customer Customizations</p>
+          <div class="chip-grid" id="service-preferences">
+            <label class="chip"><input type="checkbox" value="Contactless dropoff" />Contactless dropoff</label>
+            <label class="chip"><input type="checkbox" value="Insulated hot bag" />Insulated hot bag</label>
+            <label class="chip"><input type="checkbox" value="Cold-chain support" />Cold-chain support</label>
+            <label class="chip"><input type="checkbox" value="Photo proof" />Photo proof</label>
+            <label class="chip"><input type="checkbox" value="Fragile handling" />Fragile handling</label>
+            <label class="chip"><input type="checkbox" value="Utensils included" />Utensils included</label>
+            <label class="chip"><input type="checkbox" value="Eco packaging" />Eco packaging</label>
+            <label class="chip"><input type="checkbox" value="Priority dispatch" />Priority dispatch</label>
+          </div>
+        </section>
+
+        <section class="section section-shell">
+          <p class="section-title">Delivery Partner Tier</p>
+          <div id="partners" class="partner-grid"></div>
+          <div class="row3">
+            <select id="speed" name="speed">
+              <option value="standard">Standard ETA (45-60 mins)</option>
+              <option value="express">Express ETA (20-35 mins)</option>
+              <option value="priority">Priority ETA (fastest available)</option>
+            </select>
+            <input id="tip" name="tip" type="number" min="0" step="1" value="5" placeholder="Tip amount" />
+            <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Item budget" />
+          </div>
+          <textarea id="notes" name="notes" maxlength="450" placeholder="Gate code, call on arrival, handoff instructions, other custom requests"></textarea>
+        </section>
       </form>
 
       <aside class="panel summary">
-        <h2>Live Request Summary</h2>
+        <h2>Live Delivery Summary</h2>
         <div id="summary-lines"></div>
         <div class="cost-line"><span>Delivery base</span><span id="base-fee">$6.00</span></div>
         <div class="cost-line"><span>Speed surcharge</span><span id="speed-fee">$0.00</span></div>
-        <div class="cost-line"><span>Service add-ons</span><span id="addon-fee">$0.00</span></div>
+        <div class="cost-line"><span>Customization add-ons</span><span id="addon-fee">$0.00</span></div>
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
-        <div class="cost-line"><span>Est. purchase budget</span><span id="budget-fee">$0.00</span></div>
+        <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
-        <button id="book-btn" class="book-btn" type="button">Book Delivery Request</button>
+        <button id="book-btn" class="book-btn" type="button">Confirm Delivery Request</button>
         <div id="status" class="status" aria-live="polite"></div>
       </aside>
     </section>
@@ -216,37 +273,95 @@
 
   <script>
     (() => {
-      const drivers = [
-        { id: 'd1', name: 'Alex • 4.9★', style: 'Fast rider', vehicle: 'E-bike', eta: '18-28 min' },
-        { id: 'd2', name: 'Mia • 4.8★', style: 'Careful courier', vehicle: 'Compact EV', eta: '25-35 min' },
-        { id: 'd3', name: 'Jordan • 5.0★', style: 'White-glove', vehicle: 'Hybrid SUV', eta: '30-40 min' }
+      const sourceKey = 'chaines_messages';
+      const requestsKey = 'chaines_delivery_requests';
+      const partners = [
+        { id: 'core', name: 'Core Delivery', style: 'Balanced speed and care', eta: '35-55 min', fee: 0 },
+        { id: 'pro', name: 'Pro Courier', style: 'Priority handling + updates', eta: '25-40 min', fee: 4 },
+        { id: 'elite', name: 'Elite Concierge', style: 'White-glove fulfillment', eta: '20-35 min', fee: 8 }
       ];
       const speedFeeMap = { standard: 0, express: 7, priority: 14 };
+
       const form = document.querySelector('#delivery-form');
       const summaryLines = document.querySelector('#summary-lines');
       const status = document.querySelector('#status');
-      const driverHost = document.querySelector('#drivers');
+      const partnerHost = document.querySelector('#partners');
       const speed = document.querySelector('#speed');
       const tip = document.querySelector('#tip');
       const budget = document.querySelector('#budget');
-      let selectedDriver = drivers[0];
+      const marketplaceService = document.querySelector('#marketplace-service');
+      const serviceNameInput = document.querySelector('#service-name');
+      const serviceCategoryInput = document.querySelector('#service-category');
+      const menuHost = document.querySelector('#menu-items');
+      const addItemBtn = document.querySelector('#add-item');
+      let selectedPartner = partners[0];
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
 
-      function mountDrivers() {
-        driverHost.innerHTML = drivers.map((driver, idx) => `
-          <article class="driver-card ${idx === 0 ? 'active' : ''}" data-driver-id="${driver.id}" role="button" tabindex="0">
-            <p class="driver-name">${driver.name}</p>
-            <span class="small">${driver.style}</span>
-            <span class="small">${driver.vehicle}</span>
-            <span class="small">ETA: ${driver.eta}</span>
+      function safeParse(raw, fallback) {
+        try { return JSON.parse(raw); } catch { return fallback; }
+      }
+
+      function loadMarketplaceServices() {
+        const messages = safeParse(localStorage.getItem(sourceKey) || '[]', []);
+        const servicePosts = messages
+          .filter((entry) => entry && typeof entry === 'object')
+          .map((entry) => {
+            const listing = entry.listing || {};
+            return {
+              id: entry.id || '',
+              user: String(entry.user || 'Marketplace seller').trim(),
+              serviceName: String(listing.condition || '').trim(),
+              serviceType: String(listing.serviceType || '').trim(),
+              subcategory: String(listing.subcategory || '').trim(),
+              category: String(listing.category || entry.category || '').trim(),
+              details: String(entry.text || '').trim()
+            };
+          })
+          .filter((entry) => entry.category === 'services' || entry.serviceType || entry.subcategory || entry.serviceName);
+
+        marketplaceService.innerHTML = '<option value="">Use custom service details</option>';
+        servicePosts.forEach((service) => {
+          const labelName = service.serviceName || service.serviceType || service.subcategory || 'Service listing';
+          const option = document.createElement('option');
+          option.value = JSON.stringify(service);
+          option.textContent = `${labelName} • ${service.user}`;
+          marketplaceService.append(option);
+        });
+      }
+
+      function addMenuItemRow(initial = {}) {
+        const row = document.createElement('div');
+        row.className = 'menu-item';
+        row.innerHTML = `
+          <input type="text" class="menu-name" maxlength="120" placeholder="Item name" value="${initial.name || ''}" />
+          <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
+          <input type="text" class="menu-note" maxlength="120" placeholder="Item notes" value="${initial.note || ''}" />
+          <button type="button" class="mini-btn danger">Remove</button>
+        `;
+        row.querySelector('button').addEventListener('click', () => {
+          row.remove();
+          if (!menuHost.children.length) addMenuItemRow();
+          updateSummary();
+        });
+        row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateSummary));
+        menuHost.append(row);
+      }
+
+      function mountPartners() {
+        partnerHost.innerHTML = partners.map((partner, idx) => `
+          <article class="partner-card ${idx === 0 ? 'active' : ''}" data-partner-id="${partner.id}" role="button" tabindex="0">
+            <p class="partner-name">${partner.name}</p>
+            <span class="small">${partner.style}</span>
+            <span class="small">ETA: ${partner.eta}</span>
+            <span class="small">Tier fee: ${toMoney(partner.fee)}</span>
           </article>
         `).join('');
 
-        driverHost.querySelectorAll('.driver-card').forEach((card) => {
+        partnerHost.querySelectorAll('.partner-card').forEach((card) => {
           const choose = () => {
-            selectedDriver = drivers.find((d) => d.id === card.dataset.driverId) || drivers[0];
-            driverHost.querySelectorAll('.driver-card').forEach((el) => el.classList.remove('active'));
+            selectedPartner = partners.find((d) => d.id === card.dataset.partnerId) || partners[0];
+            partnerHost.querySelectorAll('.partner-card').forEach((el) => el.classList.remove('active'));
             card.classList.add('active');
             updateSummary();
           };
@@ -272,31 +387,68 @@
         updateSummary();
       }
 
-      function getSelected(typeSelector) {
-        return Array.from(document.querySelectorAll(typeSelector))
+      function getSelected(selector) {
+        return Array.from(document.querySelectorAll(selector))
           .filter((input) => input.checked)
           .map((input) => input.value);
+      }
+
+      function getMenuItems() {
+        return Array.from(menuHost.querySelectorAll('.menu-item'))
+          .map((row) => ({
+            name: row.querySelector('.menu-name')?.value.trim() || '',
+            qty: Number(row.querySelector('.menu-qty')?.value || 1),
+            note: row.querySelector('.menu-note')?.value.trim() || ''
+          }))
+          .filter((item) => item.name);
+      }
+
+      function syncServiceFromMarketplace() {
+        if (!marketplaceService.value) return;
+        const selected = safeParse(marketplaceService.value, null);
+        if (!selected) return;
+        serviceNameInput.value = selected.serviceName || selected.serviceType || selected.subcategory || '';
+        serviceCategoryInput.value = selected.serviceType || selected.category || '';
+        updateSummary();
       }
 
       function updateSummary() {
         const data = new FormData(form);
         const deliveryType = data.get('delivery-type') || 'meal';
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
+        const menuItems = getMenuItems();
         const speedFee = speedFeeMap[speed.value] || 0;
         const addOnFee = selectedPrefs.length * 1.75;
+        const partnerFee = selectedPartner.fee || 0;
         const tipFee = Number(tip.value || 0);
         const budgetFee = Number(budget.value || 0);
-        const total = 6 + speedFee + addOnFee + tipFee + budgetFee;
+        const total = 6 + partnerFee + speedFee + addOnFee + tipFee + budgetFee;
+
+        const menuSummary = menuItems.length
+          ? menuItems.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
+          : 'No menu items added';
+
+        const mealDetails = [
+          data.get('meal-format'),
+          data.get('protein'),
+          data.get('spice-level'),
+          data.get('sides'),
+          data.get('allergens'),
+          data.get('beverage')
+        ].filter(Boolean).join(' • ') || 'Not specified';
 
         summaryLines.innerHTML = `
-          <div class="small"><strong>Name:</strong> ${data.get('customer-name') || '—'}</div>
+          <div class="small"><strong>Customer:</strong> ${data.get('customer-name') || '—'}</div>
           <div class="small"><strong>Route:</strong> ${data.get('pickup') || '—'} → ${data.get('dropoff') || '—'}</div>
-          <div class="small"><strong>Type:</strong> ${deliveryType}</div>
-          <div class="small"><strong>Driver:</strong> ${selectedDriver.name} (${selectedDriver.vehicle})</div>
-          <div class="small"><strong>Preferences:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'No extra add-ons'}</div>
+          <div class="small"><strong>Service:</strong> ${data.get('service-name') || 'Custom request'} (${data.get('service-category') || 'General'})</div>
+          <div class="small"><strong>Delivery type:</strong> ${deliveryType}</div>
+          <div class="small"><strong>Partner tier:</strong> ${selectedPartner.name}</div>
+          <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
+          <div class="small"><strong>Meal profile:</strong> ${mealDetails}</div>
+          <div class="small"><strong>Customizations:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'Standard handling'}</div>
         `;
 
-        document.querySelector('#base-fee').textContent = toMoney(6);
+        document.querySelector('#base-fee').textContent = toMoney(6 + partnerFee);
         document.querySelector('#speed-fee').textContent = toMoney(speedFee);
         document.querySelector('#addon-fee').textContent = toMoney(addOnFee);
         document.querySelector('#tip-fee').textContent = toMoney(tipFee);
@@ -309,21 +461,75 @@
         const required = ['customer-name', 'customer-phone', 'pickup', 'dropoff'];
         const missing = required.find((field) => !String(data.get(field) || '').trim());
         if (missing) {
-          status.textContent = 'Please fill name, phone, pickup, and dropoff before booking.';
+          status.textContent = 'Please fill name, phone, pickup, and dropoff before submitting.';
           status.classList.add('error');
           return;
         }
+
+        const menuItems = getMenuItems();
+        if (!menuItems.length) {
+          status.textContent = 'Add at least one menu or service item before submitting.';
+          status.classList.add('error');
+          return;
+        }
+
+        const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
+        const request = {
+          id: `DLV-${Date.now().toString(36).toUpperCase()}`,
+          createdAt: new Date().toISOString(),
+          customer: {
+            name: String(data.get('customer-name')).trim(),
+            phone: String(data.get('customer-phone')).trim()
+          },
+          route: {
+            pickup: String(data.get('pickup')).trim(),
+            dropoff: String(data.get('dropoff')).trim()
+          },
+          service: {
+            source: marketplaceService.value ? 'marketplace' : 'custom',
+            name: String(data.get('service-name') || '').trim(),
+            category: String(data.get('service-category') || '').trim(),
+            deliveryType: String(data.get('delivery-type') || 'meal')
+          },
+          items: menuItems,
+          mealProfile: {
+            format: String(data.get('meal-format') || '').trim(),
+            protein: String(data.get('protein') || '').trim(),
+            spiceLevel: String(data.get('spice-level') || '').trim(),
+            sides: String(data.get('sides') || '').trim(),
+            allergens: String(data.get('allergens') || '').trim(),
+            beverage: String(data.get('beverage') || '').trim(),
+            notes: String(data.get('custom-meal-notes') || '').trim()
+          },
+          preferences: selectedPrefs,
+          partnerTier: selectedPartner,
+          speed: String(data.get('speed') || 'standard'),
+          tip: Number(data.get('tip') || 0),
+          budget: Number(data.get('budget') || 0),
+          notes: String(data.get('notes') || '').trim()
+        };
+
+        const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
+        requests.unshift(request);
+        localStorage.setItem(requestsKey, JSON.stringify(requests));
+
         status.classList.remove('error');
-        const reference = `DLV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-        status.textContent = `Booked! Your delivery request ${reference} has been staged and shared with dispatch.`;
+        status.textContent = `Request ${request.id} confirmed and saved to CHAINeS delivery queue.`;
       }
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
       document.querySelector('#book-btn').addEventListener('click', bookRequest);
+      marketplaceService.addEventListener('change', syncServiceFromMarketplace);
+      addItemBtn.addEventListener('click', () => {
+        addMenuItemRow();
+        updateSummary();
+      });
 
-      mountDrivers();
+      loadMarketplaceServices();
+      addMenuItemRow({ qty: 1 });
+      mountPartners();
       updateSummary();
     })();
   </script>
