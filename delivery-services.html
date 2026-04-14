@@ -146,6 +146,42 @@
     }
     .quick-card h4 { margin:0; font-size:14px; color:var(--gold); }
     .quick-card p { margin:0; font-size:12px; color:var(--muted); }
+    .meal-config-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+      gap:8px;
+    }
+    .meal-config-tile {
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#0a1430;
+      padding:10px;
+      display:grid;
+      gap:8px;
+    }
+    .meal-config-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .meal-config-title {
+      margin:0;
+      font-size:12px;
+      color:var(--gold);
+      text-transform:uppercase;
+      letter-spacing:.03em;
+    }
+    .meal-config-toggle {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .meal-config-toggle input { width:auto; margin:0; }
+    .meal-config-field.is-off { opacity:.45; }
     .mini-btn {
       border-radius:10px;
       border:1px solid var(--line);
@@ -363,34 +399,81 @@
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Custom Meal Configuration</p>
-          <div class="row3">
-            <select id="meal-format" name="meal-format">
-              <option value="">Meal format</option>
-              <option value="single">Single serving</option>
-              <option value="family">Family tray</option>
-              <option value="meal-prep">Meal prep pack</option>
-              <option value="party">Party platter</option>
-            </select>
-            <select id="protein" name="protein">
-              <option value="">Protein</option>
-              <option>Chicken</option>
-              <option>Beef</option>
-              <option>Seafood</option>
-              <option>Plant-based</option>
-              <option>Mixed</option>
-            </select>
-            <select id="spice-level" name="spice-level">
-              <option value="">Spice level</option>
-              <option>Mild</option>
-              <option>Medium</option>
-              <option>Hot</option>
-              <option>Extra hot</option>
-            </select>
-          </div>
-          <div class="row3">
-            <input id="sides" name="sides" maxlength="120" placeholder="Sides (e.g. rice, salad)" />
-            <input id="allergens" name="allergens" maxlength="120" placeholder="Allergen exclusions" />
-            <input id="beverage" name="beverage" maxlength="120" placeholder="Beverage options" />
+          <p class="section-copy">Break down meal choices into tiles, then toggle each option on/off to add or remove it from this request.</p>
+          <div id="meal-config-grid" class="meal-config-grid">
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Meal format</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-meal-format" data-toggle-target="meal-format" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="meal-format">
+                <select id="meal-format" name="meal-format">
+                  <option value="">Meal format</option>
+                  <option value="single">Single serving</option>
+                  <option value="family">Family tray</option>
+                  <option value="meal-prep">Meal prep pack</option>
+                  <option value="party">Party platter</option>
+                </select>
+              </div>
+            </article>
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Protein</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-protein" data-toggle-target="protein" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="protein">
+                <select id="protein" name="protein">
+                  <option value="">Protein</option>
+                  <option>Chicken</option>
+                  <option>Beef</option>
+                  <option>Seafood</option>
+                  <option>Plant-based</option>
+                  <option>Mixed</option>
+                </select>
+              </div>
+            </article>
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Spice level</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-spice-level" data-toggle-target="spice-level" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="spice-level">
+                <select id="spice-level" name="spice-level">
+                  <option value="">Spice level</option>
+                  <option>Mild</option>
+                  <option>Medium</option>
+                  <option>Hot</option>
+                  <option>Extra hot</option>
+                </select>
+              </div>
+            </article>
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Sides</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-sides" data-toggle-target="sides" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="sides">
+                <input id="sides" name="sides" maxlength="120" placeholder="Sides (e.g. rice, salad)" />
+              </div>
+            </article>
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Allergens</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-allergens" data-toggle-target="allergens" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="allergens">
+                <input id="allergens" name="allergens" maxlength="120" placeholder="Allergen exclusions" />
+              </div>
+            </article>
+            <article class="meal-config-tile" data-meal-config-tile>
+              <div class="meal-config-head">
+                <p class="meal-config-title">Beverage</p>
+                <label class="meal-config-toggle"><input type="checkbox" id="toggle-beverage" data-toggle-target="beverage" checked />On</label>
+              </div>
+              <div class="meal-config-field" data-toggle-field="beverage">
+                <input id="beverage" name="beverage" maxlength="120" placeholder="Beverage options" />
+              </div>
+            </article>
           </div>
           <textarea id="custom-meal-notes" name="custom-meal-notes" maxlength="400" placeholder="Meal prep notes, substitutions, packaging format, serving instructions"></textarea>
         </section>
@@ -852,7 +935,7 @@
       const serviceNameInput = document.querySelector('#service-name');
       const serviceCategoryInput = document.querySelector('#service-category');
       const mealPackage = document.querySelector('#meal-package');
-      const mealPackagePricing = document.querySelector('#meal-package-pricing');
+      const mealConfigToggles = Array.from(document.querySelectorAll('#meal-config-grid input[data-toggle-target]'));
       const applyPackageBtn = document.querySelector('#apply-package');
       const packageBreakdownList = document.querySelector('#package-breakdown-list');
       const packageWorkflowNote = document.querySelector('#package-workflow-note');
@@ -1841,6 +1924,12 @@
         }
         const pkg = mealPackageProfiles[mealPackage.value];
         if (!pkg) return;
+        ['meal-format', 'protein', 'spice-level', 'sides', 'allergens', 'beverage'].forEach((fieldId) => {
+          const toggle = form.querySelector(`input[data-toggle-target="${fieldId}"]`);
+          if (!toggle) return;
+          toggle.checked = true;
+          setMealConfigToggleState(toggle, false);
+        });
         form.querySelector('#meal-format').value = pkg.format;
         form.querySelector('#protein').value = pkg.protein;
         form.querySelector('#spice-level').value = pkg.spiceLevel;
@@ -1915,6 +2004,23 @@
       function setTipToggleState() {
         if (!tipToggle) return;
         tip.disabled = !tipToggle.checked;
+      }
+
+      function setMealConfigToggleState(toggle, shouldRefresh = true) {
+        if (!toggle) return;
+        const fieldId = toggle.dataset.toggleTarget;
+        if (!fieldId) return;
+        const fieldWrap = form.querySelector(`[data-toggle-field="${fieldId}"]`);
+        const control = form.querySelector(`#${fieldId}`);
+        if (!fieldWrap || !control) return;
+        control.disabled = !toggle.checked;
+        if (!toggle.checked) control.value = '';
+        fieldWrap.classList.toggle('is-off', !toggle.checked);
+        if (shouldRefresh) updateSummary();
+      }
+
+      function syncMealConfigTiles() {
+        mealConfigToggles.forEach((toggle) => setMealConfigToggleState(toggle, false));
       }
 
       function renderFullMenuPanel() {
@@ -2200,6 +2306,9 @@
 
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
+      mealConfigToggles.forEach((toggle) => {
+        toggle.addEventListener('change', () => setMealConfigToggleState(toggle));
+      });
       form.addEventListener('input', updateSummary);
       finalizedItemsHost.addEventListener('click', (event) => {
         const control = event.target.closest('button[data-finalized-up], button[data-finalized-down], button[data-finalized-remove]');
@@ -2326,6 +2435,7 @@
       renderFullMenuPanel();
       renderPackageBreakdown();
       setTipToggleState();
+      syncMealConfigTiles();
       updateDeliveryTypeSections();
       renderDailyLineup();
       renderAdminOrderReceipts();
