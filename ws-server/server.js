@@ -277,6 +277,9 @@ app.get(["/secure", "/secure.html"], (req, res) =>
 app.get(["/marketplace", "/marketplace.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "marketplace.html"))
 );
+app.get(["/delivery-services", "/delivery-services.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "delivery-services.html"))
+);
 app.get(["/private-chat", "/private-chat.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "private-chat.html"))
 );
