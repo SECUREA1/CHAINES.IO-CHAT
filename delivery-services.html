@@ -981,6 +981,7 @@
       let activePackageBreakdown = [];
       let adminConfig = safeParse(localStorage.getItem(adminConfigKey) || '', null) || structuredClone(defaultAdminConfig);
       let quickMenuCatalog = {};
+      let fullQuickMenuCatalog = {};
       const mealPackageProfiles = {
         'lean-reset': {
           format: 'meal-prep',
@@ -1159,7 +1160,7 @@
         const directMatch = optionLookup.get(name);
         if (directMatch?.group) return directMatch.group;
         const normalizedName = String(name || '').toLowerCase();
-        const matchedGroup = Object.entries(quickMenuCatalog).find(([, items]) =>
+        const matchedGroup = Object.entries(getActiveQuickMenuCatalog()).find(([, items]) =>
           (items || []).some((item) => item.name.toLowerCase() === normalizedName)
         )?.[0];
         return matchedGroup || 'breakfast';
@@ -1279,6 +1280,14 @@
 
       function syncQuickMenuFromAdmin() {
         const chosen = adminConfig.dailyMenu;
+        fullQuickMenuCatalog = {
+          breakfast: (optionLibrary.breakfast || []).map((item) => ({ ...item, group: 'breakfast', price: normalizeCurrency(item.price, menuBasePriceByGroup.breakfast) })),
+          lunch: (optionLibrary.lunch || []).map((item) => ({ ...item, group: 'lunch', price: normalizeCurrency(item.price, menuBasePriceByGroup.lunch) })),
+          dinner: (optionLibrary.dinner || []).map((item) => ({ ...item, group: 'dinner', price: normalizeCurrency(item.price, menuBasePriceByGroup.dinner) })),
+          dessert: (optionLibrary.dessert || []).map((item) => ({ ...item, group: 'dessert', price: normalizeCurrency(item.price, menuBasePriceByGroup.dessert) })),
+          pringles: (optionLibrary.pringles || []).map((item) => ({ ...item, group: 'pringles', price: normalizeCurrency(item.price, menuBasePriceByGroup.pringles) })),
+          drinks: (optionLibrary.drinks || []).map((item) => ({ ...item, group: 'drinks', price: normalizeCurrency(item.price, menuBasePriceByGroup.drinks) }))
+        };
         quickMenuCatalog = {
           breakfast: getMenuOptionsByName('breakfast', chosen.breakfast),
           lunch: getMenuOptionsByName('lunch', chosen.lunch),
@@ -1294,10 +1303,19 @@
         };
       }
 
+      function isCorePartnerSelected() {
+        return selectedPartner?.id === 'core';
+      }
+
+      function getActiveQuickMenuCatalog() {
+        return isCorePartnerSelected() ? fullQuickMenuCatalog : quickMenuCatalog;
+      }
+
       function renderDailyLineup() {
         const labels = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'];
+        const activeCatalog = getActiveQuickMenuCatalog();
         dailyLineup.innerHTML = labels
-          .map((label) => `<div><strong>${label[0].toUpperCase() + label.slice(1)}:</strong> ${(quickMenuCatalog[label] || []).map((item) => item.name).join(', ') || 'No options selected'}</div>`)
+          .map((label) => `<div><strong>${label[0].toUpperCase() + label.slice(1)}:</strong> ${(activeCatalog[label] || []).map((item) => item.name).join(', ') || 'No options selected'}</div>`)
           .join('');
       }
 
@@ -1660,8 +1678,9 @@
           ['pringles', 'Snack Options'],
           ['drinks', 'Drink Options']
         ];
+        const activeCatalog = getActiveQuickMenuCatalog();
         quickMenuGrid.innerHTML = sections.map(([key, label]) => {
-          const groupItems = quickMenuCatalog[key] || [];
+          const groupItems = activeCatalog[key] || [];
           const items = groupItems.map((item) => `${item.name} (${toMoney(item.price || getBasePriceForItem({ name: item.name, group: key }))})`).join(' • ');
           return `
             <article class="quick-card">
@@ -1675,7 +1694,8 @@
       }
 
       function syncQuickSelectors(group = 'breakfast') {
-        const sourceItems = quickMenuCatalog[group] || [];
+        const activeCatalog = getActiveQuickMenuCatalog();
+        const sourceItems = activeCatalog[group] || [];
         const groupOptions = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks']
           .map((value) => `<option value="${value}" ${value === group ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`)
           .join('');
@@ -1689,7 +1709,8 @@
       function getSelectedQuickGroup() {
         const groups = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'];
         if (groups.includes(quickItemSelect.value)) return quickItemSelect.value;
-        return groups.find((group) => Array.from(quickMenuCatalog[group] || []).some((item) => item.name === quickItemSelect.value)) || 'breakfast';
+        const activeCatalog = getActiveQuickMenuCatalog();
+        return groups.find((group) => Array.from(activeCatalog[group] || []).some((item) => item.name === quickItemSelect.value)) || 'breakfast';
       }
 
       function addQuickSelectedItem(addMore = false) {
@@ -1713,7 +1734,8 @@
             return;
           }
         }
-        const quickOption = (quickMenuCatalog[group] || []).find((item) => item.name === itemName);
+        const activeCatalog = getActiveQuickMenuCatalog();
+        const quickOption = (activeCatalog[group] || []).find((item) => item.name === itemName);
         addMenuItemRow({
           name: itemName,
           group,
@@ -1745,6 +1767,8 @@
             selectedPartner = partners.find((d) => d.id === card.dataset.partnerId) || partners[0];
             partnerHost.querySelectorAll('.partner-card').forEach((el) => el.classList.remove('active'));
             card.classList.add('active');
+            mountQuickMenu();
+            renderDailyLineup();
             updateSummary();
           };
           card.addEventListener('click', choose);
@@ -2394,7 +2418,7 @@
         const button = event.target.closest('[data-quick-group]');
         if (!button) return;
         const group = button.getAttribute('data-quick-group');
-        const items = quickMenuCatalog[group] || [];
+        const items = getActiveQuickMenuCatalog()[group] || [];
         if (!items.length) {
           status.classList.add('error');
           status.textContent = `No ${group} options are configured by admin for today.`;
