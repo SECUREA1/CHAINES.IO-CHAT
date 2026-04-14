@@ -1501,11 +1501,14 @@
           .map((input) => input.value);
       }
 
-      function getMenuItems() {
-        const draft = Array.from(menuHost.querySelectorAll('.menu-item'))
+      function getActiveMenuDraftItems() {
+        return Array.from(menuHost.querySelectorAll('.menu-item'))
           .map((row) => readMenuRowItem(row))
           .filter((item) => item.name);
-        return [...finalizedOrderItems, ...draft].map((item) => {
+      }
+
+      function getMenuItems() {
+        return [...finalizedOrderItems].map((item) => {
           const basePrice = normalizeCurrency(item.basePrice, getBasePriceForItem(item));
           const qty = Math.max(1, Number(item.qty || 1));
           const priceAdjust = normalizeCurrency(item.priceAdjust, 0);
@@ -1634,6 +1637,7 @@
         const deliveryTypeDetails = getDeliveryTypeDetails(data, deliveryType);
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
         const menuItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
+        const activeDraftItems = getActiveMenuDraftItems();
         Array.from(menuHost.querySelectorAll('.menu-item')).forEach((row) => {
           const item = readMenuRowItem(row);
           const lineTotalNode = row.querySelector('.menu-line-total');
@@ -1651,7 +1655,7 @@
 
         const menuSummary = menuItems.length
           ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
-          : (deliveryType === 'groceries' ? 'No grocery items added' : 'No menu items added');
+          : (deliveryType === 'groceries' ? 'No grocery items added' : (activeDraftItems.length ? `${activeDraftItems.length} active draft item${activeDraftItems.length === 1 ? '' : 's'} pending finalization` : 'No menu items added'));
         const activePackage = mealPackageProfiles[data.get('meal-package')] || null;
         const packageBreakdown = activePackage?.items?.length
           ? activePackage.items.map((item) => `${item.qty}× ${item.name}${item.note ? ` (${item.note})` : ''}`).join('; ')
@@ -1776,7 +1780,7 @@
         if (!orderItems.length) {
           status.textContent = deliveryType === 'groceries'
             ? 'Add at least one grocery log item before submitting.'
-            : 'Add at least one menu or service item before submitting.';
+            : 'Finalize at least one menu or service item to the order receipt before submitting.';
           status.classList.add('error');
           return;
         }
