@@ -90,8 +90,12 @@
     .chip input { display:none; }
     .chip.active { border-color:var(--gold); color:var(--gold); }
     .menu-list { display:grid; gap:8px; }
-    .menu-item { display:grid; grid-template-columns:1.2fr .9fr .5fr .7fr auto auto; gap:8px; align-items:center; }
+    .menu-item { display:grid; grid-template-columns:1.2fr .9fr .5fr .7fr auto auto auto auto auto; gap:8px; align-items:center; }
     .menu-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+    .menu-builder-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .finalized-items { margin-top:10px; display:grid; gap:6px; }
+    .finalized-item { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px 8px; }
+    .finalized-item strong { color:var(--text); }
     .menu-toggle input { width:auto; margin:0; }
     .menu-stepper { white-space:nowrap; }
     .quick-controls { display:grid; gap:8px; margin-top:8px; }
@@ -292,7 +296,11 @@
           <p class="section-title">Menu & Item Builder</p>
           <p class="section-copy">Add every item the customer wants delivered.</p>
           <div id="menu-items" class="menu-list"></div>
-          <button id="add-item" type="button" class="mini-btn">+ Add menu item</button>
+          <div class="menu-builder-actions">
+            <button id="add-item" type="button" class="mini-btn">+ Add menu item</button>
+            <button id="finalize-all-items" type="button" class="mini-btn alt">Finalize all to order</button>
+          </div>
+          <div id="finalized-items" class="finalized-items" aria-live="polite"></div>
         </section>
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
@@ -747,6 +755,8 @@
       const dailyLineup = document.querySelector('#daily-lineup');
       const menuHost = document.querySelector('#menu-items');
       const addItemBtn = document.querySelector('#add-item');
+      const finalizeAllItemsBtn = document.querySelector('#finalize-all-items');
+      const finalizedItemsHost = document.querySelector('#finalized-items');
       const deliveryDetailGrid = document.querySelector('#delivery-detail-grid');
       const adminControls = document.querySelector('#admin-controls');
       const adminAuthStatus = document.querySelector('#admin-auth-status');
@@ -768,6 +778,7 @@
       let selectedPartner = partners[0];
       let lastQuickSelection = null;
       let isAdminAuthed = false;
+      let finalizedOrderItems = [];
       let adminConfig = safeParse(localStorage.getItem(adminConfigKey) || '', null) || structuredClone(defaultAdminConfig);
       let quickMenuCatalog = {};
       const mealPackageProfiles = {
@@ -833,6 +844,15 @@
 
       function safeParse(raw, fallback) {
         try { return JSON.parse(raw); } catch { return fallback; }
+      }
+
+      function escapeHtml(value = '') {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
       }
 
       function sanitizeUser(name = '') {
@@ -1075,6 +1095,13 @@
       }
 
       function addMenuItemRow(initial = {}) {
+        const initialName = String(initial.name || '').trim();
+        const initialVariant = String(initial.variant || 'Standard').trim() || 'Standard';
+        if (initialName && finalizedOrderItems.some((item) => item.name === initialName && item.variant === initialVariant)) {
+          status.classList.add('error');
+          status.textContent = `${initialName} is already finalized in the order.`;
+          return;
+        }
         const row = document.createElement('div');
         row.className = 'menu-item';
         const selectedGroup = initial.group && variantLibrary[initial.group] ? initial.group : 'breakfast';
@@ -1088,6 +1115,7 @@
           <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
           <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
           <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
+          <button type="button" class="mini-btn alt menu-finalize">Add to order</button>
           <button type="button" class="mini-btn menu-stepper-down">-1</button>
           <button type="button" class="mini-btn menu-stepper">+1</button>
           <button type="button" class="mini-btn danger">Remove</button>
@@ -1108,8 +1136,69 @@
           qtyInput.value = Math.max(1, Number(qtyInput.value || 1) - 1);
           updateSummary();
         });
+        row.querySelector('.menu-finalize').addEventListener('click', () => {
+          const moved = finalizeMenuRow(row);
+          if (moved) {
+            status.classList.remove('error');
+            status.textContent = 'Item added to order and removed from builder.';
+            updateSummary();
+          }
+        });
         row.querySelectorAll('input, select').forEach((input) => input.addEventListener('input', updateSummary));
         menuHost.append(row);
+      }
+
+      function readMenuRowItem(row) {
+        return {
+          name: row.querySelector('.menu-name')?.value.trim() || '',
+          variant: row.querySelector('.menu-variant')?.value || 'Standard',
+          qty: Number(row.querySelector('.menu-qty')?.value || 1),
+          priceAdjust: Number(row.querySelector('.menu-price-adjust')?.value || 0),
+          fastAdd: Boolean(row.querySelector('.menu-fast-add')?.checked),
+          note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : ''
+        };
+      }
+
+      function renderFinalizedItems() {
+        if (!finalizedOrderItems.length) {
+          finalizedItemsHost.innerHTML = '<div class="small">No finalized items yet. Use “Finalize all to order” to move items to receipt.</div>';
+          return;
+        }
+        finalizedItemsHost.innerHTML = finalizedOrderItems.map((item, idx) => `
+          <article class="finalized-item">
+            <strong>${idx + 1}. ${item.qty}× ${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(item.variant || 'Standard')}${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''}</span>
+          </article>
+        `).join('');
+      }
+
+      function finalizeMenuRow(row) {
+        const item = readMenuRowItem(row);
+        if (!item.name) return false;
+        const duplicate = finalizedOrderItems.some((entry) => entry.name === item.name && entry.variant === item.variant);
+        if (duplicate) {
+          status.classList.add('error');
+          status.textContent = `${item.name} (${item.variant}) is already added to the order.`;
+          return false;
+        }
+        finalizedOrderItems.push(item);
+        row.remove();
+        renderFinalizedItems();
+        if (!menuHost.children.length) addMenuItemRow();
+        return true;
+      }
+
+      function finalizeAllMenuItems() {
+        const rows = Array.from(menuHost.querySelectorAll('.menu-item'));
+        let moved = 0;
+        rows.forEach((row) => {
+          if (finalizeMenuRow(row)) moved += 1;
+        });
+        if (moved) {
+          status.classList.remove('error');
+          status.textContent = `${moved} item${moved === 1 ? '' : 's'} finalized to order receipt.`;
+        }
+        updateSummary();
       }
 
       function addItems(items = []) {
@@ -1267,16 +1356,10 @@
       }
 
       function getMenuItems() {
-        return Array.from(menuHost.querySelectorAll('.menu-item'))
-          .map((row) => ({
-            name: row.querySelector('.menu-name')?.value.trim() || '',
-            variant: row.querySelector('.menu-variant')?.value || 'Standard',
-            qty: Number(row.querySelector('.menu-qty')?.value || 1),
-            priceAdjust: Number(row.querySelector('.menu-price-adjust')?.value || 0),
-            fastAdd: Boolean(row.querySelector('.menu-fast-add')?.checked),
-            note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : ''
-          }))
+        const draft = Array.from(menuHost.querySelectorAll('.menu-item'))
+          .map((row) => readMenuRowItem(row))
           .filter((item) => item.name);
+        return [...finalizedOrderItems, ...draft];
       }
 
       function syncServiceFromMarketplace() {
@@ -1581,6 +1664,7 @@
         addMenuItemRow();
         updateSummary();
       });
+      finalizeAllItemsBtn.addEventListener('click', finalizeAllMenuItems);
       adminLoginBtn.addEventListener('click', loginAdmin);
       saveDailyMenuBtn.addEventListener('click', saveAdminMenuSetup);
       savePricingBtn.addEventListener('click', savePricingConfig);
@@ -1611,6 +1695,7 @@
       syncQuickMenuFromAdmin();
       loadMarketplaceServices();
       addMenuItemRow({ qty: 1 });
+      renderFinalizedItems();
       mountPartners();
       mountQuickMenu();
       updateDeliveryTypeSections();
