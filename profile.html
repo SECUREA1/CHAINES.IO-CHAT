@@ -119,6 +119,45 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .delivery-window__actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
 .delivery-window__receipt{padding:8px;border:1px solid var(--lining);border-radius:10px;margin:8px 0;background:rgba(2,6,23,0.25);}
 .delivery-window__meta{font-size:12px;color:var(--muted);}
+.calendar-panel{
+  margin-top:14px;
+  padding:12px;
+  border:1px solid var(--lining);
+  border-radius:12px;
+  background:color-mix(in oklab, var(--panel), transparent 25%);
+  box-shadow:var(--shadow);
+}
+.calendar-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:8px;
+}
+.calendar-card{
+  border:1px solid var(--lining);
+  border-radius:10px;
+  padding:8px;
+  background:rgba(2,6,23,0.2);
+}
+.calendar-input{
+  width:100%;
+  margin-top:4px;
+  margin-bottom:8px;
+  border-radius:8px;
+  border:1px solid var(--lining);
+  background:rgba(2,6,23,0.2);
+  color:var(--fg);
+  padding:6px;
+}
+.calendar-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;}
+.calendar-list{list-style:none;padding:0;margin:8px 0 0;}
+.calendar-item{
+  border:1px solid var(--lining);
+  border-radius:10px;
+  padding:8px;
+  margin-bottom:8px;
+  background:rgba(2,6,23,0.2);
+}
+.calendar-muted{color:var(--muted);font-size:12px;}
 </style>
 </head>
 <body>
@@ -178,6 +217,51 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     </div>
     <div id="delivery-receipts"></div>
   </section>
+  <section id="calendar-panel" class="calendar-panel" hidden>
+    <h3 class="section-title" style="margin-top:0;">Availability Calendar</h3>
+    <p class="calendar-muted">Set hourly availability windows and booking fees. People can book contiguous one-hour blocks based on your availability.</p>
+
+    <div id="calendar-owner-controls" hidden>
+      <div class="calendar-grid">
+        <label class="calendar-card">Date
+          <input id="calendar-date" class="calendar-input" type="date" />
+        </label>
+        <label class="calendar-card">Start hour
+          <select id="calendar-start" class="calendar-input"></select>
+        </label>
+        <label class="calendar-card">Duration (hours)
+          <select id="calendar-duration" class="calendar-input"></select>
+        </label>
+        <label class="calendar-card">Fee per hour (USD)
+          <input id="calendar-fee" class="calendar-input" type="number" min="0" step="1" value="25" />
+        </label>
+      </div>
+      <div class="calendar-actions">
+        <button id="calendar-add-btn" class="follow-btn" type="button">Add availability block</button>
+      </div>
+    </div>
+
+    <div id="calendar-booking-controls" hidden>
+      <div class="calendar-grid">
+        <label class="calendar-card">Start time
+          <select id="booking-start" class="calendar-input"></select>
+        </label>
+        <label class="calendar-card">Duration (hours)
+          <select id="booking-duration" class="calendar-input"></select>
+        </label>
+      </div>
+      <div id="booking-summary" class="calendar-muted"></div>
+      <div class="calendar-actions">
+        <button id="book-slot-btn" class="follow-btn" type="button">Book meeting</button>
+        <button id="connect-booking-btn" class="follow-btn" type="button">Connect with user</button>
+      </div>
+    </div>
+
+    <h4 class="section-title">Available time blocks</h4>
+    <ul id="calendar-availability" class="calendar-list"></ul>
+    <h4 class="section-title">Booked meetings</h4>
+    <ul id="calendar-bookings" class="calendar-list"></ul>
+  </section>
 
   <div id="settings-section" hidden>
     <h3>Notification Settings</h3>
@@ -219,6 +303,21 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const deliveryWindow = document.getElementById('delivery-window');
   const deliveryReceipts = document.getElementById('delivery-receipts');
   const deliveryHelpBtn = document.getElementById('delivery-help-btn');
+  const calendarPanel = document.getElementById('calendar-panel');
+  const calendarOwnerControls = document.getElementById('calendar-owner-controls');
+  const calendarBookingControls = document.getElementById('calendar-booking-controls');
+  const calendarDateInput = document.getElementById('calendar-date');
+  const calendarStartSelect = document.getElementById('calendar-start');
+  const calendarDurationSelect = document.getElementById('calendar-duration');
+  const calendarFeeInput = document.getElementById('calendar-fee');
+  const calendarAddBtn = document.getElementById('calendar-add-btn');
+  const bookingStartSelect = document.getElementById('booking-start');
+  const bookingDurationSelect = document.getElementById('booking-duration');
+  const bookingSummary = document.getElementById('booking-summary');
+  const bookSlotBtn = document.getElementById('book-slot-btn');
+  const connectBookingBtn = document.getElementById('connect-booking-btn');
+  const calendarAvailability = document.getElementById('calendar-availability');
+  const calendarBookings = document.getElementById('calendar-bookings');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -230,9 +329,260 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     solana: { currency: 'SOL', label: 'Solana' }
   };
   const DELIVERY_REQUESTS_KEY = 'chaines_delivery_requests';
+  const CALENDAR_KEY = 'chaines_profile_calendar_v1';
 
   function safeParse(raw, fallback){
     try { return JSON.parse(raw); } catch { return fallback; }
+  }
+
+  function calendarStore(){
+    const parsed = safeParse(localStorage.getItem(CALENDAR_KEY) || '{}', {});
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }
+
+  function saveCalendarStore(store){
+    localStorage.setItem(CALENDAR_KEY, JSON.stringify(store));
+  }
+
+  function toHourIso(dateText, hour){
+    if(!dateText) return '';
+    const date = new Date(`${dateText}T00:00:00`);
+    if(Number.isNaN(date.getTime())) return '';
+    date.setHours(Number(hour || 0), 0, 0, 0);
+    return date.toISOString();
+  }
+
+  function hourLabel(hour){
+    return `${String(hour).padStart(2, '0')}:00`;
+  }
+
+  function prettyDateTime(iso){
+    const date = new Date(iso);
+    if(Number.isNaN(date.getTime())) return 'Unknown time';
+    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  function getUserCalendar(username){
+    const store = calendarStore();
+    const userData = store[username] && typeof store[username] === 'object' ? store[username] : {};
+    const availability = userData.availability && typeof userData.availability === 'object' ? userData.availability : {};
+    const bookings = Array.isArray(userData.bookings) ? userData.bookings : [];
+    return { availability, bookings };
+  }
+
+  function setUserCalendar(username, next){
+    if(!username) return;
+    const store = calendarStore();
+    store[username] = {
+      availability: next.availability || {},
+      bookings: Array.isArray(next.bookings) ? next.bookings : []
+    };
+    saveCalendarStore(store);
+  }
+
+  function bookedHours(bookings){
+    const map = new Map();
+    bookings.forEach((booking) => {
+      const start = new Date(booking.startIso);
+      const length = Math.max(1, Number(booking.hours || 1));
+      if(Number.isNaN(start.getTime())) return;
+      for(let i = 0; i < length; i += 1){
+        const d = new Date(start.getTime() + i * 3600000);
+        map.set(d.toISOString(), booking.id);
+      }
+    });
+    return map;
+  }
+
+  function contiguousAvailability(availability, bookingsMap){
+    const now = Date.now();
+    const keys = Object.keys(availability).filter((iso) => {
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) && t >= now && !bookingsMap.has(iso);
+    }).sort((a, b) => new Date(a) - new Date(b));
+    const starts = [];
+    keys.forEach((iso) => {
+      const prev = new Date(new Date(iso).getTime() - 3600000).toISOString();
+      if(!availability[prev] || bookingsMap.has(prev)){
+        let duration = 0;
+        let cursor = new Date(iso).getTime();
+        while(availability[new Date(cursor).toISOString()] && !bookingsMap.has(new Date(cursor).toISOString())){
+          duration += 1;
+          cursor += 3600000;
+        }
+        starts.push({ startIso: iso, maxHours: duration });
+      }
+    });
+    return starts;
+  }
+
+  function renderCalendar(username, isOwner){
+    if(!username){
+      calendarPanel.hidden = true;
+      return;
+    }
+    const { availability, bookings } = getUserCalendar(username);
+    const bookingsMap = bookedHours(bookings);
+    calendarPanel.hidden = false;
+    calendarOwnerControls.hidden = !isOwner;
+    calendarBookingControls.hidden = isOwner || !storeUser || storeUser === username;
+
+    calendarAvailability.innerHTML = '';
+    const availKeys = Object.keys(availability).sort((a, b) => new Date(a) - new Date(b));
+    if(!availKeys.length){
+      calendarAvailability.innerHTML = '<li class="calendar-item">No availability blocks set yet.</li>';
+    } else {
+      availKeys.forEach((iso) => {
+        const li = document.createElement('li');
+        li.className = 'calendar-item';
+        const fee = Math.max(0, Number(availability[iso]?.fee || 0));
+        const isTaken = bookingsMap.has(iso);
+        li.innerHTML = `<strong>${prettyDateTime(iso)}</strong><div class="calendar-muted">Fee: $${fee}/hour • ${isTaken ? 'Booked' : 'Open'}</div>`;
+        if(isOwner && !isTaken){
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'follow-btn';
+          removeBtn.type = 'button';
+          removeBtn.style.marginTop = '8px';
+          removeBtn.textContent = 'Remove';
+          removeBtn.onclick = () => {
+            const next = getUserCalendar(username);
+            delete next.availability[iso];
+            setUserCalendar(username, next);
+            renderCalendar(username, true);
+          };
+          li.appendChild(removeBtn);
+        }
+        calendarAvailability.appendChild(li);
+      });
+    }
+
+    calendarBookings.innerHTML = '';
+    if(!bookings.length){
+      calendarBookings.innerHTML = '<li class="calendar-item">No bookings yet.</li>';
+    } else {
+      bookings.slice().sort((a, b) => new Date(a.startIso) - new Date(b.startIso)).forEach((booking) => {
+        const li = document.createElement('li');
+        li.className = 'calendar-item';
+        li.innerHTML = `<strong>${prettyDateTime(booking.startIso)}</strong><div class="calendar-muted">${booking.hours} hour(s) • Total $${booking.totalFee} • Booked by @${booking.booker}</div>`;
+        calendarBookings.appendChild(li);
+      });
+    }
+
+    if(isOwner){
+      if(!calendarStartSelect.options.length){
+        for(let h = 0; h < 24; h += 1){
+          const option = document.createElement('option');
+          option.value = String(h);
+          option.textContent = hourLabel(h);
+          calendarStartSelect.appendChild(option);
+        }
+      }
+      if(!calendarDurationSelect.options.length){
+        for(let h = 1; h <= 12; h += 1){
+          const option = document.createElement('option');
+          option.value = String(h);
+          option.textContent = `${h} hour${h > 1 ? 's' : ''}`;
+          calendarDurationSelect.appendChild(option);
+        }
+      }
+      if(!calendarDateInput.value){
+        const today = new Date();
+        calendarDateInput.value = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
+      }
+      calendarAddBtn.onclick = () => {
+        const dateText = calendarDateInput.value;
+        const startHour = Number(calendarStartSelect.value || 0);
+        const duration = Math.max(1, Number(calendarDurationSelect.value || 1));
+        const fee = Math.max(0, Number(calendarFeeInput.value || 0));
+        const next = getUserCalendar(username);
+        for(let offset = 0; offset < duration; offset += 1){
+          const iso = toHourIso(dateText, startHour + offset);
+          if(iso){
+            next.availability[iso] = { fee };
+          }
+        }
+        setUserCalendar(username, next);
+        renderCalendar(username, true);
+      };
+      return;
+    }
+
+    if(!calendarBookingControls.hidden){
+      const starts = contiguousAvailability(availability, bookingsMap);
+      bookingStartSelect.innerHTML = '';
+      if(!starts.length){
+        bookingSummary.textContent = 'No open meeting slots at the moment.';
+        bookSlotBtn.disabled = true;
+        bookingDurationSelect.innerHTML = '';
+      } else {
+        starts.forEach((slot, idx) => {
+          const option = document.createElement('option');
+          option.value = slot.startIso;
+          option.textContent = `${prettyDateTime(slot.startIso)} (up to ${slot.maxHours}h)`;
+          if(idx === 0) option.selected = true;
+          bookingStartSelect.appendChild(option);
+        });
+        const refillDuration = () => {
+          const selected = starts.find((slot) => slot.startIso === bookingStartSelect.value) || starts[0];
+          bookingDurationSelect.innerHTML = '';
+          for(let h = 1; h <= selected.maxHours; h += 1){
+            const option = document.createElement('option');
+            option.value = String(h);
+            option.textContent = `${h} hour${h > 1 ? 's' : ''}`;
+            bookingDurationSelect.appendChild(option);
+          }
+          const hours = Number(bookingDurationSelect.value || 1);
+          let total = 0;
+          for(let i = 0; i < hours; i += 1){
+            const cursor = new Date(new Date(selected.startIso).getTime() + i * 3600000).toISOString();
+            total += Math.max(0, Number(availability[cursor]?.fee || 0));
+          }
+          bookingSummary.textContent = `Booking total: $${total} (${hours} hour${hours > 1 ? 's' : ''}).`;
+        };
+        bookingStartSelect.onchange = refillDuration;
+        bookingDurationSelect.onchange = refillDuration;
+        refillDuration();
+        bookSlotBtn.disabled = false;
+      }
+      bookSlotBtn.onclick = () => {
+        if(!storeUser){
+          alert('Please log in to book meetings.');
+          return;
+        }
+        const startIso = bookingStartSelect.value;
+        const hours = Math.max(1, Number(bookingDurationSelect.value || 1));
+        if(!startIso){
+          alert('No slot selected.');
+          return;
+        }
+        const next = getUserCalendar(username);
+        const bookedMap = bookedHours(next.bookings);
+        let totalFee = 0;
+        for(let i = 0; i < hours; i += 1){
+          const slotIso = new Date(new Date(startIso).getTime() + i * 3600000).toISOString();
+          if(!next.availability[slotIso] || bookedMap.has(slotIso)){
+            alert('Selected block is no longer fully available.');
+            renderCalendar(username, false);
+            return;
+          }
+          totalFee += Math.max(0, Number(next.availability[slotIso]?.fee || 0));
+        }
+        next.bookings.push({
+          id: `bk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          booker: storeUser,
+          startIso,
+          hours,
+          totalFee,
+          createdAt: Date.now()
+        });
+        setUserCalendar(username, next);
+        alert(`Meeting booked for ${hours} hour(s). Total fee: $${totalFee}.`);
+        renderCalendar(username, false);
+      };
+      connectBookingBtn.onclick = () => {
+        window.location.href = '/private-chat.html?user=' + encodeURIComponent(username);
+      };
+    }
   }
 
   function renderDeliveryWindow(username = ''){
@@ -680,6 +1030,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     messageBtn.disabled = false;
     editSection.hidden = true;
     settingsSection.hidden = true;
+    calendarPanel.hidden = true;
   }
 
   pushToggle.addEventListener('change', async () => {
@@ -742,6 +1093,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       descEl.textContent = 'Select a user profile to view full details.';
       entryValidationEl.hidden = true;
       feedEl.innerHTML = '';
+      calendarPanel.hidden = true;
       return;
     }
     resetProfileUI();
@@ -759,6 +1111,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       renderRelationList(datingMatchedList, [], 'No matches yet.');
       followInfo.textContent = 'Followers: 0 • Following: 0';
       renderFeed();
+      renderCalendar(currentUser, storeUser === currentUser);
       return;
     }
     const data = normalizeProfileData(await res.json());
@@ -803,6 +1156,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         window.location.href = '/private-chat.html?user=' + encodeURIComponent(currentUser);
       };
       deliveryWindow.hidden = true;
+      renderCalendar(currentUser, false);
     } else if(!storeUser && currentUser){
       followBtn.style.display = '';
       followBtn.textContent = 'Log in to Follow';
@@ -811,6 +1165,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       messageBtn.textContent = 'Log in to Chat';
       messageBtn.onclick = () => alert('Please log in to send encrypted private messages.');
       deliveryWindow.hidden = true;
+      renderCalendar(currentUser, false);
     } else {
       followBtn.style.display = '';
       followBtn.textContent = 'This is your profile';
@@ -849,6 +1204,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       if(params.get('delivery') === '1'){
         setTimeout(() => deliveryWindow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
       }
+      renderCalendar(currentUser, true);
     }
     renderFeed();
   }
