@@ -158,6 +158,20 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   background:rgba(2,6,23,0.2);
 }
 .calendar-muted{color:var(--muted);font-size:12px;}
+.calendar-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  margin-top:8px;
+}
+.calendar-inline-select{
+  border-radius:8px;
+  border:1px solid var(--lining);
+  background:rgba(2,6,23,0.2);
+  color:var(--fg);
+  padding:6px;
+}
 </style>
 </head>
 <body>
@@ -330,6 +344,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   };
   const DELIVERY_REQUESTS_KEY = 'chaines_delivery_requests';
   const CALENDAR_KEY = 'chaines_profile_calendar_v1';
+  const CALENDAR_REMINDERS_KEY = 'chaines_profile_calendar_reminders_v1';
 
   function safeParse(raw, fallback){
     try { return JSON.parse(raw); } catch { return fallback; }
@@ -342,6 +357,28 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   function saveCalendarStore(store){
     localStorage.setItem(CALENDAR_KEY, JSON.stringify(store));
+  }
+
+  function reminderStore(){
+    const parsed = safeParse(localStorage.getItem(CALENDAR_REMINDERS_KEY) || '{}', {});
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }
+
+  function saveReminderStore(store){
+    localStorage.setItem(CALENDAR_REMINDERS_KEY, JSON.stringify(store));
+  }
+
+  function getUserReminders(username){
+    const store = reminderStore();
+    const list = Array.isArray(store[username]) ? store[username] : [];
+    return list.filter((item) => item && typeof item === 'object');
+  }
+
+  function setUserReminders(username, reminders){
+    if(!username) return;
+    const store = reminderStore();
+    store[username] = Array.isArray(reminders) ? reminders : [];
+    saveReminderStore(store);
   }
 
   function toHourIso(dateText, hour){
@@ -378,6 +415,134 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       bookings: Array.isArray(next.bookings) ? next.bookings : []
     };
     saveCalendarStore(store);
+  }
+
+  function getBookingTotal(availability, startIso, hours){
+    let total = 0;
+    const length = Math.max(1, Number(hours || 1));
+    for(let i = 0; i < length; i += 1){
+      const slotIso = new Date(new Date(startIso).getTime() + i * 3600000).toISOString();
+      total += Math.max(0, Number(availability[slotIso]?.fee || 0));
+    }
+    return total;
+  }
+
+  function canManageBooking(ownerUsername, booking){
+    if(!storeUser) return false;
+    return storeUser === ownerUsername || storeUser === booking.booker;
+  }
+
+  function setCalendarReminder(ownerUsername, booking, minutesBefore){
+    if(!storeUser){
+      alert('Please log in to set reminders.');
+      return;
+    }
+    const minutes = Math.max(1, Number(minutesBefore || 10));
+    const startAt = new Date(booking.startIso).getTime();
+    if(!Number.isFinite(startAt)){
+      alert('Booking time is invalid.');
+      return;
+    }
+    const remindAt = startAt - minutes * 60000;
+    if(remindAt <= Date.now()){
+      alert('Reminder time is already in the past. Pick a shorter reminder window.');
+      return;
+    }
+    const reminders = getUserReminders(storeUser).filter((item) => item.bookingId !== booking.id);
+    reminders.push({
+      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      bookingId: booking.id,
+      ownerUsername,
+      bookingStartIso: booking.startIso,
+      minutesBefore: minutes,
+      remindAt,
+      status: 'pending',
+      createdAt: Date.now()
+    });
+    setUserReminders(storeUser, reminders);
+    scheduleCalendarReminder(reminders[reminders.length - 1]);
+    alert(`Reminder set for ${minutes} minute(s) before the meeting.`);
+  }
+
+  function scheduleCalendarReminder(reminder){
+    if(!reminder || reminder.status !== 'pending') return;
+    const delay = Number(reminder.remindAt || 0) - Date.now();
+    if(delay <= 0) return;
+    const timerDelay = Math.min(delay, 2147483647);
+    setTimeout(() => {
+      const reminders = getUserReminders(storeUser);
+      const idx = reminders.findIndex((item) => item.id === reminder.id);
+      if(idx < 0) return;
+      reminders[idx].status = 'sent';
+      reminders[idx].sentAt = Date.now();
+      setUserReminders(storeUser, reminders);
+      const text = `Reminder: Meeting at ${prettyDateTime(reminder.bookingStartIso)} starts in ${reminder.minutesBefore} minute(s).`;
+      if('Notification' in window && Notification.permission === 'granted'){
+        new Notification('Calendar reminder', { body: text });
+      } else {
+        alert(text);
+      }
+      if(storeUser === currentUser){
+        loadNotifs();
+      }
+    }, timerDelay);
+  }
+
+  function hydrateCalendarReminders(){
+    if(!storeUser) return;
+    const now = Date.now();
+    const cleaned = getUserReminders(storeUser).filter((item) => Number(item.bookingStartIso ? new Date(item.bookingStartIso).getTime() : 0) > now - 3600000);
+    setUserReminders(storeUser, cleaned);
+    cleaned.filter((item) => item.status === 'pending').forEach(scheduleCalendarReminder);
+  }
+
+  function rescheduleBooking(ownerUsername, booking){
+    if(!canManageBooking(ownerUsername, booking)){
+      alert('Only meeting participants can reschedule.');
+      return;
+    }
+    const next = getUserCalendar(ownerUsername);
+    const bookingIndex = next.bookings.findIndex((item) => item.id === booking.id);
+    if(bookingIndex < 0){
+      alert('Booking no longer exists.');
+      return;
+    }
+    const withoutCurrent = next.bookings.filter((item) => item.id !== booking.id);
+    const starts = contiguousAvailability(next.availability, bookedHours(withoutCurrent));
+    if(!starts.length){
+      alert('No open availability windows for rescheduling right now.');
+      return;
+    }
+    const options = starts.slice(0, 20).map((slot, idx) => `${idx + 1}. ${prettyDateTime(slot.startIso)} (up to ${slot.maxHours}h)`).join('\n');
+    const choice = Number(prompt(`Pick a new start slot number:\n${options}`, '1'));
+    if(!Number.isFinite(choice) || choice < 1 || choice > Math.min(20, starts.length)){
+      return;
+    }
+    const selected = starts[choice - 1];
+    const preferredHours = Math.min(Number(booking.hours || 1), selected.maxHours);
+    const durationChoice = Number(prompt(`Duration in hours (1-${selected.maxHours})`, String(preferredHours)));
+    const hours = Math.max(1, Math.min(selected.maxHours, Number.isFinite(durationChoice) ? durationChoice : preferredHours));
+    next.bookings[bookingIndex] = {
+      ...next.bookings[bookingIndex],
+      startIso: selected.startIso,
+      hours,
+      totalFee: getBookingTotal(next.availability, selected.startIso, hours),
+      rescheduledAt: Date.now(),
+      rescheduledBy: storeUser
+    };
+    setUserCalendar(ownerUsername, next);
+    const reminders = getUserReminders(storeUser).map((item) => (
+      item.bookingId === booking.id
+        ? { ...item, bookingStartIso: selected.startIso, remindAt: new Date(selected.startIso).getTime() - Number(item.minutesBefore || 10) * 60000, status: 'pending' }
+        : item
+    ));
+    setUserReminders(storeUser, reminders);
+    reminders.filter((item) => item.bookingId === booking.id).forEach(scheduleCalendarReminder);
+    alert(`Meeting rescheduled to ${prettyDateTime(selected.startIso)} for ${hours} hour(s).`);
+    renderCalendar(ownerUsername, storeUser === ownerUsername);
+    if(storeUser === currentUser){
+      loadNotifs();
+    }
   }
 
   function bookedHours(bookings){
@@ -463,7 +628,32 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       bookings.slice().sort((a, b) => new Date(a.startIso) - new Date(b.startIso)).forEach((booking) => {
         const li = document.createElement('li');
         li.className = 'calendar-item';
-        li.innerHTML = `<strong>${prettyDateTime(booking.startIso)}</strong><div class="calendar-muted">${booking.hours} hour(s) • Total $${booking.totalFee} • Booked by @${booking.booker}</div>`;
+        const rescheduledNote = booking.rescheduledAt ? ` • Rescheduled ${prettyDateTime(booking.rescheduledAt)}` : '';
+        li.innerHTML = `<strong>${prettyDateTime(booking.startIso)}</strong><div class="calendar-muted">${booking.hours} hour(s) • Total $${booking.totalFee} • Booked by @${booking.booker}${rescheduledNote}</div>`;
+        if(canManageBooking(username, booking)){
+          const actions = document.createElement('div');
+          actions.className = 'calendar-row';
+          const reminderSelect = document.createElement('select');
+          reminderSelect.className = 'calendar-inline-select';
+          [5, 10, 30, 60].forEach((mins) => {
+            const opt = document.createElement('option');
+            opt.value = String(mins);
+            opt.textContent = `Remind ${mins}m before`;
+            reminderSelect.appendChild(opt);
+          });
+          const reminderBtn = document.createElement('button');
+          reminderBtn.className = 'follow-btn';
+          reminderBtn.type = 'button';
+          reminderBtn.textContent = 'Set reminder';
+          reminderBtn.onclick = () => setCalendarReminder(username, booking, reminderSelect.value);
+          const rescheduleBtn = document.createElement('button');
+          rescheduleBtn.className = 'follow-btn';
+          rescheduleBtn.type = 'button';
+          rescheduleBtn.textContent = 'Reschedule';
+          rescheduleBtn.onclick = () => rescheduleBooking(username, booking);
+          actions.append(reminderSelect, reminderBtn, rescheduleBtn);
+          li.appendChild(actions);
+        }
         calendarBookings.appendChild(li);
       });
     }
@@ -1088,6 +1278,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   async function load(target = currentUser){
     currentUser = (target || '').trim();
+    hydrateCalendarReminders();
     if(!currentUser){
       nameEl.textContent = '@unknown';
       descEl.textContent = 'Select a user profile to view full details.';
@@ -1200,6 +1391,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       settingsSection.hidden = false;
       loadSettings();
       loadNotifs();
+      hydrateCalendarReminders();
       renderDeliveryWindow(storeUser);
       if(params.get('delivery') === '1'){
         setTimeout(() => deliveryWindow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
@@ -1210,11 +1402,25 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   }
 
   async function loadNotifs(){
+    if(!storeUser){
+      notifsEl.innerHTML = '';
+      return;
+    }
     const res = await fetch('/notifications/' + encodeURIComponent(storeUser));
-    if(!res.ok) return;
-    const data = await res.json();
+    const data = res.ok ? await res.json() : [];
+    const reminderNotifs = getUserReminders(storeUser).map((reminder) => ({
+      type: 'calendar-reminder',
+      created_at: reminder.createdAt,
+      data: {
+        when: reminder.bookingStartIso,
+        minutesBefore: reminder.minutesBefore,
+        status: reminder.status,
+        owner: reminder.ownerUsername
+      }
+    }));
+    const merged = [...data, ...reminderNotifs].sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
     notifsEl.innerHTML = '';
-    data.forEach(n => {
+    merged.forEach(n => {
       const li = document.createElement('li');
       li.className = 'post';
       const actor = String(n.data?.from || 'Someone').replace(/[^a-zA-Z0-9_. -]/g, '').slice(0, 48) || 'Someone';
@@ -1234,6 +1440,17 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         if(n.type === 'delivery-request') return { text: `${actor} sent you a delivery request from marketplace`, href: '/delivery-services.html' };
         if(n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
         if(n.type === 'delivery-order') return { text: `Delivery order ${n.data.id || 'delivery'} from ${n.data.customer?.name || 'Customer'}`, href: '/delivery-services.html' };
+        if(n.type === 'calendar-reminder'){
+          const when = prettyDateTime(n.data?.when);
+          const minutesBefore = Number(n.data?.minutesBefore || 10);
+          const owner = String(n.data?.owner || '').trim();
+          const status = String(n.data?.status || 'pending');
+          const stateLabel = status === 'sent' ? 'Sent' : 'Pending';
+          return {
+            text: `Calendar reminder (${stateLabel}): ${minutesBefore}m before meeting at ${when}${owner ? ` with @${owner}` : ''}`,
+            href: owner ? `/profile.html?user=${encodeURIComponent(owner)}` : '/profile.html'
+          };
+        }
         return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
       })();
       li.textContent = meta.text;
