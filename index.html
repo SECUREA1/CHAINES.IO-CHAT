@@ -2049,6 +2049,7 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
         </button>
+        <button class="chip" id="go-live-all-btn" type="button" title="Go live on all detected cameras" hidden>Go Live All Cams</button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <span class="footer-notif-wrap">
           <button class="chip" id="notif-bell" title="Notifications" aria-label="Notifications">🔔<span id="notif-dot"></span></button>
@@ -2599,6 +2600,7 @@ body.streams-flex-fit #video-container[hidden] {
     const broadcastBtn = el('#broadcast-btn');
     const broadcastIcon = broadcastBtn.querySelector('img');
     const broadcastLabel = broadcastBtn.querySelector('.label');
+    const goLiveAllBtn = el('#go-live-all-btn');
     const streamCodeBtn = el('#stream-code-btn');
     const cameraFlipBtn = el('#camera-flip-btn');
     const inviteBtn = el('#invite-btn');
@@ -3345,10 +3347,12 @@ body.streams-flex-fit #video-container[hidden] {
         connectWS();
       }
     });
-    broadcastBtn.addEventListener('click', async () => {
+    async function requestGoLive({ allCameras = false } = {}){
       if (broadcasting) { endBroadcast(); return; }
+      goLiveAllRequested = !!allCameras;
       const connected = await ensureCloudConnection();
       if(!connected){
+        goLiveAllRequested = false;
         alert('Cloud connection unavailable. Try again in a moment.');
         return;
       }
@@ -3368,7 +3372,11 @@ body.streams-flex-fit #video-container[hidden] {
         }
         startBroadcast();
       }
-    });
+    }
+    broadcastBtn.addEventListener('click', () => { requestGoLive(); });
+    if(goLiveAllBtn){
+      goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: true }); });
+    }
     streamCodeBtn.addEventListener('click', () => {
       const code = `stream-${clientId || store.user}`;
       const rpc = prompt('Enter OBS RPC URL', store.obsRPC || '');
@@ -3461,6 +3469,28 @@ body.streams-flex-fit #video-container[hidden] {
     const MAX_BROADCAST_CAMERAS = 10;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
+    let goLiveAllRequested = false;
+
+    function refreshGoLiveAllButton(){
+      if(!goLiveAllBtn) return;
+      const hasMultipleCameras = detectedVideoInputs.length > 1;
+      const canUseNow = hasMultipleCameras && !broadcasting && !screenSharing;
+      goLiveAllBtn.hidden = !canUseNow;
+      goLiveAllBtn.disabled = !canUseNow;
+      goLiveAllBtn.classList.toggle('off', !canUseNow);
+      goLiveAllBtn.title = hasMultipleCameras
+        ? 'Go live on all detected cameras'
+        : 'Connect more than one camera to enable';
+    }
+
+    function refreshAddCameraButton(){
+      if(!addCameraBtn) return;
+      const hasLiveVideo = !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
+      const canUseNow = broadcasting && !screenSharing && !multiCamBroadcast && !cameraOff && hasLiveVideo && detectedVideoInputs.length > 1;
+      addCameraBtn.hidden = !canUseNow;
+      addCameraBtn.disabled = !canUseNow;
+      addCameraBtn.title = canUseNow ? 'Go live on all detected cameras' : 'Add camera to broadcast';
+    }
 
     function closePeerConnection(id){
       const pc = peerConnections[id];
@@ -3547,6 +3577,8 @@ body.streams-flex-fit #video-container[hidden] {
         if(probeStream){
           try { probeStream.getTracks().forEach(t => t.stop()); } catch {}
         }
+        refreshGoLiveAllButton();
+        refreshAddCameraButton();
       }
       return detectedVideoInputs;
     }
@@ -3695,7 +3727,7 @@ body.streams-flex-fit #video-container[hidden] {
         multiCamBroadcast = true;
         if(cameraBtn) cameraBtn.hidden = true;
         if(cameraFlipBtn) cameraFlipBtn.hidden = true;
-        if(addCameraBtn) addCameraBtn.hidden = true;
+        refreshAddCameraButton();
         if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
         renderExtraCameraPreviews(bundle.previews);
         const nextVideoTrack = nextStream.getVideoTracks()[0];
@@ -3714,6 +3746,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
       } catch(err){
         console.error('Unable to add camera', err);
+        refreshAddCameraButton();
         alert('Unable to add camera.');
       }
     }
@@ -5151,13 +5184,17 @@ body.streams-flex-fit #video-container[hidden] {
           ? Promise.resolve({ stream, previews: [stream], multiCam: false })
           : (audioOnly
             ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
-            : createBroadcastCameraBundle().catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
+            : (goLiveAllRequested
+              ? createBroadcastCameraBundle().catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false })))
+              : navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
           const activeStream = activeBundle.stream;
           const primaryPreview = activeBundle.previews?.[0] || activeStream;
           localStream = activeStream;
           multiCamBroadcast = !!activeBundle.multiCam;
+          goLiveAllRequested = false;
+          refreshGoLiveAllButton();
           removeExtraCameraPreviews();
           renderExtraCameraPreviews(activeBundle.previews);
           recordedChunks = [];
@@ -5231,7 +5268,7 @@ body.streams-flex-fit #video-container[hidden] {
         cameraBtn.title = 'Turn camera off';
       }
       if(cameraFlipBtn) cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
-      if(addCameraBtn) addCameraBtn.hidden = true;
+      refreshAddCameraButton();
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
       mediaEl.srcObject = primaryPreview;
@@ -5300,6 +5337,9 @@ body.streams-flex-fit #video-container[hidden] {
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
+          goLiveAllRequested = false;
+          refreshGoLiveAllButton();
+          refreshAddCameraButton();
           alert('Unable to access camera/microphone');
         });
       }
@@ -5345,6 +5385,7 @@ body.streams-flex-fit #video-container[hidden] {
           if(broadcastVideo) broadcastVideo.srcObject = localStream;
           cameraOff = true;
           if(cameraBtn){ cameraBtn.classList.add('off'); cameraBtn.title = 'Turn camera on'; }
+          refreshAddCameraButton();
         } else {
           navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: false })
             .then(stream => {
@@ -5362,6 +5403,7 @@ body.streams-flex-fit #video-container[hidden] {
               if(broadcastVideo) broadcastVideo.srcObject = localStream;
               cameraOff = false;
               if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
+              refreshAddCameraButton();
             })
             .catch(() => alert('Unable to access camera'));
         }
@@ -5370,6 +5412,8 @@ body.streams-flex-fit #video-container[hidden] {
       function stopScreenShare(){
         if(!screenSharing) return;
         screenSharing = false;
+        refreshGoLiveAllButton();
+        refreshAddCameraButton();
         if(screenStream){
           screenStream.getTracks().forEach(t => t.stop());
           screenStream = null;
@@ -5396,6 +5440,7 @@ body.streams-flex-fit #video-container[hidden] {
           })
           .catch(() => endBroadcast(true));
         if(screenBtn){ screenBtn.classList.remove('on'); screenBtn.title = 'Share screen'; }
+        refreshAddCameraButton();
       }
 
       async function shareScreen(surface){
@@ -5431,6 +5476,8 @@ body.streams-flex-fit #video-container[hidden] {
           }
           screenTrack = track;
           screenSharing = true;
+          refreshGoLiveAllButton();
+          refreshAddCameraButton();
           if(screenBtn){ screenBtn.classList.add('on'); screenBtn.title = 'Stop screen share'; }
           track.addEventListener('ended', stopScreenShare, { once: true });
         } catch(err){
@@ -5470,6 +5517,8 @@ body.streams-flex-fit #video-container[hidden] {
         if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
         if(!broadcasting) return;
         broadcasting = false;
+        goLiveAllRequested = false;
+        refreshGoLiveAllButton();
         if(cameraBtn){
           cameraBtn.hidden = true;
           cameraBtn.classList.remove('off');
@@ -5875,6 +5924,8 @@ body.streams-flex-fit #video-container[hidden] {
 
     function handleJoinDenied(){
       joinApproved = false;
+      goLiveAllRequested = false;
+      refreshGoLiveAllButton();
       const stream = streams[pendingJoinHost];
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
