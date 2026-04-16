@@ -106,6 +106,28 @@
       gap:8px;
       grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
     }
+    .top-live-grid[hidden]{
+      display:none;
+    }
+    .top-live-presence{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      font-size:10px;
+      color:var(--muted);
+      font-weight:600;
+    }
+    .top-live-presence b{
+      color:var(--text);
+    }
+    .top-live-status{
+      font-size:10px;
+      color:var(--muted2);
+    }
     .top-live-grid .secure-live-row{
       min-height:124px;
     }
@@ -1448,7 +1470,9 @@
       <div class="top-live-head">
         <span>🔴 Secure Live Header Feed</span>
         <div class="top-live-controls">
-          <span class="small">All active live cameras shown here in real time.</span>
+          <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
+          <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
+          <button id="btnTopLiveToggle" class="ghost" type="button" aria-expanded="false">Open Live Tiles</button>
           <div class="secure-live-view-toggle" role="group" aria-label="Header live feed count">
             <button id="btnTopLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1</button>
             <button id="btnTopLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2</button>
@@ -1456,10 +1480,12 @@
           </div>
           <button id="btnTopLiveNext" class="ghost" type="button">Next</button>
           <button id="btnTopLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate: Off</button>
+          <div id="secureLiveStatus" class="top-live-status">Live feed: initializing…</div>
+          <div id="secureLivePresence" class="top-live-presence" aria-live="polite">Active users: <b id="secureLiveActiveUsers">0</b></div>
           <span id="topLiveMeta" class="top-live-meta">Showing 1 feed.</span>
         </div>
       </div>
-      <div id="topSecureLiveGrid" class="top-live-grid"></div>
+      <div id="topSecureLiveGrid" class="top-live-grid" hidden></div>
     </div>
   </header>
 
@@ -1657,34 +1683,6 @@
               <div id="broadcastFeedsBody">
                 <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
               </div>
-            </div>
-            <div class="secure-live-wrap">
-              <div class="secure-live-head">
-                <div>
-                  <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
-                  <div class="subtitle">Everyone on this page shares camera live. Each active camera feed appears on its own tile.</div>
-                </div>
-                <div class="row">
-                  <button id="btnSecureLiveStart" class="good" type="button">Start Live Camera Share</button>
-                  <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
-                </div>
-              </div>
-              <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
-              <div id="secureLivePresence" class="secure-live-presence" aria-live="polite">Active users on Secure page: <b id="secureLiveActiveUsers">0</b></div>
-              <div class="secure-live-toolbar">
-                <div class="secure-live-view-toggle" role="group" aria-label="Secure live feed count">
-                  <button id="btnSecureLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1 Feed</button>
-                  <button id="btnSecureLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2 Feed</button>
-                  <button id="btnSecureLiveLayout4" class="secure-live-view-btn" type="button" aria-pressed="false">4 Feed</button>
-                </div>
-                <div class="secure-live-cycle-controls">
-                  <button id="btnSecureLiveNextCamera" class="ghost" type="button">Next Camera</button>
-                  <button id="btnSecureLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate 1s: Off</button>
-                </div>
-                <div class="row"><button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 4-Grid</button></div>
-                <div id="secureLiveLayoutMeta" class="secure-live-meta">Showing 1 camera tile.</div>
-              </div>
-              <div id="secureLiveGrid" class="secure-live-grid"></div>
             </div>
           </div>
         </section>
@@ -2553,6 +2551,7 @@
       const btnTopLiveLayout4 = el("btnTopLiveLayout4");
       const btnTopLiveNext = el("btnTopLiveNext");
       const btnTopLiveRotate = el("btnTopLiveRotate");
+      const btnTopLiveToggle = el("btnTopLiveToggle");
       const topLiveMeta = el("topLiveMeta");
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
@@ -2586,7 +2585,9 @@
         audioId: "",
         rotateEnabled: false,
         rotateMs: 1000,
-        rotateTimer: null,        topLayoutCount: 1,
+        rotateTimer: null,
+        topGridOpen: false,
+        topLayoutCount: 1,
         topSelectedId: "",
         topRotateEnabled: false,
         topRotateTimer: null,
@@ -2744,6 +2745,10 @@
         if(btnTopLiveNext){
           btnTopLiveNext.disabled = liveIds.length <= 1;
         }
+        if(btnTopLiveToggle){
+          btnTopLiveToggle.textContent = secureLive.topGridOpen ? "Hide Live Tiles" : "Open Live Tiles";
+          btnTopLiveToggle.setAttribute("aria-expanded", secureLive.topGridOpen ? "true" : "false");
+        }
         if(topLiveMeta){
           topLiveMeta.textContent = !liveIds.length
             ? "No feeds are live."
@@ -2845,14 +2850,21 @@
       }
 
       function secureLiveRenderRows(){
-        if(!secureLiveGrid) return;
+        if(!secureLiveGrid && !topSecureLiveGrid) return;
         syncSecureLiveActiveUsers(Array.isArray(secureLive.roster) ? secureLive.roster.length : 0);
         const liveIds = secureLiveGetLiveIds();
-        secureLiveGrid.innerHTML = "";
-        secureLiveGrid.classList.remove("layout-1", "layout-2", "layout-4");
+        if(topSecureLiveGrid){
+          topSecureLiveGrid.hidden = !secureLive.topGridOpen;
+        }
+        if(secureLiveGrid){
+          secureLiveGrid.innerHTML = "";
+          secureLiveGrid.classList.remove("layout-1", "layout-2", "layout-4");
+        }
         if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
         if(!liveIds.length){
-          secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
+          if(secureLiveGrid){
+            secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
+          }
           syncSecureLiveLayoutControls(liveIds, []);
           syncSecureLiveRotateTimer([]);
           syncTopLiveLayoutControls(liveIds, []);
@@ -2879,12 +2891,15 @@
         if(!topShownIds.includes(secureLive.topSelectedId)){
           secureLive.topSelectedId = topShownIds[0];
         }
-        secureLiveGrid.classList.add(`layout-${Math.min(4, Math.max(1, secureLive.layoutCount))}`);
+        if(secureLiveGrid){
+          secureLiveGrid.classList.add(`layout-${Math.min(4, Math.max(1, secureLive.layoutCount))}`);
+        }
         syncSecureLiveLayoutControls(liveIds, shownIds);
         syncSecureLiveRotateTimer(liveIds);
         syncTopLiveLayoutControls(liveIds, topShownIds);
         syncTopLiveRotateTimer(liveIds);
         for(const id of shownIds){
+          if(!secureLiveGrid) break;
           const row = buildSecureLiveRow(id, { selected: id === secureLive.selectedId, audioEnabled: id === secureLive.audioId });
           secureLiveGrid.appendChild(row);
         }
@@ -3928,6 +3943,12 @@
       if(btnTopLiveRotate){
         btnTopLiveRotate.addEventListener("click", ()=>{
           secureLive.topRotateEnabled = !secureLive.topRotateEnabled;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveToggle){
+        btnTopLiveToggle.addEventListener("click", ()=>{
+          secureLive.topGridOpen = !secureLive.topGridOpen;
           secureLiveRenderRows();
         });
       }
