@@ -3460,7 +3460,6 @@ body.streams-flex-fit #video-container[hidden] {
     const MAX_BROADCAST_CAMERAS = 10;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
-    let multiCamPreviewStreams = null;
 
     function closePeerConnection(id){
       const pc = peerConnections[id];
@@ -3634,23 +3633,6 @@ body.streams-flex-fit #video-container[hidden] {
       base.getAudioTracks().forEach(t => mixed.addTrack(t));
       renderMultiCamControls(entries);
       return { stream: mixed, previews: opened, multiCam: true };
-    }
-
-    async function requestBroadcastStream(audioOnly=false){
-      if(audioOnly){
-        const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-        return { stream: mic, previews: [mic], multiCam: false };
-      }
-      try{
-        return await createBroadcastCameraBundle();
-      } catch(err){
-        console.warn('Multi-camera start failed, falling back to single camera:', err);
-        const fallback = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-          audio: true
-        });
-        return { stream: fallback, previews: [fallback], multiCam: false };
-      }
     }
 
     function removeExtraCameraPreviews(){
@@ -5136,22 +5118,9 @@ body.streams-flex-fit #video-container[hidden] {
         cameraOff = false;
         blankTrack = null;
         broadcasting = true;
-        const getStream = stream
-          ? Promise.resolve({ stream, previews: [stream], multiCam: false })
-          : requestBroadcastStream(audioOnly);
-        getStream.then(bundle => {
-          const liveStream = bundle?.stream;
-          if(!liveStream) throw new Error('No stream available');
-          localStream = liveStream;
-          multiCamBroadcast = !!bundle?.multiCam;
-          multiCamPreviewStreams = Array.isArray(bundle?.previews) ? bundle.previews : [liveStream];
-          removeExtraCameraPreviews();
-          if(multiCamBroadcast && !audioOnly){
-            if(cameraBtn) cameraBtn.hidden = true;
-            if(cameraFlipBtn) cameraFlipBtn.hidden = true;
-            if(addCameraBtn) addCameraBtn.hidden = true;
-            renderExtraCameraPreviews(multiCamPreviewStreams);
-          }
+        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
+        getStream.then(stream => {
+          localStream = stream;
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -5194,7 +5163,7 @@ body.streams-flex-fit #video-container[hidden] {
             draw();
             try {
               const canvasStream = recordCanvas.captureStream(30);
-              liveStream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
+              stream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
               const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
               mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
               recordMime = mime;
@@ -5224,8 +5193,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      const primaryPreview = (multiCamPreviewStreams && multiCamPreviewStreams[0]) || liveStream;
-      mediaEl.srcObject = primaryPreview;
+      mediaEl.srcObject = stream;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -5261,7 +5229,7 @@ body.streams-flex-fit #video-container[hidden] {
           const selfStream = streams[clientId];
           if(selfStream){
             const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
-            tileEl.srcObject = liveStream;
+            tileEl.srcObject = stream;
             tileEl.muted = true;
             tileEl.setAttribute('muted','');
             tileEl.autoplay = true;
@@ -5288,10 +5256,9 @@ body.streams-flex-fit #video-container[hidden] {
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = mediaEl;
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
-          if(!pendingJoinHost) postMessage({ text: multiCamBroadcast ? '🔴 Broadcast started (all cameras enabled)' : '🔴 Broadcast started' });
+          if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
           broadcasting = false;
-          multiCamPreviewStreams = null;
           alert('Unable to access camera/microphone');
         });
       }
@@ -5490,7 +5457,6 @@ body.streams-flex-fit #video-container[hidden] {
         broadcastBtn.classList.remove('live');
         broadcastVideo = null;
         multiCamBroadcast = false;
-        multiCamPreviewStreams = null;
         const share = forced ? true :
           confirm('Post to chat?\nPress OK to post or Cancel to delete.');
         const note = forced ? new Date().toLocaleString() : (share ?
