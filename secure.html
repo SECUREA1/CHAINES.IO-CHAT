@@ -102,9 +102,18 @@
       color:var(--muted2);
     }
     .top-live-grid{
+      --top-live-cols:1;
       display:grid;
       gap:8px;
-      grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns:repeat(var(--top-live-cols), minmax(0, 1fr));
+    }
+    .top-live-grid.display-all{
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 1024px){
+      .top-live-grid.display-all{
+        grid-template-columns:repeat(4, minmax(0, 1fr));
+      }
     }
     .top-live-grid .secure-live-row{
       min-height:124px;
@@ -1454,6 +1463,10 @@
             <button id="btnTopLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2</button>
             <button id="btnTopLiveLayout4" class="secure-live-view-btn" type="button" aria-pressed="false">4</button>
           </div>
+          <div class="secure-live-view-toggle" role="group" aria-label="Header feed view mode">
+            <button id="btnTopLiveModeRow" class="secure-live-view-btn active" type="button" aria-pressed="true">Top Row</button>
+            <button id="btnTopLiveModeAll" class="secure-live-view-btn" type="button" aria-pressed="false">Display All</button>
+          </div>
           <button id="btnTopLiveNext" class="ghost" type="button">Next</button>
           <button id="btnTopLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate: Off</button>
           <span id="topLiveMeta" class="top-live-meta">Showing 1 feed.</span>
@@ -2551,6 +2564,8 @@
       const btnTopLiveLayout1 = el("btnTopLiveLayout1");
       const btnTopLiveLayout2 = el("btnTopLiveLayout2");
       const btnTopLiveLayout4 = el("btnTopLiveLayout4");
+      const btnTopLiveModeRow = el("btnTopLiveModeRow");
+      const btnTopLiveModeAll = el("btnTopLiveModeAll");
       const btnTopLiveNext = el("btnTopLiveNext");
       const btnTopLiveRotate = el("btnTopLiveRotate");
       const topLiveMeta = el("topLiveMeta");
@@ -2586,8 +2601,10 @@
         audioId: "",
         rotateEnabled: false,
         rotateMs: 1000,
-        rotateTimer: null,        topLayoutCount: 1,
+        rotateTimer: null,
+        topLayoutCount: 1,
         topSelectedId: "",
+        topDisplayAll: false,
         topRotateEnabled: false,
         topRotateTimer: null,
         reconnectDelayMs: 1200,
@@ -2675,7 +2692,7 @@
 
       function syncTopLiveRotateTimer(liveIds = []){
         const layoutCount = Math.max(1, Math.min(4, Number(secureLive.topLayoutCount) || 1));
-        const canRotate = secureLive.topRotateEnabled && liveIds.length > layoutCount;
+        const canRotate = !secureLive.topDisplayAll && secureLive.topRotateEnabled && liveIds.length > layoutCount;
         if(!canRotate){
           if(secureLive.topRotateTimer){
             clearInterval(secureLive.topRotateTimer);
@@ -2737,17 +2754,33 @@
         activeByLayout(btnTopLiveLayout1, 1);
         activeByLayout(btnTopLiveLayout2, 2);
         activeByLayout(btnTopLiveLayout4, 4);
+        if(btnTopLiveModeRow){
+          btnTopLiveModeRow.classList.toggle("active", !secureLive.topDisplayAll);
+          btnTopLiveModeRow.setAttribute("aria-pressed", secureLive.topDisplayAll ? "false" : "true");
+        }
+        if(btnTopLiveModeAll){
+          btnTopLiveModeAll.classList.toggle("active", secureLive.topDisplayAll);
+          btnTopLiveModeAll.setAttribute("aria-pressed", secureLive.topDisplayAll ? "true" : "false");
+        }
+        const disableLayout = secureLive.topDisplayAll;
+        if(btnTopLiveLayout1) btnTopLiveLayout1.disabled = disableLayout;
+        if(btnTopLiveLayout2) btnTopLiveLayout2.disabled = disableLayout;
+        if(btnTopLiveLayout4) btnTopLiveLayout4.disabled = disableLayout;
         if(btnTopLiveRotate){
-          btnTopLiveRotate.textContent = secureLive.topRotateEnabled ? "Rotate: On" : "Rotate: Off";
-          btnTopLiveRotate.setAttribute("aria-pressed", secureLive.topRotateEnabled ? "true" : "false");
+          const rotateOn = !secureLive.topDisplayAll && secureLive.topRotateEnabled;
+          btnTopLiveRotate.textContent = rotateOn ? "Rotate: On" : "Rotate: Off";
+          btnTopLiveRotate.setAttribute("aria-pressed", rotateOn ? "true" : "false");
+          btnTopLiveRotate.disabled = disableLayout;
         }
         if(btnTopLiveNext){
-          btnTopLiveNext.disabled = liveIds.length <= 1;
+          btnTopLiveNext.disabled = secureLive.topDisplayAll || liveIds.length <= 1;
         }
         if(topLiveMeta){
           topLiveMeta.textContent = !liveIds.length
             ? "No feeds are live."
-            : `Showing ${shownIds.length} of ${liveIds.length} feeds. Click to open + audio.`;
+            : secureLive.topDisplayAll
+              ? `Showing all ${liveIds.length} feeds in the header grid.`
+              : `Showing ${shownIds.length} of ${liveIds.length} feeds. Click to open + audio.`;
         }
       }
 
@@ -2872,7 +2905,9 @@
           secureLive.topSelectedId = secureLive.selectedId;
         }
         const shownIds = secureLiveVisibleIds(liveIds, secureLive.layoutCount, secureLive.selectedId);
-        const topShownIds = secureLiveVisibleIds(liveIds, secureLive.topLayoutCount, secureLive.topSelectedId);
+        const topShownIds = secureLive.topDisplayAll
+          ? liveIds.slice()
+          : secureLiveVisibleIds(liveIds, secureLive.topLayoutCount, secureLive.topSelectedId);
         if(!shownIds.includes(secureLive.selectedId)){
           secureLive.selectedId = shownIds[0];
         }
@@ -2880,14 +2915,17 @@
           secureLive.topSelectedId = topShownIds[0];
         }
         secureLiveGrid.classList.add(`layout-${Math.min(4, Math.max(1, secureLive.layoutCount))}`);
+        if(topSecureLiveGrid){
+          topSecureLiveGrid.classList.toggle("display-all", secureLive.topDisplayAll);
+          if(!secureLive.topDisplayAll){
+            const topCols = Math.max(1, Math.min(4, Number(secureLive.topLayoutCount) || 1, liveIds.length));
+            topSecureLiveGrid.style.setProperty("--top-live-cols", String(topCols));
+          }
+        }
         syncSecureLiveLayoutControls(liveIds, shownIds);
         syncSecureLiveRotateTimer(liveIds);
         syncTopLiveLayoutControls(liveIds, topShownIds);
         syncTopLiveRotateTimer(liveIds);
-        for(const id of shownIds){
-          const row = buildSecureLiveRow(id, { selected: id === secureLive.selectedId, audioEnabled: id === secureLive.audioId });
-          secureLiveGrid.appendChild(row);
-        }
         for(const id of topShownIds){
           if(!topSecureLiveGrid) break;
           const topRow = buildSecureLiveRow(id, {
@@ -2896,6 +2934,10 @@
             audioEnabled: id === secureLive.audioId,
           });
           topSecureLiveGrid.appendChild(topRow);
+        }
+        for(const id of shownIds){
+          const row = buildSecureLiveRow(id, { selected: id === secureLive.selectedId, audioEnabled: id === secureLive.audioId });
+          secureLiveGrid.appendChild(row);
         }
       }
 
@@ -3902,24 +3944,41 @@
       }
       if(btnTopLiveLayout1){
         btnTopLiveLayout1.addEventListener("click", ()=>{
+          secureLive.topDisplayAll = false;
           secureLive.topLayoutCount = 1;
           secureLiveRenderRows();
         });
       }
       if(btnTopLiveLayout2){
         btnTopLiveLayout2.addEventListener("click", ()=>{
+          secureLive.topDisplayAll = false;
           secureLive.topLayoutCount = 2;
           secureLiveRenderRows();
         });
       }
       if(btnTopLiveLayout4){
         btnTopLiveLayout4.addEventListener("click", ()=>{
+          secureLive.topDisplayAll = false;
           secureLive.topLayoutCount = 4;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveModeRow){
+        btnTopLiveModeRow.addEventListener("click", ()=>{
+          secureLive.topDisplayAll = false;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveModeAll){
+        btnTopLiveModeAll.addEventListener("click", ()=>{
+          secureLive.topDisplayAll = true;
+          secureLive.topRotateEnabled = false;
           secureLiveRenderRows();
         });
       }
       if(btnTopLiveNext){
         btnTopLiveNext.addEventListener("click", ()=>{
+          if(secureLive.topDisplayAll) return;
           const liveIds = secureLiveGetLiveIds();
           secureLive.topSelectedId = secureLiveCycleSelected(liveIds, secureLive.topSelectedId) || secureLive.topSelectedId;
           secureLiveRenderRows();
@@ -3927,6 +3986,7 @@
       }
       if(btnTopLiveRotate){
         btnTopLiveRotate.addEventListener("click", ()=>{
+          if(secureLive.topDisplayAll) return;
           secureLive.topRotateEnabled = !secureLive.topRotateEnabled;
           secureLiveRenderRows();
         });
