@@ -1656,7 +1656,11 @@
             <div id="broadcastFeedsWrap" class="broadcast-toggle-wrap" hidden>
               <div class="row">
                 <div class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</div>
-                <button id="btnToggleBroadcastFeedPanel" class="ghost" type="button" aria-expanded="true">Hide Feed Tiles</button>
+                <div class="row" style="gap:8px">
+                  <button id="btnBroadcastStartShare" class="good" type="button">Start Live Camera Share</button>
+                  <button id="btnBroadcastStopShare" class="ghost" type="button">Stop Sharing</button>
+                  <button id="btnToggleBroadcastFeedPanel" class="ghost" type="button" aria-expanded="true">Hide Feed Tiles</button>
+                </div>
               </div>
               <div class="private-feed-lock">
                 <div class="private-feed-lock-row">
@@ -1687,6 +1691,13 @@
               <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
               <div id="secureLivePresence" class="secure-live-presence" aria-live="polite">Active users on Secure page: <b id="secureLiveActiveUsers">0</b></div>
               <div class="secure-live-toolbar">
+                <div class="row" style="gap:8px; flex-wrap:wrap">
+                  <label class="small" for="secureLiveCameraToggleList"><b>Toggle cameras</b></label>
+                  <select id="secureLiveCameraToggleList" multiple size="3" style="min-width:220px"></select>
+                  <button id="btnSecureLiveApplyCameraToggle" class="ghost" type="button">Apply Camera Toggle</button>
+                  <label class="small" for="secureLiveActiveFeedSelect"><b>Activated feed</b></label>
+                  <select id="secureLiveActiveFeedSelect" style="min-width:220px"></select>
+                </div>
                 <div class="secure-live-view-toggle" role="group" aria-label="Secure live feed count">
                   <button id="btnSecureLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1 Feed</button>
                   <button id="btnSecureLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2 Feed</button>
@@ -2082,6 +2093,7 @@
       // Camera + render state
       const MAX_CAM_UI = isLikelyMobile() ? 2 : 20;
       const camLabel = (idx)=>`Camera ${idx + 1}`;
+      const getCameraSlotLimit = ()=>Math.max(1, Math.min(MAX_CAM_UI, devices.length || 1));
       let camLatestLog = Array.from({ length: MAX_CAM_UI }, () => null);
       let camStreams = new Map();  // slotIdx -> MediaStream
       let camStates  = new Map();  // slotIdx -> state
@@ -2506,6 +2518,8 @@
       const broadcastFeedsBody = el("broadcastFeedsBody");
       const btnToggleBroadcastFeedPanel = el("btnToggleBroadcastFeedPanel");
       const broadcastFeedGrid = el("broadcastFeedGrid");
+      const btnBroadcastStartShare = el("btnBroadcastStartShare");
+      const btnBroadcastStopShare = el("btnBroadcastStopShare");
       const chkPrivateFeedLock = el("chkPrivateFeedLock");
       const privateFeedPassword = el("privateFeedPassword");
       const btnPrivateFeedUnlock = el("btnPrivateFeedUnlock");
@@ -2594,6 +2608,9 @@
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
       const btnSecureLiveStop = el("btnSecureLiveStop");
+      const secureLiveCameraToggleList = el("secureLiveCameraToggleList");
+      const btnSecureLiveApplyCameraToggle = el("btnSecureLiveApplyCameraToggle");
+      const secureLiveActiveFeedSelect = el("secureLiveActiveFeedSelect");
       const btnSecureLiveLayout1 = el("btnSecureLiveLayout1");
       const btnSecureLiveLayout2 = el("btnSecureLiveLayout2");
       const btnSecureLiveLayout4 = el("btnSecureLiveLayout4");
@@ -2710,6 +2727,44 @@
           secureLive.audioId = secureLive.selectedId;
           secureLiveRenderRows();
         }, secureLive.rotateMs);
+      }
+
+      function syncSecureLiveCameraControls(liveIds = []){
+        if(secureLiveCameraToggleList){
+          const slotLimit = getCameraSlotLimit();
+          const selected = new Set((settings.selectedSlots || []).filter((slot)=>Number.isInteger(slot)));
+          secureLiveCameraToggleList.innerHTML = "";
+          for(let i=0;i<slotLimit;i += 1){
+            const opt = document.createElement("option");
+            opt.value = String(i);
+            const active = camStreams.has(i);
+            opt.selected = selected.has(i);
+            opt.textContent = `${camLabel(i)}${active ? " • Live" : ""}`;
+            secureLiveCameraToggleList.appendChild(opt);
+          }
+        }
+        if(secureLiveActiveFeedSelect){
+          const prior = secureLiveActiveFeedSelect.value;
+          secureLiveActiveFeedSelect.innerHTML = "";
+          if(!liveIds.length){
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "No active feed";
+            secureLiveActiveFeedSelect.appendChild(opt);
+            secureLiveActiveFeedSelect.disabled = true;
+          }else{
+            secureLiveActiveFeedSelect.disabled = false;
+            liveIds.forEach((id)=>{
+              const rosterUser = secureLive.roster.find((entry)=>entry?.id === id)?.user || (id === secureLive.selfId ? secureLive.user : "secure-user");
+              const opt = document.createElement("option");
+              opt.value = id;
+              opt.textContent = `${rosterUser}${id === secureLive.selfId ? " (You)" : ""}`;
+              secureLiveActiveFeedSelect.appendChild(opt);
+            });
+            const targetId = liveIds.includes(prior) ? prior : (secureLive.selectedId && liveIds.includes(secureLive.selectedId) ? secureLive.selectedId : liveIds[0]);
+            secureLiveActiveFeedSelect.value = targetId;
+          }
+        }
       }
 
       function syncTopLiveRotateTimer(liveIds = []){
@@ -2908,6 +2963,7 @@
         if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
         if(!liveIds.length){
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
+          syncSecureLiveCameraControls(liveIds);
           syncSecureLiveLayoutControls(liveIds, []);
           syncSecureLiveRotateTimer([]);
           syncTopLiveLayoutControls(liveIds, []);
@@ -2944,6 +3000,7 @@
             topSecureLiveGrid.style.setProperty("--top-live-cols", String(topCols));
           }
         }
+        syncSecureLiveCameraControls(liveIds);
         syncSecureLiveLayoutControls(liveIds, shownIds);
         syncSecureLiveRotateTimer(liveIds);
         syncTopLiveLayoutControls(liveIds, topShownIds);
@@ -3923,6 +3980,18 @@
         });
       }
 
+      if(btnBroadcastStartShare){
+        btnBroadcastStartShare.addEventListener("click", ()=>{
+          btnSecureLiveStart?.click();
+        });
+      }
+
+      if(btnBroadcastStopShare){
+        btnBroadcastStopShare.addEventListener("click", ()=>{
+          btnSecureLiveStop?.click();
+        });
+      }
+
       if(btnSecureLiveStart){
         btnSecureLiveStart.addEventListener("click", async ()=>{
           if(!secureLivePanelVisible){
@@ -3945,6 +4014,28 @@
         btnSecureLiveStop.addEventListener("click", ()=>{
           secureLiveStopSharing();
           toast("Secure live sharing stopped.");
+        });
+      }
+      if(btnSecureLiveApplyCameraToggle){
+        btnSecureLiveApplyCameraToggle.addEventListener("click", async ()=>{
+          if(!secureLiveCameraToggleList) return;
+          const selected = [...secureLiveCameraToggleList.selectedOptions]
+            .map((opt)=>Number(opt.value))
+            .filter((slot)=>Number.isInteger(slot) && slot >= 0 && slot < MAX_CAM_UI);
+          settings.selectedSlots = selected;
+          saveSettings();
+          syncCameraCheckboxes();
+          buildCameraCards();
+          await startSelectedCameras(true);
+          toast("Camera toggle applied.");
+          syncSecureLiveCameraControls(secureLiveGetLiveIds());
+        });
+      }
+      if(secureLiveActiveFeedSelect){
+        secureLiveActiveFeedSelect.addEventListener("change", ()=>{
+          const targetId = secureLiveActiveFeedSelect.value;
+          if(!targetId) return;
+          secureLiveSelectView(targetId);
         });
       }
       if(btnSecureLiveLayout1){
@@ -4714,7 +4805,8 @@
       }
 
       function syncCameraCheckboxes(){
-        for(let s=0;s<MAX_CAM_UI;s++){
+        const slotLimit = getCameraSlotLimit();
+        for(let s=0;s<slotLimit;s++){
           const c = el("camChk_"+s);
           if(c) c.checked = (settings.selectedSlots || []).includes(s);
         }
@@ -4724,7 +4816,8 @@
         if(!camSelect) return;
         camSelect.innerHTML = "";
 
-        for(let i=0;i<MAX_CAM_UI;i++){
+        const slotLimit = getCameraSlotLimit();
+        for(let i=0;i<slotLimit;i++){
           const wrap = document.createElement("div");
           wrap.className = "toggle";
           wrap.style.gap = "10px";
@@ -4881,7 +4974,8 @@
           const list = await navigator.mediaDevices.enumerateDevices();
           devices = list.filter(d=>d.kind === "videoinput");
 
-          for(let i=0;i<MAX_CAM_UI;i++){
+          const slotLimit = getCameraSlotLimit();
+          for(let i=0;i<slotLimit;i++){
             const sel = el("camDev_"+i);
             if(sel) renderDeviceSelectOptions(sel, i);
           }
@@ -4898,7 +4992,13 @@
 
       function buildCameraCards(){
         camGrid.innerHTML = "";
-        for(let i=0;i<MAX_CAM_UI;i++){
+        const liveSlots = Array.from(camStreams.keys()).sort((a,b)=>a-b);
+        const selectedSlots = Array.from(new Set((settings.selectedSlots || []).filter((slot)=>Number.isInteger(slot) && slot >= 0 && slot < MAX_CAM_UI))).sort((a,b)=>a-b);
+        const slotLimit = getCameraSlotLimit();
+        const slots = Array.from(new Set([...selectedSlots, ...liveSlots]))
+          .filter((slot)=>slot >= 0 && slot < slotLimit)
+          .sort((a,b)=>a-b);
+        for(const i of slots){
           const card = document.createElement("div");
           card.className = "cam";
           card.dataset.cam = String(i);
@@ -4951,11 +5051,15 @@
           camGrid.appendChild(card);
           setCamStatus(i, false);
         }
+        if(!slots.length){
+          camGrid.innerHTML = `<div class="small">No camera feeds selected yet. Toggle cameras above, then click Apply Selection.</div>`;
+        }
       }
 
       function setCamStatus(i, on){
         const dot = el("camDot_"+i);
         const st = el("camStatus_"+i);
+        if(!dot || !st) return;
         dot.className = "dot " + (on ? "ok" : "bad");
         st.textContent = on ? "On" : "Off";
       }
@@ -5015,7 +5119,8 @@
        ***********************/
       async function startSelectedCameras(applyOnly=false){
         const want = [];
-        for(let i=0;i<MAX_CAM_UI;i++){
+        const slotLimit = getCameraSlotLimit();
+        for(let i=0;i<slotLimit;i++){
           const cb = el("camChk_"+i);
           if(cb && cb.checked) want.push(i);
         }
@@ -5029,7 +5134,7 @@
           want.push(chosen);
           settings.selectedSlots = want;
           saveSettings();
-          for(let i=0;i<MAX_CAM_UI;i++){
+          for(let i=0;i<slotLimit;i++){
             const cb = el("camChk_"+i);
             if(cb) cb.checked = want.includes(i);
           }
