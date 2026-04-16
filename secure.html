@@ -1517,6 +1517,8 @@
             <div class="controls-actions">
               <button id="btnStart" class="good" type="button">▶ Start Cameras</button>
               <button id="btnStop" class="danger" type="button">■ Stop Cameras</button>
+              <button id="btnToggleBroadcastFeeds" class="ghost" type="button" aria-pressed="false">📡 Live Broadcast: Off</button>
+              <button id="btnToggleSecureLivePanel" class="ghost" type="button" aria-expanded="false">🔐 Show Secure Live Feed</button>
               <button id="btnToggleDisplay" class="ghost" type="button">👁 Hide Display</button>
             </div>
 
@@ -1543,7 +1545,7 @@
               <button id="btnClear" type="button" class="danger">🧹 Clear Logs</button>
             </div>
 
-            <div class="broadcast-toggle-wrap">
+            <div id="broadcastTogglePanel" class="broadcast-toggle-wrap">
               <div class="row">
                 <label class="toggle" style="margin:0">
                   <input id="chkBroadcastFeeds" type="checkbox" />
@@ -1671,7 +1673,7 @@
                 <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
               </div>
             </div>
-            <div class="secure-live-wrap">
+            <div id="secureLiveWrap" class="secure-live-wrap" hidden>
               <div class="secure-live-head">
                 <div>
                   <div class="title"><span aria-hidden="true">🔴</span> Secure Live Multi-User Feed</div>
@@ -2004,6 +2006,7 @@
         broadcastFeedsExpanded: true,
         broadcastServers: [],
         privateFeedLockEnabled: true,
+        secureLivePanelVisible: false,
 
         // Live CV tuning
         detectionIntervalMs: isLikelyMobile() ? 450 : 300,
@@ -2107,6 +2110,7 @@
       let broadcastFeedsExpanded = settings.broadcastFeedsExpanded !== false;
       let privateFeedLockEnabled = settings.privateFeedLockEnabled !== false;
       let privateFeedUnlocked = sessionStorage.getItem("secure.privateFeedUnlocked") === "1";
+      let secureLivePanelVisible = settings.secureLivePanelVisible === true;
       const clipPlaybackUrls = new Map();
 
       // Demo-only labels (kept)
@@ -2377,6 +2381,21 @@
         broadcastFeedsBody.hidden = !broadcastFeedsExpanded;
       }
 
+      function syncBroadcastToggleButton(){
+        if(!btnToggleBroadcastFeeds) return;
+        btnToggleBroadcastFeeds.textContent = broadcastFeedsOn ? "📡 Live Broadcast: On" : "📡 Live Broadcast: Off";
+        btnToggleBroadcastFeeds.setAttribute("aria-pressed", String(broadcastFeedsOn));
+      }
+
+      function syncSecureLivePanelVisibility(){
+        if(!secureLiveWrap || !btnToggleSecureLivePanel) return;
+        secureLiveWrap.hidden = !secureLivePanelVisible;
+        btnToggleSecureLivePanel.textContent = secureLivePanelVisible
+          ? "🔐 Hide Secure Live Feed"
+          : "🔐 Show Secure Live Feed";
+        btnToggleSecureLivePanel.setAttribute("aria-expanded", String(secureLivePanelVisible));
+      }
+
       function setPrivateFeedLockStatus(text, tone = ""){
         if(!privateFeedLockStatus) return;
         privateFeedLockStatus.textContent = text;
@@ -2479,6 +2498,8 @@
       const fpsVal = el("fpsVal");
       const detectorMode = el("detectorMode");
       const chkBroadcastFeeds = el("chkBroadcastFeeds");
+      const btnToggleBroadcastFeeds = el("btnToggleBroadcastFeeds");
+      const btnToggleSecureLivePanel = el("btnToggleSecureLivePanel");
       const btnRefreshBroadcastFeeds = el("btnRefreshBroadcastFeeds");
       const broadcastServerGrid = el("broadcastServerGrid");
       const broadcastFeedsWrap = el("broadcastFeedsWrap");
@@ -2560,6 +2581,7 @@
       const btnClearTune = el("btnClearTune");
       const tuneTargetTypeRadios = Array.from(document.querySelectorAll("input[name=\"tuneTargetType\"]"));
       const secureLiveGrid = el("secureLiveGrid");
+      const secureLiveWrap = el("secureLiveWrap");
       const topSecureLiveGrid = el("topSecureLiveGrid");
       const btnTopLiveLayout1 = el("btnTopLiveLayout1");
       const btnTopLiveLayout2 = el("btnTopLiveLayout2");
@@ -3189,11 +3211,6 @@
       // Try device list (labels may be blank until permission)
       ensureDevicesDiscoveredOnLoad();
       secureLiveEnsureSocket();
-      setTimeout(()=>{
-        secureLiveStartSharing().catch((err)=>{
-          setSecureLiveStatus(`Live feed connected • camera permission pending (${err?.message || "not granted"})`);
-        });
-      }, 500);
       watchCameraPermission();
       window.addEventListener("pagehide", ()=>{
         secureLiveSend({ type: "secure-live-leave" });
@@ -3815,7 +3832,26 @@
           broadcastFeedsOn = !!e.target.checked;
           settings.broadcastFeedsOn = broadcastFeedsOn;
           saveSettings();
+          syncBroadcastToggleButton();
           renderBroadcastFeedEmbeds();
+        });
+      }
+      if(btnToggleBroadcastFeeds){
+        btnToggleBroadcastFeeds.addEventListener("click", ()=>{
+          broadcastFeedsOn = !broadcastFeedsOn;
+          settings.broadcastFeedsOn = broadcastFeedsOn;
+          if(chkBroadcastFeeds) chkBroadcastFeeds.checked = broadcastFeedsOn;
+          saveSettings();
+          syncBroadcastToggleButton();
+          renderBroadcastFeedEmbeds();
+        });
+      }
+      if(btnToggleSecureLivePanel){
+        btnToggleSecureLivePanel.addEventListener("click", ()=>{
+          secureLivePanelVisible = !secureLivePanelVisible;
+          settings.secureLivePanelVisible = secureLivePanelVisible;
+          saveSettings();
+          syncSecureLivePanelVisibility();
         });
       }
       if(autoEnableLiveFeeds && chkBroadcastFeeds){
@@ -3823,6 +3859,7 @@
         settings.broadcastFeedsOn = true;
         chkBroadcastFeeds.checked = true;
         saveSettings();
+        syncBroadcastToggleButton();
         renderBroadcastFeedEmbeds();
       }
 
@@ -3888,6 +3925,12 @@
 
       if(btnSecureLiveStart){
         btnSecureLiveStart.addEventListener("click", async ()=>{
+          if(!secureLivePanelVisible){
+            secureLivePanelVisible = true;
+            settings.secureLivePanelVisible = true;
+            saveSettings();
+            syncSecureLivePanelVisibility();
+          }
           try{
             await secureLiveStartSharing();
             toast("Secure live sharing started.");
@@ -4660,7 +4703,9 @@
         setRecUI(recognitionMode);
         applyModeBadges();
         if(chkBroadcastFeeds) chkBroadcastFeeds.checked = broadcastFeedsOn;
+        syncBroadcastToggleButton();
         if(chkPrivateFeedLock) chkPrivateFeedLock.checked = privateFeedLockEnabled;
+        syncSecureLivePanelVisibility();
         syncPrivateFeedControls();
         renderBroadcastServerChoices();
         renderBroadcastFeedEmbeds();
