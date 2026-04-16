@@ -233,6 +233,8 @@
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
+    .audio-feed-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .audio-feed-controls .chip.active { outline:2px solid color-mix(in oklab, var(--accent-2), white 8%); }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; white-space:nowrap; }
     .self-destruct input { accent-color: var(--accent-2); }
     .status { display:flex; align-items:center; gap:8px; width:100%; }
@@ -1951,6 +1953,7 @@ body.streams-flex-fit #video-container[hidden] {
           <img src="static/insert.svg" alt="Add camera" />
         </button>
         <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
+        <div class="audio-feed-controls" id="audio-feed-controls" hidden></div>
         <button class="chip" id="screen-btn" type="button" title="Share screen">
           <img src="static/screen.svg" alt="Share screen" />
         </button>
@@ -2613,6 +2616,7 @@ body.streams-flex-fit #video-container[hidden] {
     const cameraBtn = el('#camera-btn');
     const addCameraBtn = el('#add-camera-btn');
     const multiCameraControls = el('#multi-camera-controls');
+    const audioFeedControls = el('#audio-feed-controls');
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
@@ -2732,6 +2736,7 @@ body.streams-flex-fit #video-container[hidden] {
       ids
         .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))
         .forEach(id => streamsEl.appendChild(streams[id].container));
+      renderAudioFeedControls();
     }
     function setStreamLiveState(id, stateText, isLive){
       if(!streams[id]) return;
@@ -2746,6 +2751,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(form) form.setAttribute('hidden','');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       setVideoToggleLabel('Show Chat');
+      renderAudioFeedControls();
     }
     function showChat(){
       if(streamsFlexFit){
@@ -2775,6 +2781,7 @@ body.streams-flex-fit #video-container[hidden] {
       }
       if(broadcastComposer) broadcastComposer.setAttribute('hidden','');
       setVideoToggleLabel('Show Feed');
+      renderAudioFeedControls();
     }
     let currentHost = null;
     let broadcastThumb = null;
@@ -2790,6 +2797,7 @@ body.streams-flex-fit #video-container[hidden] {
 
     let audioUnlocked = false;
     const pendingPlayables = new Set();
+    let selectedAudioFeedId = null;
 
     function tryPlay(el){
       const p = el.play?.();
@@ -2812,6 +2820,105 @@ body.streams-flex-fit #video-container[hidden] {
     document.addEventListener('click', unlockAudio, { once: true });
     document.addEventListener('touchend', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
+
+    function tagMediaOwner(elm, ownerId){
+      if(!elm || !ownerId) return elm;
+      elm.dataset.streamOwner = ownerId;
+      return elm;
+    }
+
+    function getSelectableAudioFeeds(){
+      return Object.keys(streams).filter(id => {
+        const s = streams[id];
+        if(!s || s.self) return false;
+        return !!(s.started || s.liveActive || activeRooms.has(id));
+      });
+    }
+
+    function applySelectedAudioFeed(){
+      const mediaEls = Array.from(document.querySelectorAll('#streams video, #streams audio, #video-container video, #video-container audio'));
+      mediaEls.forEach(elm => {
+        const owner = elm.dataset.streamOwner || elm.dataset.guest || null;
+        const isSelf = owner && owner === clientId;
+        if(isSelf){
+          elm.muted = true;
+          elm.setAttribute('muted', '');
+          return;
+        }
+        if(!selectedAudioFeedId){
+          if(elm.tagName === 'VIDEO'){
+            elm.muted = false;
+            elm.removeAttribute('muted');
+          }
+          return;
+        }
+        const enabled = owner === selectedAudioFeedId;
+        elm.muted = !enabled;
+        if(enabled){
+          elm.removeAttribute('muted');
+          tryPlay(elm);
+        } else {
+          elm.setAttribute('muted', '');
+        }
+      });
+    }
+
+    function chooseAudioFeed(id){
+      selectedAudioFeedId = id || null;
+      applySelectedAudioFeed();
+      renderAudioFeedControls();
+    }
+
+    function separateAllLiveFeeds(){
+      Object.keys(streams).forEach(id => {
+        if(id === clientId) return;
+        const stream = streams[id];
+        if(!stream || stream.started) return;
+        startWatching(id);
+        stream.started = true;
+        stream.container.classList.add('open');
+        const tuneBtn = stream.container.querySelector('.tune-btn');
+        if(tuneBtn) tuneBtn.textContent = 'Leave';
+        if(stream.liveState) stream.liveState.textContent = 'Connecting…';
+      });
+      setStreamsFlexFit(true);
+      showStream();
+      renderAudioFeedControls();
+    }
+
+    function renderAudioFeedControls(){
+      if(!audioFeedControls) return;
+      const feedIds = getSelectableAudioFeeds();
+      if(!broadcasting && feedIds.length === 0){
+        audioFeedControls.innerHTML = '';
+        audioFeedControls.setAttribute('hidden', '');
+        return;
+      }
+      if(selectedAudioFeedId && !streams[selectedAudioFeedId]) selectedAudioFeedId = null;
+      if(!selectedAudioFeedId && feedIds.length) selectedAudioFeedId = feedIds[0];
+      audioFeedControls.innerHTML = '';
+      const splitBtn = document.createElement('button');
+      splitBtn.type = 'button';
+      splitBtn.className = 'chip';
+      splitBtn.textContent = 'Separate Feeds';
+      splitBtn.title = 'Split all live feeds into individual tiles';
+      splitBtn.addEventListener('click', separateAllLiveFeeds);
+      audioFeedControls.appendChild(splitBtn);
+      feedIds.forEach(id => {
+        const btn = document.createElement('button');
+        const stream = streams[id];
+        const name = stream?.container?.querySelector('.title')?.textContent?.split('(')[0]?.trim() || `@${id}`;
+        btn.type = 'button';
+        btn.className = 'chip';
+        btn.textContent = `Audio ${name}`;
+        btn.title = `Listen to ${name}`;
+        btn.classList.toggle('active', selectedAudioFeedId === id);
+        btn.addEventListener('click', () => chooseAudioFeed(id));
+        audioFeedControls.appendChild(btn);
+      });
+      audioFeedControls.removeAttribute('hidden');
+      applySelectedAudioFeed();
+    }
 
     // keep the shell UI visible unless OMConsole is open fullscreen
     const keepVisible = el => {
@@ -3763,6 +3870,9 @@ body.streams-flex-fit #video-container[hidden] {
         [streamCodeBtn, cameraFlipBtn, inviteBtn, inviteCC, listenerCountBtn, endBtn].forEach(btn => {
           if(btn) btn.hidden = !show;
         });
+        if(!show && audioFeedControls && activeRooms.size === 0){
+          audioFeedControls.setAttribute('hidden', '');
+        }
         document.documentElement.style.setProperty('--header-height', headerBar.offsetHeight + 'px');
         document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
       }
@@ -5271,6 +5381,7 @@ body.streams-flex-fit #video-container[hidden] {
       refreshAddCameraButton();
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
+      tagMediaOwner(mediaEl, clientId);
       mediaEl.srcObject = primaryPreview;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
@@ -5307,6 +5418,7 @@ body.streams-flex-fit #video-container[hidden] {
           const selfStream = streams[clientId];
           if(selfStream){
             const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
+            tagMediaOwner(tileEl, clientId);
             tileEl.srcObject = primaryPreview;
             tileEl.muted = true;
             tileEl.setAttribute('muted','');
@@ -5632,10 +5744,12 @@ body.streams-flex-fit #video-container[hidden] {
           showStream();
         }
         sendSignal({ type: 'watcher', id });
+        renderAudioFeedControls();
       }
 
       function endWatching(id){
         activeRooms.delete(id);
+        if(selectedAudioFeedId === id) selectedAudioFeedId = null;
         if(activeRooms.size === 0){
           showChat();
           currentHost = null;
@@ -5643,6 +5757,7 @@ body.streams-flex-fit #video-container[hidden] {
           currentHost = [...activeRooms][0];
         }
         sendSignal({ type: 'unwatcher', id });
+        renderAudioFeedControls();
       }
 
     function handleWatcher(id){
@@ -5663,6 +5778,7 @@ body.streams-flex-fit #video-container[hidden] {
             if(broadcasting && !joinApproved){
               if(ev.track.kind === 'video'){
                 const vid = document.createElement('video');
+                tagMediaOwner(vid, msg.id);
                 vid.srcObject = stream;
                 vid.autoplay = true;
                 vid.setAttribute('autoplay','');
@@ -5698,6 +5814,7 @@ body.streams-flex-fit #video-container[hidden] {
                   let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
                   if(!stageAud){
                     stageAud = document.createElement('audio');
+                    tagMediaOwner(stageAud, msg.id);
                     stageAud.autoplay = true;
                     stageAud.controls = false;
                     stageAud.muted = false;
@@ -5718,6 +5835,7 @@ body.streams-flex-fit #video-container[hidden] {
                 }
                 if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
                   const aud = document.createElement('audio');
+                  tagMediaOwner(aud, msg.id);
                   aud.srcObject = ev.streams[0];
                   aud.autoplay = true;
                   aud.controls = true;
@@ -5735,6 +5853,7 @@ body.streams-flex-fit #video-container[hidden] {
                   const guestTarget = streams[msg.id];
                   if(hostTarget && hostTarget.video){
                     const hostVid = document.createElement('video');
+                    tagMediaOwner(hostVid, msg.id);
                     hostVid.srcObject = stream;
                     hostVid.autoplay = true;
                     hostVid.setAttribute('autoplay','');
@@ -5754,6 +5873,7 @@ body.streams-flex-fit #video-container[hidden] {
                   }
                   if(guestTarget && guestTarget.video){
                     const guestVid = document.createElement('video');
+                    tagMediaOwner(guestVid, msg.id);
                     guestVid.srcObject = stream;
                     guestVid.autoplay = true;
                     guestVid.setAttribute('autoplay','');
@@ -5776,6 +5896,7 @@ body.streams-flex-fit #video-container[hidden] {
                   }
                 } else {
                   const vid = document.createElement('video');
+                  tagMediaOwner(vid, msg.id);
                   vid.srcObject = stream;
                   vid.autoplay = true;
                   vid.setAttribute('autoplay','');
@@ -5811,6 +5932,7 @@ body.streams-flex-fit #video-container[hidden] {
                   }
                   if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
                     const aud = document.createElement('audio');
+                    tagMediaOwner(aud, msg.id);
                     aud.srcObject = stream;
                     aud.autoplay = true;
                     aud.controls = true;
@@ -5822,6 +5944,7 @@ body.streams-flex-fit #video-container[hidden] {
                   }
                 }
             }
+            applySelectedAudioFeed();
           };
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
         }
@@ -5849,6 +5972,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
+        if(selectedAudioFeedId === msg.id) selectedAudioFeedId = null;
         for(const id in peerConnections){
           const senders = peerConnections[id].getSenders();
           senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
@@ -5896,6 +6020,7 @@ body.streams-flex-fit #video-container[hidden] {
           joinApproved = false;
           micApproved = false;
         }
+        renderAudioFeedControls();
       }
 
     function handleJoinRequest(id, user){
