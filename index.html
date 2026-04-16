@@ -1911,9 +1911,9 @@ body.streams-flex-fit #video-container[hidden] {
                   <details class="toolbar-overflow-group" open>
                     <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
-                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" />Flex Fit</button></li>
+                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode"><img src="static/sun.svg" alt="Toggle theme"/>Theme</button></li>
-                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed"><img src="static/screen.svg" alt="" aria-hidden="true" />Show Feed</button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" />Feed + Market</button></li>
                     </ul>
                   </details>
@@ -2050,7 +2050,7 @@ body.streams-flex-fit #video-container[hidden] {
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
-          <img src="static/go-live.svg" alt="Go Live" /><span class="label">Go Live</span>
+          <img src="static/go-live.svg" alt="Go Live" />
         </button>
         <button class="chip" id="go-live-all-btn" type="button" title="Go live on all detected cameras" hidden>Go Live All Cams</button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
@@ -2667,11 +2667,15 @@ body.streams-flex-fit #video-container[hidden] {
     let streamsFlexFit = false;
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
-      videoToggle.innerHTML = `<img src="static/screen.svg" alt="" aria-hidden="true" />${label}`;
+      videoToggle.innerHTML = '<img src="static/screen.svg" alt="" aria-hidden="true" />';
+      videoToggle.setAttribute('title', label);
+      videoToggle.setAttribute('aria-label', label);
     }
     function setStreamsFitLabel(label){
       if(streamsFitBtn){
-        streamsFitBtn.innerHTML = `<img src="static/split.svg" alt="" aria-hidden="true" />${label}`;
+        streamsFitBtn.innerHTML = '<img src="static/split.svg" alt="" aria-hidden="true" />';
+        streamsFitBtn.setAttribute('title', label);
+        streamsFitBtn.setAttribute('aria-label', label);
       }
       if(streamsFitBtnMobile){
         streamsFitBtnMobile.setAttribute('title', label);
@@ -3469,7 +3473,7 @@ body.streams-flex-fit #video-container[hidden] {
         pendingJoinHost = hostId;
         sendSignal({ type: 'join-request', id: hostId, user: store.user });
         broadcastBtn.disabled = true;
-        broadcastLabel.textContent = 'Pending';
+        if(broadcastLabel) broadcastLabel.textContent = 'Pending';
       } else {
         broadcastThumb = await chooseThumbnail();
         if (broadcastThumb) {
@@ -5346,7 +5350,7 @@ body.streams-flex-fit #video-container[hidden] {
       document.body.classList.remove('chat-open');
       if(broadcastComposer) broadcastComposer.removeAttribute('hidden');
       if(store.autoDelete){ broadcastTimer = setTimeout(() => endBroadcast(true), 5 * 60 * 1000); }
-      broadcastLabel.textContent = 'End';
+      if(broadcastLabel) broadcastLabel.textContent = 'End';
       broadcastIcon.src = 'static/stop.svg';
       broadcastIcon.alt = 'End';
       broadcastBtn.title = 'End live broadcast';
@@ -5635,7 +5639,7 @@ body.streams-flex-fit #video-container[hidden] {
       pendingJoinHost = null;
       pendingMicHost = null;
       broadcastBtn.disabled = false;
-      broadcastLabel.textContent = 'Go Live';
+      if(broadcastLabel) broadcastLabel.textContent = 'Go Live';
       broadcastIcon.src = 'static/go-live.svg';
       broadcastIcon.alt = 'Go Live';
         broadcastBtn.title = 'Go live';
@@ -6039,7 +6043,7 @@ body.streams-flex-fit #video-container[hidden] {
       const stream = streams[pendingJoinHost];
       pendingJoinHost = null;
       broadcastBtn.disabled = false;
-      broadcastLabel.textContent = 'Go Live';
+      if(broadcastLabel) broadcastLabel.textContent = 'Go Live';
       broadcastIcon.src = 'static/go-live.svg';
       broadcastIcon.alt = 'Go Live';
       alert('Join request denied or busy.');
