@@ -1695,6 +1695,9 @@
                   <label class="small" for="secureLiveCameraToggleList"><b>Toggle cameras</b></label>
                   <select id="secureLiveCameraToggleList" multiple size="8" style="min-width:220px"></select>
                   <button id="btnSecureLiveApplyCameraToggle" class="ghost" type="button">Apply Camera Toggle</button>
+                  <label class="small" for="secureLiveAddCameraSelect"><b>Add camera</b></label>
+                  <select id="secureLiveAddCameraSelect" style="min-width:180px"></select>
+                  <button id="btnSecureLiveAddCamera" class="good" type="button">Add</button>
                   <label class="small" for="secureLiveActiveFeedSelect"><b>Activated feed</b></label>
                   <select id="secureLiveActiveFeedSelect" style="min-width:220px"></select>
                 </div>
@@ -2647,6 +2650,8 @@
       const btnSecureLiveStop = el("btnSecureLiveStop");
       const secureLiveCameraToggleList = el("secureLiveCameraToggleList");
       const btnSecureLiveApplyCameraToggle = el("btnSecureLiveApplyCameraToggle");
+      const secureLiveAddCameraSelect = el("secureLiveAddCameraSelect");
+      const btnSecureLiveAddCamera = el("btnSecureLiveAddCamera");
       const secureLiveActiveFeedSelect = el("secureLiveActiveFeedSelect");
       const btnSecureLiveLayout1 = el("btnSecureLiveLayout1");
       const btnSecureLiveLayout2 = el("btnSecureLiveLayout2");
@@ -2784,6 +2789,30 @@
             opt.selected = selected.has(i);
             opt.textContent = `${camLabel(i)}${active ? " • Live" : ""}`;
             secureLiveCameraToggleList.appendChild(opt);
+          }
+        }
+        if(secureLiveAddCameraSelect){
+          const slotLimit = getCameraSlotLimit();
+          const selected = new Set((settings.selectedSlots || []).filter((slot)=>Number.isInteger(slot)));
+          const currentValue = secureLiveAddCameraSelect.value;
+          secureLiveAddCameraSelect.innerHTML = "";
+          for(let i=0;i<slotLimit;i += 1){
+            const opt = document.createElement("option");
+            opt.value = String(i);
+            const active = camStreams.has(i);
+            const chosen = selected.has(i);
+            opt.textContent = `${camLabel(i)}${active ? " • Live" : (chosen ? " • Selected" : "")}`;
+            secureLiveAddCameraSelect.appendChild(opt);
+          }
+          if(slotLimit === 0){
+            secureLiveAddCameraSelect.disabled = true;
+          }else{
+            secureLiveAddCameraSelect.disabled = false;
+            const nextAvailable = Array.from({ length: slotLimit }, (_, idx)=>idx).find((idx)=>!selected.has(idx));
+            const fallback = nextAvailable ?? 0;
+            secureLiveAddCameraSelect.value = [...secureLiveAddCameraSelect.options].some((opt)=>opt.value === currentValue)
+              ? currentValue
+              : String(fallback);
           }
         }
         if(secureLiveActiveFeedSelect){
