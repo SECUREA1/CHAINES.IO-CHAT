@@ -1652,6 +1652,7 @@
                 </div>
                 <div class="secure-live-cycle-controls">
                   <button id="btnSecureLiveNextCamera" class="ghost" type="button">Next Camera</button>
+                  <button id="btnSecureLiveRefresh" class="ghost" type="button">Refresh Live Feeds</button>
                   <button id="btnSecureLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate 1s: Off</button>
                 </div>
                 <div class="row"><button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 4-Grid</button></div>
@@ -2528,6 +2529,7 @@
       const btnSecureLiveLayout2 = el("btnSecureLiveLayout2");
       const btnSecureLiveLayout4 = el("btnSecureLiveLayout4");
       const btnSecureLiveNextCamera = el("btnSecureLiveNextCamera");
+      const btnSecureLiveRefresh = el("btnSecureLiveRefresh");
       const btnSecureLiveRotate = el("btnSecureLiveRotate");
       const btnSecureLiveReturnGrid = el("btnSecureLiveReturnGrid");
       const secureLiveLayoutMeta = el("secureLiveLayoutMeta");
@@ -2913,10 +2915,27 @@
         setSecureLiveStatus("Live feed connected • local camera stopped");
       }
 
-      async function secureLiveRefreshSharing(){
-        if(!secureLive.sharing) return;
-        secureLiveStopSharing();
-        await secureLiveStartSharing();
+      async function secureLiveRefreshEntrusting(){
+        secureLiveEnsureSocket();
+        secureLiveSend({ type: "secure-live-join", user: secureLive.user });
+        secureLiveSend({ type: "secure-live-presence", user: secureLive.user, active: true });
+
+        if(secureLive.sharing && secureLive.localStream){
+          for(const peer of secureLive.roster){
+            if(peer?.id && peer.id !== secureLive.selfId){
+              secureLivePeerById(peer.id);
+            }
+          }
+          for(const peer of secureLive.roster){
+            if(peer?.id && peer.id !== secureLive.selfId && secureLive.selfId && secureLive.selfId < peer.id){
+              await secureLiveOfferTo(peer.id).catch(()=>{});
+            }
+          }
+          setSecureLiveStatus("Live feeds refreshed • all active camera tiles remain live");
+        }else{
+          setSecureLiveStatus("Live feeds refreshed • camera sharing is currently stopped");
+        }
+        secureLiveRenderRows();
       }
 
       function secureLiveEnsureSocket(){
@@ -3760,6 +3779,17 @@
         btnSecureLiveNextCamera.addEventListener("click", ()=>{
           secureLiveCycleSelected(secureLiveGetLiveIds());
           secureLiveRenderRows();
+        });
+      }
+      if(btnSecureLiveRefresh){
+        btnSecureLiveRefresh.addEventListener("click", async ()=>{
+          try{
+            await secureLiveRefreshEntrusting();
+            toast("Secure live feeds refreshed. Active cameras stayed live.");
+          }catch(err){
+            setSecureLiveStatus(`Live feed refresh error: ${err?.message || err}`);
+            toast("Secure live refresh failed.");
+          }
         });
       }
       if(btnSecureLiveRotate){
@@ -4799,7 +4829,7 @@
         }
         updateStreamStatus();
         if(secureLive.sharing){
-          secureLiveRefreshSharing().catch((err)=>{
+          secureLiveRefreshEntrusting().catch((err)=>{
             setSecureLiveStatus(`Live feed refresh error: ${err?.message || err}`);
           });
         }
