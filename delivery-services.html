@@ -292,26 +292,17 @@
             <div class="row3">
               <select id="quick-item-select" aria-label="Quick meal item selection"></select>
               <select id="quick-variant-select" aria-label="Quick item type or flavor selection"></select>
-              <input id="quick-price-adjust" type="number" min="-10" step="0.25" value="0" aria-label="Quick price adjustment" placeholder="Price adjustment" />
+              <input id="quick-qty" type="number" min="1" step="1" value="1" aria-label="Quick quantity selection" placeholder="Quantity" />
             </div>
             <div class="row3">
-              <button id="quick-add-item" type="button" class="mini-btn alt">Add selected item</button>
-              <button id="quick-add-more" type="button" class="mini-btn">Add more +1</button>
-              <label class="menu-toggle"><input id="quick-fast-toggle" type="checkbox" /> Fast +1 mode</label>
+              <button id="quick-add-item" type="button" class="mini-btn alt">Add to order</button>
+              <label class="menu-toggle"><input id="quick-fast-toggle" type="checkbox" /> Fast +1 quantity</label>
             </div>
+            <div id="finalized-items" class="finalized-items" aria-live="polite"></div>
           </div>
         </section>
 
-        <section class="section section-shell delivery-scope delivery-scope-meal">
-          <p class="section-title">Menu & Item Builder</p>
-          <p class="section-copy">Add every item the customer wants delivered.</p>
-          <div id="menu-items" class="menu-list"></div>
-          <div class="menu-builder-actions">
-            <button id="add-item" type="button" class="mini-btn">+ Add menu item</button>
-            <button id="finalize-all-items" type="button" class="mini-btn alt">Finalize all to order</button>
-          </div>
-          <div id="finalized-items" class="finalized-items" aria-live="polite"></div>
-        </section>
+        <div id="menu-items" class="menu-list" hidden></div>
 
         <section class="section section-shell delivery-scope delivery-scope-meal">
           <p class="section-title">Custom Meal Configuration</p>
@@ -770,9 +761,8 @@
       const quickMenuGrid = document.querySelector('#quick-menu-grid');
       const quickItemSelect = document.querySelector('#quick-item-select');
       const quickVariantSelect = document.querySelector('#quick-variant-select');
-      const quickPriceAdjust = document.querySelector('#quick-price-adjust');
+      const quickQtyInput = document.querySelector('#quick-qty');
       const quickAddItemBtn = document.querySelector('#quick-add-item');
-      const quickAddMoreBtn = document.querySelector('#quick-add-more');
       const quickFastToggle = document.querySelector('#quick-fast-toggle');
       const dailyLineup = document.querySelector('#daily-lineup');
       const menuHost = document.querySelector('#menu-items');
@@ -781,8 +771,6 @@
       const groceryItemQty = document.querySelector('#grocery-item-qty');
       const groceryAddItemBtn = document.querySelector('#grocery-add-item');
       const groceryLogList = document.querySelector('#grocery-log-list');
-      const addItemBtn = document.querySelector('#add-item');
-      const finalizeAllItemsBtn = document.querySelector('#finalize-all-items');
       const finalizedItemsHost = document.querySelector('#finalized-items');
       const deliveryDetailGrid = document.querySelector('#delivery-detail-grid');
       const adminControls = document.querySelector('#admin-controls');
@@ -1349,7 +1337,7 @@
 
       function renderFinalizedItems() {
         if (!finalizedOrderItems.length) {
-          finalizedItemsHost.innerHTML = '<div class="small">No finalized items yet. Use “Finalize all to order” to move items to receipt.</div>';
+          finalizedItemsHost.innerHTML = '<div class="small">No items in order yet. Select an item, set quantity, then choose “Add to order.”</div>';
           return;
         }
         finalizedItemsHost.innerHTML = finalizedOrderItems.map((item, idx) => `
@@ -1420,7 +1408,26 @@
       }
 
       function addItems(items = []) {
-        items.forEach((item) => addMenuItemRow(item));
+        items.forEach((item) => {
+          const normalized = {
+            name: String(item?.name || '').trim(),
+            variant: String(item?.variant || 'Standard').trim() || 'Standard',
+            group: item?.group || inferGroupFromItemName(item?.name || ''),
+            qty: Math.max(1, Number(item?.qty || 1)),
+            basePrice: normalizeCurrency(item?.basePrice, getBasePriceForItem(item || {})),
+            priceAdjust: normalizeCurrency(item?.priceAdjust, 0),
+            fastAdd: Boolean(item?.fastAdd),
+            note: String(item?.note || '')
+          };
+          if (!normalized.name) return;
+          const existingIndex = findFinalizedItemIndex(normalized.name, normalized.variant);
+          if (existingIndex >= 0) {
+            finalizedOrderItems[existingIndex].qty = Math.max(1, Number(finalizedOrderItems[existingIndex].qty || 1) + normalized.qty);
+          } else {
+            finalizedOrderItems.push(normalized);
+          }
+        });
+        renderFinalizedItems();
         updateSummary();
       }
 
@@ -1465,41 +1472,46 @@
         return groups.find((group) => Array.from(quickMenuCatalog[group] || []).some((item) => item.name === quickItemSelect.value)) || 'breakfast';
       }
 
-      function addQuickSelectedItem(addMore = false) {
+      function findFinalizedItemIndex(name = '', variant = 'Standard') {
+        return finalizedOrderItems.findIndex((entry) => entry.name === name && entry.variant === variant);
+      }
+
+      function addQuickSelectedItem() {
         const group = getSelectedQuickGroup();
         const itemName = quickItemSelect.value;
         const variant = quickVariantSelect.value || 'Standard';
-        const priceAdjust = Number(quickPriceAdjust.value || 0);
+        const qtyValue = Math.max(1, Number(quickQtyInput?.value || 1));
         if (!itemName || ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'].includes(itemName)) {
           status.classList.add('error');
           status.textContent = 'Choose a meal item before adding.';
           return;
         }
-        if (addMore && lastQuickSelection && lastQuickSelection.name === itemName && lastQuickSelection.variant === variant) {
-          const existing = Array.from(menuHost.querySelectorAll('.menu-item')).find((row) =>
-            row.querySelector('.menu-name')?.value.trim() === itemName && row.querySelector('.menu-variant')?.value === variant
-          );
-          if (existing) {
-            const qtyInput = existing.querySelector('.menu-qty');
-            qtyInput.value = Number(qtyInput.value || 1) + 1;
-            updateSummary();
-            return;
-          }
-        }
         const quickOption = (quickMenuCatalog[group] || []).find((item) => item.name === itemName);
-        addMenuItemRow({
+        const item = {
           name: itemName,
           group,
           variant,
-          qty: 1,
+          qty: qtyValue,
           basePrice: normalizeCurrency(quickOption?.price, getBasePriceForItem({ name: itemName, group })),
-          priceAdjust,
+          priceAdjust: 0,
           fastAdd: quickFastToggle.checked
-        });
+        };
+        const existingIndex = findFinalizedItemIndex(item.name, item.variant);
+        if (existingIndex >= 0) {
+          const increment = item.fastAdd ? item.qty + 1 : item.qty;
+          finalizedOrderItems[existingIndex].qty = Math.max(1, Number(finalizedOrderItems[existingIndex].qty || 1) + increment);
+          status.classList.remove('error');
+          status.textContent = `${itemName} (${variant}) quantity updated in order.`;
+        } else {
+          item.qty = item.fastAdd ? item.qty + 1 : item.qty;
+          finalizedOrderItems.push(item);
+          status.classList.remove('error');
+          status.textContent = `${itemName} (${variant}) added to order.`;
+        }
+        renderFinalizedItems();
         syncQuickSelectors(group);
         lastQuickSelection = { name: itemName, variant };
-        status.classList.remove('error');
-        status.textContent = `${itemName} (${variant}) added.`;
+        quickQtyInput.value = '1';
         updateSummary();
       }
 
@@ -1680,13 +1692,12 @@
         if (!marketplaceMenu.value) return;
         const selected = safeParse(marketplaceMenu.value, null);
         if (!selected) return;
-        addMenuItemRow({
+        addItems([{
           name: selected.serviceName || selected.subcategory || 'Marketplace custom meal',
           qty: 1,
           basePrice: getBasePriceForItem({ name: selected.serviceName || selected.subcategory || '' }),
           note: selected.details ? selected.details.slice(0, 120) : 'Imported from marketplace listing'
-        });
-        updateSummary();
+        }]);
       }
 
       function applyMealPackage() {
@@ -2003,11 +2014,6 @@
       marketplaceService.addEventListener('change', syncServiceFromMarketplace);
       marketplaceMenu.addEventListener('change', syncMenuFromMarketplace);
       applyPackageBtn.addEventListener('click', applyMealPackage);
-      addItemBtn.addEventListener('click', () => {
-        addMenuItemRow();
-        updateSummary();
-      });
-      finalizeAllItemsBtn.addEventListener('click', finalizeAllMenuItems);
       adminLoginBtn.addEventListener('click', loginAdmin);
       saveDailyMenuBtn.addEventListener('click', saveAdminMenuSetup);
       savePricingBtn.addEventListener('click', savePricingConfig);
@@ -2029,16 +2035,14 @@
           syncQuickSelectors(selectedValue);
           return;
         }
-        addQuickSelectedItem(false);
+        addQuickSelectedItem();
       });
-      quickAddItemBtn.addEventListener('click', () => addQuickSelectedItem(false));
-      quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
+      quickAddItemBtn.addEventListener('click', addQuickSelectedItem);
 
       adminConfig = mergeAdminConfig(adminConfig);
       syncQuickMenuFromAdmin();
       populateStandardizedGroceries();
       loadMarketplaceServices();
-      addMenuItemRow({ qty: 1 });
       renderFinalizedItems();
       mountPartners();
       mountQuickMenu();
