@@ -1603,6 +1603,7 @@
                 </div>
 
                 <div id="camSelect" class="row" style="gap:8px"></div>
+                <div id="camHiddenTray" class="row small" style="margin-top:8px; gap:8px"></div>
                 <div class="hint" style="margin-top:10px">
                   If you only have one webcam, select <b>Camera 1</b>. If multiple cameras exist, pick a device per slot.
                   Some browsers/devices limit simultaneous streams.
@@ -1958,6 +1959,7 @@
         cameraDisplayOn: true,
         minimizeDetails: true,
         selectedSlots: [0],
+        hiddenCameraSlots: [],
         logViewMode: "objects",
         clipViewMode: "objects",
         broadcastFeedsOn: false,
@@ -2430,6 +2432,7 @@
 
       const camGrid = el("camGrid");
       const camSelect = el("camSelect");
+      const camHiddenTray = el("camHiddenTray");
       const permDot = el("permDot");
       const permText = el("permText");
       const recBadge = el("recBadge");
@@ -4458,11 +4461,67 @@
         }
       }
 
+      function getHiddenCameraSlots(){
+        const raw = Array.isArray(settings.hiddenCameraSlots) ? settings.hiddenCameraSlots : [];
+        return Array.from(new Set(raw))
+          .filter((n)=>Number.isInteger(n) && n >= 0 && n < MAX_CAM_UI);
+      }
+
+      function isCameraSlotHidden(slot){
+        return getHiddenCameraSlots().includes(slot);
+      }
+
+      function setCameraSlotHidden(slot, hidden){
+        const hiddenSet = new Set(getHiddenCameraSlots());
+        if(hidden){
+          hiddenSet.add(slot);
+          settings.selectedSlots = (settings.selectedSlots || []).filter((n)=>n !== slot);
+          stopCamera(slot);
+        }else{
+          hiddenSet.delete(slot);
+        }
+        settings.hiddenCameraSlots = Array.from(hiddenSet).sort((a,b)=>a-b);
+        saveSettings();
+        syncCameraCheckboxes();
+        refreshCameraUIVisibility();
+      }
+
+      function getVisibleCameraSlots(){
+        const selected = Array.from(new Set(settings.selectedSlots || []))
+          .filter((n)=>Number.isInteger(n) && n >= 0 && n < MAX_CAM_UI && !isCameraSlotHidden(n))
+          .sort((a,b)=>a-b);
+        const visible = [...selected];
+        for(let i=0;i<MAX_CAM_UI;i++){
+          if(selected.includes(i) || isCameraSlotHidden(i)) continue;
+          visible.push(i);
+          break;
+        }
+        if(!visible.length){
+          for(let i=0;i<MAX_CAM_UI;i++){
+            if(!isCameraSlotHidden(i)){
+              visible.push(i);
+              break;
+            }
+          }
+        }
+        return visible;
+      }
+
+      function refreshCameraUIVisibility(){
+        const visible = new Set(getVisibleCameraSlots());
+        for(let i=0;i<MAX_CAM_UI;i++){
+          const card = camGrid?.querySelector(`.cam[data-cam="${i}"]`);
+          if(card) card.hidden = !visible.has(i);
+        }
+        buildCameraSelectors();
+      }
+
       function buildCameraSelectors(){
         if(!camSelect) return;
         camSelect.innerHTML = "";
+        const visibleSlots = getVisibleCameraSlots();
 
-        for(let i=0;i<MAX_CAM_UI;i++){
+        for(const i of visibleSlots){
           const wrap = document.createElement("div");
           wrap.className = "toggle";
           wrap.style.gap = "10px";
@@ -4495,9 +4554,18 @@
             saveJSON(LS_KEYS.camBindings, camBindings);
           });
 
+          const hideBtn = document.createElement("button");
+          hideBtn.type = "button";
+          hideBtn.className = "ghost mini";
+          hideBtn.textContent = "Hide";
+          hideBtn.addEventListener("click", ()=>{
+            setCameraSlotHidden(i, true);
+          });
+
           wrap.appendChild(cb);
           wrap.appendChild(label);
           wrap.appendChild(sel);
+          wrap.appendChild(hideBtn);
           camSelect.appendChild(wrap);
         }
 
@@ -4518,6 +4586,28 @@
           await enumerateVideoDevices({ force: true, selectAll: true });
         });
         camSelect.appendChild(refreshBtn);
+
+        if(camHiddenTray){
+          camHiddenTray.innerHTML = "";
+          const hiddenSlots = getHiddenCameraSlots();
+          if(hiddenSlots.length){
+            const note = document.createElement("span");
+            note.textContent = "Hidden slots:";
+            camHiddenTray.appendChild(note);
+            hiddenSlots.forEach((slot)=>{
+              const showBtn = document.createElement("button");
+              showBtn.type = "button";
+              showBtn.className = "ghost mini";
+              showBtn.textContent = `Show ${camLabel(slot)}`;
+              showBtn.addEventListener("click", ()=>{
+                setCameraSlotHidden(slot, false);
+              });
+              camHiddenTray.appendChild(showBtn);
+            });
+          }else{
+            camHiddenTray.textContent = "";
+          }
+        }
       }
 
       function renderDeviceSelectOptions(selectEl, slot){
@@ -4554,22 +4644,28 @@
       function ensureSelectedSlotsWithinLimits(){
         const cleaned = Array.from(new Set(settings.selectedSlots || []))
           .filter(n => Number.isInteger(n) && n >= 0 && n < MAX_CAM_UI);
+        const hidden = new Set(getHiddenCameraSlots());
 
         if(cleaned.length === 0){
           const fillCount = Math.min(Math.max(devices.length, 1), MAX_CAM_UI);
-          settings.selectedSlots = Array.from({ length: fillCount }, (_, idx) => idx);
+          settings.selectedSlots = Array.from({ length: fillCount }, (_, idx) => idx)
+            .filter((idx)=>!hidden.has(idx));
         }else{
-          settings.selectedSlots = cleaned.slice(0, MAX_CAM_UI);
+          settings.selectedSlots = cleaned
+            .filter((idx)=>!hidden.has(idx))
+            .slice(0, MAX_CAM_UI);
         }
         saveSettings();
-        syncCameraCheckboxes();
+        refreshCameraUIVisibility();
       }
 
       function selectAllSlotsFromDevices(){
         const fillCount = Math.min(Math.max(devices.length, 1), MAX_CAM_UI);
-        settings.selectedSlots = Array.from({ length: fillCount }, (_, idx) => idx);
+        const hidden = new Set(getHiddenCameraSlots());
+        settings.selectedSlots = Array.from({ length: fillCount }, (_, idx) => idx)
+          .filter((idx)=>!hidden.has(idx));
         saveSettings();
-        syncCameraCheckboxes();
+        refreshCameraUIVisibility();
       }
 
       async function ensureDevicesDiscoveredOnLoad(){
@@ -4650,7 +4746,10 @@
                   <span id="camStatus_${i}">Off</span>
                 </div>
               </div>
-              <span class="pill-mini" id="camFps_${i}">—</span>
+              <div class="row" style="gap:6px">
+                <button type="button" class="ghost mini" data-act="hide">Hide</button>
+                <span class="pill-mini" id="camFps_${i}">—</span>
+              </div>
             </div>
 
             <div class="cam-body">
@@ -4683,12 +4782,14 @@
               if(act === "annotate") annotateFrame(i);
               if(act === "pop") popoutCamera(i);
               if(act === "snap") snapshotDownload(i);
+              if(act === "hide") setCameraSlotHidden(i, true);
             });
           });
 
           camGrid.appendChild(card);
           setCamStatus(i, false);
         }
+        refreshCameraUIVisibility();
       }
 
       function setCamStatus(i, on){
