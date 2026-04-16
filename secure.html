@@ -641,6 +641,25 @@
       gap:10px;
       flex-wrap:wrap;
     }
+    .live-go-panel{
+      border:1px dashed rgba(34,211,238,.4);
+      border-radius:12px;
+      background:rgba(8,22,32,.42);
+      padding:10px;
+      display:grid;
+      gap:8px;
+    }
+    .live-go-cams{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .live-go-cams .toggle{
+      padding:5px 8px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:999px;
+      background:rgba(5,7,11,.4);
+    }
     .secure-live-status{
       font-size:11px;
       color:var(--muted);
@@ -1643,6 +1662,13 @@
                   <button id="btnSecureLiveStop" class="ghost" type="button">Stop Sharing</button>
                 </div>
               </div>
+              <div class="live-go-panel">
+                <div class="row" style="justify-content:space-between;align-items:center">
+                  <div class="small"><b>Go Live in header + broadcast:</b> choose which active camera feeds are sent live.</div>
+                  <button id="btnSecureLiveGoNow" class="good" type="button">Go Live Selected Feeds</button>
+                </div>
+                <div id="secureLiveCamPicker" class="live-go-cams"></div>
+              </div>
               <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
               <div id="secureLivePresence" class="secure-live-presence" aria-live="polite">Active users on Secure page: <b id="secureLiveActiveUsers">0</b></div>
               <div class="secure-live-toolbar">
@@ -1967,6 +1993,7 @@
         broadcastFeedsExpanded: true,
         broadcastServers: [],
         privateFeedLockEnabled: true,
+        liveBroadcastSlots: [0],
 
         // Live CV tuning
         detectionIntervalMs: isLikelyMobile() ? 450 : 300,
@@ -2528,6 +2555,8 @@
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
       const btnSecureLiveStop = el("btnSecureLiveStop");
+      const btnSecureLiveGoNow = el("btnSecureLiveGoNow");
+      const secureLiveCamPicker = el("secureLiveCamPicker");
       const btnSecureLiveLayout1 = el("btnSecureLiveLayout1");
       const btnSecureLiveLayout2 = el("btnSecureLiveLayout2");
       const btnSecureLiveLayout4 = el("btnSecureLiveLayout4");
@@ -2556,6 +2585,7 @@
         sharing: false,
         layoutCount: 1,
         selectedId: "",
+        selectedCamSlots: [],
         rotateEnabled: false,
         rotateMs: 1000,
         rotateTimer: null,
@@ -2835,7 +2865,10 @@
 
       function secureLiveBuildCompositeStream(){
         const activeVideos = [];
+        const desiredSlots = Array.from(new Set((secureLive.selectedCamSlots || [])
+          .filter((slot)=>Number.isInteger(slot) && slot >= 0 && slot < MAX_CAM_UI)));
         for(let i=0;i<MAX_CAM_UI;i++){
+          if(desiredSlots.length && !desiredSlots.includes(i)) continue;
           if(!camStreams.has(i)) continue;
           const v = el("vid_"+i);
           if(v && v.readyState >= 2) activeVideos.push(v);
@@ -2902,9 +2935,45 @@
             secureLiveOfferTo(peer.id).catch(()=>{});
           }
         }
-        setSecureLiveStatus("Live feed connected • showing all active live tiles");
+        const selectedCount = (secureLive.selectedCamSlots || []).length;
+        const modeLabel = selectedCount ? `${selectedCount} selected camera feed${selectedCount === 1 ? "" : "s"}` : "all active camera feeds";
+        setSecureLiveStatus(`Live feed connected • broadcasting ${modeLabel} to header + broadcast tiles`);
         secureLiveRenderRows();
         return true;
+      }
+
+      function secureLiveSelectedCamSlots(){
+        return Array.from(new Set((settings.liveBroadcastSlots || [])
+          .filter((n)=>Number.isInteger(n) && n >= 0 && n < MAX_CAM_UI)));
+      }
+
+      function secureLiveRenderCamPicker(){
+        if(!secureLiveCamPicker) return;
+        secureLiveCamPicker.innerHTML = "";
+        const selected = new Set(secureLiveSelectedCamSlots());
+        let count = 0;
+        for(let i=0;i<MAX_CAM_UI;i++){
+          if(!camStreams.has(i)) continue;
+          count += 1;
+          const pill = document.createElement("label");
+          pill.className = "toggle";
+          pill.innerHTML = `<input type="checkbox" data-live-cam-slot="${i}" ${selected.has(i) ? "checked" : ""} /><span>${camLabel(i)}</span>`;
+          secureLiveCamPicker.appendChild(pill);
+        }
+        if(!count){
+          secureLiveCamPicker.innerHTML = `<span class="small">No active camera feeds yet. Start cameras, then choose feeds to go live.</span>`;
+          return;
+        }
+        secureLiveCamPicker.querySelectorAll("input[data-live-cam-slot]").forEach((node)=>{
+          node.addEventListener("change", ()=>{
+            const picked = [...secureLiveCamPicker.querySelectorAll("input[data-live-cam-slot]:checked")]
+              .map((input)=>Number(input.getAttribute("data-live-cam-slot")))
+              .filter((n)=>Number.isInteger(n));
+            settings.liveBroadcastSlots = picked;
+            secureLive.selectedCamSlots = secureLiveSelectedCamSlots();
+            saveSettings();
+          });
+        });
       }
 
       function secureLiveStopSharing(){
@@ -3745,6 +3814,7 @@
       if(btnSecureLiveStart){
         btnSecureLiveStart.addEventListener("click", async ()=>{
           try{
+            secureLive.selectedCamSlots = secureLiveSelectedCamSlots();
             await secureLiveStartSharing();
             toast("Secure live sharing started.");
           }catch(err){
@@ -3758,6 +3828,28 @@
         btnSecureLiveStop.addEventListener("click", ()=>{
           secureLiveStopSharing();
           toast("Secure live sharing stopped.");
+        });
+      }
+      if(btnSecureLiveGoNow){
+        btnSecureLiveGoNow.addEventListener("click", async ()=>{
+          const selected = secureLiveSelectedCamSlots();
+          if(!selected.length){
+            toast("Select at least one active camera feed to go live.");
+            return;
+          }
+          secureLive.selectedCamSlots = selected;
+          try{
+            if(!secureLive.sharing){
+              await secureLiveStartSharing();
+            }else{
+              await secureLiveRefreshEntrusting();
+              setSecureLiveStatus(`Live feeds refreshed • broadcasting ${selected.length} selected camera feed${selected.length === 1 ? "" : "s"} to header + broadcast tiles`);
+            }
+            toast(`Go live enabled for ${selected.length} camera feed${selected.length === 1 ? "" : "s"}.`);
+          }catch(err){
+            setSecureLiveStatus(`Live feed error: ${err?.message || err}`);
+            toast("Unable to go live with selected camera feeds.");
+          }
         });
       }
       if(btnSecureLiveLayout1){
@@ -4480,6 +4572,8 @@
         syncPrivateFeedControls();
         renderBroadcastServerChoices();
         renderBroadcastFeedEmbeds();
+        secureLive.selectedCamSlots = secureLiveSelectedCamSlots();
+        secureLiveRenderCamPicker();
 
         el("btnToggleDisplay").textContent = cameraDisplayOn ? "👁 Hide Display" : "👁 Show Display";
       }
@@ -4867,6 +4961,7 @@
           ? `${active.length}/${MAX_CAM_UI} active (${active.map(i=>camLabel(i)).join(", ")})`
           : "0 active";
         setCvStatus(cvStatusStreams, label);
+        secureLiveRenderCamPicker();
       }
 
       function setRecUI(on){
@@ -4929,6 +5024,7 @@
           setGlobalPerm(false, "Camera: Not streaming");
         }
         updateStreamStatus();
+        secureLiveRenderCamPicker();
         if(secureLive.sharing){
           secureLiveRefreshEntrusting().catch((err)=>{
             setSecureLiveStatus(`Live feed refresh error: ${err?.message || err}`);
