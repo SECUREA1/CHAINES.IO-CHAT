@@ -3573,7 +3573,7 @@ body.streams-flex-fit #video-container[hidden] {
     let mixCtx = null;
     let mixDrawHandle = null;
     let detectedVideoInputs = [];
-    const MAX_BROADCAST_CAMERAS = 10;
+    const MAX_BROADCAST_CAMERAS = Number.POSITIVE_INFINITY;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
     let goLiveAllRequested = false;
@@ -3722,9 +3722,7 @@ body.streams-flex-fit #video-container[hidden] {
         return { stream: base, previews: [base], multiCam: false };
       }
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices
-        .filter(d => d.kind === 'videoinput')
-        .slice(0, MAX_BROADCAST_CAMERAS);
+      const videoInputs = devices.filter(d => d.kind === 'videoinput');
       if(videoInputs.length <= 1){
         cameraStreams = [base];
         return { stream: base, previews: [base], multiCam: false };
@@ -3758,42 +3756,13 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
       const entries = opened.map(s => ({ stream: s, track: s.getVideoTracks()[0], enabled: true }));
-      const vids = entries.map(entry => {
-        const v = document.createElement('video');
-        v.srcObject = entry.stream;
-        v.muted = true;
-        v.autoplay = true;
-        v.playsInline = true;
-        v.setAttribute('muted', '');
-        v.setAttribute('autoplay', '');
-        v.setAttribute('playsinline', '');
-        v.play().catch(() => {});
-        return v;
+      const separated = new MediaStream();
+      entries.forEach(entry => {
+        if(entry.track) separated.addTrack(entry.track);
       });
-      mixCanvas = document.createElement('canvas');
-      mixCtx = mixCanvas.getContext('2d');
-      const draw = () => {
-        const count = vids.length;
-        const cols = Math.ceil(Math.sqrt(count));
-        const rows = Math.ceil(count / cols);
-        const cellW = 640;
-        const cellH = 360;
-        mixCanvas.width = cols * cellW;
-        mixCanvas.height = rows * cellH;
-        mixCtx.fillStyle = 'black';
-        mixCtx.fillRect(0, 0, mixCanvas.width, mixCanvas.height);
-        vids.forEach((v, idx) => {
-          const x = (idx % cols) * cellW;
-          const y = Math.floor(idx / cols) * cellH;
-          try { mixCtx.drawImage(v, x, y, cellW, cellH); } catch {}
-        });
-        mixDrawHandle = requestAnimationFrame(draw);
-      };
-      draw();
-      const mixed = mixCanvas.captureStream(30);
-      base.getAudioTracks().forEach(t => mixed.addTrack(t));
+      base.getAudioTracks().forEach(t => separated.addTrack(t));
       renderMultiCamControls(entries);
-      return { stream: mixed, previews: opened, multiCam: true };
+      return { stream: separated, previews: opened, multiCam: true };
     }
 
     function removeExtraCameraPreviews(){
@@ -3837,14 +3806,28 @@ body.streams-flex-fit #video-container[hidden] {
         refreshAddCameraButton();
         if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
         renderExtraCameraPreviews(bundle.previews);
-        const nextVideoTrack = nextStream.getVideoTracks()[0];
+        const nextVideoTracks = nextStream.getVideoTracks();
         const nextAudioTrack = nextStream.getAudioTracks()[0] || null;
         for(const id in peerConnections){
-          const senders = peerConnections[id].getSenders();
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if(videoSender && nextVideoTrack) videoSender.replaceTrack(nextVideoTrack);
+          const pc = peerConnections[id];
+          const senders = pc.getSenders();
+          senders
+            .filter(s => s.track && s.track.kind === 'video')
+            .forEach(s => {
+              try { pc.removeTrack(s); } catch {}
+            });
+          nextVideoTracks.forEach(track => {
+            try { pc.addTrack(track, nextStream); } catch {}
+          });
           const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if(audioSender) audioSender.replaceTrack(nextAudioTrack);
+          if(audioSender) {
+            audioSender.replaceTrack(nextAudioTrack);
+          } else if(nextAudioTrack){
+            try { pc.addTrack(nextAudioTrack, nextStream); } catch {}
+          }
+          pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
+            sendSignal({ type:'offer', id, sdp: pc.localDescription });
+          }).catch(() => {});
         }
         const selfStream = streams[clientId];
         if(selfStream?.vid) selfStream.vid.srcObject = nextStream;
@@ -5777,6 +5760,7 @@ body.streams-flex-fit #video-container[hidden] {
             const stream = ev.streams[0];
             if(broadcasting && !joinApproved){
               if(ev.track.kind === 'video'){
+                const stream = new MediaStream([ev.track]);
                 const vid = document.createElement('video');
                 tagMediaOwner(vid, msg.id);
                 vid.srcObject = stream;
@@ -5848,6 +5832,7 @@ body.streams-flex-fit #video-container[hidden] {
               }
             } else {
               if(ev.track.kind === 'video'){
+                const stream = new MediaStream([ev.track]);
                 if(guestMap[msg.id]){
                   const hostTarget = streams[guestMap[msg.id]];
                   const guestTarget = streams[msg.id];
