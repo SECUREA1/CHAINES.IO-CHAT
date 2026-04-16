@@ -641,6 +641,55 @@
       color:var(--muted);
       letter-spacing:.2px;
     }
+    .secure-live-presence{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      font-size:11px;
+      color:var(--muted);
+      font-weight:600;
+    }
+    .secure-live-presence b{
+      color:var(--text);
+    }
+    .private-feed-lock{
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:12px;
+      background:rgba(0,0,0,.22);
+      padding:10px;
+      display:grid;
+      gap:8px;
+    }
+    .private-feed-lock-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .private-feed-lock input[type="password"]{
+      min-width:220px;
+      max-width:320px;
+    }
+    .private-feed-lock-status{
+      font-size:11px;
+      color:var(--muted2);
+    }
+    .private-feed-lock-status.good{ color:#86efac; }
+    .private-feed-lock-status.warn{ color:#fbbf24; }
+    .broadcast-feed-locked{
+      min-height:260px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:16px;
+      color:var(--muted);
+      background:rgba(5,7,11,.9);
+      border-top:1px solid rgba(255,255,255,.1);
+    }
     .secure-live-toolbar{
       display:flex;
       align-items:center;
@@ -1561,6 +1610,17 @@
                 <div class="title"><span aria-hidden="true">📡</span> Broadcast Feeds</div>
                 <button id="btnToggleBroadcastFeedPanel" class="ghost" type="button" aria-expanded="true">Hide Feed Tiles</button>
               </div>
+              <div class="private-feed-lock">
+                <div class="private-feed-lock-row">
+                  <label class="storage-pill">
+                    <input id="chkPrivateFeedLock" type="checkbox" checked />
+                    Require password for private feed
+                  </label>
+                  <input id="privateFeedPassword" type="password" placeholder="Enter private feed password" autocomplete="off" />
+                  <button id="btnPrivateFeedUnlock" class="good" type="button">Unlock</button>
+                </div>
+                <div id="privateFeedLockStatus" class="private-feed-lock-status">Private feed is locked. Enter password and click Unlock to view restricted feed tiles.</div>
+              </div>
               <div id="broadcastFeedsBody">
                 <div id="broadcastFeedGrid" class="broadcast-feed-grid"></div>
               </div>
@@ -1577,6 +1637,7 @@
                 </div>
               </div>
               <div id="secureLiveStatus" class="secure-live-status">Live feed: initializing…</div>
+              <div id="secureLivePresence" class="secure-live-presence" aria-live="polite">Active users on Secure page: <b id="secureLiveActiveUsers">0</b></div>
               <div class="secure-live-toolbar">
                 <div class="secure-live-view-toggle" role="group" aria-label="Secure live feed count">
                   <button id="btnSecureLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1 Feed</button>
@@ -1896,6 +1957,7 @@
         broadcastFeedsOn: false,
         broadcastFeedsExpanded: true,
         broadcastServers: [],
+        privateFeedLockEnabled: true,
 
         // Live CV tuning
         detectionIntervalMs: isLikelyMobile() ? 450 : 300,
@@ -1921,8 +1983,9 @@
       const BROADCAST_SERVER_OPTIONS = [
         { id: "local", label: "Current Host", base: location.origin },
         { id: "chat-render", label: "Render Chat", base: "https://chaines-io-chat.onrender.com" },
-        { id: "rednode-api", label: "Rednode API", base: "https://api.rednode.ai" },
+        { id: "rednode-api", label: "Rednode API", base: "https://api.rednode.ai", privateFeed: true },
       ];
+      const PRIVATE_FEED_UNLOCK_PASSWORD = "chaines-private-feed";
 
       // Load settings (merge defaults)
       let settings = loadJSON(LS_KEYS.settings, defaultSettings);
@@ -1996,6 +2059,8 @@
       let clipViewMode = settings.clipViewMode || "objects";
       let broadcastFeedsOn = !!settings.broadcastFeedsOn;
       let broadcastFeedsExpanded = settings.broadcastFeedsExpanded !== false;
+      let privateFeedLockEnabled = settings.privateFeedLockEnabled !== false;
+      let privateFeedUnlocked = sessionStorage.getItem("secure.privateFeedUnlocked") === "1";
       const clipPlaybackUrls = new Map();
 
       // Demo-only labels (kept)
@@ -2266,6 +2331,36 @@
         broadcastFeedsBody.hidden = !broadcastFeedsExpanded;
       }
 
+      function setPrivateFeedLockStatus(text, tone = ""){
+        if(!privateFeedLockStatus) return;
+        privateFeedLockStatus.textContent = text;
+        privateFeedLockStatus.classList.remove("good", "warn");
+        if(tone) privateFeedLockStatus.classList.add(tone);
+      }
+
+      function syncPrivateFeedControls(){
+        if(chkPrivateFeedLock){
+          chkPrivateFeedLock.checked = privateFeedLockEnabled;
+        }
+        if(privateFeedPassword){
+          privateFeedPassword.disabled = !privateFeedLockEnabled;
+          if(!privateFeedLockEnabled) privateFeedPassword.value = "";
+        }
+        if(btnPrivateFeedUnlock){
+          btnPrivateFeedUnlock.disabled = !privateFeedLockEnabled;
+          btnPrivateFeedUnlock.textContent = privateFeedLockEnabled
+            ? (privateFeedUnlocked ? "Unlocked" : "Unlock")
+            : "Lock Disabled";
+        }
+        if(!privateFeedLockEnabled){
+          setPrivateFeedLockStatus("Private feed lock is disabled. All feed tiles are visible.", "good");
+        }else if(privateFeedUnlocked){
+          setPrivateFeedLockStatus("Private feed unlocked for this browser session.", "good");
+        }else{
+          setPrivateFeedLockStatus("Private feed is locked. Enter password and click Unlock to view restricted feed tiles.", "warn");
+        }
+      }
+
       function renderBroadcastFeedEmbeds(){
         if(!broadcastFeedsWrap || !broadcastFeedGrid) return;
         broadcastFeedsWrap.hidden = !broadcastFeedsOn;
@@ -2286,9 +2381,24 @@
           if(!base) continue;
           const safeLabel = escapeHtml(srv.label);
           const safeBase = escapeHtml(base);
+          const feedLocked = !!(srv.privateFeed && privateFeedLockEnabled && !privateFeedUnlocked);
           const card = document.createElement("article");
           card.className = "broadcast-feed-card";
-          card.innerHTML = `
+          if(feedLocked){
+            card.innerHTML = `
+            <div class="broadcast-feed-head">
+              <b>${safeLabel} · Private Feed</b>
+              <span class="small">${safeBase}</span>
+            </div>
+            <div class="broadcast-feed-locked">
+              <div>
+                <b>🔒 Private feed locked</b><br>
+                Enter password above and click <b>Unlock</b> to view this feed.
+              </div>
+            </div>
+          `;
+          }else{
+            card.innerHTML = `
             <div class="broadcast-feed-head">
               <b>${safeLabel}</b>
               <span class="small">${safeBase}</span>
@@ -2302,6 +2412,7 @@
               title="Broadcast feed from ${safeLabel}">
             </iframe>
           `;
+          }
           broadcastFeedGrid.appendChild(card);
         }
       }
@@ -2328,6 +2439,10 @@
       const broadcastFeedsBody = el("broadcastFeedsBody");
       const btnToggleBroadcastFeedPanel = el("btnToggleBroadcastFeedPanel");
       const broadcastFeedGrid = el("broadcastFeedGrid");
+      const chkPrivateFeedLock = el("chkPrivateFeedLock");
+      const privateFeedPassword = el("privateFeedPassword");
+      const btnPrivateFeedUnlock = el("btnPrivateFeedUnlock");
+      const privateFeedLockStatus = el("privateFeedLockStatus");
       const secureUrl = (()=>{ try{ return new URL(window.location.href); }catch{ return null; } })();
       const autoEnableLiveFeeds = (()=> {
         if(!secureUrl) return false;
@@ -2410,6 +2525,7 @@
       const btnSecureLiveRotate = el("btnSecureLiveRotate");
       const btnSecureLiveReturnGrid = el("btnSecureLiveReturnGrid");
       const secureLiveLayoutMeta = el("secureLiveLayoutMeta");
+      const secureLiveActiveUsers = el("secureLiveActiveUsers");
 
       el("year").textContent = new Date().getFullYear();
 
@@ -2431,6 +2547,7 @@
         rotateEnabled: false,
         rotateMs: 1000,
         rotateTimer: null,
+        heartbeatTimer: null,
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
@@ -2443,9 +2560,29 @@
         if(secureLiveStatus) secureLiveStatus.textContent = text;
       }
 
+      function syncSecureLiveActiveUsers(count = 0){
+        const activeCount = Math.max(0, Number(count) || 0);
+        if(secureLiveActiveUsers){
+          secureLiveActiveUsers.textContent = String(activeCount);
+        }
+      }
+
       function secureLiveSend(payload){
         if(!secureLive.socket || secureLive.socket.readyState !== WebSocket.OPEN) return;
         try{ secureLive.socket.send(JSON.stringify(payload)); }catch(_err){ /* no-op */ }
+      }
+
+      function secureLiveStartHeartbeat(){
+        if(secureLive.heartbeatTimer) return;
+        secureLive.heartbeatTimer = setInterval(()=>{
+          secureLiveSend({ type: "secure-live-presence", user: secureLive.user, active: true });
+        }, 12000);
+      }
+
+      function secureLiveStopHeartbeat(){
+        if(!secureLive.heartbeatTimer) return;
+        clearInterval(secureLive.heartbeatTimer);
+        secureLive.heartbeatTimer = null;
       }
 
       function secureLiveSelectView(id){
@@ -2593,6 +2730,7 @@
 
       function secureLiveRenderRows(){
         if(!secureLiveGrid) return;
+        syncSecureLiveActiveUsers(Array.isArray(secureLive.roster) ? secureLive.roster.length : 0);
         const liveIds = secureLiveGetLiveIds();
         secureLiveGrid.innerHTML = "";
         secureLiveGrid.classList.remove("layout-1", "layout-2", "layout-4");
@@ -2780,12 +2918,16 @@
           secureLive.reconnectDelayMs = 1200;
           secureLiveSend({ type: "join", user: secureLive.user });
           secureLiveSend({ type: "secure-live-join", user: secureLive.user });
+          secureLiveSend({ type: "secure-live-presence", user: secureLive.user, active: true });
+          secureLiveStartHeartbeat();
           setSecureLiveStatus("Live feed connected • loading active camera tiles…");
         });
         ws.addEventListener("close", ()=>{
           secureLive.socketOpen = false;
+          secureLiveStopHeartbeat();
           secureLive.selfId = "";
           secureLive.roster = [];
+          syncSecureLiveActiveUsers(0);
           setSecureLiveStatus("Live feed disconnected • reconnecting…");
           if(secureLive.reconnectTimer) clearTimeout(secureLive.reconnectTimer);
           secureLive.reconnectTimer = setTimeout(()=>{
@@ -2820,6 +2962,10 @@
               }
             }
             secureLiveRenderRows();
+            return;
+          }
+          if(msg.type === "secure-live-active-count"){
+            syncSecureLiveActiveUsers(msg.count);
             return;
           }
           if(msg.type === "offer" && msg.id && msg.sdp){
@@ -2873,8 +3019,16 @@
         });
       }, 500);
       watchCameraPermission();
-      window.addEventListener("pagehide", ()=>hardResetCameras("page hidden"));
-      window.addEventListener("beforeunload", ()=>hardResetCameras("page unload"));
+      window.addEventListener("pagehide", ()=>{
+        secureLiveSend({ type: "secure-live-leave" });
+        secureLiveStopHeartbeat();
+        hardResetCameras("page hidden");
+      });
+      window.addEventListener("beforeunload", ()=>{
+        secureLiveSend({ type: "secure-live-leave" });
+        secureLiveStopHeartbeat();
+        hardResetCameras("page unload");
+      });
 
       /***********************
        * Mobile tabs
@@ -3500,6 +3654,48 @@
         btnRefreshBroadcastFeeds.addEventListener("click", ()=>{
           renderBroadcastFeedEmbeds();
           toast("Broadcast feeds refreshed.");
+        });
+      }
+
+      if(chkPrivateFeedLock){
+        chkPrivateFeedLock.addEventListener("change", (event)=>{
+          privateFeedLockEnabled = !!event.target.checked;
+          settings.privateFeedLockEnabled = privateFeedLockEnabled;
+          if(!privateFeedLockEnabled){
+            privateFeedUnlocked = true;
+            sessionStorage.setItem("secure.privateFeedUnlocked", "1");
+          }else if(privateFeedUnlocked){
+            sessionStorage.setItem("secure.privateFeedUnlocked", "1");
+          }
+          saveSettings();
+          syncPrivateFeedControls();
+          renderBroadcastFeedEmbeds();
+        });
+      }
+
+      if(btnPrivateFeedUnlock){
+        btnPrivateFeedUnlock.addEventListener("click", ()=>{
+          if(!privateFeedLockEnabled){
+            syncPrivateFeedControls();
+            renderBroadcastFeedEmbeds();
+            return;
+          }
+          const entered = String(privateFeedPassword?.value || "").trim();
+          if(entered && entered === PRIVATE_FEED_UNLOCK_PASSWORD){
+            privateFeedUnlocked = true;
+            sessionStorage.setItem("secure.privateFeedUnlocked", "1");
+            if(privateFeedPassword) privateFeedPassword.value = "";
+            syncPrivateFeedControls();
+            renderBroadcastFeedEmbeds();
+            toast("Private feed unlocked.");
+          }else{
+            privateFeedUnlocked = false;
+            sessionStorage.removeItem("secure.privateFeedUnlocked");
+            syncPrivateFeedControls();
+            renderBroadcastFeedEmbeds();
+            setPrivateFeedLockStatus("Incorrect password. Private feed remains locked.", "warn");
+            toast("Invalid private feed password.");
+          }
         });
       }
 
@@ -4237,6 +4433,8 @@
         setRecUI(recognitionMode);
         applyModeBadges();
         if(chkBroadcastFeeds) chkBroadcastFeeds.checked = broadcastFeedsOn;
+        if(chkPrivateFeedLock) chkPrivateFeedLock.checked = privateFeedLockEnabled;
+        syncPrivateFeedControls();
         renderBroadcastServerChoices();
         renderBroadcastFeedEmbeds();
 
