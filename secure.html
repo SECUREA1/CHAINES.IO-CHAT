@@ -81,6 +81,25 @@
       gap:8px;
       font-size:11px;
       color:var(--muted);
+      flex-wrap:wrap;
+    }
+    .top-live-controls{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .top-live-controls .secure-live-view-toggle{
+      padding:2px;
+      gap:4px;
+    }
+    .top-live-controls .secure-live-view-btn{
+      padding:5px 9px;
+      font-size:11px;
+    }
+    .top-live-meta{
+      font-size:10px;
+      color:var(--muted2);
     }
     .top-live-grid{
       display:grid;
@@ -96,6 +115,10 @@
     }
     .top-live-grid .secure-live-row-head b{
       font-size:10px;
+    }
+    .top-live-grid .secure-live-row.selected{
+      outline:1px solid rgba(73,185,255,.65);
+      box-shadow:0 0 0 1px rgba(73,185,255,.2) inset;
     }
     .brand{
       display:flex; align-items:center; gap:12px;
@@ -1375,7 +1398,17 @@
     <div class="top-live-wrap">
       <div class="top-live-head">
         <span>🔴 Secure Live Header Feed</span>
-        <span class="small">All active live cameras shown here in real time.</span>
+        <div class="top-live-controls">
+          <span class="small">All active live cameras shown here in real time.</span>
+          <div class="secure-live-view-toggle" role="group" aria-label="Header live feed count">
+            <button id="btnTopLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1</button>
+            <button id="btnTopLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2</button>
+            <button id="btnTopLiveLayout4" class="secure-live-view-btn" type="button" aria-pressed="false">4</button>
+          </div>
+          <button id="btnTopLiveNext" class="ghost" type="button">Next</button>
+          <button id="btnTopLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate: Off</button>
+          <span id="topLiveMeta" class="top-live-meta">Showing 1 feed.</span>
+        </div>
       </div>
       <div id="topSecureLiveGrid" class="top-live-grid"></div>
     </div>
@@ -2400,6 +2433,12 @@
       const tuneTargetTypeRadios = Array.from(document.querySelectorAll("input[name=\"tuneTargetType\"]"));
       const secureLiveGrid = el("secureLiveGrid");
       const topSecureLiveGrid = el("topSecureLiveGrid");
+      const btnTopLiveLayout1 = el("btnTopLiveLayout1");
+      const btnTopLiveLayout2 = el("btnTopLiveLayout2");
+      const btnTopLiveLayout4 = el("btnTopLiveLayout4");
+      const btnTopLiveNext = el("btnTopLiveNext");
+      const btnTopLiveRotate = el("btnTopLiveRotate");
+      const topLiveMeta = el("topLiveMeta");
       const secureLiveStatus = el("secureLiveStatus");
       const btnSecureLiveStart = el("btnSecureLiveStart");
       const btnSecureLiveStop = el("btnSecureLiveStop");
@@ -2428,9 +2467,14 @@
         sharing: false,
         layoutCount: 1,
         selectedId: "",
+        audioId: "",
         rotateEnabled: false,
         rotateMs: 1000,
         rotateTimer: null,
+        topLayoutCount: 1,
+        topSelectedId: "",
+        topRotateEnabled: false,
+        topRotateTimer: null,
         reconnectDelayMs: 1200,
         user: `secure-${Math.random().toString(36).slice(2, 8)}`,
       };
@@ -2451,25 +2495,27 @@
       function secureLiveSelectView(id){
         if(!id) return;
         secureLive.selectedId = id;
+        secureLive.audioId = id;
+        if(!secureLive.topSelectedId) secureLive.topSelectedId = id;
         secureLiveRenderRows();
       }
 
-      function secureLiveVisibleIds(liveIds){
+      function secureLiveVisibleIds(liveIds, layoutCount, selectedId){
         if(!Array.isArray(liveIds) || !liveIds.length) return [];
-        const layoutCount = Math.max(1, Math.min(4, Number(secureLive.layoutCount) || 1));
-        const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId) ? secureLive.selectedId : liveIds[0];
+        const normalizedLayout = Math.max(1, Math.min(4, Number(layoutCount) || 1));
+        const focus = selectedId && liveIds.includes(selectedId) ? selectedId : liveIds[0];
         const focusIndex = Math.max(0, liveIds.indexOf(focus));
         const visible = [];
-        for(let i = 0; i < Math.min(layoutCount, liveIds.length); i += 1){
+        for(let i = 0; i < Math.min(normalizedLayout, liveIds.length); i += 1){
           visible.push(liveIds[(focusIndex + i) % liveIds.length]);
         }
         return visible;
       }
 
-      function secureLiveCycleSelected(liveIds){
+      function secureLiveCycleSelected(liveIds, currentId){
         if(!Array.isArray(liveIds) || liveIds.length < 2) return;
-        const currentIndex = Math.max(0, liveIds.indexOf(secureLive.selectedId));
-        secureLive.selectedId = liveIds[(currentIndex + 1) % liveIds.length];
+        const currentIndex = Math.max(0, liveIds.indexOf(currentId));
+        return liveIds[(currentIndex + 1) % liveIds.length];
       }
 
       function syncSecureLiveRotateTimer(liveIds = []){
@@ -2486,7 +2532,27 @@
         secureLive.rotateTimer = setInterval(()=>{
           const nextLiveIds = secureLiveGetLiveIds();
           if(nextLiveIds.length <= layoutCount) return;
-          secureLiveCycleSelected(nextLiveIds);
+          secureLive.selectedId = secureLiveCycleSelected(nextLiveIds, secureLive.selectedId) || secureLive.selectedId;
+          secureLive.audioId = secureLive.selectedId;
+          secureLiveRenderRows();
+        }, secureLive.rotateMs);
+      }
+
+      function syncTopLiveRotateTimer(liveIds = []){
+        const layoutCount = Math.max(1, Math.min(4, Number(secureLive.topLayoutCount) || 1));
+        const canRotate = secureLive.topRotateEnabled && liveIds.length > layoutCount;
+        if(!canRotate){
+          if(secureLive.topRotateTimer){
+            clearInterval(secureLive.topRotateTimer);
+            secureLive.topRotateTimer = null;
+          }
+          return;
+        }
+        if(secureLive.topRotateTimer) return;
+        secureLive.topRotateTimer = setInterval(()=>{
+          const nextLiveIds = secureLiveGetLiveIds();
+          if(nextLiveIds.length <= layoutCount) return;
+          secureLive.topSelectedId = secureLiveCycleSelected(nextLiveIds, secureLive.topSelectedId) || secureLive.topSelectedId;
           secureLiveRenderRows();
         }, secureLive.rotateMs);
       }
@@ -2526,14 +2592,40 @@
         }
       }
 
+      function syncTopLiveLayoutControls(liveIds, shownIds){
+        const activeByLayout = (btn, value)=>{
+          if(!btn) return;
+          const active = secureLive.topLayoutCount === value;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+        };
+        activeByLayout(btnTopLiveLayout1, 1);
+        activeByLayout(btnTopLiveLayout2, 2);
+        activeByLayout(btnTopLiveLayout4, 4);
+        if(btnTopLiveRotate){
+          btnTopLiveRotate.textContent = secureLive.topRotateEnabled ? "Rotate: On" : "Rotate: Off";
+          btnTopLiveRotate.setAttribute("aria-pressed", secureLive.topRotateEnabled ? "true" : "false");
+        }
+        if(btnTopLiveNext){
+          btnTopLiveNext.disabled = liveIds.length <= 1;
+        }
+        if(topLiveMeta){
+          topLiveMeta.textContent = !liveIds.length
+            ? "No feeds are live."
+            : `Showing ${shownIds.length} of ${liveIds.length} feeds. Click to open + audio.`;
+        }
+      }
+
       function buildSecureLiveRow(id, options = {}){
         const compact = !!options.compact;
+        const audioEnabled = !!options.audioEnabled;
         const isSelf = id === secureLive.selfId;
         const peer = secureLive.peers.get(id);
         const stream = isSelf ? secureLive.localStream : peer?.remoteStream || null;
         const user = (secureLive.roster.find((entry)=>entry?.id === id)?.user || (isSelf ? secureLive.user : "secure-user"));
         const row = document.createElement("article");
         row.className = "secure-live-row";
+        row.classList.toggle("selected", !!options.selected);
         if(!compact){
           row.setAttribute("role", "button");
           row.setAttribute("tabindex", "0");
@@ -2554,8 +2646,33 @@
         const video = row.querySelector("video");
         if(video){
           video.srcObject = stream || null;
+          video.muted = !audioEnabled || isSelf;
+          video.playsInline = true;
+          const playPromise = video.play?.();
+          if(playPromise && typeof playPromise.catch === "function"){
+            playPromise.catch(()=>{});
+          }
         }
-        if(compact) return row;
+        if(compact){
+          row.setAttribute("role", "button");
+          row.setAttribute("tabindex", "0");
+          row.setAttribute("aria-label", `${user} header camera feed`);
+          const focusFromHeader = ()=>{
+            secureLive.topSelectedId = id;
+            secureLive.selectedId = id;
+            secureLive.audioId = id;
+            secureLive.layoutCount = 1;
+            secureLiveRenderRows();
+          };
+          row.addEventListener("click", focusFromHeader);
+          row.addEventListener("keydown", (event)=>{
+            if(event.key === "Enter" || event.key === " "){
+              event.preventDefault();
+              focusFromHeader();
+            }
+          });
+          return row;
+        }
         row.addEventListener("click", (event)=>{
           const action = event.target?.closest?.("[data-action]")?.dataset?.action || "";
           if(action === "fullscreen"){
@@ -2565,6 +2682,7 @@
             }
             return;
           }
+          secureLive.audioId = id;
           secureLiveSelectView(id);
         });
         row.addEventListener("keydown", (event)=>{
@@ -2601,6 +2719,8 @@
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
           syncSecureLiveLayoutControls(liveIds, []);
           syncSecureLiveRotateTimer([]);
+          syncTopLiveLayoutControls(liveIds, []);
+          syncTopLiveRotateTimer([]);
           if(topSecureLiveGrid){
             topSecureLiveGrid.innerHTML = `<div class="small">No live feeds yet.</div>`;
           }
@@ -2609,20 +2729,36 @@
         if(!secureLive.selectedId || !liveIds.includes(secureLive.selectedId)){
           secureLive.selectedId = liveIds[0];
         }
-        const shownIds = secureLiveVisibleIds(liveIds);
+        if(!secureLive.audioId || !liveIds.includes(secureLive.audioId)){
+          secureLive.audioId = secureLive.selectedId;
+        }
+        if(!secureLive.topSelectedId || !liveIds.includes(secureLive.topSelectedId)){
+          secureLive.topSelectedId = secureLive.selectedId;
+        }
+        const shownIds = secureLiveVisibleIds(liveIds, secureLive.layoutCount, secureLive.selectedId);
+        const topShownIds = secureLiveVisibleIds(liveIds, secureLive.topLayoutCount, secureLive.topSelectedId);
         if(!shownIds.includes(secureLive.selectedId)){
           secureLive.selectedId = shownIds[0];
+        }
+        if(!topShownIds.includes(secureLive.topSelectedId)){
+          secureLive.topSelectedId = topShownIds[0];
         }
         secureLiveGrid.classList.add(`layout-${Math.min(4, Math.max(1, secureLive.layoutCount))}`);
         syncSecureLiveLayoutControls(liveIds, shownIds);
         syncSecureLiveRotateTimer(liveIds);
+        syncTopLiveLayoutControls(liveIds, topShownIds);
+        syncTopLiveRotateTimer(liveIds);
         for(const id of shownIds){
-          const row = buildSecureLiveRow(id);
+          const row = buildSecureLiveRow(id, { selected: id === secureLive.selectedId, audioEnabled: id === secureLive.audioId });
           secureLiveGrid.appendChild(row);
         }
-        for(const id of liveIds){
+        for(const id of topShownIds){
           if(!topSecureLiveGrid) break;
-          const topRow = buildSecureLiveRow(id, { compact: true });
+          const topRow = buildSecureLiveRow(id, {
+            compact: true,
+            selected: id === secureLive.topSelectedId,
+            audioEnabled: id === secureLive.audioId,
+          });
           topSecureLiveGrid.appendChild(topRow);
         }
       }
@@ -3552,7 +3688,9 @@
       }
       if(btnSecureLiveNextCamera){
         btnSecureLiveNextCamera.addEventListener("click", ()=>{
-          secureLiveCycleSelected(secureLiveGetLiveIds());
+          const liveIds = secureLiveGetLiveIds();
+          secureLive.selectedId = secureLiveCycleSelected(liveIds, secureLive.selectedId) || secureLive.selectedId;
+          secureLive.audioId = secureLive.selectedId;
           secureLiveRenderRows();
         });
       }
@@ -3565,6 +3703,37 @@
       if(btnSecureLiveReturnGrid){
         btnSecureLiveReturnGrid.addEventListener("click", ()=>{
           secureLive.layoutCount = 4;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveLayout1){
+        btnTopLiveLayout1.addEventListener("click", ()=>{
+          secureLive.topLayoutCount = 1;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveLayout2){
+        btnTopLiveLayout2.addEventListener("click", ()=>{
+          secureLive.topLayoutCount = 2;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveLayout4){
+        btnTopLiveLayout4.addEventListener("click", ()=>{
+          secureLive.topLayoutCount = 4;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveNext){
+        btnTopLiveNext.addEventListener("click", ()=>{
+          const liveIds = secureLiveGetLiveIds();
+          secureLive.topSelectedId = secureLiveCycleSelected(liveIds, secureLive.topSelectedId) || secureLive.topSelectedId;
+          secureLiveRenderRows();
+        });
+      }
+      if(btnTopLiveRotate){
+        btnTopLiveRotate.addEventListener("click", ()=>{
+          secureLive.topRotateEnabled = !secureLive.topRotateEnabled;
           secureLiveRenderRows();
         });
       }
