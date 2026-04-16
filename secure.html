@@ -1646,8 +1646,8 @@
 
                 <div id="camSelect" class="row" style="gap:8px"></div>
                 <div class="hint" style="margin-top:10px">
-                  If you only have one webcam, select <b>Camera 1</b>. If multiple cameras exist, pick a device per slot.
-                  Some browsers/devices limit simultaneous streams.
+                  Enable any camera slots you want (up to <b>20</b>) and bind a device per slot when available.
+                  If you only have one webcam, start with <b>Camera 1</b>. Some browsers/devices limit simultaneous streams.
                 </div>
               </div>
             </div>
@@ -1693,7 +1693,7 @@
               <div class="secure-live-toolbar">
                 <div class="row" style="gap:8px; flex-wrap:wrap">
                   <label class="small" for="secureLiveCameraToggleList"><b>Toggle cameras</b></label>
-                  <select id="secureLiveCameraToggleList" multiple size="3" style="min-width:220px"></select>
+                  <select id="secureLiveCameraToggleList" multiple size="8" style="min-width:220px"></select>
                   <button id="btnSecureLiveApplyCameraToggle" class="ghost" type="button">Apply Camera Toggle</button>
                   <label class="small" for="secureLiveActiveFeedSelect"><b>Activated feed</b></label>
                   <select id="secureLiveActiveFeedSelect" style="min-width:220px"></select>
@@ -1706,7 +1706,7 @@
                   <label class="small" for="secureLiveTargetUserSelect"><b>Target user</b></label>
                   <select id="secureLiveTargetUserSelect" style="min-width:180px"></select>
                   <label class="small" for="secureLiveTargetCameraSlots"><b>Target cameras</b></label>
-                  <select id="secureLiveTargetCameraSlots" multiple size="3" style="min-width:180px"></select>
+                  <select id="secureLiveTargetCameraSlots" multiple size="8" style="min-width:180px"></select>
                   <button id="btnSecureLiveAdminEnableFeed" class="ghost" type="button">Admin: Feed On</button>
                   <button id="btnSecureLiveAdminDisableFeed" class="ghost" type="button">Admin: Feed Off</button>
                 </div>
@@ -2105,7 +2105,7 @@
       // Camera + render state
       const MAX_CAM_UI = isLikelyMobile() ? 2 : 20;
       const camLabel = (idx)=>`Camera ${idx + 1}`;
-      const getCameraSlotLimit = ()=>Math.max(1, Math.min(MAX_CAM_UI, devices.length || 1));
+      const getCameraSlotLimit = ()=>MAX_CAM_UI;
       let camLatestLog = Array.from({ length: MAX_CAM_UI }, () => null);
       let camStreams = new Map();  // slotIdx -> MediaStream
       let camStates  = new Map();  // slotIdx -> state
@@ -5070,8 +5070,7 @@
           .filter(n => Number.isInteger(n) && n >= 0 && n < MAX_CAM_UI);
 
         if(cleaned.length === 0){
-          const fillCount = Math.min(Math.max(devices.length, 1), MAX_CAM_UI);
-          settings.selectedSlots = Array.from({ length: fillCount }, (_, idx) => idx);
+          settings.selectedSlots = [0];
         }else{
           settings.selectedSlots = cleaned.slice(0, MAX_CAM_UI);
         }
