@@ -3457,6 +3457,7 @@ body.streams-flex-fit #video-container[hidden] {
     let mixCanvas = null;
     let mixCtx = null;
     let mixDrawHandle = null;
+    let detectedVideoInputs = [];
     const MAX_BROADCAST_CAMERAS = 10;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
@@ -3527,6 +3528,27 @@ body.streams-flex-fit #video-container[hidden] {
         multiCameraControls.innerHTML = '';
         multiCameraControls.setAttribute('hidden', '');
       }
+    }
+
+    async function detectAvailableCameras({ requestPermission = false } = {}){
+      if(!navigator.mediaDevices?.enumerateDevices) return [];
+      let probeStream = null;
+      if(requestPermission){
+        try {
+          probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } catch {}
+      }
+      try{
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        detectedVideoInputs = devices.filter(d => d.kind === 'videoinput');
+      } catch {
+        detectedVideoInputs = [];
+      } finally {
+        if(probeStream){
+          try { probeStream.getTracks().forEach(t => t.stop()); } catch {}
+        }
+      }
+      return detectedVideoInputs;
     }
 
     function renderMultiCamControls(entries){
@@ -3695,6 +3717,13 @@ body.streams-flex-fit #video-container[hidden] {
         alert('Unable to add camera.');
       }
     }
+
+    if(navigator.mediaDevices?.addEventListener){
+      navigator.mediaDevices.addEventListener('devicechange', () => {
+        detectAvailableCameras();
+      });
+    }
+    detectAvailableCameras({ requestPermission: true });
 
       function updateHeaderButtons(){
         const show = broadcasting;
@@ -5118,9 +5147,19 @@ body.streams-flex-fit #video-container[hidden] {
         cameraOff = false;
         blankTrack = null;
         broadcasting = true;
-        const getStream = stream ? Promise.resolve(stream) : navigator.mediaDevices.getUserMedia(audioOnly ? { audio: true } : { video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true });
-        getStream.then(stream => {
-          localStream = stream;
+        const getStream = stream
+          ? Promise.resolve({ stream, previews: [stream], multiCam: false })
+          : (audioOnly
+            ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
+            : createBroadcastCameraBundle().catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
+        getStream.then(bundle => {
+          const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
+          const activeStream = activeBundle.stream;
+          const primaryPreview = activeBundle.previews?.[0] || activeStream;
+          localStream = activeStream;
+          multiCamBroadcast = !!activeBundle.multiCam;
+          removeExtraCameraPreviews();
+          renderExtraCameraPreviews(activeBundle.previews);
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -5163,7 +5202,7 @@ body.streams-flex-fit #video-container[hidden] {
             draw();
             try {
               const canvasStream = recordCanvas.captureStream(30);
-              stream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
+              activeStream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
               const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
               mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
               recordMime = mime;
@@ -5191,9 +5230,11 @@ body.streams-flex-fit #video-container[hidden] {
         cameraBtn.classList.remove('off');
         cameraBtn.title = 'Turn camera off';
       }
+      if(cameraFlipBtn) cameraFlipBtn.hidden = audioOnly || multiCamBroadcast;
+      if(addCameraBtn) addCameraBtn.hidden = true;
       if(overlayChat) overlayChat.removeAttribute('hidden');
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
-      mediaEl.srcObject = stream;
+      mediaEl.srcObject = primaryPreview;
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -5229,7 +5270,7 @@ body.streams-flex-fit #video-container[hidden] {
           const selfStream = streams[clientId];
           if(selfStream){
             const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
-            tileEl.srcObject = stream;
+            tileEl.srcObject = primaryPreview;
             tileEl.muted = true;
             tileEl.setAttribute('muted','');
             tileEl.autoplay = true;
