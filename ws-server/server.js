@@ -1910,6 +1910,51 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "secure-live-admin-camera-control": {
+        const adminUser = sanitizeUsername(msg.adminUser || "");
+        const adminPass = String(msg.adminPass || "");
+        if (
+          adminUser !== sanitizeUsername(ADMIN_ACCOUNT.username) ||
+          adminPass !== ADMIN_ACCOUNT.password
+        ) {
+          if (ws.readyState === 1) {
+            ws.send(
+              JSON.stringify({
+                type: "secure-live-admin-error",
+                message: "Invalid admin credentials for secure live camera control.",
+              })
+            );
+          }
+          return;
+        }
+        const targetId = String(msg.targetId || "").trim();
+        const target = clients.get(targetId);
+        if (!target || target.readyState !== 1) {
+          if (ws.readyState === 1) {
+            ws.send(
+              JSON.stringify({
+                type: "secure-live-admin-error",
+                message: "Target user is not connected.",
+              })
+            );
+          }
+          return;
+        }
+        const selectedSlots = Array.isArray(msg.selectedSlots)
+          ? msg.selectedSlots
+              .map((slot) => Number(slot))
+              .filter((slot) => Number.isInteger(slot) && slot >= 0 && slot < 4)
+          : [];
+        target.send(
+          JSON.stringify({
+            type: "secure-live-camera-control",
+            enabled: !!msg.enabled,
+            selectedSlots,
+            from: adminUser,
+          })
+        );
+        return;
+      }
       case "dm-history": {
         const user = ws.username || msg.user || "";
         const peer = (msg.with || "").toString().trim();
