@@ -82,6 +82,11 @@
       font-size:11px;
       color:var(--muted);
     }
+    .top-live-presence b{
+      color:var(--gold-2);
+      font-size:12px;
+      letter-spacing:.2px;
+    }
     .top-live-grid{
       display:grid;
       gap:8px;
@@ -1424,6 +1429,7 @@
     <div class="top-live-wrap">
       <div class="top-live-head">
         <span>🔴 Secure Live Header Feed</span>
+        <span class="top-live-presence" aria-live="polite">Live viewers: <b id="secureLiveTopActiveUsers">0</b></span>
         <span class="small">All active live cameras shown here in real time.</span>
       </div>
       <div id="topSecureLiveGrid" class="top-live-grid"></div>
@@ -2526,6 +2532,7 @@
       const btnSecureLiveReturnGrid = el("btnSecureLiveReturnGrid");
       const secureLiveLayoutMeta = el("secureLiveLayoutMeta");
       const secureLiveActiveUsers = el("secureLiveActiveUsers");
+      const secureLiveTopActiveUsers = el("secureLiveTopActiveUsers");
 
       el("year").textContent = new Date().getFullYear();
 
@@ -2564,6 +2571,9 @@
         const activeCount = Math.max(0, Number(count) || 0);
         if(secureLiveActiveUsers){
           secureLiveActiveUsers.textContent = String(activeCount);
+        }
+        if(secureLiveTopActiveUsers){
+          secureLiveTopActiveUsers.textContent = String(activeCount);
         }
       }
 
