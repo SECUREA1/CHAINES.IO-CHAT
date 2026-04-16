@@ -1365,6 +1365,8 @@ let guestApproved = null; // currently approved guest broadcaster
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
 const secureLiveParticipants = new Map(); // ws.id -> { id, user }
+const secureLivePresence = new Map(); // ws.id -> lastSeenMs
+const SECURE_LIVE_ACTIVE_WINDOW_MS = 35000;
 
 function uid(){
   return Math.random().toString(36).slice(2,9);
@@ -1405,6 +1407,32 @@ function broadcastSecureLiveUsers() {
   }
 }
 
+function activeSecureLiveCount() {
+  const now = Date.now();
+  for (const [id, lastSeen] of secureLivePresence.entries()) {
+    if (now - Number(lastSeen || 0) > SECURE_LIVE_ACTIVE_WINDOW_MS) {
+      secureLivePresence.delete(id);
+    }
+  }
+  let count = 0;
+  for (const id of secureLiveParticipants.keys()) {
+    const lastSeen = secureLivePresence.get(id) || 0;
+    if (now - Number(lastSeen) <= SECURE_LIVE_ACTIVE_WINDOW_MS) count += 1;
+  }
+  return count;
+}
+
+function broadcastSecureLiveActiveCount() {
+  const payload = JSON.stringify({ type: "secure-live-active-count", count: activeSecureLiveCount() });
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
+setInterval(() => {
+  broadcastSecureLiveActiveCount();
+}, 12000);
+
 wss.on("connection", (ws) => {
   ws.id = uid();
   clients.set(ws.id, ws);
@@ -1417,8 +1445,10 @@ wss.on("connection", (ws) => {
   }
   ws.on("close", () => {
     clients.delete(ws.id);
+    secureLivePresence.delete(ws.id);
     if (secureLiveParticipants.delete(ws.id)) {
       broadcastSecureLiveUsers();
+      broadcastSecureLiveActiveCount();
     }
     if (broadcasters.has(ws.id)) {
       broadcasters.delete(ws.id);
@@ -1857,12 +1887,26 @@ wss.on("connection", (ws) => {
       case "secure-live-join": {
         const user = (msg.user || ws.username || "").toString().trim() || `secure-${ws.id}`;
         secureLiveParticipants.set(ws.id, { id: ws.id, user });
+        secureLivePresence.set(ws.id, Date.now());
         broadcastSecureLiveUsers();
+        broadcastSecureLiveActiveCount();
+        return;
+      }
+      case "secure-live-presence": {
+        if (!secureLiveParticipants.has(ws.id)) {
+          const user = (msg.user || ws.username || "").toString().trim() || `secure-${ws.id}`;
+          secureLiveParticipants.set(ws.id, { id: ws.id, user });
+          broadcastSecureLiveUsers();
+        }
+        secureLivePresence.set(ws.id, Date.now());
+        broadcastSecureLiveActiveCount();
         return;
       }
       case "secure-live-leave": {
+        secureLivePresence.delete(ws.id);
         if (secureLiveParticipants.delete(ws.id)) {
           broadcastSecureLiveUsers();
+          broadcastSecureLiveActiveCount();
         }
         return;
       }
