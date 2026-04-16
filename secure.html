@@ -2399,6 +2399,31 @@
         btnToggleBroadcastFeeds.setAttribute("aria-pressed", String(broadcastFeedsOn));
       }
 
+      function stopDeselectedCameraStreams(){
+        const selected = new Set((settings.selectedSlots || []).filter((slot)=>Number.isInteger(slot)));
+        for(const [idx] of camStreams.entries()){
+          if(!selected.has(idx)) stopCamera(idx);
+        }
+      }
+
+      async function activateBroadcastFromSelection(showToastOnSuccess = false){
+        try{
+          await startSelectedCameras(true);
+          if(camStreams.size === 0){
+            setSecureLiveStatus("Live feed waiting • select at least one camera, then turn Broadcast On.");
+            if(showToastOnSuccess) toast("Select at least one camera to start broadcast.");
+            return false;
+          }
+          await secureLiveStartSharing();
+          if(showToastOnSuccess) toast("Broadcast enabled. Selected cameras are now live.");
+          return true;
+        }catch(err){
+          setSecureLiveStatus(`Live feed error: ${err?.message || err}`);
+          toast("Unable to start broadcast. Check camera permissions.");
+          return false;
+        }
+      }
+
       function syncSecureLivePanelVisibility(){
         if(!secureLiveWrap || !btnToggleSecureLivePanel) return;
         secureLiveWrap.hidden = !secureLivePanelVisible;
@@ -3885,22 +3910,28 @@
       }
 
       if(chkBroadcastFeeds){
-        chkBroadcastFeeds.addEventListener("change", (e)=>{
+        chkBroadcastFeeds.addEventListener("change", async (e)=>{
           broadcastFeedsOn = !!e.target.checked;
           settings.broadcastFeedsOn = broadcastFeedsOn;
           saveSettings();
           syncBroadcastToggleButton();
           renderBroadcastFeedEmbeds();
+          if(broadcastFeedsOn){
+            await activateBroadcastFromSelection(true);
+          }
         });
       }
       if(btnToggleBroadcastFeeds){
-        btnToggleBroadcastFeeds.addEventListener("click", ()=>{
+        btnToggleBroadcastFeeds.addEventListener("click", async ()=>{
           broadcastFeedsOn = !broadcastFeedsOn;
           settings.broadcastFeedsOn = broadcastFeedsOn;
           if(chkBroadcastFeeds) chkBroadcastFeeds.checked = broadcastFeedsOn;
           saveSettings();
           syncBroadcastToggleButton();
           renderBroadcastFeedEmbeds();
+          if(broadcastFeedsOn){
+            await activateBroadcastFromSelection(true);
+          }
         });
       }
       if(btnToggleSecureLivePanel){
@@ -3918,6 +3949,7 @@
         saveSettings();
         syncBroadcastToggleButton();
         renderBroadcastFeedEmbeds();
+        activateBroadcastFromSelection(false).catch(()=>{});
       }
 
       if(btnRefreshBroadcastFeeds){
@@ -4026,8 +4058,16 @@
           saveSettings();
           syncCameraCheckboxes();
           buildCameraCards();
-          await startSelectedCameras(true);
-          toast("Camera toggle applied.");
+          stopDeselectedCameraStreams();
+          if(broadcastFeedsOn || secureLive.sharing){
+            await startSelectedCameras(true);
+            if(broadcastFeedsOn && !secureLive.sharing){
+              await activateBroadcastFromSelection(false);
+            }
+            toast("Camera toggle applied and broadcast feeds updated.");
+          }else{
+            toast("Camera toggle saved. Turn Broadcast On to activate selected cameras.");
+          }
           syncSecureLiveCameraControls(secureLiveGetLiveIds());
         });
       }
