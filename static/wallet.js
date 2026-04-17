@@ -1157,7 +1157,7 @@
       return;
     }
 
-    hideOverlay();
+    showOverlay();
     let savedChain = 'cardano';
     let savedCurrency = 'ADA';
     try{
