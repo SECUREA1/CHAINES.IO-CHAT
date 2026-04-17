@@ -2,6 +2,7 @@
   const CARDANO_EVENT = 'cardano#initialized';
   const CHAIN_KEY = 'mixer_current_chain';
   const CURRENCY_KEY = 'mixer_current_currency';
+  const ACCESS_SESSION_KEY = 'chaines_token_gate_session';
   const CHAIN_TO_CURRENCY = {
     cardano: 'ADA',
     ethereum: 'ETH',
@@ -624,6 +625,10 @@
     if(reason){
       setStatus(reason, 'info', { skipIfError: true });
     }
+    try{
+      sessionStorage.removeItem(ACCESS_SESSION_KEY);
+    }catch{}
+    window.dispatchEvent(new CustomEvent('wallet:access-revoked'));
   }
 
   function getAvailableWallets(){
@@ -869,6 +874,9 @@
         walletAddress: state.connectedAddress || state.walletAddressBech32 || state.walletAddressHex || ''
       }
     }));
+    try{
+      sessionStorage.setItem(ACCESS_SESSION_KEY, '1');
+    }catch{}
   }
 
   async function syncGhostTokenCount({ silent } = {}){
