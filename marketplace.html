@@ -58,6 +58,10 @@
     .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
     .like-btn[aria-pressed="true"] { border-color:#ff7eb6; color:#ff7eb6; }
     .ghost-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .token-grid { border-top:1px dashed var(--line); padding-top:8px; display:grid; gap:6px; }
+    .token-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:6px; }
+    .token-actions { display:flex; flex-wrap:wrap; gap:6px; }
+    .token-btn { border:1px solid var(--line); border-radius:999px; background:#12326f; color:var(--fg); padding:6px 10px; cursor:pointer; font-size:12px; }
     .comment-wrap, .contact-compose { border-top:1px dashed var(--line); padding-top:8px; display:grid; gap:6px; }
     .comment-list { display:grid; gap:4px; max-height:120px; overflow:auto; padding-right:4px; }
     .comment-item { font-size:12px; color:var(--muted); }
@@ -159,6 +163,15 @@
           <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
           <input id="post-location" type="text" maxlength="80" placeholder="Location (optional)" />
           <input id="post-details" class="wide" type="text" maxlength="120" placeholder="Condition / details (optional)" />
+          <div class="token-grid wide">
+            <p class="dating-title">Cardano NFT + payment setup</p>
+            <div class="token-row">
+              <input id="post-cardano-token" type="text" maxlength="120" placeholder="Cardano token (optional e.g. policy.asset)" />
+              <input id="post-cardano-price" type="number" min="0" step="0.01" placeholder="NFT / item price in ADA (optional)" />
+              <input id="post-nft-title" type="text" maxlength="100" placeholder="NFT title (optional)" />
+              <input id="post-nft-supply" type="number" min="1" step="1" placeholder="NFT supply (optional)" />
+            </div>
+          </div>
           <div class="dating-block service-block">
             <p class="dating-title">Service details</p>
             <select id="post-service-type">
@@ -252,6 +265,10 @@
       const postMedia = $('#post-media');
       const postText = $('#post-text');
       const contactInbox = $('#contact-inbox');
+      const postCardanoToken = $('#post-cardano-token');
+      const postCardanoPrice = $('#post-cardano-price');
+      const postNftTitle = $('#post-nft-title');
+      const postNftSupply = $('#post-nft-supply');
       const notifBell = $('#notif-bell');
       const notifPanel = $('#notif-panel');
       const notifDot = $('#notif-dot');
@@ -286,15 +303,19 @@
         datingLikes: String(listing.datingLikes || '').trim(),
         datingDislikes: String(listing.datingDislikes || '').trim(),
         datingBio: String(listing.datingBio || '').trim(),
+        cardanoToken: String(listing.cardanoToken || '').trim(),
+        cardanoPriceAda: Number.isFinite(Number(listing.cardanoPriceAda)) ? Number(listing.cardanoPriceAda) : null,
+        nftTitle: String(listing.nftTitle || '').trim(),
+        nftSupply: Number.isFinite(Number(listing.nftSupply)) ? Math.max(1, Number(listing.nftSupply)) : null,
         media: Array.isArray(listing.media) ? listing.media.filter((item) => item && item.url && item.type) : []
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.serviceType || l.subcategory || l.jobLocation || l.credentials || l.contactInfo || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
+        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.serviceType || l.subcategory || l.jobLocation || l.credentials || l.contactInfo || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.cardanoToken || l.cardanoPriceAda || l.nftTitle || l.nftSupply || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        const completedFields = [l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
+        const completedFields = [l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age, l.cardanoToken, l.cardanoPriceAda, l.nftTitle, l.nftSupply].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
@@ -342,6 +363,9 @@
         if (n.type === 'broadcast') return { text: `${actor} requested to join your broadcast`, href: '/?tab=broadcast' };
         if (n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
         if (n.type === 'delivery-order') return { text: `Delivery order ${n.data?.id || ''} received`, href: '/delivery-services.html' };
+        if (n.type === 'marketplace-cardano-buy') return { text: `${actor} started a Cardano buy on your listing`, href: '/marketplace.html' };
+        if (n.type === 'marketplace-cardano-accept') return { text: `${actor} requested Cardano payment acceptance`, href: '/marketplace.html' };
+        if (n.type === 'marketplace-nft-mint') return { text: `${actor} requested NFT mint details`, href: '/marketplace.html' };
         return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
       }
 
@@ -391,7 +415,7 @@
         if (!isMarket(m)) return false;
         if (category !== 'all' && l.category !== category) return false;
         if (q) {
-          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age].join(' ').toLowerCase();
+          const generalHay = [m.user, m.text, l.category, l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingBio, l.age, l.cardanoToken, l.cardanoPriceAda, l.nftTitle, l.nftSupply].join(' ').toLowerCase();
           const likesHay = l.datingLikes.toLowerCase();
           const dislikesHay = l.datingDislikes.toLowerCase();
           const bioHay = l.datingBio.toLowerCase();
@@ -582,6 +606,9 @@
                <div class="small">Job location: ${escapeHtml(l.jobLocation || '—')}</div>
                <div class="small">Credentials: ${escapeHtml(l.credentials || '—')}</div>
                <div class="small">Contact: ${escapeHtml(l.contactInfo || '—')}</div>`;
+          const cardanoRows = `<div class="small"><strong>Cardano token:</strong> ${escapeHtml(l.cardanoToken || 'Not set')}</div>
+            <div class="small"><strong>Cardano price:</strong> ${l.cardanoPriceAda ? `${Number(l.cardanoPriceAda).toFixed(2)} ADA` : 'Not set'}</div>
+            <div class="small"><strong>NFT:</strong> ${escapeHtml(l.nftTitle || 'Not set')} ${l.nftSupply ? `(supply ${l.nftSupply})` : ''}</div>`;
           const datingLocationRow = l.category === 'dating'
             ? `<div class="small">Location: ${safeLocation}</div>`
             : '';
@@ -612,6 +639,14 @@
               <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
               <a class="ghost-btn" href="${safeProfileHref}">Open @${safeUser} Profile</a>
               <span class="small">${matched ? '💘 Matched' : ''} Likes ${m.likes || 0} • Comments ${comments.length}</span>
+            </div>
+            <div class="token-grid">
+              ${cardanoRows}
+              <div class="token-actions">
+                <button class="token-btn" type="button" data-cardano-action="buy" data-cardano-post="${m.id || ''}">Buy with Cardano</button>
+                <button class="token-btn" type="button" data-cardano-action="accept" data-cardano-post="${m.id || ''}">Accept Cardano Payment</button>
+                <button class="token-btn" type="button" data-cardano-action="mint" data-cardano-post="${m.id || ''}">Mint NFT</button>
+              </div>
             </div>
             <div class="comment-wrap">
               <div class="comment-list">${commentsHtml}</div>
@@ -670,6 +705,10 @@
           datingLikes: postLikes.value,
           datingDislikes: postDislikes.value,
           datingBio: postDatingBio.value,
+          cardanoToken: postCardanoToken.value,
+          cardanoPriceAda: postCardanoPrice.value,
+          nftTitle: postNftTitle.value,
+          nftSupply: postNftSupply.value,
           media: mediaResult.media
         });
         const now = Date.now();
@@ -722,6 +761,29 @@
       });
       controls.refresh.addEventListener('click', render);
       list.addEventListener('click', (ev) => {
+        const cardanoActionButton = ev.target.closest('[data-cardano-action]');
+        if (cardanoActionButton) {
+          const id = cardanoActionButton.getAttribute('data-cardano-post');
+          const action = cardanoActionButton.getAttribute('data-cardano-action');
+          const items = load();
+          const post = items.find((entry) => entry.id === id);
+          if (!post) return;
+          const listing = normalizeListing(post.listing || {});
+          const actor = activeViewer() || 'anon';
+          const txRef = `ADA-${Date.now().toString(36).toUpperCase()}`;
+          if (action === 'buy') {
+            setPostStatus(`Cardano buy started for #${id}. Send ${listing.cardanoPriceAda || 0} ADA with token ${listing.cardanoToken || 'ADA'} (ref ${txRef}).`, 'success');
+            emitNotification({ actor, target: sanitizeUser(post.user || ''), type: 'marketplace-cardano-buy', messageId: id, text: txRef });
+          } else if (action === 'accept') {
+            setPostStatus(`Seller acceptance recorded for Cardano payment (ref ${txRef}).`, 'success');
+            emitNotification({ actor, target: sanitizeUser(post.user || ''), type: 'marketplace-cardano-accept', messageId: id, text: txRef });
+          } else if (action === 'mint') {
+            setPostStatus(`Mint flow prepared for ${listing.nftTitle || 'new NFT'} on Cardano (supply ${listing.nftSupply || 1}, ref ${txRef}).`, 'success');
+            emitNotification({ actor, target: sanitizeUser(post.user || ''), type: 'marketplace-nft-mint', messageId: id, text: txRef });
+          }
+          loadNotifications();
+          return;
+        }
         const button = ev.target.closest('[data-like-id]');
         if (button) {
           toggleLike(button.getAttribute('data-like-id'));
