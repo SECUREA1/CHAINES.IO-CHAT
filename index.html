@@ -3904,7 +3904,10 @@ body.streams-flex-fit #video-container[hidden] {
           nameSpan.textContent = '@' + name;
           li.appendChild(nameSpan);
           if(u.live){
-            li.addEventListener('click', () => watchLive(guestMap[id] || id, name));
+            li.addEventListener('click', () => {
+              if(!name) return;
+              location.href = '/profile.html?user=' + encodeURIComponent(name);
+            });
           }
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
