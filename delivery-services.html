@@ -199,6 +199,8 @@
     .receipt-sheet .receipt-total { border-top:1px dashed var(--line); padding-top:6px; font-weight:800; }
     .receipt-comment-list { display:grid; gap:6px; margin-top:6px; }
     .receipt-comment-item { border:1px solid var(--line); border-radius:8px; padding:6px 8px; background:#0a1430; color:var(--muted); }
+    .payment-box { border:1px dashed var(--line); border-radius:10px; padding:10px; display:grid; gap:8px; }
+    .payment-actions { display:flex; flex-wrap:wrap; gap:8px; }
 
     @media (max-width: 980px) {
       .layout { grid-template-columns:1fr; }
@@ -487,6 +489,22 @@
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
         <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
+        <div class="payment-box">
+          <p class="section-title">Cardano Payment + NFT Receipt</p>
+          <div class="row">
+            <select id="payment-currency" name="payment-currency">
+              <option value="usd">USD settlement</option>
+              <option value="ada">Cardano (ADA)</option>
+            </select>
+            <input id="cardano-token-unit" name="cardano-token-unit" maxlength="120" placeholder="Cardano token unit (policy.asset)" />
+          </div>
+          <div class="cost-line"><span>ADA estimate</span><span id="ada-total-fee">₳0.00</span></div>
+          <div class="payment-actions">
+            <button id="accept-cardano-btn" class="mini-btn alt" type="button">Accept Cardano Payment</button>
+            <button id="buy-cardano-btn" class="mini-btn alt" type="button">Buy with Cardano</button>
+            <button id="mint-receipt-nft-btn" class="mini-btn alt" type="button">Mint NFT Receipt</button>
+          </div>
+        </div>
         <label class="receipt-toggle"><input id="email-receipt-to-customer" type="checkbox" checked /> Send customer receipt email from server during checkout</label>
         <textarea id="receipt-comment" maxlength="260" placeholder="Receipt communication comment for admin + customer (order context, substitutions, handoff notes)"></textarea>
         <button id="book-btn" class="book-btn" type="button">Confirm Delivery Request</button>
@@ -539,6 +557,7 @@
       const sourceKey = 'chaines_messages';
       const requestsKey = 'chaines_delivery_requests';
       const adminConfigKey = 'chaines_delivery_admin_config';
+      const ADA_USD_RATE = 0.52;
       const receiptEmail = 'chadslondonrentals@gmail.com';
       const adminSupportUsername = 'admin';
       const adminCredentials = { username: 'admin', password: 'giraff' };
@@ -755,6 +774,12 @@
       const receiptCommentInput = document.querySelector('#receipt-comment');
       const printReceiptBtn = document.querySelector('#print-receipt-btn');
       const emailReceiptToCustomer = document.querySelector('#email-receipt-to-customer');
+      const paymentCurrency = document.querySelector('#payment-currency');
+      const cardanoTokenUnitInput = document.querySelector('#cardano-token-unit');
+      const adaTotalFee = document.querySelector('#ada-total-fee');
+      const acceptCardanoBtn = document.querySelector('#accept-cardano-btn');
+      const buyCardanoBtn = document.querySelector('#buy-cardano-btn');
+      const mintReceiptNftBtn = document.querySelector('#mint-receipt-nft-btn');
       const partnerHost = document.querySelector('#partners');
       const speed = document.querySelector('#speed');
       const tip = document.querySelector('#tip');
@@ -915,6 +940,7 @@
       };
 
       const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
+      const toAda = (usd) => `₳${Number((Number(usd || 0) / ADA_USD_RATE) || 0).toFixed(4)}`;
       const normalizeCurrency = (num, fallback = 0) => {
         const parsed = Number(num);
         return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : Number(fallback || 0);
@@ -1000,6 +1026,8 @@
         if (n.type === 'broadcast') return { text: `${actor} requested to join your broadcast`, href: '/?tab=broadcast' };
         if (n.type === 'self-destruct') return { text: `Your post #${messageId || '?'} self-destructed`, href: '/?tab=feed' };
         if (n.type === 'delivery-order') return { text: `Delivery order ${n.data?.id || ''} received`, href: '/delivery-services.html' };
+        if (n.type === 'delivery-cardano-payment') return { text: `${actor} updated Cardano payment on a delivery`, href: '/delivery-services.html' };
+        if (n.type === 'delivery-cardano-mint') return { text: `${actor} minted a delivery NFT receipt`, href: '/delivery-services.html' };
         return { text: `Notification: ${n.type || 'update available'}`, href: '/' };
       }
 
@@ -1335,6 +1363,7 @@
           group: row.dataset.itemGroup || 'breakfast'
         }));
         const priceAdjust = normalizeCurrency(row.querySelector('.menu-price-adjust')?.value, 0);
+        const tokenUnit = String(cardanoTokenUnitInput?.value || '').trim() || `menu.${String(row.querySelector('.menu-name')?.value || 'item').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
         return {
           name: row.querySelector('.menu-name')?.value.trim() || '',
           variant: row.querySelector('.menu-variant')?.value || 'Standard',
@@ -1344,7 +1373,8 @@
           priceAdjust,
           lineTotal: normalizeCurrency(qty * (basePrice + priceAdjust), 0),
           fastAdd: Boolean(row.querySelector('.menu-fast-add')?.checked),
-          note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : ''
+          note: row.querySelector('.menu-variant')?.value ? `Variant: ${row.querySelector('.menu-variant')?.value}` : '',
+          cardanoTokenUnit: tokenUnit
         };
       }
 
@@ -1358,6 +1388,7 @@
             <div class="finalized-item-meta">
               <strong>${idx + 1}. ${escapeHtml(item.name)}</strong>
               <span>${escapeHtml(item.variant || 'Standard')} • ${toMoney(item.basePrice || 0)} each${item.priceAdjust ? ` • ${toMoney(item.priceAdjust)} adj` : ''}</span>
+              <span>Cardano token: ${escapeHtml(item.cardanoTokenUnit || 'delivery.default')}</span>
               <span class="finalized-item-cost">${toMoney((Number(item.qty || 1) * (Number(item.basePrice || 0) + Number(item.priceAdjust || 0))))} total</span>
             </div>
             <div class="finalized-item-actions">
@@ -1731,6 +1762,9 @@
         const budgetFee = Number(budget.value || 0);
         const baseFee = Number(adminConfig.pricing.baseFee || 0);
         const total = baseFee + partnerFee + speedFee + addOnFee + itemsSubtotal + menuAdjustFee + tipFee + budgetFee;
+        const adaEstimate = Number((total / ADA_USD_RATE) || 0);
+        const paymentMode = String(paymentCurrency?.value || 'usd');
+        const tokenUnit = String(cardanoTokenUnitInput?.value || '').trim() || 'delivery.default';
 
         const menuSummary = menuItems.length
           ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
@@ -1763,6 +1797,8 @@
           <div class="small"><strong>Package breakdown:</strong> ${packageBreakdown}</div>
           <div class="small"><strong>Meal profile:</strong> ${mealDetails}</div>
           <div class="small"><strong>Customizations:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'Standard handling'}</div>
+          <div class="small"><strong>Payment:</strong> ${paymentMode.toUpperCase()}${paymentMode === 'ada' ? ` • ${adaEstimate.toFixed(4)} ADA` : ''}</div>
+          <div class="small"><strong>Cardano token unit:</strong> ${tokenUnit}</div>
         `;
 
         document.querySelector('#base-fee').textContent = toMoney(baseFee + partnerFee);
@@ -1773,6 +1809,7 @@
         document.querySelector('#tip-fee').textContent = toMoney(tipFee);
         document.querySelector('#budget-fee').textContent = toMoney(budgetFee);
         document.querySelector('#total-fee').textContent = toMoney(total);
+        adaTotalFee.textContent = toAda(total);
       }
 
       function sendReceiptEmail(request) {
@@ -1794,7 +1831,7 @@
             const basePrice = Number(item.basePrice || 0);
             const priceAdjust = Number(item.priceAdjust || 0);
             const lineTotal = qty * (basePrice + priceAdjust);
-            return `${qty}x ${item.name || 'Item'} @ ${toMoney(basePrice)}${priceAdjust ? ` (${toMoney(priceAdjust)} adj)` : ''} = ${toMoney(lineTotal)}`;
+            return `${qty}x ${item.name || 'Item'} @ ${toMoney(basePrice)}${priceAdjust ? ` (${toMoney(priceAdjust)} adj)` : ''} = ${toMoney(lineTotal)} [${item.cardanoTokenUnit || 'delivery.default'}]`;
           })
           .join(', ') || 'No items listed';
         return [
@@ -1812,6 +1849,11 @@
           `Tip: ${toMoney(Number(request.tip || 0))}`,
           `Budget: ${toMoney(Number(request.budget || 0))}`,
           `Delivery Total: ${toMoney(Number(request.total || 0))}`,
+          `Cardano Total: ${toAda(Number(request.total || 0))}`,
+          `Payment Currency: ${String(request.payment?.currency || 'USD').toUpperCase()}`,
+          `Cardano Token Unit: ${request.payment?.tokenUnit || 'delivery.default'}`,
+          `Payment Status: ${request.payment?.status || 'pending'}`,
+          `NFT Receipt: ${request.payment?.receiptNft?.status || 'not minted'} ${request.payment?.receiptNft?.assetId || ''}`.trim(),
           `Items: ${itemSummary}`,
           `Receipt Comment: ${request.receiptComment || 'None'}`,
           `Notes: ${request.notes || 'None'}`
@@ -1838,7 +1880,7 @@
         adminOrderReceipts.innerHTML = requests.slice(0, 8).map((request) => {
           const comments = Array.isArray(request.receiptComments) ? request.receiptComments : [];
           const commentHtml = comments.map((comment) => `<div class="receipt-comment-item">${comment.author || 'user'}: ${String(comment.text || '').replaceAll('<', '&lt;')}</div>`).join('');
-          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row"><span>Tip</span><strong>${toMoney(Number(request.tip || 0))}</strong></div><div class="receipt-row receipt-total"><span>Delivery total</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
+          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row"><span>Tip</span><strong>${toMoney(Number(request.tip || 0))}</strong></div><div class="receipt-row"><span>Payment</span><strong>${String(request.payment?.currency || 'USD').toUpperCase()} • ${request.payment?.status || 'pending'}</strong></div><div class="receipt-row"><span>Cardano token</span><strong>${request.payment?.tokenUnit || 'delivery.default'}</strong></div><div class="receipt-row"><span>NFT receipt</span><strong>${request.payment?.receiptNft?.status || 'not minted'}</strong></div><div class="receipt-row receipt-total"><span>Delivery total</span><strong>${toMoney(Number(request.total || 0))} / ${toAda(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
         }).join('');
       }
 
@@ -1855,7 +1897,11 @@
         }
 
         const deliveryType = String(data.get('delivery-type') || 'meal');
-        const orderItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
+        const activeTokenUnit = String(data.get('cardano-token-unit') || '').trim() || 'delivery.default';
+        const orderItems = (deliveryType === 'groceries' ? getGroceryItems() : getMenuItems()).map((item) => ({
+          ...item,
+          cardanoTokenUnit: item.cardanoTokenUnit || activeTokenUnit
+        }));
         if (!orderItems.length) {
           status.textContent = deliveryType === 'groceries'
             ? 'Add at least one grocery log item before submitting.'
@@ -1905,10 +1951,18 @@
           speed: String(data.get('speed') || 'standard'),
           tip: normalizedTip,
           budget: Number(data.get('budget') || 0),
-          notes: String(data.get('notes') || '').trim()
+          notes: String(data.get('notes') || '').trim(),
+          payment: {
+            currency: String(data.get('payment-currency') || 'usd').trim().toLowerCase(),
+            tokenUnit: String(data.get('cardano-token-unit') || '').trim() || 'delivery.default',
+            adaEstimate: 0,
+            status: 'pending',
+            receiptNft: { status: 'not minted', assetId: '' }
+          }
         };
         const computedTotal = Number((document.querySelector('#total-fee').textContent || '').replace(/[^0-9.-]/g, '')) || 0;
         request.total = computedTotal;
+        request.payment.adaEstimate = Number((computedTotal / ADA_USD_RATE) || 0);
         request.receiptComment = String(receiptCommentInput?.value || '').trim();
         request.receiptComments = request.receiptComment
           ? [{ author: 'user', text: request.receiptComment, timestamp: new Date().toISOString() }]
@@ -1956,6 +2010,54 @@
         }
       }
 
+      function updateLatestRequestPayment(mutator) {
+        const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
+        if (!requests.length) {
+          status.classList.add('error');
+          status.textContent = 'Create a delivery request first, then run Cardano payment actions.';
+          return null;
+        }
+        const latest = requests[0];
+        mutator(latest);
+        requests[0] = latest;
+        localStorage.setItem(requestsKey, JSON.stringify(requests));
+        renderAdminOrderReceipts();
+        return latest;
+      }
+
+      function handleCardanoPaymentAction(action = 'accept') {
+        const actor = activeViewer() || 'delivery-user';
+        const latest = updateLatestRequestPayment((request) => {
+          request.payment = request.payment || {};
+          request.payment.currency = String(paymentCurrency?.value || request.payment.currency || 'usd').toLowerCase();
+          request.payment.tokenUnit = String(cardanoTokenUnitInput?.value || request.payment.tokenUnit || 'delivery.default').trim() || 'delivery.default';
+          request.payment.adaEstimate = Number((Number(request.total || 0) / ADA_USD_RATE) || 0);
+          request.payment.receiptNft = request.payment.receiptNft || { status: 'not minted', assetId: '' };
+          if (action === 'mint') {
+            const assetId = `${request.payment.tokenUnit}.${request.id}`.replace(/\s+/g, '-').slice(0, 180);
+            request.payment.receiptNft = { status: 'minted', assetId, mintedAt: new Date().toISOString() };
+          } else if (action === 'buy') {
+            request.payment.status = 'buy-initiated';
+          } else {
+            request.payment.status = 'accepted';
+          }
+        });
+        if (!latest) return;
+        if (action === 'mint') {
+          status.classList.remove('error');
+          status.textContent = `NFT receipt minted for ${latest.id}: ${latest.payment?.receiptNft?.assetId || ''}`;
+          emitNotification({ actor, target: sanitizeUser(latest.requesterUsername || latest.customer?.name || ''), type: 'delivery-cardano-mint', messageId: latest.id });
+        } else if (action === 'buy') {
+          status.classList.remove('error');
+          status.textContent = `Cardano buy initiated for ${latest.id}. Estimate ${toAda(latest.total)} with token ${latest.payment?.tokenUnit || 'delivery.default'}.`;
+          emitNotification({ actor, target: sanitizeUser(latest.requesterUsername || latest.customer?.name || ''), type: 'delivery-cardano-payment', messageId: latest.id });
+        } else {
+          status.classList.remove('error');
+          status.textContent = `Cardano payment accepted for ${latest.id}.`;
+          emitNotification({ actor, target: sanitizeUser(latest.requesterUsername || latest.customer?.name || ''), type: 'delivery-cardano-payment', messageId: latest.id });
+        }
+      }
+
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
@@ -1997,7 +2099,13 @@
           budget: Number(budget.value || 0),
           items: getDeliveryType() === 'groceries' ? getGroceryItems() : getMenuItems(),
           notes: form.querySelector('#notes').value.trim(),
-          receiptComment: String(receiptCommentInput?.value || '').trim()
+          receiptComment: String(receiptCommentInput?.value || '').trim(),
+          payment: {
+            currency: String(paymentCurrency?.value || 'usd').toLowerCase(),
+            tokenUnit: String(cardanoTokenUnitInput?.value || '').trim() || 'delivery.default',
+            status: 'preview',
+            receiptNft: { status: 'not minted', assetId: '' }
+          }
         };
         printReceipt(preview);
       });
@@ -2034,6 +2142,9 @@
       });
       quickAddItemBtn.addEventListener('click', () => addQuickSelectedItem(false));
       quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
+      acceptCardanoBtn.addEventListener('click', () => handleCardanoPaymentAction('accept'));
+      buyCardanoBtn.addEventListener('click', () => handleCardanoPaymentAction('buy'));
+      mintReceiptNftBtn.addEventListener('click', () => handleCardanoPaymentAction('mint'));
 
       adminConfig = mergeAdminConfig(adminConfig);
       syncQuickMenuFromAdmin();
