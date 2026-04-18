@@ -1422,13 +1422,29 @@
         updateSummary();
       }
 
-      function finalizeMenuRow(row) {
+      function confirmItemForReceipt(item) {
+        if (!item || !item.name) return false;
+        const qty = Math.max(1, Number(item.qty || 1));
+        const unit = Number(item.basePrice || 0) + Number(item.priceAdjust || 0);
+        const lineTotal = qty * unit;
+        return window.confirm(
+          `Confirm receipt item?\n\n${qty}x ${item.name} (${item.variant || 'Standard'})\nUnit: ${toMoney(unit)}\nLine total: ${toMoney(lineTotal)}`
+        );
+      }
+
+      function finalizeMenuRow(row, options = {}) {
+        const { skipConfirmation = false } = options;
         const item = readMenuRowItem(row);
         if (!item.name) return false;
         const duplicate = finalizedOrderItems.some((entry) => entry.name === item.name && entry.variant === item.variant);
         if (duplicate) {
           status.classList.add('error');
           status.textContent = `${item.name} (${item.variant}) is already added to the order.`;
+          return false;
+        }
+        if (!skipConfirmation && !confirmItemForReceipt(item)) {
+          status.classList.remove('error');
+          status.textContent = `Skipped adding ${item.name} to the receipt.`;
           return false;
         }
         finalizedOrderItems.push(item);
@@ -1442,13 +1458,46 @@
         const rows = Array.from(menuHost.querySelectorAll('.menu-item'));
         let moved = 0;
         rows.forEach((row) => {
-          if (finalizeMenuRow(row)) moved += 1;
+          if (finalizeMenuRow(row, { skipConfirmation: false })) moved += 1;
         });
         if (moved) {
           status.classList.remove('error');
           status.textContent = `${moved} item${moved === 1 ? '' : 's'} finalized to order receipt.`;
         }
         updateSummary();
+      }
+
+      function saveReceiptFile(request) {
+        const fileName = `${request.id || 'receipt'}.txt`;
+        const text = buildReceiptLines(request).join('\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function postOrderConfirmationPopup(request) {
+        const notify = window.confirm(
+          `Order ${request.id} confirmed.\n\nPress OK for receipt options (save/print).\nPress Cancel to close.\n\nNeed help or want to leave comments? Contact @${adminSupportUsername} in the admin account.`
+        );
+        if (!notify) return;
+        const printNow = window.confirm(
+          `Receipt options for ${request.id}:\n\nPress OK to print now.\nPress Cancel to save receipt as a file instead.`
+        );
+        if (printNow) {
+          printReceipt(request);
+        } else {
+          saveReceiptFile(request);
+        }
+        const openAdmin = window.confirm(`Open admin account (@${adminSupportUsername}) for comments or help?`);
+        if (openAdmin) {
+          window.open(`/profile.html?user=${encodeURIComponent(adminSupportUsername)}`, '_blank', 'noopener');
+        }
       }
 
       function addItems(items = []) {
@@ -2002,8 +2051,8 @@
 
         const emailSent = await sendReceiptEmail(request);
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}. Request ID logged.${emailSent ? ' Email sent from server.' : ' Email dispatch queued on server.'}`;
-        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}.${emailSent ? ' Email sent from server.' : ' Email dispatch queued on server.'} Need help? Add comments to the admin account thread.`;
+        postOrderConfirmationPopup(request);
         const profileUser = sanitizeUser(localStorage.getItem('chaines_username') || actor || '');
         if (profileUser) {
           window.open(`/profile.html?user=${encodeURIComponent(profileUser)}&delivery=1`, '_blank', 'noopener');
