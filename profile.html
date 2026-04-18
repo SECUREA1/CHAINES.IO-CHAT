@@ -172,6 +172,52 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   color:var(--fg);
   padding:6px;
 }
+.wallet-section{
+  margin:12px 0;
+  padding:12px;
+  border:1px solid var(--lining);
+  border-radius:12px;
+  background:color-mix(in oklab, var(--panel), transparent 25%);
+  box-shadow:var(--shadow);
+}
+.wallet-section__title{
+  margin:0 0 8px;
+}
+.wallet-section__meta{
+  margin:0 0 8px;
+  color:var(--muted);
+  font-size:13px;
+}
+.wallet-tag-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.wallet-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid var(--lining);
+  border-radius:999px;
+  padding:5px 10px;
+  color:var(--fg);
+  text-decoration:none;
+  font-size:12px;
+}
+.wallet-tag:hover{border-color:var(--accent);}
+.wallet-connect-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+}
+.wallet-select{
+  border-radius:8px;
+  border:1px solid var(--lining);
+  background:rgba(2,6,23,0.2);
+  color:var(--fg);
+  padding:6px;
+}
 </style>
 </head>
 <body>
@@ -191,6 +237,25 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <button id="save-desc" class="follow-btn" type="button">Save</button>
   </div>
   <p id="p-desc"></p>
+  <section id="entry-wallets-section" class="wallet-section">
+    <h3 class="wallet-section__title">Platform Entry Wallets</h3>
+    <p class="wallet-section__meta">Wallets used to enter the platform. Tap a tag to open the chain explorer.</p>
+    <div id="entry-wallets-list" class="wallet-tag-list"></div>
+  </section>
+  <section id="airdrop-wallet-section" class="wallet-section" hidden>
+    <h3 class="wallet-section__title">Airdrop Wallet Placeholder</h3>
+    <p class="wallet-section__meta">Set a preferred wallet address for airdrops by connecting a wallet.</p>
+    <div id="airdrop-wallet-list" class="wallet-tag-list"></div>
+    <div class="wallet-connect-row">
+      <select id="wallet-chain-select" class="wallet-select" aria-label="Wallet network">
+        <option value="cardano">Cardano</option>
+        <option value="ethereum">Ethereum</option>
+        <option value="polygon">Polygon</option>
+        <option value="solana">Solana</option>
+      </select>
+      <button id="connect-airdrop-wallet-btn" class="follow-btn" type="button">Connect wallet</button>
+    </div>
+  </section>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
   <div id="stats-grid" class="stats-grid"></div>
   <div class="relation-grid">
@@ -314,6 +379,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const pushToggle = document.getElementById('push-toggle');
   const liveToggle = document.getElementById('live-toggle');
   const messageBtn = document.getElementById('message-btn');
+  const entryWalletsSection = document.getElementById('entry-wallets-section');
+  const entryWalletsList = document.getElementById('entry-wallets-list');
+  const airdropWalletSection = document.getElementById('airdrop-wallet-section');
+  const airdropWalletList = document.getElementById('airdrop-wallet-list');
+  const walletChainSelect = document.getElementById('wallet-chain-select');
+  const connectAirdropWalletBtn = document.getElementById('connect-airdrop-wallet-btn');
   const deliveryWindow = document.getElementById('delivery-window');
   const deliveryReceipts = document.getElementById('delivery-receipts');
   const deliveryHelpBtn = document.getElementById('delivery-help-btn');
@@ -345,6 +416,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const DELIVERY_REQUESTS_KEY = 'chaines_delivery_requests';
   const CALENDAR_KEY = 'chaines_profile_calendar_v1';
   const CALENDAR_REMINDERS_KEY = 'chaines_profile_calendar_reminders_v1';
+  const PROFILE_ENTRY_WALLETS_KEY = 'chaines_profile_entry_wallets_v1';
+  const PROFILE_AIRDROP_WALLETS_KEY = 'chaines_profile_airdrop_wallets_v1';
 
   function safeParse(raw, fallback){
     try { return JSON.parse(raw); } catch { return fallback; }
@@ -362,6 +435,102 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   function reminderStore(){
     const parsed = safeParse(localStorage.getItem(CALENDAR_REMINDERS_KEY) || '{}', {});
     return parsed && typeof parsed === 'object' ? parsed : {};
+  }
+
+  function readWalletStore(storageKey){
+    const parsed = safeParse(localStorage.getItem(storageKey) || '{}', {});
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }
+
+  function getWalletsForUser(storageKey, username){
+    if(!username) return [];
+    const store = readWalletStore(storageKey);
+    const list = Array.isArray(store[username]) ? store[username] : [];
+    return list.filter((item) => (
+      item &&
+      typeof item === 'object' &&
+      typeof item.address === 'string' &&
+      item.address.trim() &&
+      typeof item.chain === 'string' &&
+      item.chain.trim()
+    ));
+  }
+
+  function setWalletsForUser(storageKey, username, wallets){
+    if(!username) return;
+    const store = readWalletStore(storageKey);
+    store[username] = Array.isArray(wallets) ? wallets : [];
+    localStorage.setItem(storageKey, JSON.stringify(store));
+  }
+
+  function normalizeWalletEntry(chain, address, walletName = ''){
+    const normalizedChain = String(chain || '').trim().toLowerCase();
+    const normalizedAddress = String(address || '').trim();
+    if(!normalizedChain || !normalizedAddress) return null;
+    return {
+      chain: normalizedChain,
+      address: normalizedAddress,
+      walletName: String(walletName || '').trim(),
+      createdAt: Date.now()
+    };
+  }
+
+  function explorerLinkForChain(chain, address){
+    const normalizedChain = String(chain || '').toLowerCase();
+    const normalizedAddress = String(address || '').trim();
+    if(!normalizedAddress) return '';
+    if(normalizedChain === 'ethereum') return `https://etherscan.io/address/${normalizedAddress}`;
+    if(normalizedChain === 'polygon') return `https://polygonscan.com/address/${normalizedAddress}`;
+    if(normalizedChain === 'cardano'){
+      return normalizedAddress.startsWith('addr')
+        ? `https://cardanoscan.io/address/${normalizedAddress}`
+        : `https://cardanoscan.io/tokenPolicy/${normalizedAddress}`;
+    }
+    if(normalizedChain === 'solana') return `https://solscan.io/account/${normalizedAddress}`;
+    return '';
+  }
+
+  function shortAddress(address){
+    const text = String(address || '').trim();
+    if(text.length < 15) return text;
+    return `${text.slice(0, 8)}…${text.slice(-6)}`;
+  }
+
+  function renderWalletTags(target, wallets, emptyLabel){
+    if(!target) return;
+    if(!Array.isArray(wallets) || !wallets.length){
+      target.innerHTML = `<span class="calendar-muted">${emptyLabel}</span>`;
+      return;
+    }
+    target.textContent = '';
+    wallets.forEach((wallet) => {
+      const label = `${wallet.chain.toUpperCase()} • ${shortAddress(wallet.address)}`;
+      const explorer = explorerLinkForChain(wallet.chain, wallet.address);
+      if(explorer){
+        const anchor = document.createElement('a');
+        anchor.className = 'wallet-tag';
+        anchor.href = explorer;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.textContent = label;
+        target.appendChild(anchor);
+        return;
+      }
+      const span = document.createElement('span');
+      span.className = 'wallet-tag';
+      span.textContent = label;
+      target.appendChild(span);
+    });
+  }
+
+  function upsertWallet(storageKey, username, walletEntry){
+    const current = getWalletsForUser(storageKey, username);
+    const deduped = current.filter((item) => !(
+      item.chain.toLowerCase() === walletEntry.chain.toLowerCase() &&
+      item.address.toLowerCase() === walletEntry.address.toLowerCase()
+    ));
+    deduped.unshift(walletEntry);
+    setWalletsForUser(storageKey, username, deduped.slice(0, 8));
   }
 
   function saveReminderStore(store){
@@ -885,11 +1054,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const walletAddress = String(record.walletAddress || '').trim();
     const contract = String(record.contract || '').trim();
     const target = walletAddress || contract;
-    if(!target) return '';
-    if(chain === 'ethereum') return `https://etherscan.io/address/${target}`;
-    if(chain === 'polygon') return `https://polygonscan.com/address/${target}`;
-    if(chain === 'cardano') return target.startsWith('addr') ? `https://cardanoscan.io/address/${target}` : `https://cardanoscan.io/tokenPolicy/${target}`;
-    return '';
+    return explorerLinkForChain(chain, target);
   }
 
   function decorateVerifiedBadge(target, username){
@@ -986,7 +1151,137 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     }
   }
 
+  async function connectWalletAddress(chain){
+    const normalizedChain = String(chain || '').toLowerCase();
+    if(normalizedChain === 'ethereum' || normalizedChain === 'polygon'){
+      if(!(window.ethereum && typeof window.ethereum.request === 'function')){
+        throw new Error('MetaMask or another EVM wallet is not available in this browser.');
+      }
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const address = Array.isArray(accounts) ? String(accounts[0] || '').trim() : '';
+      if(!address){
+        throw new Error('No EVM address was returned by wallet.');
+      }
+      return { chain: normalizedChain, address, walletName: window.ethereum.isMetaMask ? 'MetaMask' : 'EVM wallet' };
+    }
+    if(normalizedChain === 'solana'){
+      const provider = window.solana;
+      if(!(provider && typeof provider.connect === 'function')){
+        throw new Error('A Solana wallet (for example Phantom) is not available in this browser.');
+      }
+      const result = await provider.connect();
+      const address = String(result?.publicKey?.toString?.() || provider.publicKey?.toString?.() || '').trim();
+      if(!address){
+        throw new Error('No Solana address was returned by wallet.');
+      }
+      return { chain: normalizedChain, address, walletName: provider.isPhantom ? 'Phantom' : 'Solana wallet' };
+    }
+    const cardanoProvider = window.cardano;
+    if(!(cardanoProvider && typeof cardanoProvider === 'object')){
+      throw new Error('Cardano wallet provider is not available in this browser.');
+    }
+    const wallets = Object.entries(cardanoProvider).filter(([, wallet]) => wallet && typeof wallet.enable === 'function');
+    const selected = wallets[0];
+    if(!selected){
+      throw new Error('No compatible Cardano wallet was detected.');
+    }
+    const [walletKey, walletInfo] = selected;
+    const api = await walletInfo.enable();
+    if(!(api && typeof api.getChangeAddress === 'function')){
+      throw new Error('Connected Cardano wallet did not provide an address API.');
+    }
+    const changeHex = await api.getChangeAddress();
+    let address = '';
+    try{
+      const bytes = Array.from(changeHex.match(/.{1,2}/g) || []).map((hex) => parseInt(hex, 16));
+      const raw = new Uint8Array(bytes);
+      if(window.CardanoWasm?.Address){
+        address = window.CardanoWasm.Address.from_bytes(raw).to_bech32();
+      } else {
+        address = changeHex;
+      }
+    }catch{
+      address = String(changeHex || '').trim();
+    }
+    if(!address){
+      throw new Error('No Cardano address was returned by wallet.');
+    }
+    return { chain: 'cardano', address, walletName: walletInfo?.name || walletKey };
+  }
+
+  function renderProfileWalletSections(username, isOwner){
+    const entryWallets = getWalletsForUser(PROFILE_ENTRY_WALLETS_KEY, username);
+    const verifiedRecord = verifiedUsers()[username];
+    if(verifiedRecord){
+      const verifiedWallet = normalizeWalletEntry(
+        verifiedRecord.chain,
+        verifiedRecord.walletAddress || verifiedRecord.contract || '',
+        verifiedRecord.walletName || 'Verified wallet'
+      );
+      if(verifiedWallet){
+        const exists = entryWallets.some((wallet) => (
+          wallet.chain.toLowerCase() === verifiedWallet.chain.toLowerCase() &&
+          wallet.address.toLowerCase() === verifiedWallet.address.toLowerCase()
+        ));
+        if(!exists){
+          entryWallets.unshift(verifiedWallet);
+        }
+      }
+    }
+    renderWalletTags(entryWalletsList, entryWallets, 'No entry wallets have been tagged yet.');
+    entryWalletsSection.hidden = false;
+    if(!isOwner){
+      airdropWalletSection.hidden = true;
+      return;
+    }
+    const airdropWallets = getWalletsForUser(PROFILE_AIRDROP_WALLETS_KEY, username);
+    renderWalletTags(airdropWalletList, airdropWallets, 'No airdrop wallet added yet. Connect a wallet to add one.');
+    airdropWalletSection.hidden = false;
+  }
+
   backBtn.onclick = () => { window.location.href = '/'; };
+
+  connectAirdropWalletBtn.onclick = async () => {
+    if(!storeUser || storeUser !== currentUser){
+      alert('You can only connect wallets while viewing your own profile.');
+      return;
+    }
+    const selectedChain = String(walletChainSelect?.value || 'cardano').toLowerCase();
+    connectAirdropWalletBtn.disabled = true;
+    const originalLabel = connectAirdropWalletBtn.textContent;
+    connectAirdropWalletBtn.textContent = 'Connecting…';
+    try{
+      const connected = await connectWalletAddress(selectedChain);
+      const walletEntry = normalizeWalletEntry(connected.chain, connected.address, connected.walletName);
+      if(!walletEntry){
+        throw new Error('Wallet data is invalid.');
+      }
+      upsertWallet(PROFILE_ENTRY_WALLETS_KEY, storeUser, walletEntry);
+      upsertWallet(PROFILE_AIRDROP_WALLETS_KEY, storeUser, walletEntry);
+      renderProfileWalletSections(storeUser, true);
+      alert(`${walletEntry.chain.toUpperCase()} wallet connected and added to entry + airdrop profile tags.`);
+    }catch(err){
+      alert(err?.message || 'Wallet connection failed.');
+    }finally{
+      connectAirdropWalletBtn.disabled = false;
+      connectAirdropWalletBtn.textContent = originalLabel;
+    }
+  };
+
+  window.addEventListener('wallet:access-granted', (event) => {
+    const detail = event?.detail || {};
+    const username = String(storeUser || '').trim();
+    if(!username) return;
+    const chain = String(detail.chain || '').toLowerCase();
+    const address = String(detail.walletAddress || '').trim();
+    const walletName = String(detail.walletName || '').trim();
+    const walletEntry = normalizeWalletEntry(chain, address, walletName);
+    if(!walletEntry) return;
+    upsertWallet(PROFILE_ENTRY_WALLETS_KEY, username, walletEntry);
+    if(username === currentUser){
+      renderProfileWalletSections(username, true);
+    }
+  });
 
   picInput.addEventListener('change', () => {
     if (picInput.files[0]) {
@@ -1221,6 +1516,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     editSection.hidden = true;
     settingsSection.hidden = true;
     calendarPanel.hidden = true;
+    airdropWalletSection.hidden = true;
   }
 
   pushToggle.addEventListener('change', async () => {
@@ -1285,6 +1581,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       entryValidationEl.hidden = true;
       feedEl.innerHTML = '';
       calendarPanel.hidden = true;
+      renderProfileWalletSections('', false);
       return;
     }
     resetProfileUI();
@@ -1303,6 +1600,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       followInfo.textContent = 'Followers: 0 • Following: 0';
       renderFeed();
       renderCalendar(currentUser, storeUser === currentUser);
+      renderProfileWalletSections(currentUser, storeUser === currentUser);
       return;
     }
     const data = normalizeProfileData(await res.json());
@@ -1314,6 +1612,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       decorateVerifiedBadge(verifiedEl, data.username);
     }
     renderEntryValidation(data.username);
+    renderProfileWalletSections(data.username, storeUser === data.username);
     if(data.profilePic){ avatar.src = data.profilePic; avatar.style.display='block'; } else { avatar.style.display='none'; }
     descEl.textContent = applyVerificationToProfile(data.description || '', verifiedRecord);
     const followerCount = Number.isFinite(data.followerCount) ? data.followerCount : (data.followers?.length || 0);
