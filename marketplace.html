@@ -117,6 +117,7 @@
           <option value="housing">Housing</option>
           <option value="community">Community</option>
           <option value="dating">Dating</option>
+          <option value="ads">Ads</option>
           <option value="general">General</option>
         </select>
         <select id="sort">
@@ -153,6 +154,7 @@
             <option value="housing">Housing</option>
             <option value="community">Community</option>
             <option value="dating">Dating</option>
+            <option value="ads">Ads</option>
             <option value="general">General</option>
           </select>
           <input id="post-price" type="text" maxlength="60" placeholder="Price or salary (optional)" />
@@ -262,11 +264,16 @@
         'meal-delivery': { label: 'Meals & delivery' },
         housing: { label: 'Housing' },
         community: { label: 'Community' },
-        dating: { label: 'Dating' }
+        dating: { label: 'Dating' },
+        ads: { label: 'Ads' },
+        general: { label: 'General' }
       };
 
       const normalizeListing = (listing = {}) => ({
-        category: String(listing.category || 'general').trim() || 'general',
+        category: (() => {
+          const raw = String(listing.category || 'general').trim().toLowerCase();
+          return raw === 'comment' ? 'general' : (raw || 'general');
+        })(),
         price: String(listing.price || '').trim(),
         location: String(listing.location || '').trim(),
         condition: String(listing.condition || '').trim(),
@@ -289,7 +296,7 @@
       });
       const isMarket = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });
-        return Object.hasOwn(MARKETPLACE_CATEGORIES, l.category) || !!(l.price || l.location || l.condition || l.serviceType || l.subcategory || l.jobLocation || l.credentials || l.contactInfo || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
+        return l.category !== 'general' || !!(l.price || l.location || l.condition || l.serviceType || l.subcategory || l.jobLocation || l.credentials || l.contactInfo || l.availability || l.interests || l.gender || l.lookingFor || l.datingIntent || l.firstDate || l.datingLikes || l.datingDislikes || l.datingBio || l.age || l.media.length);
       };
       const valueScore = (m) => {
         const l = normalizeListing(m.listing || { category: m.category });

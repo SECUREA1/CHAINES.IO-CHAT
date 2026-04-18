@@ -1996,12 +1996,15 @@ body.streams-flex-fit #video-container[hidden] {
           </div>
           <div class="marketplace-panel">
             <select id="marketplace-category" aria-label="Marketplace category">
-              <option value="comment">Comment</option>
+              <option value="general">General</option>
               <option value="jobs">Jobs</option>
               <option value="for-sale">Items for sale</option>
               <option value="services">Services</option>
+              <option value="meal-delivery">Meals &amp; delivery</option>
               <option value="housing">Housing</option>
               <option value="community">Community</option>
+              <option value="dating">Dating</option>
+              <option value="ads">Ads</option>
             </select>
             <input id="marketplace-price" type="text" placeholder="Price or salary (optional)" />
             <input id="marketplace-location" type="text" placeholder="Location (optional)" />
@@ -2204,9 +2207,9 @@ body.streams-flex-fit #video-container[hidden] {
     const autoDeleteToggle = el('#auto-delete');
     const defaultPlaceholder = input.placeholder;
     const footer = el('footer');
-    const NON_MARKETPLACE_CATEGORY = 'comment';
+    const NON_MARKETPLACE_CATEGORY = 'general';
     const MARKETPLACE_CATEGORIES = {
-      comment: { label: 'Comment', defaults: {} },
+      general: { label: 'General', defaults: {} },
       jobs: { label: 'Jobs', defaults: { price: 'Salary negotiable', condition: 'Position type' } },
       'for-sale': { label: 'Items for sale', defaults: { price: '$0', condition: 'Used/New' } },
       services: { label: 'Services', defaults: { price: 'Rate', condition: 'Service type' } },
@@ -2229,7 +2232,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function normalizeListing(listing = {}){
       const rawCategory = String(listing.category || NON_MARKETPLACE_CATEGORY).trim();
-      const category = rawCategory === 'general' ? NON_MARKETPLACE_CATEGORY : rawCategory;
+      const category = rawCategory === 'comment' ? NON_MARKETPLACE_CATEGORY : rawCategory;
       return {
         category: category || NON_MARKETPLACE_CATEGORY,
         price: String(listing.price || '').trim(),
@@ -5112,7 +5115,9 @@ body.streams-flex-fit #video-container[hidden] {
       ev.preventDefault();
       if(fileLoading) return;
       const raw = (input.value || '').trim();
-      if(!raw && !pendingFile) return;
+      const listing = getListingFromComposer();
+      const hasListingData = isMarketplacePost({ listing });
+      if(!raw && !pendingFile && !hasListingData) return;
 
       if(raw){
         // Commands
@@ -5132,7 +5137,10 @@ body.streams-flex-fit #video-container[hidden] {
 
       // append user signature for copyright
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
-      let msgText = raw ? raw + signature : signature;
+      const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
+      const listingFallbackText = listing.category !== NON_MARKETPLACE_CATEGORY ? `${categoryDef?.label || 'Marketplace'} listing` : '';
+      const baseText = raw || listingFallbackText || '';
+      let msgText = baseText ? baseText + signature : signature;
       const msgActions = selectedComposerActions.map((action) => ({
         command: action.command,
         emoji: action.emoji,
@@ -5140,7 +5148,7 @@ body.streams-flex-fit #video-container[hidden] {
         text: action.text,
         colors: action.colors
       }));
-      const msg = { text: msgText, broadcast: broadcasting, listing: getListingFromComposer(), actions: msgActions };
+      const msg = { text: msgText, broadcast: broadcasting, listing, actions: msgActions };
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
         msg.fileName = pendingFile.name;
