@@ -1024,6 +1024,7 @@
     .users-panel li { padding:4px 0; border-bottom:1px solid var(--lining); display:flex; align-items:center; gap:4px; }
     .users-panel li:last-child { border-bottom:0; }
     .users-panel li.mic-user { color:#22c55e; }
+    .users-panel li .user-link { cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
     .users-panel li button { background:transparent; border:0; cursor:pointer; padding:0 2px; }
     .users-panel li button img { width:16px; height:16px; }
 
@@ -3901,14 +3902,14 @@ body.streams-flex-fit #video-container[hidden] {
             li.appendChild(micIcon);
           }
           const nameSpan = document.createElement('span');
+          nameSpan.className = 'user-link';
           nameSpan.textContent = '@' + name;
+          nameSpan.addEventListener('click', e => {
+            e.stopPropagation();
+            if(!name) return;
+            location.href = '/profile.html?user=' + encodeURIComponent(name);
+          });
           li.appendChild(nameSpan);
-          if(u.live){
-            li.addEventListener('click', () => {
-              if(!name) return;
-              location.href = '/profile.html?user=' + encodeURIComponent(name);
-            });
-          }
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
             camBtn.title = 'Request to join with camera';
