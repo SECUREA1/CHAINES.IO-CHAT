@@ -955,7 +955,7 @@
     .composer { display:flex; align-items:stretch; gap:2px; margin:0; width:100%; }
     .composer .input { flex:1; min-width:0; }
     .composer .send { flex:0 0 56px; }
-    .composer-main { flex:1; min-width:0; }
+    .composer-main { flex:1; min-width:0; max-height:min(56vh, 460px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
     .composer-panel-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 6px; }
     .composer-panel-title { font-size:12px; color: var(--muted); text-align:left; margin:0; }
     .composer-panel-controls { display:flex; align-items:center; gap:6px; }
@@ -2354,12 +2354,7 @@ body.streams-flex-fit #video-container[hidden] {
     function openComposer(){
       form.hidden = false;
       if(!composerOpenedOnce && isMobileViewport()){
-        form.classList.add('composer--minimized');
-        if(composerMinimizeBtn){
-          composerMinimizeBtn.setAttribute('aria-pressed', 'true');
-          composerMinimizeBtn.title = 'Expand comment panel';
-          composerMinimizeBtn.setAttribute('aria-label', 'Expand comment panel');
-        }
+        setComposerMinimized(true);
       }
       composerOpenedOnce = true;
       autoResize(input);
@@ -2389,24 +2384,31 @@ body.streams-flex-fit #video-container[hidden] {
     document.addEventListener('keydown', (event) => {
       if(event.key === 'Escape') notifPanel.hidden = true;
     });
-    composerMinimizeBtn?.addEventListener('click', () => {
-      const isMinimized = form.classList.toggle('composer--minimized');
-      composerMinimizeBtn.setAttribute('aria-pressed', String(isMinimized));
-      composerMinimizeBtn.title = isMinimized ? 'Expand comment panel' : 'Minimize comment panel';
-      composerMinimizeBtn.setAttribute('aria-label', isMinimized ? 'Expand comment panel' : 'Minimize comment panel');
-      if(!isMinimized){
-        autoResize(input);
-        input.focus();
+    function setComposerMinimized(nextMinimized, { focusInput = false } = {}){
+      form.classList.toggle('composer--minimized', !!nextMinimized);
+      if(composerMinimizeBtn){
+        composerMinimizeBtn.setAttribute('aria-pressed', String(!!nextMinimized));
+        composerMinimizeBtn.title = nextMinimized ? 'Expand comment panel' : 'Minimize comment panel';
+        composerMinimizeBtn.setAttribute('aria-label', nextMinimized ? 'Expand comment panel' : 'Minimize comment panel');
       }
+      if(!nextMinimized){
+        autoResize(input);
+        if(focusInput) input.focus();
+      }
+    }
+    composerMinimizeBtn?.addEventListener('click', () => {
+      const isMinimized = !form.classList.contains('composer--minimized');
+      setComposerMinimized(isMinimized, { focusInput: !isMinimized });
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if(form.hidden || form.classList.contains('composer--minimized')) return;
+      const target = event.target;
+      if(form.contains(target) || messageBtn?.contains(target)) return;
+      setComposerMinimized(true);
     });
     composerCloseBtn?.addEventListener('click', () => {
       form.hidden = true;
-      form.classList.remove('composer--minimized');
-      if(composerMinimizeBtn){
-        composerMinimizeBtn.setAttribute('aria-pressed', 'false');
-        composerMinimizeBtn.title = 'Minimize comment panel';
-        composerMinimizeBtn.setAttribute('aria-label', 'Minimize comment panel');
-      }
+      setComposerMinimized(false);
     });
     const actionCommands = {
       wave:      { text: 'waves', emoji: '👋', colors: ['#4facfe','#00f2fe'], svg: '<path d="M8 17V8c0-2 3-2 3 0v4"/><path d="M11 13V7c0-2 3-2 3 0v6"/><path d="M14 13V8c0-2 3-2 3 0v5"/><path d="M17 14v-3c0-2 3-2 3 0v7c0 3-2 4-5 4h-4c-2 0-3-1-4-3l-2-4c-1-2 1-3 2-2l1 1"/>' },
@@ -2782,12 +2784,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(form){
         form.removeAttribute('hidden');
         if(!composerOpenedOnce && isMobileViewport()){
-          form.classList.add('composer--minimized');
-          if(composerMinimizeBtn){
-            composerMinimizeBtn.setAttribute('aria-pressed', 'true');
-            composerMinimizeBtn.title = 'Expand comment panel';
-            composerMinimizeBtn.setAttribute('aria-label', 'Expand comment panel');
-          }
+          setComposerMinimized(true);
           composerOpenedOnce = true;
         }
       }
