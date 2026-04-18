@@ -1390,18 +1390,32 @@
         updateSummary();
       }
 
+      function addItemToReceipt(item) {
+        if (!item?.name) return false;
+        const duplicateIndex = finalizedOrderItems.findIndex((entry) => entry.name === item.name && entry.variant === item.variant);
+        if (duplicateIndex >= 0) {
+          const existing = finalizedOrderItems[duplicateIndex];
+          existing.qty = Math.max(1, Number(existing.qty || 1)) + Math.max(1, Number(item.qty || 1));
+          existing.basePrice = normalizeCurrency(existing.basePrice, getBasePriceForItem(existing));
+          existing.priceAdjust = normalizeCurrency(existing.priceAdjust, 0);
+          renderFinalizedItems();
+          return true;
+        }
+        finalizedOrderItems.push({
+          ...item,
+          qty: Math.max(1, Number(item.qty || 1)),
+          basePrice: normalizeCurrency(item.basePrice, getBasePriceForItem(item)),
+          priceAdjust: normalizeCurrency(item.priceAdjust, 0)
+        });
+        renderFinalizedItems();
+        return true;
+      }
+
       function finalizeMenuRow(row) {
         const item = readMenuRowItem(row);
         if (!item.name) return false;
-        const duplicate = finalizedOrderItems.some((entry) => entry.name === item.name && entry.variant === item.variant);
-        if (duplicate) {
-          status.classList.add('error');
-          status.textContent = `${item.name} (${item.variant}) is already added to the order.`;
-          return false;
-        }
-        finalizedOrderItems.push(item);
+        addItemToReceipt(item);
         row.remove();
-        renderFinalizedItems();
         if (!menuHost.children.length) addMenuItemRow();
         return true;
       }
@@ -1487,7 +1501,7 @@
           }
         }
         const quickOption = (quickMenuCatalog[group] || []).find((item) => item.name === itemName);
-        addMenuItemRow({
+        addItemToReceipt({
           name: itemName,
           group,
           variant,
@@ -1499,7 +1513,7 @@
         syncQuickSelectors(group);
         lastQuickSelection = { name: itemName, variant };
         status.classList.remove('error');
-        status.textContent = `${itemName} (${variant}) added.`;
+        status.textContent = `${itemName} (${variant}) added to your receipt.`;
         updateSummary();
       }
 
@@ -1586,18 +1600,30 @@
       }
 
       function getMenuItems() {
-        return [...finalizedOrderItems].map((item) => {
+        const drafts = getActiveMenuDraftItems();
+        const combined = [...finalizedOrderItems, ...drafts];
+        const merged = new Map();
+        combined.forEach((item) => {
           const basePrice = normalizeCurrency(item.basePrice, getBasePriceForItem(item));
           const qty = Math.max(1, Number(item.qty || 1));
           const priceAdjust = normalizeCurrency(item.priceAdjust, 0);
-          return {
+          const key = `${String(item.name || '').trim().toLowerCase()}::${String(item.variant || 'Standard').trim().toLowerCase()}`;
+          if (!key || key.startsWith('::')) return;
+          const existing = merged.get(key);
+          if (existing) {
+            existing.qty += qty;
+            existing.lineTotal = normalizeCurrency(existing.qty * (existing.basePrice + existing.priceAdjust), 0);
+            return;
+          }
+          merged.set(key, {
             ...item,
             qty,
             basePrice,
             priceAdjust,
             lineTotal: normalizeCurrency(qty * (basePrice + priceAdjust), 0)
-          };
+          });
         });
+        return Array.from(merged.values());
       }
 
       function populateStandardizedGroceries() {
@@ -1828,6 +1854,35 @@
         printWindow.print();
       }
 
+      function saveReceipt(request) {
+        const blob = new Blob([buildReceiptLines(request).join('\n')], { type: 'text/plain;charset=utf-8' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = downloadUrl;
+        anchor.download = `${request.id || 'delivery-receipt'}.txt`;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(downloadUrl);
+      }
+
+      function showOrderConfirmationPopup(request) {
+        const nextStep = window.prompt(
+          `✅ Order ${request.id} confirmed.\nType PRINT to print receipt, SAVE to download receipt, or CLOSE to finish.\nFor comments or help, message @${adminSupportUsername} in the admin account.`,
+          'PRINT'
+        );
+        const normalized = String(nextStep || '').trim().toUpperCase();
+        if (normalized === 'PRINT') {
+          printReceipt(request);
+          return 'printed';
+        }
+        if (normalized === 'SAVE') {
+          saveReceipt(request);
+          return 'saved';
+        }
+        return 'closed';
+      }
+
       function renderAdminOrderReceipts() {
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
         if (!requests.length) {
@@ -1946,9 +2001,9 @@
         }
 
         const emailSent = await sendReceiptEmail(request);
+        const receiptAction = showOrderConfirmationPopup(request);
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and routed to @admin with a notification popup target. Receipt prepared for ${receiptEmail}. Request ID logged.${emailSent ? ' Email sent from server.' : ' Email dispatch queued on server.'}`;
-        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}. ${emailSent ? 'Email sent from server.' : 'Email dispatch queued on server.'} Receipt action: ${receiptAction}. Need help or comments? Reach @${adminSupportUsername}.`;
         const profileUser = sanitizeUser(localStorage.getItem('chaines_username') || actor || '');
         if (profileUser) {
           window.open(`/profile.html?user=${encodeURIComponent(profileUser)}&delivery=1`, '_blank', 'noopener');
