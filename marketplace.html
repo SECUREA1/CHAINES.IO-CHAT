@@ -15,6 +15,8 @@
     .title { margin:0; font-size:20px; }
     .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
     .top-link { color:var(--gold); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0d1733; font-weight:600; }
+    .top-link.icon-link { display:inline-flex; align-items:center; gap:6px; }
+    .top-link.icon-link img { width:16px; height:16px; display:block; }
     .top-link:hover { border-color:var(--gold); }
     .notif-wrap { position:relative; }
     .notif-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 12px; cursor:pointer; font-weight:700; }
@@ -100,6 +102,10 @@
           <button id="notif-bell" class="notif-btn" type="button">🔔 Notifications <span id="notif-dot" class="notif-dot"></span></button>
           <div id="notif-panel" class="notif-panel" hidden></div>
         </div>
+        <a class="top-link icon-link" href="/chaines-ar-collectibles.html">
+          <img src="/static/ar-player.svg" alt="" aria-hidden="true" />
+          CHAINeS Collectibles
+        </a>
         <a class="top-link" href="/delivery-services.html">Delivery Requests</a>
         <a class="top-link" href="/index.html">← Back to feed</a>
       </div>
