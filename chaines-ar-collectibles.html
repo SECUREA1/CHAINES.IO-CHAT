@@ -3,8 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="description" content="Mint, preview, and launch CHAINeS Polygon collectibles in one unified AR command center with token-aware controls and branded NFT flows." />
+  <meta name="keywords" content="CHAINeS, Polygon NFT, AR collectible, NFT mint, WebXR, model-viewer" />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#07111a" />
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <link rel="canonical" href="/chaines-ar-collectibles.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
+  <meta property="og:description" content="A single branded page to mint Polygon NFTs, browse token IDs, and launch AR previews." />
+  <meta property="og:url" content="/chaines-ar-collectibles.html" />
+  <meta property="og:image" content="/static/logo.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
+  <meta name="twitter:description" content="Unified CHAINeS mint + AR viewer experience for Polygon collectibles." />
+  <meta name="twitter:image" content="/static/logo.svg" />
   <title>CHAINeS AR Collectibles — Polygon NFT Player & Minter</title>
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "CHAINeS AR Collectibles",
+      "description": "Mint, browse, and launch CHAINeS Polygon collectibles in AR.",
+      "url": "/chaines-ar-collectibles.html",
+      "publisher": {
+        "@type": "Organization",
+        "name": "CHAINeS",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "/static/logo.svg"
+        }
+      }
+    }
+  </script>
   <style>
     :root {
       --bg:#07111a;--bg2:#0c1824;--panel:rgba(14,27,40,.88);--panel-strong:rgba(12,21,32,.95);
@@ -18,7 +50,8 @@
     .topbar{position:sticky;top:0;z-index:30;background:rgba(4,10,16,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
     .topbar-inner{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 0;flex-wrap:wrap}
     .brand{display:inline-flex;align-items:center;gap:.9rem;text-decoration:none;color:inherit}
-    .mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:900;background:linear-gradient(145deg,rgba(102,221,255,.22),rgba(124,92,255,.22));border:1px solid rgba(102,221,255,.26)}
+    .mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(102,221,255,.22),rgba(124,92,255,.22));border:1px solid rgba(102,221,255,.26);overflow:hidden}
+    .mark img{width:100%;height:100%;object-fit:cover}
     .brand strong{display:block;letter-spacing:.14em;text-transform:uppercase;font-size:.92rem}.brand span{display:block;color:var(--muted);font-size:.88rem}
     .btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;padding:.85rem 1.1rem;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.45rem}
     .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;border-color:transparent;box-shadow:0 14px 30px rgba(55,168,255,.28)}
@@ -65,7 +98,7 @@
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
-      <a href="#top" class="brand"><span class="mark">C</span><span><strong>CHAINeS</strong><span>Polygon AR NFT Player + Minter</span></span></a>
+      <a href="#top" class="brand"><span class="mark"><img src="/static/logo.svg" alt="CHAINeS logo" loading="eager" /></span><span><strong>CHAINeS</strong><span>Polygon AR NFT Player + Minter</span></span></a>
       <a class="btn" href="/index.html">Back to CHAINeS POST</a>
     </div>
   </header>
@@ -289,23 +322,29 @@
         try { await viewer.updateComplete; } catch {}
       };
 
+      const syncSelectionFromToken = async ({ tokenId, label, glb }) => {
+        tokenIdInput.value = String(tokenId);
+        collectibleName.value = label;
+        if (glb) {
+          const normalizedGlb = normalizeAssetUrl(glb);
+          glbUrlInput.value = normalizedGlb;
+          const matchingOption = Array.from(glbSelect.options).find((option) => normalizeAssetUrl(option.value) === normalizedGlb);
+          if (matchingOption) glbSelect.value = matchingOption.value;
+          await loadCollectible();
+          return;
+        }
+        syncPathFromToken();
+        viewerModelName.textContent = label;
+        viewerStatus.textContent = `Token #${tokenId} selected. Path prepared for quick GLB loading.`;
+      };
+
       const createTokenButton = ({ tokenId, label, glb }) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn token-btn';
         button.innerHTML = `<span style="font-size:.76rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Token</span><strong style="color:white;font-size:1rem;">#${tokenId}</strong><span style="font-size:.82rem;color:var(--muted);">${label}</span>`;
         button.addEventListener('click', async () => {
-          tokenIdInput.value = String(tokenId);
-          collectibleName.value = label;
-          if (glb) {
-            glbUrlInput.value = glb;
-            glbSelect.value = glb;
-            await loadCollectible();
-          } else {
-            syncPathFromToken();
-            viewerModelName.textContent = label;
-            viewerStatus.textContent = `Token #${tokenId} selected. Path prepared for quick GLB loading.`;
-          }
+          await syncSelectionFromToken({ tokenId, label, glb });
           updateMintEmbedConfig();
           openTerminal();
           collectionMessage.textContent = `Token #${tokenId} is active in the CHAINeS mint terminal.`;
@@ -443,6 +482,7 @@
         const selected = glbSelect.selectedOptions[0];
         if (selected?.dataset?.token) tokenIdInput.value = selected.dataset.token;
         if (selected?.textContent?.trim()) collectibleName.value = selected.textContent.trim();
+        syncPathFromToken();
         updateMintEmbedConfig();
       });
 
