@@ -98,8 +98,8 @@
             <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Prepare collectible + contract</h2></div><div class="status-pill" id="mintState">Locked</div></div>
             <div class="grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
-              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
+              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="1" /></div>
+              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
               <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
               <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
@@ -191,6 +191,7 @@
       let terminalVisible = false;
       let mintUnlocked = false;
       let jpgMetadataCache = null;
+      let optionSyncInProgress = false;
 
       const ipfsToHttp = (value) => {
         const raw = String(value || '').trim();
@@ -229,6 +230,20 @@
         return match ? Number(match[1]) : Number.NaN;
       };
 
+      const checkAssetReachable = async (assetUrl) => {
+        try {
+          const head = await fetch(assetUrl, { method: 'HEAD', cache: 'no-store' });
+          if (head.ok) return true;
+          if (head.status !== 405) return false;
+        } catch {}
+        try {
+          const get = await fetch(assetUrl, { method: 'GET', cache: 'no-store' });
+          return get.ok;
+        } catch {
+          return false;
+        }
+      };
+
       const deriveGlbUrlFromToken = (tokenId) => {
         const token = Number(tokenId);
         if (!Number.isInteger(token) || token < 1) return '';
@@ -256,6 +271,20 @@
           '';
         if (fromMeta) return normalizeAssetUrl(fromMeta);
         return deriveGlbUrlFromJpg(jpgName);
+      };
+
+      const upsertGlbOption = ({ tokenId, label, glb }) => {
+        if (!Number.isInteger(tokenId) || tokenId < 1 || !glb) return;
+        const value = normalizeAssetUrl(glb);
+        if (!value) return;
+        let option = Array.from(glbSelect.options).find((entry) => Number(entry.dataset.token) === tokenId);
+        if (!option) {
+          option = document.createElement('option');
+          glbSelect.appendChild(option);
+        }
+        option.value = value;
+        option.dataset.token = String(tokenId);
+        option.textContent = label || `NFT_${String(tokenId).padStart(4, '0')}.glb`;
       };
 
       const syncPathFromToken = () => {
@@ -296,6 +325,12 @@
         if (!glb || !/\.glb([?#].*)?$/i.test(glb)) {
           viewerStatus.textContent = 'Pick a valid .glb collectible before loading.';
           mintMessage.textContent = 'A valid GLB file is required for the 3D and AR player.';
+          return;
+        }
+        const isReachable = await checkAssetReachable(glb);
+        if (!isReachable) {
+          viewerStatus.textContent = 'Model file not found at this path.';
+          mintMessage.textContent = `GLB unreachable: ${glb}. Check your base path or upload the asset.`;
           return;
         }
         const label = collectibleName.value.trim() || glb.split('/').pop() || 'CHAINeS collectible';
@@ -344,6 +379,12 @@
 
       const buildListedCollection = () => {
         const options = Array.from(glbSelect.options).filter((option) => option.value);
+        if (!options.length) {
+          collectionList.innerHTML = '';
+          collectionSource.textContent = 'No local GLBs listed yet.';
+          collectionMessage.textContent = 'Load JPG metadata first or add GLB options to the selector.';
+          return;
+        }
         const tokens = options.map((option) => ({
           tokenId: Number(option.dataset.token || tokenIdInput.value || 214),
           label: option.textContent.trim(),
@@ -392,6 +433,9 @@
             collectionMessage.textContent = 'No numbered JPG entries found in metadata manifest.';
             return;
           }
+          optionSyncInProgress = true;
+          tokens.forEach((token) => upsertGlbOption(token));
+          optionSyncInProgress = false;
           renderTokenButtons(tokens, `JPG metadata manifest (${tokens.length} mapped GLBs).`);
           rangeStartInput.value = String(tokens[0].tokenId);
           rangeEndInput.value = String(tokens[tokens.length - 1].tokenId);
@@ -462,6 +506,7 @@
       };
 
       glbSelect.addEventListener('change', () => {
+        if (optionSyncInProgress) return;
         if (glbSelect.value) glbUrlInput.value = glbSelect.value;
         const selected = glbSelect.selectedOptions[0];
         if (selected?.dataset?.token) tokenIdInput.value = selected.dataset.token;
@@ -471,6 +516,12 @@
 
       tokenIdInput.addEventListener('input', () => {
         syncPathFromToken();
+        const token = Number(tokenIdInput.value);
+        const matched = Array.from(glbSelect.options).find((option) => Number(option.dataset.token) === token && option.value);
+        if (matched) {
+          glbSelect.value = matched.value;
+          if (!collectibleName.value.trim()) collectibleName.value = matched.textContent.trim();
+        }
         updateMintEmbedConfig();
       });
       glbBasePathInput.addEventListener('change', syncPathFromToken);
@@ -536,7 +587,9 @@
       setMintUnlocked(false);
       syncPathFromToken();
       updateMintEmbedConfig();
-      buildListedCollection();
+      loadJpgManifestCollection().then(() => {
+        if (!Array.from(glbSelect.options).some((option) => option.value)) buildListedCollection();
+      });
     })();
   </script>
 </body>
