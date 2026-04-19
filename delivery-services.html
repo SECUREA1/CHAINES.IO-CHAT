@@ -3,6 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Manage premium concierge delivery requests, fulfillment steps, and real-time status tracking with CHAINeS Delivery Services." />
+  <meta name="keywords" content="CHAINeS, AI dashboard, creator platform, social commerce, secure messaging" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="/delivery-services.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CHAINeS Concierge Delivery" />
+  <meta property="og:description" content="Manage premium concierge delivery requests, fulfillment steps, and real-time status tracking with CHAINeS Delivery Services." />
+  <meta property="og:url" content="/delivery-services.html" />
+  <meta property="og:image" content="/static/logo.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="CHAINeS Concierge Delivery" />
+  <meta name="twitter:description" content="Manage premium concierge delivery requests, fulfillment steps, and real-time status tracking with CHAINeS Delivery Services." />
+  <meta name="twitter:image" content="/static/logo.svg" />
   <title>CHAINeS Concierge Delivery</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <style>
@@ -215,7 +228,14 @@
       .menu-item { grid-template-columns:1fr; }
       .admin-row { grid-template-columns:1fr; }
     }
-  </style>
+  
+    .site-copyright {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      padding: 14px 10px 24px;
+    }
+</style>
 </head>
 <body>
   <main class="wrap">
@@ -2129,5 +2149,8 @@
       });
     })();
   </script>
+
+  <footer class="site-copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</footer>
+  <script>document.getElementById("copyright-year")?.append(String(new Date().getFullYear()));</script>
 </body>
 </html>

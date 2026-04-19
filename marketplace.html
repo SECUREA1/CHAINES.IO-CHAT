@@ -3,6 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Discover, publish, and manage listings across services, products, and creator offers in the CHAINeS Marketplace." />
+  <meta name="keywords" content="CHAINeS, AI dashboard, creator platform, social commerce, secure messaging" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="/marketplace.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CHAINeS Marketplace" />
+  <meta property="og:description" content="Discover, publish, and manage listings across services, products, and creator offers in the CHAINeS Marketplace." />
+  <meta property="og:url" content="/marketplace.html" />
+  <meta property="og:image" content="/static/logo.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="CHAINeS Marketplace" />
+  <meta name="twitter:description" content="Discover, publish, and manage listings across services, products, and creator offers in the CHAINeS Marketplace." />
+  <meta name="twitter:image" content="/static/logo.svg" />
   <title>CHAINeS Marketplace</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <style>
@@ -91,7 +104,14 @@
       .grid { grid-template-columns:1fr; padding:10px; }
       .media-grid { grid-template-columns:1fr 1fr; }
     }
-  </style>
+  
+    .site-copyright {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      padding: 14px 10px 24px;
+    }
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -817,5 +837,8 @@
       loadNotifications();
     })();
   </script>
+
+  <footer class="site-copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</footer>
+  <script>document.getElementById("copyright-year")?.append(String(new Date().getFullYear()));</script>
 </body>
 </html>

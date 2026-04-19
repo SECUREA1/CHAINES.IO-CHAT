@@ -93,7 +93,14 @@
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout{grid-template-columns:1fr}}
     @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}}
-  </style>
+  
+    .site-copyright {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      padding: 14px 10px 24px;
+    }
+</style>
 </head>
 <body>
   <header class="topbar">
@@ -556,5 +563,8 @@
       buildListedCollection();
     })();
   </script>
+
+  <footer class="site-copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</footer>
+  <script>document.getElementById("copyright-year")?.append(String(new Date().getFullYear()));</script>
 </body>
 </html>
