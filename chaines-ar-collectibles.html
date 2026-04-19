@@ -138,7 +138,7 @@
             <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Prepare collectible + contract</h2></div><div class="status-pill" id="mintState">Locked</div></div>
             <div class="grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
-              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
+              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="226" /></div>
               <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
               <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
@@ -160,7 +160,7 @@
               <button class="btn secondary" id="buildRangeBtn" type="button">Build numeric range</button>
             </div>
             <div class="grid" style="margin-top:.7rem">
-              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="214"/></div>
+              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="226"/></div>
               <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
             </div>
             <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
@@ -170,7 +170,7 @@
           <div class="terminal">
             <div class="terminal-head"><div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div><button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button></div>
             <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected token ID on Polygon.</div>
-            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
+            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=226&theme=dark&primaryColor=blue"></iframe>
           </div>
         </div>
 
@@ -282,7 +282,7 @@
       };
 
       const updateMintEmbedConfig = () => {
-        const tokenId = (tokenIdInput.value || '214').trim() || '214';
+        const tokenId = (tokenIdInput.value || '226').trim() || '226';
         const contract = (collectionContractInput.value || '').trim();
         const current = new URL(mintTerminalFrame.src);
         if (/^0x[a-fA-F0-9]{40}$/.test(contract)) current.searchParams.set('contract', contract);
@@ -368,7 +368,7 @@
       const buildListedCollection = () => {
         const options = Array.from(glbSelect.options).filter((option) => option.value);
         const tokens = options.map((option) => ({
-          tokenId: Number(option.dataset.token || tokenIdInput.value || 214),
+          tokenId: Number(option.dataset.token || tokenIdInput.value || 226),
           label: option.textContent.trim(),
           glb: option.value
         }));
@@ -377,7 +377,7 @@
       };
 
       const buildNumericCollection = () => {
-        const start = Math.max(1, Number(rangeStartInput.value || 1));
+        const start = Math.max(1, Number(rangeStartInput.value || 226));
         const end = Math.max(start, Number(rangeEndInput.value || start));
         const cappedEnd = Math.min(end, start + 999);
         const tokens = [];
