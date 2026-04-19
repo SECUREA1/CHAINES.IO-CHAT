@@ -329,7 +329,8 @@
       line-height:1.2;
       color:var(--muted);
       text-align:center;
-      white-space:nowrap;
+      white-space:normal;
+      word-break:break-word;
       order:2;
     }
     .composer-actions {
@@ -1726,7 +1727,7 @@ body.streams-flex-fit #video-container[hidden] {
         white-space:nowrap;
         text-align:left;
       }
-      footer { padding:0 12px 10px; gap:6px; }
+      footer { padding:0 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap:6px; }
       footer .status.bottom {
         grid-template-columns: repeat(6, minmax(0, 1fr));
         gap:6px;
@@ -1862,12 +1863,6 @@ body.streams-flex-fit #video-container[hidden] {
       }
     }
   
-    .site-copyright {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 12px;
-      padding: 14px 10px 24px;
-    }
 </style>
 </head>
 <body>
@@ -2080,7 +2075,7 @@ body.streams-flex-fit #video-container[hidden] {
         </label>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
-      <span class="legal footer-copyright">© <span id="year"></span> CHAINeS</span>
+      <span class="legal footer-copyright">© <span id="year"></span> CHAINeS. All rights reserved.</span>
       <div class="status bottom">
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
@@ -7017,7 +7012,5 @@ body.streams-flex-fit #video-container[hidden] {
   })();
   </script>
 
-  <footer class="site-copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</footer>
-  <script>document.getElementById("copyright-year")?.append(String(new Date().getFullYear()));</script>
 </body>
 </html>
