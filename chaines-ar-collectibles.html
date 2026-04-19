@@ -192,10 +192,18 @@
       let mintUnlocked = false;
       let jpgMetadataCache = null;
 
+      const ipfsToHttp = (value) => {
+        const raw = String(value || '').trim();
+        if (!/^ipfs:\/\//i.test(raw)) return raw;
+        const path = raw.replace(/^ipfs:\/\//i, '').replace(/^ipfs\//i, '');
+        if (!path) return '';
+        return `https://ipfs.io/ipfs/${path}`;
+      };
+
       const normalizeAssetUrl = (value) => {
         const raw = (value || '').trim();
         if (!raw) return '';
-        const clean = raw.replace(/^\.\//, '/');
+        const clean = ipfsToHttp(raw).replace(/^\.\//, '/');
         try {
           if (/^https?:\/\//i.test(clean)) {
             const url = new URL(clean);
@@ -233,6 +241,21 @@
         const stem = String(jpgName || '').replace(/\.[^.]+$/, '');
         if (!stem) return '';
         return normalizeAssetUrl(`${base}/${stem}.glb`);
+      };
+
+      const deriveGlbUrlFromMetadata = (meta, jpgName) => {
+        const fromMeta =
+          meta?.glb ||
+          meta?.ipfs_glb ||
+          meta?.ipfsGlb ||
+          meta?.glb_url ||
+          meta?.model ||
+          meta?.model_url ||
+          meta?.animation_url ||
+          meta?.arModel ||
+          '';
+        if (fromMeta) return normalizeAssetUrl(fromMeta);
+        return deriveGlbUrlFromJpg(jpgName);
       };
 
       const syncPathFromToken = () => {
@@ -360,7 +383,7 @@
               return {
                 tokenId,
                 label: meta?.name || `Polygon NFT #${tokenId}`,
-                glb: deriveGlbUrlFromJpg(jpgName)
+                glb: deriveGlbUrlFromMetadata(meta, jpgName)
               };
             })
             .filter(Boolean)
