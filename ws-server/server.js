@@ -406,6 +406,9 @@ app.get(["/private-chat", "/private-chat.html"], (req, res) =>
 app.get(["/profile", "/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
+app.get(["/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player"], (req, res) =>
+  res.sendFile(path.join(ROOT, "chaines-ar-collectibles.html"))
+);
 app.get("/omconsole_render_single.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single.html"))
 );
