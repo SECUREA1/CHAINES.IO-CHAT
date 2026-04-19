@@ -178,6 +178,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use("/static", express.static(path.join(ROOT, "static")));
+app.use("/nft-source", express.static(path.join(ROOT, "nft-source")));
 app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";

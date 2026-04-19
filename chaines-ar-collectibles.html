@@ -99,7 +99,7 @@
             <div class="grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
               <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
+              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="NFT_0214.glb" data-token="214">NFT_0214.glb</option><option value="NFT_0222.glb" data-token="222">NFT_0222.glb</option><option value="Dark Musky Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
               <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
               <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
@@ -123,7 +123,7 @@
               <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="214"/></div>
               <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
             </div>
-            <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
+            <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs. Token selections auto-build GLB URLs from your base path.</p>
             <div class="collection-list" id="collectionList"></div>
           </div>
 
@@ -206,6 +206,10 @@
         return clean.startsWith('/') ? encodeURI(clean) : encodeURI('/' + clean);
       };
 
+      const safeDecode = (value) => {
+        try { return decodeURIComponent(value); } catch { return value; }
+      };
+
       const normalizeBasePath = (value) => {
         const raw = (value || '').trim();
         if (!raw) return '/';
@@ -233,6 +237,19 @@
         const stem = String(jpgName || '').replace(/\.[^.]+$/, '');
         if (!stem) return '';
         return normalizeAssetUrl(`${base}/${stem}.glb`);
+      };
+
+      const resolveGlbUrl = (input) => {
+        const raw = (input || '').trim();
+        if (!raw) return '';
+        if (/^https?:\/\//i.test(raw)) return normalizeAssetUrl(raw);
+        const base = normalizeBasePath(glbBasePathInput.value);
+        const decodedRaw = safeDecode(raw);
+        const normalizedRaw = normalizeAssetUrl(decodedRaw);
+        if (normalizedRaw.startsWith(`${base}/`)) return normalizedRaw;
+        const filename = decodedRaw.split('/').pop();
+        if (!filename) return normalizedRaw;
+        return normalizeAssetUrl(`${base}/${filename}`);
       };
 
       const syncPathFromToken = () => {
@@ -269,7 +286,7 @@
 
       const loadCollectible = async () => {
         const chosen = glbUrlInput.value.trim() || glbSelect.value;
-        const glb = normalizeAssetUrl(chosen);
+        const glb = resolveGlbUrl(chosen);
         if (!glb || !/\.glb([?#].*)?$/i.test(glb)) {
           viewerStatus.textContent = 'Pick a valid .glb collectible before loading.';
           mintMessage.textContent = 'A valid GLB file is required for the 3D and AR player.';
@@ -283,7 +300,7 @@
         if (usdz) viewer.setAttribute('ios-src', usdz); else viewer.removeAttribute('ios-src');
         viewer.setAttribute('alt', label + ' preview');
         viewerModelName.textContent = label;
-        viewerStatus.textContent = 'Loading collectible…';
+        viewerStatus.textContent = `Loading collectible from ${glb} …`;
         mintMessage.textContent = 'Collectible loaded into the CHAINeS player. Preview 3D or launch AR.';
         updateMintEmbedConfig();
         try { await viewer.updateComplete; } catch {}
@@ -298,8 +315,10 @@
           tokenIdInput.value = String(tokenId);
           collectibleName.value = label;
           if (glb) {
-            glbUrlInput.value = glb;
-            glbSelect.value = glb;
+            const resolved = resolveGlbUrl(glb);
+            glbUrlInput.value = resolved;
+            const match = Array.from(glbSelect.options).find((option) => resolveGlbUrl(option.value) === resolved);
+            glbSelect.value = match ? match.value : '';
             await loadCollectible();
           } else {
             syncPathFromToken();
@@ -324,7 +343,7 @@
         const tokens = options.map((option) => ({
           tokenId: Number(option.dataset.token || tokenIdInput.value || 214),
           label: option.textContent.trim(),
-          glb: option.value
+          glb: resolveGlbUrl(option.value)
         }));
         renderTokenButtons(tokens, 'Local listed GLB collection.');
         collectionMessage.textContent = `Loaded ${tokens.length} listed collectible items.`;
@@ -439,7 +458,7 @@
       };
 
       glbSelect.addEventListener('change', () => {
-        if (glbSelect.value) glbUrlInput.value = glbSelect.value;
+        if (glbSelect.value) glbUrlInput.value = resolveGlbUrl(glbSelect.value);
         const selected = glbSelect.selectedOptions[0];
         if (selected?.dataset?.token) tokenIdInput.value = selected.dataset.token;
         if (selected?.textContent?.trim()) collectibleName.value = selected.textContent.trim();
@@ -474,7 +493,10 @@
       buildRangeBtn.addEventListener('click', buildNumericCollection);
       simulateUnlockBtn.addEventListener('click', () => setMintUnlocked(!mintUnlocked));
 
-      viewer.addEventListener('load', () => { viewerStatus.textContent = 'Collectible ready in 3D viewer.'; });
+      viewer.addEventListener('load', () => {
+        const src = viewer.getAttribute('src') || 'unknown source';
+        viewerStatus.textContent = `Collectible ready in 3D viewer (${src}).`;
+      });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'Model failed to load. Check GLB or USDZ path.'; });
       viewer.addEventListener('ar-status', (event) => {
         const status = event?.detail?.status;
