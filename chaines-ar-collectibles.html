@@ -140,6 +140,8 @@
           <div class="row"><button class="btn primary" id="spinToggleBtn" type="button">Toggle auto-rotate</button><button class="btn" id="resetCameraBtn" type="button">Reset camera</button></div>
           <div class="read"><span>Viewer status</span><strong id="viewerStatus">No collectible loaded yet.</strong></div>
           <div class="read"><span>Active collectible</span><strong id="viewerModelName">None selected</strong></div>
+          <div class="read"><span>Active model source</span><strong id="viewerModelSource">No model source selected.</strong></div>
+          <div class="read"><span>AR readiness</span><strong id="arReadyStatus">Load a GLB collectible to prepare AR display.</strong></div>
           <div class="read"><span>Collection source</span><strong id="collectionSource">Listed GLBs loaded.</strong></div>
         </div>
       </div>
@@ -180,11 +182,13 @@
       const viewer = $('collectibleViewer');
       const viewerStatus = $('viewerStatus');
       const viewerModelName = $('viewerModelName');
+      const viewerModelSource = $('viewerModelSource');
+      const arReadyStatus = $('arReadyStatus');
       const mintMessage = $('mintMessage');
       const mintState = $('mintState');
       const mintTerminalFrame = $('mintTerminalFrame');
 
-      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, mintTerminalFrame];
+      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, viewerModelSource, arReadyStatus, mintMessage, mintState, mintTerminalFrame];
       if (required.some((n) => !n)) return;
 
       let autoRotateOn = true;
@@ -258,8 +262,31 @@
         return deriveGlbUrlFromJpg(jpgName);
       };
 
+      const findMetadataByTokenId = (tokenId) => {
+        const normalizedId = Number(tokenId);
+        if (!Number.isInteger(normalizedId) || normalizedId < 1 || !jpgMetadataCache) return null;
+        const stem = tokenToStem(normalizedId);
+        const target = `${stem}.jpg`;
+        const entries = Object.entries(jpgMetadataCache);
+        const exact = entries.find(([name]) => name.toUpperCase() === target.toUpperCase());
+        if (exact) return { jpgName: exact[0], meta: exact[1] };
+        return null;
+      };
+
+      const applyMetadataToForm = ({ tokenId }) => {
+        const info = findMetadataByTokenId(tokenId);
+        if (!info?.meta) return;
+        const { jpgName, meta } = info;
+        const ipfsModel = meta?.ipfs_glb || meta?.ipfsGlb || '';
+        const localModel = meta?.glb || '';
+        const selectedModel = ipfsModel || localModel || deriveGlbUrlFromMetadata(meta, jpgName);
+        if (selectedModel) glbUrlInput.value = normalizeAssetUrl(selectedModel);
+        if (meta?.name) collectibleName.value = String(meta.name);
+        if (meta?.description) collectibleNotes.value = String(meta.description);
+      };
+
       const syncPathFromToken = () => {
-        if (!autoPathFromTokenInput.checked) return;
+        if (!autoPathFromTokenInput.checked || glbUrlInput.value.trim()) return;
         const derived = deriveGlbUrlFromToken(tokenIdInput.value);
         if (derived) glbUrlInput.value = derived;
       };
@@ -306,6 +333,12 @@
         if (usdz) viewer.setAttribute('ios-src', usdz); else viewer.removeAttribute('ios-src');
         viewer.setAttribute('alt', label + ' preview');
         viewerModelName.textContent = label;
+        viewerModelSource.textContent = /^https?:\/\/ipfs\.io\/ipfs\//i.test(glb)
+          ? `IPFS model synced: ${glb}`
+          : `Model source: ${glb}`;
+        arReadyStatus.textContent = /\.glb([?#].*)?$/i.test(glb)
+          ? 'GLB is ready for AR display and synced with the mint token selection.'
+          : 'Current model is not AR-ready. Load a valid GLB.';
         viewerStatus.textContent = 'Loading collectible…';
         mintMessage.textContent = 'Collectible loaded into the CHAINeS player. Preview 3D or launch AR.';
         updateMintEmbedConfig();
@@ -320,6 +353,7 @@
         button.addEventListener('click', async () => {
           tokenIdInput.value = String(tokenId);
           collectibleName.value = label;
+          applyMetadataToForm({ tokenId });
           if (glb) {
             glbUrlInput.value = glb;
             glbSelect.value = glb;
@@ -404,6 +438,18 @@
         }
       };
 
+      const ensureMetadataLoaded = async () => {
+        if (jpgMetadataCache) return true;
+        try {
+          const res = await fetch('/nft-source/metadata.json', { cache: 'force-cache' });
+          if (!res.ok) return false;
+          jpgMetadataCache = await res.json();
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
       const fetchPolygonCollection = async () => {
         const contract = (collectionContractInput.value || '').trim();
         if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
@@ -469,7 +515,9 @@
         updateMintEmbedConfig();
       });
 
-      tokenIdInput.addEventListener('input', () => {
+      tokenIdInput.addEventListener('input', async () => {
+        await ensureMetadataLoaded();
+        applyMetadataToForm({ tokenId: tokenIdInput.value });
         syncPathFromToken();
         updateMintEmbedConfig();
       });
@@ -498,12 +546,18 @@
       simulateUnlockBtn.addEventListener('click', () => setMintUnlocked(!mintUnlocked));
 
       viewer.addEventListener('load', () => { viewerStatus.textContent = 'Collectible ready in 3D viewer.'; });
-      viewer.addEventListener('error', () => { viewerStatus.textContent = 'Model failed to load. Check GLB or USDZ path.'; });
+      viewer.addEventListener('error', () => {
+        viewerStatus.textContent = 'Model failed to load. Check GLB or USDZ path.';
+        arReadyStatus.textContent = 'AR unavailable until a valid GLB model loads.';
+      });
       viewer.addEventListener('ar-status', (event) => {
         const status = event?.detail?.status;
         if (status === 'failed') viewerStatus.textContent = 'AR launch failed in this browser/device combination.';
         if (status === 'session-started') viewerStatus.textContent = 'AR session started.';
-        if (status === 'not-presenting') viewerStatus.textContent = 'Returned from AR view.';
+        if (status === 'not-presenting') {
+          viewerStatus.textContent = 'Returned from AR view.';
+          arReadyStatus.textContent = 'GLB remains AR-ready for the selected mint token.';
+        }
       });
 
       launchArBtn.addEventListener('click', async () => {
