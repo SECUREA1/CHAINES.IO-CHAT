@@ -101,6 +101,8 @@
               <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
               <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
+              <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
+              <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
               <div class="full"><label for="glbUrlInput">GLB model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .glb URL or choose from list" /></div>
               <div class="full"><label for="usdzUrlInput">Optional iOS USDZ URL</label><input id="usdzUrlInput" type="text" placeholder="Optional .usdz for Quick Look" /></div>
               <div class="full"><label for="collectibleNotes">Collectible utility notes</label><textarea id="collectibleNotes" placeholder="Token-gated controls, scenes, downloadable perks, etc."></textarea></div>
@@ -114,6 +116,7 @@
             <div class="collection-toolbar">
               <button class="btn" id="populatePolygonBtn" type="button">Populate from Polygon</button>
               <button class="btn" id="showListedOnlyBtn" type="button">Show listed GLBs</button>
+              <button class="btn" id="jpgManifestBtn" type="button">Load JPG metadata</button>
               <button class="btn secondary" id="buildRangeBtn" type="button">Build numeric range</button>
             </div>
             <div class="grid" style="margin-top:.7rem">
@@ -153,12 +156,15 @@
       const glbUrlInput = $('glbUrlInput');
       const usdzUrlInput = $('usdzUrlInput');
       const collectibleName = $('collectibleName');
+      const glbBasePathInput = $('glbBasePathInput');
+      const autoPathFromTokenInput = $('autoPathFromTokenInput');
       const collectibleNotes = $('collectibleNotes');
       const collectionContractInput = $('collectionContractInput');
       const rangeStartInput = $('rangeStartInput');
       const rangeEndInput = $('rangeEndInput');
       const populatePolygonBtn = $('populatePolygonBtn');
       const showListedOnlyBtn = $('showListedOnlyBtn');
+      const jpgManifestBtn = $('jpgManifestBtn');
       const buildRangeBtn = $('buildRangeBtn');
       const collectionList = $('collectionList');
       const collectionMessage = $('collectionMessage');
@@ -178,12 +184,13 @@
       const mintState = $('mintState');
       const mintTerminalFrame = $('mintTerminalFrame');
 
-      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, mintTerminalFrame];
+      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, mintTerminalFrame];
       if (required.some((n) => !n)) return;
 
       let autoRotateOn = true;
       let terminalVisible = false;
       let mintUnlocked = false;
+      let jpgMetadataCache = null;
 
       const normalizeAssetUrl = (value) => {
         const raw = (value || '').trim();
@@ -197,6 +204,41 @@
           }
         } catch {}
         return clean.startsWith('/') ? encodeURI(clean) : encodeURI('/' + clean);
+      };
+
+      const normalizeBasePath = (value) => {
+        const raw = (value || '').trim();
+        if (!raw) return '/';
+        const withoutTrailing = raw.endsWith('/') ? raw.slice(0, -1) : raw;
+        if (/^https?:\/\//i.test(withoutTrailing)) return withoutTrailing;
+        return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
+      };
+
+      const tokenToStem = (token) => `NFT_${String(token).padStart(4, '0')}`;
+
+      const parseTokenFromFilename = (filename) => {
+        const match = String(filename || '').match(/(\d+)/);
+        return match ? Number(match[1]) : Number.NaN;
+      };
+
+      const deriveGlbUrlFromToken = (tokenId) => {
+        const token = Number(tokenId);
+        if (!Number.isInteger(token) || token < 1) return '';
+        const base = normalizeBasePath(glbBasePathInput.value);
+        return normalizeAssetUrl(`${base}/${tokenToStem(token)}.glb`);
+      };
+
+      const deriveGlbUrlFromJpg = (jpgName) => {
+        const base = normalizeBasePath(glbBasePathInput.value);
+        const stem = String(jpgName || '').replace(/\.[^.]+$/, '');
+        if (!stem) return '';
+        return normalizeAssetUrl(`${base}/${stem}.glb`);
+      };
+
+      const syncPathFromToken = () => {
+        if (!autoPathFromTokenInput.checked) return;
+        const derived = deriveGlbUrlFromToken(tokenIdInput.value);
+        if (derived) glbUrlInput.value = derived;
       };
 
       const updateMintEmbedConfig = () => {
@@ -236,7 +278,8 @@
         const label = collectibleName.value.trim() || glb.split('/').pop() || 'CHAINeS collectible';
         const usdz = normalizeAssetUrl(usdzUrlInput.value);
         if (!glbUrlInput.value.trim()) glbUrlInput.value = glb;
-        viewer.setAttribute('src', glb);
+        const currentSrc = viewer.getAttribute('src');
+        if (currentSrc !== glb) viewer.setAttribute('src', glb);
         if (usdz) viewer.setAttribute('ios-src', usdz); else viewer.removeAttribute('ios-src');
         viewer.setAttribute('alt', label + ' preview');
         viewerModelName.textContent = label;
@@ -259,8 +302,9 @@
             glbSelect.value = glb;
             await loadCollectible();
           } else {
+            syncPathFromToken();
             viewerModelName.textContent = label;
-            viewerStatus.textContent = `Token #${tokenId} selected. Load a matching GLB for 3D preview.`;
+            viewerStatus.textContent = `Token #${tokenId} selected. Path prepared for quick GLB loading.`;
           }
           updateMintEmbedConfig();
           openTerminal();
@@ -296,6 +340,45 @@
         }
         renderTokenButtons(tokens, `Numeric token range #${start}–#${cappedEnd}.`);
         collectionMessage.textContent = `Built ${tokens.length} numbered token buttons.`;
+      };
+
+      const loadJpgManifestCollection = async () => {
+        jpgManifestBtn.disabled = true;
+        jpgManifestBtn.textContent = 'Loading…';
+        collectionMessage.textContent = 'Loading JPG metadata manifest…';
+        try {
+          if (!jpgMetadataCache) {
+            const res = await fetch('/nft-source/metadata.json', { cache: 'force-cache' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            jpgMetadataCache = await res.json();
+          }
+          const entries = Object.entries(jpgMetadataCache || {});
+          const tokens = entries
+            .map(([jpgName, meta]) => {
+              const tokenId = parseTokenFromFilename(jpgName);
+              if (!Number.isFinite(tokenId)) return null;
+              return {
+                tokenId,
+                label: meta?.name || `Polygon NFT #${tokenId}`,
+                glb: deriveGlbUrlFromJpg(jpgName)
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.tokenId - b.tokenId);
+          if (!tokens.length) {
+            collectionMessage.textContent = 'No numbered JPG entries found in metadata manifest.';
+            return;
+          }
+          renderTokenButtons(tokens, `JPG metadata manifest (${tokens.length} mapped GLBs).`);
+          rangeStartInput.value = String(tokens[0].tokenId);
+          rangeEndInput.value = String(tokens[tokens.length - 1].tokenId);
+          collectionMessage.textContent = `Loaded ${tokens.length} NFTs from JPG metadata with GLB path mapping.`;
+        } catch (err) {
+          collectionMessage.textContent = `Could not load metadata.json (${err?.message || 'unknown error'}).`;
+        } finally {
+          jpgManifestBtn.disabled = false;
+          jpgManifestBtn.textContent = 'Load JPG metadata';
+        }
       };
 
       const fetchPolygonCollection = async () => {
@@ -363,7 +446,12 @@
         updateMintEmbedConfig();
       });
 
-      tokenIdInput.addEventListener('input', updateMintEmbedConfig);
+      tokenIdInput.addEventListener('input', () => {
+        syncPathFromToken();
+        updateMintEmbedConfig();
+      });
+      glbBasePathInput.addEventListener('change', syncPathFromToken);
+      autoPathFromTokenInput.addEventListener('change', syncPathFromToken);
       collectionContractInput.addEventListener('change', updateMintEmbedConfig);
       loadModelBtn.addEventListener('click', loadCollectible);
 
@@ -382,6 +470,7 @@
 
       populatePolygonBtn.addEventListener('click', fetchPolygonCollection);
       showListedOnlyBtn.addEventListener('click', buildListedCollection);
+      jpgManifestBtn.addEventListener('click', loadJpgManifestCollection);
       buildRangeBtn.addEventListener('click', buildNumericCollection);
       simulateUnlockBtn.addEventListener('click', () => setMintUnlocked(!mintUnlocked));
 
@@ -422,6 +511,7 @@
       });
 
       setMintUnlocked(false);
+      syncPathFromToken();
       updateMintEmbedConfig();
       buildListedCollection();
     })();
