@@ -98,9 +98,9 @@
             <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Prepare collectible + contract</h2></div><div class="status-pill" id="mintState">Locked</div></div>
             <div class="grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
-              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="224" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224" selected>Dark Musky Doge.glb</option></select></div>
-              <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="Dark Musky Doge" /></div>
+              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
+              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
+              <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
               <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
               <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
               <div class="full"><label for="glbUrlInput">GLB model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .glb URL or choose from list" /></div>
@@ -145,7 +145,7 @@
       </div>
     </section>
 
-    <div class="footer"><strong>CHAINeS</strong><br/>AR digital collectibles, controllable NFTs, and Polygon mint-to-view experiences.<br/>© <span id="copyrightYear"></span> CHAINeS. All rights reserved.</div>
+    <div class="footer"><strong>CHAINeS</strong><br/>AR digital collectibles, controllable NFTs, and Polygon mint-to-view experiences.</div>
   </main>
 
   <script>
@@ -192,18 +192,10 @@
       let mintUnlocked = false;
       let jpgMetadataCache = null;
 
-      const ipfsToHttp = (value) => {
-        const raw = String(value || '').trim();
-        if (!/^ipfs:\/\//i.test(raw)) return raw;
-        const path = raw.replace(/^ipfs:\/\//i, '').replace(/^ipfs\//i, '');
-        if (!path) return '';
-        return `https://ipfs.io/ipfs/${path}`;
-      };
-
       const normalizeAssetUrl = (value) => {
         const raw = (value || '').trim();
         if (!raw) return '';
-        const clean = ipfsToHttp(raw).replace(/^\.\//, '/');
+        const clean = raw.replace(/^\.\//, '/');
         try {
           if (/^https?:\/\//i.test(clean)) {
             const url = new URL(clean);
@@ -241,21 +233,6 @@
         const stem = String(jpgName || '').replace(/\.[^.]+$/, '');
         if (!stem) return '';
         return normalizeAssetUrl(`${base}/${stem}.glb`);
-      };
-
-      const deriveGlbUrlFromMetadata = (meta, jpgName) => {
-        const fromMeta =
-          meta?.glb ||
-          meta?.ipfs_glb ||
-          meta?.ipfsGlb ||
-          meta?.glb_url ||
-          meta?.model ||
-          meta?.model_url ||
-          meta?.animation_url ||
-          meta?.arModel ||
-          '';
-        if (fromMeta) return normalizeAssetUrl(fromMeta);
-        return deriveGlbUrlFromJpg(jpgName);
       };
 
       const syncPathFromToken = () => {
@@ -383,7 +360,7 @@
               return {
                 tokenId,
                 label: meta?.name || `Polygon NFT #${tokenId}`,
-                glb: deriveGlbUrlFromMetadata(meta, jpgName)
+                glb: deriveGlbUrlFromJpg(jpgName)
               };
             })
             .filter(Boolean)
@@ -532,17 +509,6 @@
         if (!collectibleNotes.value.trim()) return;
         mintMessage.textContent = 'Collectible notes updated. Connect this field to metadata and unlock logic.';
       });
-
-      const defaultMuskyDogeOption = Array.from(glbSelect.options).find((option) => option.dataset.token === '224');
-      if (defaultMuskyDogeOption) {
-        glbSelect.value = defaultMuskyDogeOption.value;
-        glbSelect.dispatchEvent(new Event('change'));
-        Promise.resolve(loadCollectible()).then(() => {
-          mintMessage.textContent = 'Dark Musky Doge auto-populated and loaded. Mint terminal is ready for token #224.';
-        });
-      }
-      const copyrightYear = $('copyrightYear');
-      if (copyrightYear) copyrightYear.textContent = String(new Date().getFullYear());
 
       setMintUnlocked(false);
       syncPathFromToken();

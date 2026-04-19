@@ -8,9 +8,7 @@
       "Facial Hair": "Amish"
     },
     "description": "One-of-a-kind pop art pixel peep living on the blockchain!",
-    "mediaType": "image/jpeg",
-    "glb": "/nft-source/glb/NFT_0001.glb",
-    "ipfs_glb": "ipfs://bafybeifakecid0001/NFT_0001.glb"
+    "mediaType": "image/jpeg"
   },
   "NFT_0002.jpg": {
     "name": "CryptoPeep #02",
@@ -21,9 +19,7 @@
       "Facial Hair": "Amish"
     },
     "description": "One-of-a-kind pop art pixel peep living on the blockchain!",
-    "mediaType": "image/jpeg",
-    "glb": "/nft-source/glb/NFT_0002.glb",
-    "ipfs_glb": "ipfs://bafybeifakecid0001/NFT_0002.glb"
+    "mediaType": "image/jpeg"
   },
   "NFT_0003.jpg": {
     "name": "CryptoPeep #03",
@@ -34,9 +30,7 @@
       "Facial Hair": "Amish"
     },
     "description": "One-of-a-kind pop art pixel peep living on the blockchain!",
-    "mediaType": "image/jpeg",
-    "glb": "/nft-source/glb/NFT_0003.glb",
-    "ipfs_glb": "ipfs://bafybeifakecid0001/NFT_0003.glb"
+    "mediaType": "image/jpeg"
   },
   "NFT_0004.jpg": {
     "name": "CryptoPeep #04",
@@ -47,8 +41,6 @@
       "Facial Hair": "Amish"
     },
     "description": "One-of-a-kind pop art pixel peep living on the blockchain!",
-    "mediaType": "image/jpeg",
-    "glb": "/nft-source/glb/NFT_0004.glb",
-    "ipfs_glb": "ipfs://bafybeifakecid0001/NFT_0004.glb"
+    "mediaType": "image/jpeg"
   }
 }
