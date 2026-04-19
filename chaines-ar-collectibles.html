@@ -82,17 +82,21 @@
     .collection-toolbar{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
     .collection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.62rem;margin-top:.9rem;max-height:340px;overflow:auto;padding-right:.2rem}
     .token-btn{width:100%;border-radius:14px;padding:.72rem;text-align:left;flex-direction:column;align-items:flex-start}
-    .terminal{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel-strong)}
-    .terminal-head{padding:1rem 1rem 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.7rem}
-    .terminal-placeholder{padding:1.2rem 1rem;color:var(--muted)}
-    .terminal iframe{width:100%;height:620px;border:0;display:none;background:#000}.terminal iframe.live{display:block}
+    .spotlight{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(170deg,rgba(22,36,52,.97),rgba(8,16,24,.98))}
+    .spotlight-head{padding:1rem;display:flex;justify-content:space-between;align-items:flex-start;gap:.7rem;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+    .spotlight-content{padding:1rem;display:grid;grid-template-columns:minmax(120px,180px) 1fr;gap:1rem;align-items:start}
+    .spotlight-art{aspect-ratio:1/1;border-radius:18px;border:1px solid var(--line);background:radial-gradient(circle at 26% 20%,rgba(102,221,255,.26),transparent 38%),radial-gradient(circle at 75% 72%,rgba(124,92,255,.25),transparent 40%),rgba(9,18,28,.95);display:grid;place-items:center;padding:.9rem}
+    .spotlight-token{font-size:clamp(1.2rem,4vw,2rem);font-weight:900;letter-spacing:.08em;color:var(--accent)}
+    .spotlight-meta h3{margin:.1rem 0 .55rem;font-size:clamp(1.3rem,2.3vw,2.2rem)}
+    .spotlight-meta p{color:var(--muted);max-width:52ch}
+    .spotlight-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.85rem}
     model-viewer{width:100%;height:min(58vh,540px);background:radial-gradient(circle at top,rgba(102,221,255,.12),rgba(3,9,15,.9));border-radius:16px;border:1px solid var(--line)}
     .read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem;margin-top:.7rem}
     .read strong{color:white}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}}
+    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.spotlight-content{grid-template-columns:1fr}h1{max-width:none}}
   
     .site-copyright {
       text-align: center;
@@ -120,7 +124,7 @@
         <div class="hero-stats">
           <div class="stat"><strong>Polygon-native</strong><span>Token ID sync from your live collection</span></div>
           <div class="stat"><strong>3D + AR</strong><span>GLB preview with WebXR / Quick Look launch</span></div>
-          <div class="stat"><strong>Mint & Play</strong><span>Mint embed and viewer integrated in one flow</span></div>
+          <div class="stat"><strong>Collect & Play</strong><span>Finished NFT spotlight and viewer integrated in one flow</span></div>
         </div>
       </div>
       <aside class="panel">
@@ -147,7 +151,7 @@
               <div class="full"><label for="usdzUrlInput">Optional iOS USDZ URL</label><input id="usdzUrlInput" type="text" placeholder="Optional .usdz for Quick Look" /></div>
               <div class="full"><label for="collectibleNotes">Collectible utility notes</label><textarea id="collectibleNotes" placeholder="Token-gated controls, scenes, downloadable perks, etc."></textarea></div>
             </div>
-            <div class="row"><button class="btn primary" id="loadModelBtn" type="button">Load in 3D viewer</button><button class="btn" id="openMintEmbedBtn" type="button">Open mint terminal</button><button class="btn secondary" id="simulateUnlockBtn" type="button">Simulate unlock</button></div>
+            <div class="row"><button class="btn primary" id="loadModelBtn" type="button">Load in 3D viewer</button><button class="btn" id="openMintEmbedBtn" type="button">View NFT details</button><button class="btn secondary" id="simulateUnlockBtn" type="button">Simulate unlock</button></div>
             <p class="note" id="mintMessage">Choose a collectible model and load it into the viewer, then populate token IDs from Polygon.</p>
           </div>
 
@@ -163,14 +167,26 @@
               <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="214"/></div>
               <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
             </div>
-            <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
+            <p class="note" id="collectionMessage">Click any token to sync viewer inputs and the NFT spotlight panel.</p>
             <div class="collection-list" id="collectionList"></div>
           </div>
 
-          <div class="terminal">
-            <div class="terminal-head"><div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div><button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button></div>
-            <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected token ID on Polygon.</div>
-            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
+          <div class="spotlight" id="nftSpotlight">
+            <div class="spotlight-head">
+              <div><span class="badge">NFT spotlight</span><h3 style="margin:.45rem 0 0">Finished collectible preview</h3></div>
+              <div class="spotlight-actions">
+                <button class="btn" id="prevNftBtn" type="button">Previous NFT</button>
+                <button class="btn" id="nextNftBtn" type="button">Next NFT</button>
+              </div>
+            </div>
+            <div class="spotlight-content">
+              <div class="spotlight-art"><div class="spotlight-token" id="spotlightTokenLabel">#214</div></div>
+              <div class="spotlight-meta">
+                <h3 id="spotlightTitle">CHAINeS Digital Collectible</h3>
+                <p id="spotlightDescription">Select an NFT to show a polished final-content spotlight with token details and utility notes.</p>
+                <div class="read" style="margin-top:.8rem"><span>GLB path</span><strong id="spotlightModelPath">Not set</strong></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -212,8 +228,13 @@
       const loadModelBtn = $('loadModelBtn');
       const openMintEmbedBtn = $('openMintEmbedBtn');
       const simulateUnlockBtn = $('simulateUnlockBtn');
-      const toggleTerminalBtn = $('toggleTerminalBtn');
-      const terminalPlaceholder = $('terminalPlaceholder');
+      const nftSpotlight = $('nftSpotlight');
+      const prevNftBtn = $('prevNftBtn');
+      const nextNftBtn = $('nextNftBtn');
+      const spotlightTokenLabel = $('spotlightTokenLabel');
+      const spotlightTitle = $('spotlightTitle');
+      const spotlightDescription = $('spotlightDescription');
+      const spotlightModelPath = $('spotlightModelPath');
       const launchArBtn = $('launchArBtn');
       const spinToggleBtn = $('spinToggleBtn');
       const resetCameraBtn = $('resetCameraBtn');
@@ -222,13 +243,11 @@
       const viewerModelName = $('viewerModelName');
       const mintMessage = $('mintMessage');
       const mintState = $('mintState');
-      const mintTerminalFrame = $('mintTerminalFrame');
 
-      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, mintTerminalFrame];
+      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, nftSpotlight, prevNftBtn, nextNftBtn, spotlightTokenLabel, spotlightTitle, spotlightDescription, spotlightModelPath, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState];
       if (required.some((n) => !n)) return;
 
       let autoRotateOn = true;
-      let terminalVisible = false;
       let mintUnlocked = false;
       let jpgMetadataCache = null;
 
@@ -281,21 +300,25 @@
         if (derived) glbUrlInput.value = derived;
       };
 
-      const updateMintEmbedConfig = () => {
-        const tokenId = (tokenIdInput.value || '214').trim() || '214';
-        const contract = (collectionContractInput.value || '').trim();
-        const current = new URL(mintTerminalFrame.src);
-        if (/^0x[a-fA-F0-9]{40}$/.test(contract)) current.searchParams.set('contract', contract);
-        current.searchParams.set('tokenId', tokenId);
-        mintTerminalFrame.src = current.toString();
+      const spotlightMetaForToken = (tokenId) => {
+        const stem = tokenToStem(tokenId);
+        const meta = jpgMetadataCache?.[`${stem}.jpg`];
+        return {
+          name: meta?.name || collectibleName.value.trim() || `Polygon NFT #${tokenId}`,
+          description: meta?.description || collectibleNotes.value.trim() || 'No custom description yet. Add utility notes or metadata copy to polish the finished NFT presentation.'
+        };
       };
 
-      const openTerminal = () => {
-        terminalVisible = true;
-        mintTerminalFrame.classList.add('live');
-        terminalPlaceholder.style.display = 'none';
-        toggleTerminalBtn.textContent = 'Hide terminal';
-        updateMintEmbedConfig();
+      const renderSpotlight = () => {
+        const tokenId = Math.max(1, Number(tokenIdInput.value) || 1);
+        tokenIdInput.value = String(tokenId);
+        const modelUrl = normalizeAssetUrl(glbUrlInput.value || deriveGlbUrlFromToken(tokenId));
+        if (!glbUrlInput.value.trim()) glbUrlInput.value = modelUrl;
+        const meta = spotlightMetaForToken(tokenId);
+        spotlightTokenLabel.textContent = `#${tokenId}`;
+        spotlightTitle.textContent = meta.name;
+        spotlightDescription.textContent = meta.description;
+        spotlightModelPath.textContent = modelUrl || 'Not set';
       };
 
       const setMintUnlocked = (state) => {
@@ -325,7 +348,7 @@
         viewerModelName.textContent = label;
         viewerStatus.textContent = 'Loading collectible…';
         mintMessage.textContent = 'Collectible loaded into the CHAINeS player. Preview 3D or launch AR.';
-        updateMintEmbedConfig();
+        renderSpotlight();
         try { await viewer.updateComplete; } catch {}
       };
 
@@ -338,11 +361,13 @@
           const matchingOption = Array.from(glbSelect.options).find((option) => normalizeAssetUrl(option.value) === normalizedGlb);
           if (matchingOption) glbSelect.value = matchingOption.value;
           await loadCollectible();
+          renderSpotlight();
           return;
         }
         syncPathFromToken();
         viewerModelName.textContent = label;
         viewerStatus.textContent = `Token #${tokenId} selected. Path prepared for quick GLB loading.`;
+        renderSpotlight();
       };
 
       const createTokenButton = ({ tokenId, label, glb }) => {
@@ -352,9 +377,7 @@
         button.innerHTML = `<span style="font-size:.76rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Token</span><strong style="color:white;font-size:1rem;">#${tokenId}</strong><span style="font-size:.82rem;color:var(--muted);">${label}</span>`;
         button.addEventListener('click', async () => {
           await syncSelectionFromToken({ tokenId, label, glb });
-          updateMintEmbedConfig();
-          openTerminal();
-          collectionMessage.textContent = `Token #${tokenId} is active in the CHAINeS mint terminal.`;
+          collectionMessage.textContent = `Token #${tokenId} is active in the NFT spotlight and viewer setup.`;
         });
         return button;
       };
@@ -419,6 +442,7 @@
           rangeStartInput.value = String(tokens[0].tokenId);
           rangeEndInput.value = String(tokens[tokens.length - 1].tokenId);
           collectionMessage.textContent = `Loaded ${tokens.length} NFTs from JPG metadata with GLB path mapping.`;
+          renderSpotlight();
         } catch (err) {
           collectionMessage.textContent = `Could not load metadata.json (${err?.message || 'unknown error'}).`;
         } finally {
@@ -490,29 +514,39 @@
         if (selected?.dataset?.token) tokenIdInput.value = selected.dataset.token;
         if (selected?.textContent?.trim()) collectibleName.value = selected.textContent.trim();
         syncPathFromToken();
-        updateMintEmbedConfig();
+        renderSpotlight();
       });
 
       tokenIdInput.addEventListener('input', () => {
         syncPathFromToken();
-        updateMintEmbedConfig();
+        renderSpotlight();
       });
       glbBasePathInput.addEventListener('change', syncPathFromToken);
-      autoPathFromTokenInput.addEventListener('change', syncPathFromToken);
-      collectionContractInput.addEventListener('change', updateMintEmbedConfig);
+      autoPathFromTokenInput.addEventListener('change', () => {
+        syncPathFromToken();
+        renderSpotlight();
+      });
+      collectionContractInput.addEventListener('change', renderSpotlight);
       loadModelBtn.addEventListener('click', loadCollectible);
 
       openMintEmbedBtn.addEventListener('click', () => {
-        openTerminal();
-        mintTerminalFrame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        nftSpotlight.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
 
-      toggleTerminalBtn.addEventListener('click', () => {
-        terminalVisible = !terminalVisible;
-        mintTerminalFrame.classList.toggle('live', terminalVisible);
-        terminalPlaceholder.style.display = terminalVisible ? 'none' : 'block';
-        toggleTerminalBtn.textContent = terminalVisible ? 'Hide terminal' : 'Show terminal';
-        if (terminalVisible) updateMintEmbedConfig();
+      prevNftBtn.addEventListener('click', async () => {
+        const nextToken = Math.max(1, (Number(tokenIdInput.value) || 1) - 1);
+        tokenIdInput.value = String(nextToken);
+        syncPathFromToken();
+        renderSpotlight();
+        await loadCollectible();
+      });
+
+      nextNftBtn.addEventListener('click', async () => {
+        const nextToken = Math.max(1, (Number(tokenIdInput.value) || 1) + 1);
+        tokenIdInput.value = String(nextToken);
+        syncPathFromToken();
+        renderSpotlight();
+        await loadCollectible();
       });
 
       populatePolygonBtn.addEventListener('click', fetchPolygonCollection);
@@ -559,7 +593,7 @@
 
       setMintUnlocked(false);
       syncPathFromToken();
-      updateMintEmbedConfig();
+      renderSpotlight();
       buildListedCollection();
     })();
   </script>
