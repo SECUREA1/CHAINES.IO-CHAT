@@ -15,8 +15,6 @@
     .title { margin:0; font-size:20px; }
     .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
     .top-link { color:var(--gold); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0d1733; font-weight:600; }
-    .top-link.icon-link { display:inline-flex; align-items:center; gap:6px; }
-    .top-link.icon-link img { width:16px; height:16px; display:block; }
     .top-link:hover { border-color:var(--gold); }
     .notif-wrap { position:relative; }
     .notif-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 12px; cursor:pointer; font-weight:700; }
@@ -68,6 +66,7 @@
     .comment-form button, .contact-form button { border-radius:8px; border:1px solid var(--line); background:#163e80; color:var(--fg); padding:6px 10px; cursor:pointer; }
     .inbox { padding:10px 12px; border-top:1px solid var(--line); display:grid; gap:6px; }
     .inbox-item { font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px; }
+    .copyright { text-align:center; color:var(--muted); font-size:12px; padding:4px 0 10px; }
 
     @media (max-width: 900px) {
       .tools { grid-template-columns:1fr 1fr; }
@@ -102,10 +101,6 @@
           <button id="notif-bell" class="notif-btn" type="button">🔔 Notifications <span id="notif-dot" class="notif-dot"></span></button>
           <div id="notif-panel" class="notif-panel" hidden></div>
         </div>
-        <a class="top-link icon-link" href="/chaines-ar-collectibles.html">
-          <img src="/static/ar-player.svg" alt="" aria-hidden="true" />
-          CHAINeS Collectibles
-        </a>
         <a class="top-link" href="/delivery-services.html">Delivery Requests</a>
         <a class="top-link" href="/index.html">← Back to feed</a>
       </div>
@@ -215,6 +210,7 @@
       </div>
       <div id="empty" class="empty" hidden>No posts match your filters yet.</div>
     </section>
+    <div class="copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</div>
   </div>
 
   <script>
@@ -262,6 +258,8 @@
       const notifBell = $('#notif-bell');
       const notifPanel = $('#notif-panel');
       const notifDot = $('#notif-dot');
+      const copyrightYear = $('#copyright-year');
+      if (copyrightYear) copyrightYear.textContent = String(new Date().getFullYear());
 
       const MARKETPLACE_CATEGORIES = {
         jobs: { label: 'Jobs' },
