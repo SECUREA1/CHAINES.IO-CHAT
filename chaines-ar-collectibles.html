@@ -82,6 +82,15 @@
     .collection-toolbar{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
     .collection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.62rem;margin-top:.9rem;max-height:340px;overflow:auto;padding-right:.2rem}
     .token-btn{width:100%;border-radius:14px;padding:.72rem;text-align:left;flex-direction:column;align-items:flex-start}
+    .terminal{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;background:var(--panel-strong);padding:1rem}
+    .terminal-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .terminal-toolbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+    .embed-token-toggle{display:inline-flex;align-items:center;gap:.45rem;padding:.22rem .3rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.04)}
+    .embed-token-toggle button{width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);font-weight:900;cursor:pointer}
+    .embed-token-toggle strong{font-size:.9rem;color:var(--accent);min-width:74px;text-align:center}
+    .terminal-placeholder{margin-top:.7rem;border:1px dashed var(--line);border-radius:12px;padding:.8rem;color:var(--muted)}
+    #mintTerminalFrame{display:none;width:100%;min-height:560px;margin-top:.7rem;border:1px solid var(--line);border-radius:14px;background:#02070d}
+    #mintTerminalFrame.open{display:block}
     .spotlight{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(170deg,rgba(22,36,52,.97),rgba(8,16,24,.98))}
     .spotlight-head{padding:1rem;display:flex;justify-content:space-between;align-items:flex-start;gap:.7rem;flex-wrap:wrap;border-bottom:1px solid var(--line)}
     .spotlight-content{padding:1rem;display:grid;grid-template-columns:minmax(120px,180px) 1fr;gap:1rem;align-items:start}
@@ -172,7 +181,17 @@
           </div>
 
           <div class="terminal">
-            <div class="terminal-head"><div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div><button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button></div>
+            <div class="terminal-head">
+              <div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div>
+              <div class="terminal-toolbar">
+                <div class="embed-token-toggle" aria-label="Switch mint embed token">
+                  <button id="embedTokenPrevBtn" type="button" aria-label="Previous token">←</button>
+                  <strong id="embedTokenValue">Token #226</strong>
+                  <button id="embedTokenNextBtn" type="button" aria-label="Next token">→</button>
+                </div>
+                <button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button>
+              </div>
+            </div>
             <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected token ID on Polygon.</div>
             <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=226&theme=dark&primaryColor=blue"></iframe>
           </div>
@@ -231,13 +250,20 @@
       const viewerModelName = $('viewerModelName');
       const mintMessage = $('mintMessage');
       const mintState = $('mintState');
+      const toggleTerminalBtn = $('toggleTerminalBtn');
+      const terminalPlaceholder = $('terminalPlaceholder');
+      const mintTerminalFrame = $('mintTerminalFrame');
+      const embedTokenPrevBtn = $('embedTokenPrevBtn');
+      const embedTokenNextBtn = $('embedTokenNextBtn');
+      const embedTokenValue = $('embedTokenValue');
 
-      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, nftSpotlight, prevNftBtn, nextNftBtn, spotlightTokenLabel, spotlightTitle, spotlightDescription, spotlightModelPath, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState];
+      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, nftSpotlight, prevNftBtn, nextNftBtn, spotlightTokenLabel, spotlightTitle, spotlightDescription, spotlightModelPath, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, toggleTerminalBtn, terminalPlaceholder, mintTerminalFrame, embedTokenPrevBtn, embedTokenNextBtn, embedTokenValue];
       if (required.some((n) => !n)) return;
 
       let autoRotateOn = true;
       let mintUnlocked = false;
       let jpgMetadataCache = null;
+      let terminalVisible = false;
 
       const normalizeAssetUrl = (value) => {
         const raw = (value || '').trim();
@@ -296,12 +322,18 @@
         current.searchParams.set('tokenId', tokenId);
         mintTerminalFrame.src = current.toString();
       };
+      const updateEmbedTokenLabel = () => {
+        const tokenId = Math.max(1, Number(tokenIdInput.value) || 1);
+        embedTokenValue.textContent = `Token #${tokenId}`;
+      };
 
       const renderSpotlight = () => {
         const tokenId = Math.max(1, Number(tokenIdInput.value) || 1);
         tokenIdInput.value = String(tokenId);
         const modelUrl = normalizeAssetUrl(glbUrlInput.value || deriveGlbUrlFromToken(tokenId));
         if (!glbUrlInput.value.trim()) glbUrlInput.value = modelUrl;
+        updateEmbedTokenLabel();
+        updateMintEmbedConfig();
         const meta = spotlightMetaForToken(tokenId);
         spotlightTokenLabel.textContent = `#${tokenId}`;
         spotlightTitle.textContent = meta.name;
@@ -532,6 +564,24 @@
       nextNftBtn.addEventListener('click', async () => {
         const nextToken = Math.max(1, (Number(tokenIdInput.value) || 1) + 1);
         tokenIdInput.value = String(nextToken);
+        syncPathFromToken();
+        renderSpotlight();
+        await loadCollectible();
+      });
+      toggleTerminalBtn.addEventListener('click', () => {
+        terminalVisible = !terminalVisible;
+        mintTerminalFrame.classList.toggle('open', terminalVisible);
+        terminalPlaceholder.style.display = terminalVisible ? 'none' : 'block';
+        toggleTerminalBtn.textContent = terminalVisible ? 'Hide terminal' : 'Show terminal';
+      });
+      embedTokenPrevBtn.addEventListener('click', async () => {
+        tokenIdInput.value = String(Math.max(1, (Number(tokenIdInput.value) || 1) - 1));
+        syncPathFromToken();
+        renderSpotlight();
+        await loadCollectible();
+      });
+      embedTokenNextBtn.addEventListener('click', async () => {
+        tokenIdInput.value = String(Math.max(1, (Number(tokenIdInput.value) || 1) + 1));
         syncPathFromToken();
         renderSpotlight();
         await loadCollectible();
