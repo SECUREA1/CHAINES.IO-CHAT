@@ -133,6 +133,8 @@
       <h2>Redeem rewards (effects applied immediately)</h2>
       <p>Redeeming deducts points and writes a record to your rewards history in local storage.</p>
       <div id="shop" class="shop"></div>
+      <h3 style="margin:12px 0 8px;">Active reward effects</h3>
+      <ul id="active-effects" class="history"></ul>
     </section>
 
     <section class="card">
@@ -229,6 +231,26 @@
       saveRewardsStore(store);
       return true;
     }
+    function patchRewardFlags(username, updater){
+      const user = String(username || '').trim();
+      if(!user || typeof updater !== 'function') return;
+      const store = loadRewardsStore();
+      const current = store[user] || { points: 0, history: [], flags: {} };
+      current.flags = current.flags || {};
+      current.flags = updater({ ...current.flags }) || current.flags;
+      store[user] = current;
+      saveRewardsStore(store);
+    }
+    function activateSpendEffect(username, action){
+      patchRewardFlags(username, (flags) => {
+        if(action === 'highlight') flags.highlightNextPost = Math.max(0, Number(flags.highlightNextPost || 0)) + 1;
+        if(action === 'boost') flags.marketBoostCredits = Math.max(0, Number(flags.marketBoostCredits || 0)) + 1;
+        if(action === 'pin') flags.listingPinCredits = Math.max(0, Number(flags.listingPinCredits || 0)) + 1;
+        if(action === 'priority') flags.profileSpotlightUntil = Date.now() + (24 * 60 * 60 * 1000);
+        if(action === 'banner') flags.profileBannerFeaturedUntil = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        return flags;
+      });
+    }
 
     const state = { user: userFromPage() };
 
@@ -240,8 +262,8 @@
       tiers: document.getElementById('tiers'),
       shop: document.getElementById('shop'),
       history: document.getElementById('history'),
-      status: document.getElementById('status')
-      ,
+      status: document.getElementById('status'),
+      activeEffects: document.getElementById('active-effects'),
       actionBreakdown: document.getElementById('action-breakdown'),
       leaderboard: document.getElementById('leaderboard'),
       earnTable: document.getElementById('earn-options-table'),
@@ -340,6 +362,7 @@
         btn.title = pts < option.cost ? 'Not enough points' : 'Redeem now';
         btn.addEventListener('click', () => {
           const ok = awardRewards(state.user, option.action, -option.cost, `${option.label} redeemed`);
+          if(ok) activateSpendEffect(state.user, option.action);
           els.status.innerHTML = ok
             ? `Program status: <span class="ok">Redeemed ${option.label}</span>. ${option.effect}`
             : `Program status: <span class="warn">Not enough points</span> for ${option.label}.`;
@@ -385,6 +408,28 @@
             const signed = row.points >= 0 ? `+${row.points}` : `${row.points}`;
             li.textContent = `${row.action} • ${signed} pts across ${row.count} event${row.count === 1 ? '' : 's'}`;
             els.actionBreakdown.appendChild(li);
+          });
+        }
+      }
+      if(els.activeEffects){
+        els.activeEffects.innerHTML = '';
+        const flags = (loadRewardsStore()[state.user] || {}).flags || {};
+        const now = Date.now();
+        const entries = [];
+        if(Number(flags.highlightNextPost || 0) > 0) entries.push(`Highlight credits: ${Number(flags.highlightNextPost)} next post(s).`);
+        if(Number(flags.marketBoostCredits || 0) > 0) entries.push(`Marketplace boost credits: ${Number(flags.marketBoostCredits)}.`);
+        if(Number(flags.listingPinCredits || 0) > 0) entries.push(`Listing pin credits: ${Number(flags.listingPinCredits)}.`);
+        if(Number(flags.profileSpotlightUntil || 0) > now) entries.push(`Priority spotlight active until ${new Date(flags.profileSpotlightUntil).toLocaleString()}.`);
+        if(Number(flags.profileBannerFeaturedUntil || 0) > now) entries.push(`Featured banner active until ${new Date(flags.profileBannerFeaturedUntil).toLocaleString()}.`);
+        if(!entries.length){
+          const li = document.createElement('li');
+          li.textContent = 'No active effects. Redeem from the options above.';
+          els.activeEffects.appendChild(li);
+        } else {
+          entries.forEach((line) => {
+            const li = document.createElement('li');
+            li.textContent = line;
+            els.activeEffects.appendChild(li);
           });
         }
       }
