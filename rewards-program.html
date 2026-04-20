@@ -26,6 +26,15 @@
     .shop-item button{border:1px solid var(--line);background:#13213c;color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer}
     .history{list-style:none;padding:0;margin:0;display:grid;gap:7px}
     .history li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#0c1322;font-size:13px}
+    .logic-table{width:100%;border-collapse:collapse;font-size:13px}
+    .logic-table th,.logic-table td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+    .logic-table th{background:#0c1322}
+    .logic-list{margin:0;padding-left:16px;display:grid;gap:6px;color:var(--muted)}
+    .leaderboard{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+    .leaderboard li{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#0c1322}
+    .leaderboard li b{color:var(--gold)}
+    .split{display:grid;grid-template-columns:1.15fr .85fr;gap:10px}
+    @media (max-width:900px){.split{grid-template-columns:1fr}}
     .ok{color:var(--ok)}
     .warn{color:var(--warn)}
   </style>
@@ -52,6 +61,41 @@
     </section>
 
     <section class="card">
+      <h2>Platform rewards map (all pages)</h2>
+      <table class="logic-table" aria-label="Rewards logic across pages">
+        <thead>
+          <tr>
+            <th>Page / Surface</th>
+            <th>Main earning actions</th>
+            <th>Why points are granted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Chat feed + profile posts</td>
+            <td>Post, reply, like, follow</td>
+            <td>Rewards active social participation and relationship growth.</td>
+          </tr>
+          <tr>
+            <td>Marketplace</td>
+            <td>Create listings, likes, comments, contact actions</td>
+            <td>Rewards buyer/seller activity that creates commerce trust.</td>
+          </tr>
+          <tr>
+            <td>Live streaming</td>
+            <td>Start stream session + per-minute stream activity</td>
+            <td>Rewards consistency and live retention behavior.</td>
+          </tr>
+          <tr>
+            <td>Wallet + identity profile</td>
+            <td>Connect verified wallet</td>
+            <td>Rewards account trust and verifiable ownership signals.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
       <h2>High-end tiers & effects</h2>
       <div class="grid" id="tiers"></div>
     </section>
@@ -65,6 +109,31 @@
     <section class="card">
       <h2>Recent rewards activity</h2>
       <ul id="history" class="history"></ul>
+    </section>
+
+    <section class="card split">
+      <div>
+        <h2>Action breakdown (your account)</h2>
+        <p>Totals below are derived from your stored rewards history and update as you earn/redeem.</p>
+        <ul id="action-breakdown" class="history"></ul>
+      </div>
+      <div>
+        <h2>Global leaderboard (live)</h2>
+        <p>Ranks are sorted by total points, then alphabetically for tie-breaking.</p>
+        <ul id="leaderboard" class="leaderboard"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Leaderboard + profile logic (detailed)</h2>
+      <ul class="logic-list">
+        <li><strong>Source of truth:</strong> every user is stored in <code>chaines_rewards_v1</code> with <code>points</code>, <code>history</code>, and optional <code>flags</code>.</li>
+        <li><strong>Scoring:</strong> earn actions add positive points; redemptions write negative point entries and reduce available balance instantly.</li>
+        <li><strong>Eligibility:</strong> leaderboard includes every non-empty username with a valid rewards object.</li>
+        <li><strong>Tie-break:</strong> if two users have equal points, names are ordered alphabetically for stable ranking.</li>
+        <li><strong>Profile integration:</strong> profile page reads the same rewards store, shows rank, tier progress, recent events, and top leaderboard entries.</li>
+        <li><strong>History cap:</strong> rewards history is trimmed to the most recent 120 records to keep storage responsive.</li>
+      </ul>
     </section>
   </main>
 
@@ -143,6 +212,9 @@
       shop: document.getElementById('shop'),
       history: document.getElementById('history'),
       status: document.getElementById('status')
+      ,
+      actionBreakdown: document.getElementById('action-breakdown'),
+      leaderboard: document.getElementById('leaderboard')
     };
 
     function tierForPoints(points){
@@ -224,6 +296,46 @@
           li.textContent = `${delta >= 0 ? '+' : ''}${delta} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${ts}`;
           els.history.appendChild(li);
         });
+      }
+
+      if(els.actionBreakdown){
+        els.actionBreakdown.innerHTML = '';
+        const byAction = history.reduce((acc, entry) => {
+          const action = String(entry.action || 'unknown');
+          if(!acc[action]) acc[action] = { action, count: 0, points: 0 };
+          acc[action].count += 1;
+          acc[action].points += Number(entry.points || 0);
+          return acc;
+        }, {});
+        const summary = Object.values(byAction).sort((a, b) => b.points - a.points || b.count - a.count || a.action.localeCompare(b.action));
+        if(!summary.length){
+          const li = document.createElement('li');
+          li.textContent = 'No action totals yet.';
+          els.actionBreakdown.appendChild(li);
+        } else {
+          summary.forEach((row) => {
+            const li = document.createElement('li');
+            const signed = row.points >= 0 ? `+${row.points}` : `${row.points}`;
+            li.textContent = `${row.action} • ${signed} pts across ${row.count} event${row.count === 1 ? '' : 's'}`;
+            els.actionBreakdown.appendChild(li);
+          });
+        }
+      }
+
+      if(els.leaderboard){
+        els.leaderboard.innerHTML = '';
+        if(!board.length){
+          const li = document.createElement('li');
+          li.textContent = 'No leaderboard entries yet.';
+          els.leaderboard.appendChild(li);
+        } else {
+          board.slice(0, 20).forEach((entry, idx) => {
+            const li = document.createElement('li');
+            const me = entry.name === state.user ? ' (you)' : '';
+            li.innerHTML = `<span>#${idx + 1} @${entry.name}${me}</span><b>${entry.points} pts</b>`;
+            els.leaderboard.appendChild(li);
+          });
+        }
       }
     }
 
