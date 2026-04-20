@@ -2003,6 +2003,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
+                <button id="rewards-menu-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
@@ -2248,11 +2249,7 @@ body.streams-flex-fit #video-container[hidden] {
       <h4 style="margin:0 0 8px;">How to earn points</h4>
       <ul id="rewards-rules-list" class="rewards-list"></ul>
       <h4 style="margin:14px 0 8px;">Spend Ghost Coin points</h4>
-      <div id="rewards-spend-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="chip" type="button" data-reward-spend="5" data-reward-spend-action="highlight" data-reward-spend-label="Highlight your next post">Highlight next post (-5)</button>
-        <button class="chip" type="button" data-reward-spend="10" data-reward-spend-action="boost" data-reward-spend-label="Boost marketplace visibility">Boost listing (-10)</button>
-        <button class="chip" type="button" data-reward-spend="15" data-reward-spend-action="priority" data-reward-spend-label="Priority profile spotlight">Profile spotlight (-15)</button>
-      </div>
+      <div id="rewards-spend-actions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       <ul id="rewards-shop-list" class="rewards-shop"></ul>
       <h4 style="margin:14px 0 8px;">Rewards leaderboard</h4>
       <ul id="rewards-leaderboard" class="rewards-leaderboard"></ul>
@@ -2785,10 +2782,12 @@ body.streams-flex-fit #video-container[hidden] {
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
       .map(id => el(`#${id}`))
       .filter(Boolean);
+    const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
+    const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
     const rewardsModal = el('#rewards-modal');
     const rewardsCloseBtn = el('#rewards-close-btn');
     const rewardsRulesList = el('#rewards-rules-list');
@@ -2869,6 +2868,19 @@ body.streams-flex-fit #video-container[hidden] {
           rewardsShopList.appendChild(li);
         });
       }
+      if(rewardsSpendActions){
+        rewardsSpendActions.innerHTML = '';
+        REWARD_SPEND_OPTIONS.forEach((option) => {
+          const button = document.createElement('button');
+          button.className = 'chip';
+          button.type = 'button';
+          button.dataset.rewardSpend = String(option.cost);
+          button.dataset.rewardSpendAction = option.action;
+          button.dataset.rewardSpendLabel = option.label;
+          button.textContent = `${option.label} (-${option.cost})`;
+          rewardsSpendActions.appendChild(button);
+        });
+      }
       if(rewardsLeaderboard){
         rewardsLeaderboard.innerHTML = '';
         const board = Object.entries(loadRewardsStore())
@@ -2916,6 +2928,8 @@ body.streams-flex-fit #video-container[hidden] {
       document.body.style.overflow = '';
     }
     rewardsMenuBtn?.addEventListener('click', openRewardsMenu);
+    rewardsMenuBtnMobile?.addEventListener('click', openRewardsMenu);
+    ghostBtn?.addEventListener('click', openRewardsMenu);
     rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
     rewardsModal?.addEventListener('click', (event) => {
       if(event.target === rewardsModal) closeRewardsMenu();
@@ -7185,7 +7199,6 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // Make the hologhost button evade the cursor
-    const ghostBtn = document.getElementById('ghost-btn');
     const ghostTicker = document.getElementById('ghost-ticker');
     const ghostTickerMessage = ghostTicker ? ghostTicker.querySelector('[data-role="message"]') : null;
     const ghostTickerTotal = ghostTicker ? ghostTicker.querySelector('[data-role="total"]') : null;
