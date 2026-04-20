@@ -271,6 +271,15 @@
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
+    .audio-input-picker { display:flex; align-items:center; gap:6px; font-size:12px; white-space:nowrap; }
+    .audio-input-picker select {
+      background: color-mix(in oklab, var(--panel), transparent 18%);
+      color: var(--text);
+      border: 1px solid var(--lining);
+      border-radius: 999px;
+      padding: 4px 8px;
+      max-width: 220px;
+    }
     .audio-feed-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .audio-feed-controls .chip.active { outline:2px solid color-mix(in oklab, var(--accent-2), white 8%); }
     .self-destruct { display:flex; align-items:center; justify-content:center; gap:4px; font-size:12px; white-space:nowrap; }
@@ -2000,6 +2009,12 @@ body.streams-flex-fit #video-container[hidden] {
           <img src="static/insert.svg" alt="Add camera" />
         </button>
         <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
+        <label class="audio-input-picker" id="audio-input-picker" title="Choose which microphone or camera audio is sent live">
+          <span>Audio In</span>
+          <select id="broadcast-audio-input">
+            <option value="">Default mic</option>
+          </select>
+        </label>
         <div class="audio-feed-controls" id="audio-feed-controls" hidden></div>
         <button class="chip" id="screen-btn" type="button" title="Share screen">
           <img src="static/screen.svg" alt="Share screen" />
@@ -2705,6 +2720,8 @@ body.streams-flex-fit #video-container[hidden] {
     const cameraBtn = el('#camera-btn');
     const addCameraBtn = el('#add-camera-btn');
     const multiCameraControls = el('#multi-camera-controls');
+    const audioInputPicker = el('#audio-input-picker');
+    const broadcastAudioInputSelect = el('#broadcast-audio-input');
     const audioFeedControls = el('#audio-feed-controls');
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
@@ -3778,6 +3795,8 @@ body.streams-flex-fit #video-container[hidden] {
     let mixCtx = null;
     let mixDrawHandle = null;
     let detectedVideoInputs = [];
+    let detectedAudioInputs = [];
+    let selectedBroadcastAudioInputId = '';
     const MAX_BROADCAST_CAMERAS = Number.POSITIVE_INFINITY;
     let multiCamBroadcast = false;
     let multiCamTrackEntries = [];
@@ -3872,6 +3891,62 @@ body.streams-flex-fit #video-container[hidden] {
       }
     }
 
+    function isLikelyCameraMic(device){
+      const label = String(device?.label || '').toLowerCase();
+      return /(camera|cam|webcam|usb|capture|video)/.test(label);
+    }
+
+    function buildBroadcastAudioConstraints(){
+      const base = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      };
+      if(selectedBroadcastAudioInputId){
+        base.deviceId = { exact: selectedBroadcastAudioInputId };
+      }
+      return base;
+    }
+
+    async function getBroadcastMediaWithAudioFallback(constraints){
+      try{
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch(err){
+        if(selectedBroadcastAudioInputId && constraints?.audio && typeof constraints.audio === 'object'){
+          const fallback = { ...constraints, audio: true };
+          return navigator.mediaDevices.getUserMedia(fallback);
+        }
+        throw err;
+      }
+    }
+
+    function renderBroadcastAudioInputPicker(){
+      if(!broadcastAudioInputSelect) return;
+      const previous = selectedBroadcastAudioInputId;
+      const sorted = detectedAudioInputs
+        .slice()
+        .sort((a, b) => {
+          const camA = isLikelyCameraMic(a) ? 1 : 0;
+          const camB = isLikelyCameraMic(b) ? 1 : 0;
+          if(camA !== camB) return camB - camA;
+          return String(a.label || '').localeCompare(String(b.label || ''));
+        });
+      broadcastAudioInputSelect.innerHTML = '<option value="">Default mic</option>';
+      sorted.forEach((input, idx) => {
+        const option = document.createElement('option');
+        option.value = input.deviceId || '';
+        const fallbackLabel = isLikelyCameraMic(input) ? `Camera mic ${idx + 1}` : `Microphone ${idx + 1}`;
+        option.textContent = input.label || fallbackLabel;
+        broadcastAudioInputSelect.appendChild(option);
+      });
+      const hasCurrent = sorted.some(input => input.deviceId === previous);
+      selectedBroadcastAudioInputId = hasCurrent ? previous : '';
+      broadcastAudioInputSelect.value = selectedBroadcastAudioInputId;
+      if(audioInputPicker){
+        audioInputPicker.hidden = false;
+      }
+    }
+
     async function detectAvailableCameras({ requestPermission = false } = {}){
       if(!navigator.mediaDevices?.enumerateDevices) return [];
       let probeStream = null;
@@ -3883,14 +3958,17 @@ body.streams-flex-fit #video-container[hidden] {
       try{
         const devices = await navigator.mediaDevices.enumerateDevices();
         detectedVideoInputs = devices.filter(d => d.kind === 'videoinput');
+        detectedAudioInputs = devices.filter(d => d.kind === 'audioinput');
       } catch {
         detectedVideoInputs = [];
+        detectedAudioInputs = [];
       } finally {
         if(probeStream){
           try { probeStream.getTracks().forEach(t => t.stop()); } catch {}
         }
         refreshGoLiveAllButton();
         refreshAddCameraButton();
+        renderBroadcastAudioInputPicker();
       }
       return detectedVideoInputs;
     }
@@ -3918,9 +3996,9 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function createBroadcastCameraBundle(){
-      const base = await navigator.mediaDevices.getUserMedia({
+      const base = await getBroadcastMediaWithAudioFallback({
         video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
-        audio: true
+        audio: buildBroadcastAudioConstraints()
       });
       if(!navigator.mediaDevices?.enumerateDevices){
         cameraStreams = [base];
@@ -4049,6 +4127,11 @@ body.streams-flex-fit #video-container[hidden] {
     if(navigator.mediaDevices?.addEventListener){
       navigator.mediaDevices.addEventListener('devicechange', () => {
         detectAvailableCameras();
+      });
+    }
+    if(broadcastAudioInputSelect){
+      broadcastAudioInputSelect.addEventListener('change', () => {
+        selectedBroadcastAudioInputId = broadcastAudioInputSelect.value || '';
       });
     }
     detectAvailableCameras();
@@ -5507,10 +5590,10 @@ body.streams-flex-fit #video-container[hidden] {
         const getStream = stream
           ? Promise.resolve({ stream, previews: [stream], multiCam: false })
           : (audioOnly
-            ? navigator.mediaDevices.getUserMedia({ audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))
+            ? getBroadcastMediaWithAudioFallback({ video: false, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false }))
             : (goLiveAllRequested
-              ? createBroadcastCameraBundle().catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false })))
-              : navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
+              ? createBroadcastCameraBundle().catch(() => getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false })))
+              : getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
           const activeStream = activeBundle.stream;
