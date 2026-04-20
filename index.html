@@ -2347,6 +2347,13 @@ body.streams-flex-fit #video-container[hidden] {
     const REWARD_SPEND_OPTIONS = Object.freeze(
       BASE_REWARD_SPEND_OPTIONS.map((option) => ({ ...option, cost: option.cost * SPEND_COST_MULTIPLIER }))
     );
+    const TIER_LEVELS = Object.freeze([
+      { min: 0, name: 'Starter', redemptionDiscount: 0 },
+      { min: 20, name: 'Rising', redemptionDiscount: 0.05 },
+      { min: 60, name: 'Pro', redemptionDiscount: 0.1 },
+      { min: 120, name: 'Elite', redemptionDiscount: 0.15 },
+      { min: 250, name: 'Legend', redemptionDiscount: 0.2 }
+    ]);
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
@@ -2866,6 +2873,17 @@ body.streams-flex-fit #video-container[hidden] {
       if(!spend) return false;
       return awardRewards(username, action, -spend, detail);
     }
+    function tierForPoints(points){
+      const safePoints = Math.max(0, Number(points || 0));
+      const current = TIER_LEVELS.reduce((acc, tier) => safePoints >= tier.min ? tier : acc, TIER_LEVELS[0]);
+      const next = TIER_LEVELS.find((tier) => tier.min > current.min) || null;
+      return { current, next };
+    }
+    function adjustedRedemptionCost(cost, tierMeta){
+      const base = Math.max(0, Number(cost || 0));
+      const discount = Math.max(0, Math.min(0.4, Number(tierMeta?.current?.redemptionDiscount || 0)));
+      return Math.max(1, Math.ceil(base * (1 - discount)));
+    }
     function readRewardFlags(username){
       const user = String(username || '').trim();
       const state = loadRewardsStore();
@@ -2919,25 +2937,29 @@ body.streams-flex-fit #video-container[hidden] {
         rewardsRulesList.appendChild(li);
       });
       const rewards = rewardsForUser(store?.user || '', true) || { points: 0, history: [] };
-      rewardsScore.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> Ghost Coin points`;
+      const points = Number(rewards.points || 0);
+      const tierMeta = tierForPoints(points);
+      rewardsScore.innerHTML = `Total: <b>${points}</b> Ghost Coin points • Tier: <b>${tierMeta.current.name}</b>${tierMeta.next ? ` • Next ${tierMeta.next.name} at ${tierMeta.next.min}` : ' • Max tier reached'}`;
       if(rewardsShopList){
         rewardsShopList.innerHTML = '';
         REWARD_SPEND_OPTIONS.forEach((option) => {
+          const effectiveCost = adjustedRedemptionCost(option.cost, tierMeta);
           const li = document.createElement('li');
-          li.textContent = `${option.label} (${option.cost} points)`;
+          li.textContent = `${option.label} (${effectiveCost} points, base ${option.cost})`;
           rewardsShopList.appendChild(li);
         });
       }
       if(rewardsSpendActions){
         rewardsSpendActions.innerHTML = '';
         REWARD_SPEND_OPTIONS.forEach((option) => {
+          const effectiveCost = adjustedRedemptionCost(option.cost, tierMeta);
           const button = document.createElement('button');
           button.className = 'chip';
           button.type = 'button';
-          button.dataset.rewardSpend = String(option.cost);
+          button.dataset.rewardSpend = String(effectiveCost);
           button.dataset.rewardSpendAction = option.action;
           button.dataset.rewardSpendLabel = option.label;
-          button.textContent = `${option.label} (-${option.cost})`;
+          button.textContent = `${option.label} (-${effectiveCost}, base ${option.cost})`;
           rewardsSpendActions.appendChild(button);
         });
       }
