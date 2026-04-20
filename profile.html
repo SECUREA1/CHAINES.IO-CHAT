@@ -231,6 +231,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   color:var(--fg);
   padding:6px;
 }
+.rewards-section{margin:10px 0 14px; padding:10px; border-radius:12px; border:1px solid var(--lining); background:color-mix(in oklab, var(--panel), transparent 22%);}
+.rewards-section h3{margin:0 0 6px;}
+.rewards-total{margin:0; color:var(--muted);}
+.rewards-total b{color:var(--accent); font-size:20px;}
+.rewards-log{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
+.rewards-log li{border:1px solid var(--lining); border-radius:10px; padding:6px 8px; font-size:12px;}
 
     .site-copyright {
       text-align: center;
@@ -278,6 +284,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   </section>
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
   <div id="stats-grid" class="stats-grid"></div>
+  <section class="rewards-section">
+    <h3>👻 Ghost Coin Rewards</h3>
+    <p id="profile-rewards-total" class="rewards-total">Total: <b>0</b> points</p>
+    <ul id="profile-rewards-log" class="rewards-log"></ul>
+  </section>
   <div class="relation-grid">
     <div>
       <h3 class="section-title">Followers</h3>
@@ -423,6 +434,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const connectBookingBtn = document.getElementById('connect-booking-btn');
   const calendarAvailability = document.getElementById('calendar-availability');
   const calendarBookings = document.getElementById('calendar-bookings');
+  const profileRewardsTotal = document.getElementById('profile-rewards-total');
+  const profileRewardsLog = document.getElementById('profile-rewards-log');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -438,6 +451,52 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const CALENDAR_REMINDERS_KEY = 'chaines_profile_calendar_reminders_v1';
   const PROFILE_ENTRY_WALLETS_KEY = 'chaines_profile_entry_wallets_v1';
   const PROFILE_AIRDROP_WALLETS_KEY = 'chaines_profile_airdrop_wallets_v1';
+  const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
+
+  function rewardsStore(){
+    const parsed = safeParse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}', {});
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }
+
+  function saveRewardsStore(store){
+    localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(store || {}));
+  }
+
+  function addRewardPoints(username, action, points, detail='', opts={}){
+    const user = String(username || '').trim();
+    if(!user || !Number.isFinite(points) || points <= 0) return;
+    const store = rewardsStore();
+    const current = store[user] || { points: 0, history: [], flags: {} };
+    current.flags = current.flags || {};
+    const onceKey = String(opts.onceKey || '').trim();
+    if(onceKey && current.flags[onceKey]) return;
+    if(onceKey) current.flags[onceKey] = Date.now();
+    current.points = Number(current.points || 0) + points;
+    current.history = Array.isArray(current.history) ? current.history : [];
+    current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
+    current.history = current.history.slice(0, 120);
+    store[user] = current;
+    saveRewardsStore(store);
+  }
+
+  function renderRewardsPanel(username){
+    if(!profileRewardsTotal || !profileRewardsLog) return;
+    const rewards = rewardsStore()[String(username || '').trim()] || { points: 0, history: [] };
+    profileRewardsTotal.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> points`;
+    profileRewardsLog.innerHTML = '';
+    const history = Array.isArray(rewards.history) ? rewards.history : [];
+    if(!history.length){
+      const li = document.createElement('li');
+      li.textContent = 'No rewards yet. Earn points by posting, listing, streaming, liking, replying, following, and connecting a verified wallet.';
+      profileRewardsLog.appendChild(li);
+      return;
+    }
+    history.slice(0, 8).forEach((entry) => {
+      const li = document.createElement('li');
+      li.textContent = `+${entry.points} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${new Date(entry.ts || Date.now()).toLocaleString()}`;
+      profileRewardsLog.appendChild(li);
+    });
+  }
 
   function safeParse(raw, fallback){
     try { return JSON.parse(raw); } catch { return fallback; }
@@ -1278,7 +1337,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       }
       upsertWallet(PROFILE_ENTRY_WALLETS_KEY, storeUser, walletEntry);
       upsertWallet(PROFILE_AIRDROP_WALLETS_KEY, storeUser, walletEntry);
+      addRewardPoints(storeUser, 'wallet-connected', 1, `${walletEntry.chain.toUpperCase()} wallet connected`, {
+        onceKey: `wallet:${walletEntry.chain}:${walletEntry.address.toLowerCase()}`
+      });
       renderProfileWalletSections(storeUser, true);
+      renderRewardsPanel(storeUser);
       alert(`${walletEntry.chain.toUpperCase()} wallet connected and added to entry + airdrop profile tags.`);
     }catch(err){
       alert(err?.message || 'Wallet connection failed.');
@@ -1298,8 +1361,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const walletEntry = normalizeWalletEntry(chain, address, walletName);
     if(!walletEntry) return;
     upsertWallet(PROFILE_ENTRY_WALLETS_KEY, username, walletEntry);
+    addRewardPoints(username, 'wallet-connected', 1, `${walletEntry.chain.toUpperCase()} wallet verified`, {
+      onceKey: `wallet:${walletEntry.chain}:${walletEntry.address.toLowerCase()}`
+    });
     if(username === currentUser){
       renderProfileWalletSections(username, true);
+      renderRewardsPanel(username);
     }
   });
 
@@ -1402,6 +1469,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       if(res.ok){
         post.likes = data.likes || post.likes || 0;
         likeBtn.textContent = '❤️ ' + post.likes;
+        addRewardPoints(storeUser, 'like', 1, `Liked post #${post.id}`);
+        if(storeUser === currentUser) renderRewardsPanel(storeUser);
       }
     });
     actions.appendChild(likeBtn);
@@ -1432,6 +1501,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         post.comments.push({ id: data.reply.id, user: storeUser, text: textValue, ts: data.reply.ts });
         replyList.appendChild(createReplyElement({ user: storeUser, text: textValue }));
         input.value = '';
+        addRewardPoints(storeUser, 'reply', 2, `Replied to post #${post.id}`);
+        if(storeUser === currentUser) renderRewardsPanel(storeUser);
       }
     });
 
@@ -1488,11 +1559,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 
   function renderStats(data){
     const stats = data?.stats || {};
+    const rewardPoints = Number((rewardsStore()[data?.username || currentUser] || {}).points || 0);
     const cards = [
       ['Posts', stats.posts ?? data?.posts?.length ?? 0],
       ['Replies', stats.replies ?? data?.replies?.length ?? 0],
       ['Followers', stats.followers ?? data?.followers?.length ?? 0],
       ['Following', stats.following ?? data?.following?.length ?? 0],
+      ['Ghost Coin', rewardPoints],
       ['Likes Received', stats.likesReceived ?? 0],
       ['Messages', stats.directMessages ?? 0],
       ['Dating Likes', stats.datingLikesSent ?? data?.dating?.likedUsers?.length ?? 0],
@@ -1602,6 +1675,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       feedEl.innerHTML = '';
       calendarPanel.hidden = true;
       renderProfileWalletSections('', false);
+      renderRewardsPanel('');
       return;
     }
     resetProfileUI();
@@ -1621,6 +1695,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       renderFeed();
       renderCalendar(currentUser, storeUser === currentUser);
       renderProfileWalletSections(currentUser, storeUser === currentUser);
+      renderRewardsPanel(currentUser);
       return;
     }
     const data = normalizeProfileData(await res.json());
@@ -1639,6 +1714,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const followingCount = Number.isFinite(data.followingCount) ? data.followingCount : (data.following?.length || 0);
     followInfo.textContent = 'Followers: ' + followerCount + ' • Following: ' + followingCount;
     renderStats(data);
+    renderRewardsPanel(data.username);
     renderRelationList(followersList, Array.isArray(data.followers) ? data.followers : [], 'No followers yet.');
     renderRelationList(followingList, Array.isArray(data.following) ? data.following : [], 'Not following anyone yet.');
     renderRelationList(datingLikedList, data.dating?.likedUsers || [], 'No dating likes yet.');
@@ -1658,6 +1734,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
           const err = await res.json().catch(() => ({}));
           alert(err.error || 'Unable to update follow status.');
           return;
+        }
+        const toggle = await res.json().catch(() => ({}));
+        if(toggle.following){
+          addRewardPoints(storeUser, 'follow', 2, `Followed @${currentUser}`);
+          if(storeUser === currentUser) renderRewardsPanel(storeUser);
         }
         load();
       };
