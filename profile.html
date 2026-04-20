@@ -235,8 +235,12 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .rewards-section h3{margin:0 0 6px;}
 .rewards-total{margin:0; color:var(--muted);}
 .rewards-total b{color:var(--accent); font-size:20px;}
+.rewards-rank{margin:6px 0 0; color:var(--muted); font-size:13px;}
 .rewards-log{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
 .rewards-log li{border:1px solid var(--lining); border-radius:10px; padding:6px 8px; font-size:12px;}
+.rewards-board{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
+.rewards-board li{display:flex; justify-content:space-between; gap:8px; border:1px solid var(--lining); border-radius:10px; padding:6px 8px; font-size:12px;}
+.rewards-board li b{color:var(--accent);}
 
     .site-copyright {
       text-align: center;
@@ -287,7 +291,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   <section class="rewards-section">
     <h3>👻 Ghost Coin Rewards</h3>
     <p id="profile-rewards-total" class="rewards-total">Total: <b>0</b> points</p>
+    <p id="profile-rewards-rank" class="rewards-rank">Rank: unranked</p>
     <ul id="profile-rewards-log" class="rewards-log"></ul>
+    <h4 style="margin:12px 0 8px;">Top reward leaderboard</h4>
+    <ul id="profile-rewards-board" class="rewards-board"></ul>
   </section>
   <div class="relation-grid">
     <div>
@@ -435,7 +442,9 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const calendarAvailability = document.getElementById('calendar-availability');
   const calendarBookings = document.getElementById('calendar-bookings');
   const profileRewardsTotal = document.getElementById('profile-rewards-total');
+  const profileRewardsRank = document.getElementById('profile-rewards-rank');
   const profileRewardsLog = document.getElementById('profile-rewards-log');
+  const profileRewardsBoard = document.getElementById('profile-rewards-board');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -480,20 +489,41 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   }
 
   function renderRewardsPanel(username){
-    if(!profileRewardsTotal || !profileRewardsLog) return;
-    const rewards = rewardsStore()[String(username || '').trim()] || { points: 0, history: [] };
+    if(!profileRewardsTotal || !profileRewardsLog || !profileRewardsBoard || !profileRewardsRank) return;
+    const user = String(username || '').trim();
+    const store = rewardsStore();
+    const rewards = store[user] || { points: 0, history: [] };
     profileRewardsTotal.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> points`;
+    const board = Object.entries(store)
+      .filter(([name, data]) => !!String(name || '').trim() && data && typeof data === 'object')
+      .map(([name, data]) => ({ name, points: Math.max(0, Number(data.points || 0)) }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    const rank = board.findIndex((entry) => entry.name === user);
+    profileRewardsRank.textContent = rank >= 0 ? `Rank: #${rank + 1} of ${board.length}` : 'Rank: unranked';
+    profileRewardsBoard.innerHTML = '';
+    if(!board.length){
+      const li = document.createElement('li');
+      li.textContent = 'No leaderboard entries yet.';
+      profileRewardsBoard.appendChild(li);
+    }else{
+      board.slice(0, 8).forEach((entry, idx) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>#${idx + 1} @${entry.name}</span><b>${entry.points} pts</b>`;
+        profileRewardsBoard.appendChild(li);
+      });
+    }
     profileRewardsLog.innerHTML = '';
     const history = Array.isArray(rewards.history) ? rewards.history : [];
     if(!history.length){
       const li = document.createElement('li');
-      li.textContent = 'No rewards yet. Earn points by posting, listing, streaming, liking, replying, following, and connecting a verified wallet.';
+      li.textContent = 'No rewards yet. Earn points by posting, listing, streaming, liking, replying, following, marketplace activity, and connecting a wallet.';
       profileRewardsLog.appendChild(li);
       return;
     }
     history.slice(0, 8).forEach((entry) => {
       const li = document.createElement('li');
-      li.textContent = `+${entry.points} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${new Date(entry.ts || Date.now()).toLocaleString()}`;
+      const delta = Number(entry.points || 0);
+      li.textContent = `${delta >= 0 ? '+' : ''}${delta} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${new Date(entry.ts || Date.now()).toLocaleString()}`;
       profileRewardsLog.appendChild(li);
     });
   }
