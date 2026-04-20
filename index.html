@@ -2924,7 +2924,11 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function openRewardsProgramPage(){
       const user = encodeURIComponent(String(store?.user || '').trim());
-      const target = user ? `rewards-program.html?user=${user}` : 'rewards-program.html';
+      if(toolbarOverflow && toolbarOverflowToggle){
+        toolbarOverflow.classList.remove('is-open');
+        toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
+      }
+      const target = user ? `/rewards-program?user=${user}` : '/rewards-program';
       window.location.href = target;
     }
     function closeRewardsMenu(){

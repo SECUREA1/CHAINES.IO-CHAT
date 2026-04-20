@@ -406,6 +406,9 @@ app.get(["/private-chat", "/private-chat.html"], (req, res) =>
 app.get(["/profile", "/profile.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "profile.html"))
 );
+app.get(["/rewards-program", "/rewards-program.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "rewards-program.html"))
+);
 app.get(["/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player"], (req, res) =>
   res.sendFile(path.join(ROOT, "chaines-ar-collectibles.html"))
 );
