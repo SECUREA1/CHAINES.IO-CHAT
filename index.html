@@ -163,8 +163,18 @@
     .rewards-score b{ color:var(--gold); font-size:20px; }
     .rewards-list{ margin:0; padding-left:18px; display:grid; gap:8px; }
     .rewards-list li{ color:var(--fg); }
+    .rewards-shop{ list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px; }
+    .rewards-shop li{ border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
     .rewards-feed{ list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; }
     .rewards-feed li{ border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
+    .rewards-leaderboard{ list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; }
+    .rewards-leaderboard li{ display:flex; justify-content:space-between; gap:10px; border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
+    .rewards-leaderboard li b{ color:var(--gold); }
+    @media (max-width: 600px){
+      .rewards-modal{ padding:10px; align-items:flex-end; }
+      .rewards-modal__panel{ width:100%; max-height:92dvh; border-bottom-left-radius:0; border-bottom-right-radius:0; padding:14px; }
+      .rewards-modal__head h3{ font-size:18px; }
+    }
 
     @keyframes shimmer {
       0% { background-position: 0% 50%; }
@@ -2243,6 +2253,9 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip" type="button" data-reward-spend="10" data-reward-spend-action="boost" data-reward-spend-label="Boost marketplace visibility">Boost listing (-10)</button>
         <button class="chip" type="button" data-reward-spend="15" data-reward-spend-action="priority" data-reward-spend-label="Priority profile spotlight">Profile spotlight (-15)</button>
       </div>
+      <ul id="rewards-shop-list" class="rewards-shop"></ul>
+      <h4 style="margin:14px 0 8px;">Rewards leaderboard</h4>
+      <ul id="rewards-leaderboard" class="rewards-leaderboard"></ul>
       <h4 style="margin:14px 0 8px;">Recent rewards</h4>
       <ul id="rewards-history" class="rewards-feed"></ul>
     </div>
@@ -2302,6 +2315,9 @@ body.streams-flex-fit #video-container[hidden] {
     const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
     const REWARD_RULES = Object.freeze([
       { action: 'post', points: 2, label: 'Post in feed (2 pts)' },
+      { action: 'reply', points: 2, label: 'Reply to a post (2 pts)' },
+      { action: 'follow', points: 2, label: 'Follow a creator (2 pts)' },
+      { action: 'like', points: 1, label: 'Like a profile post (1 pt)' },
       { action: 'listing', points: 3, label: 'Create marketplace listing (3 pts)' },
       { action: 'listing-services', points: 4, label: 'Service/meal marketplace listing (4 pts)' },
       { action: 'listing-dating', points: 4, label: 'Dating marketplace listing (4 pts)' },
@@ -2311,6 +2327,13 @@ body.streams-flex-fit #video-container[hidden] {
       { action: 'stream-minute', points: 1, label: 'Stream live for 1 minute (1 pt / min)' },
       { action: 'wallet-connected', points: 1, label: 'Verified wallet connected (1 pt per wallet)' },
       { action: 'broadcast-start', points: 2, label: 'Go live session started (2 pts)' }
+    ]);
+    const REWARD_SPEND_OPTIONS = Object.freeze([
+      { action: 'highlight', cost: 5, label: 'Highlight your next post' },
+      { action: 'boost', cost: 10, label: 'Boost marketplace visibility' },
+      { action: 'priority', cost: 15, label: 'Priority profile spotlight' },
+      { action: 'pin', cost: 20, label: 'Pin one listing for 24h' },
+      { action: 'banner', cost: 25, label: 'Feature your profile banner' }
     ]);
 
     function createDownloadLink(content, filename, mime, user){
@@ -2772,6 +2795,8 @@ body.streams-flex-fit #video-container[hidden] {
     const rewardsScore = el('#rewards-score');
     const rewardsHistory = el('#rewards-history');
     const rewardsSpendActions = el('#rewards-spend-actions');
+    const rewardsShopList = el('#rewards-shop-list');
+    const rewardsLeaderboard = el('#rewards-leaderboard');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -2792,18 +2817,18 @@ body.streams-flex-fit #video-container[hidden] {
     function rewardsForUser(username, createIfMissing=false){
       const user = String(username || '').trim();
       if(!user) return null;
-      const store = loadRewardsStore();
-      if(!store[user] && createIfMissing){
-        store[user] = { points: 0, history: [], flags: {} };
-        saveRewardsStore(store);
+      const rewardsState = loadRewardsStore();
+      if(!rewardsState[user] && createIfMissing){
+        rewardsState[user] = { points: 0, history: [], flags: {} };
+        saveRewardsStore(rewardsState);
       }
-      return store[user] || null;
+      return rewardsState[user] || null;
     }
     function awardRewards(username, action, points, detail='', opts={}){
       const user = String(username || '').trim();
       if(!user || !action || !Number.isFinite(points) || points === 0) return false;
-      const store = loadRewardsStore();
-      const current = store[user] || { points: 0, history: [], flags: {} };
+      const rewardsState = loadRewardsStore();
+      const current = rewardsState[user] || { points: 0, history: [], flags: {} };
       current.flags = current.flags || {};
       const onceKey = String(opts.onceKey || '').trim();
       if(onceKey && current.flags[onceKey]) return false;
@@ -2814,9 +2839,9 @@ body.streams-flex-fit #video-container[hidden] {
       current.history = Array.isArray(current.history) ? current.history : [];
       current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
       current.history = current.history.slice(0, 120);
-      store[user] = current;
-      saveRewardsStore(store);
-      if(user === (store?.user || '')){
+      rewardsState[user] = current;
+      saveRewardsStore(rewardsState);
+      if(user === String(store?.user || '')){
         renderRewardsMenu();
       }
       return true;
@@ -2836,6 +2861,33 @@ body.streams-flex-fit #video-container[hidden] {
       });
       const rewards = rewardsForUser(store?.user || '', true) || { points: 0, history: [] };
       rewardsScore.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> Ghost Coin points`;
+      if(rewardsShopList){
+        rewardsShopList.innerHTML = '';
+        REWARD_SPEND_OPTIONS.forEach((option) => {
+          const li = document.createElement('li');
+          li.textContent = `${option.label} (${option.cost} points)`;
+          rewardsShopList.appendChild(li);
+        });
+      }
+      if(rewardsLeaderboard){
+        rewardsLeaderboard.innerHTML = '';
+        const board = Object.entries(loadRewardsStore())
+          .filter(([name, data]) => !!String(name || '').trim() && data && typeof data === 'object')
+          .map(([name, data]) => ({ name, points: Math.max(0, Number(data.points || 0)) }))
+          .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
+          .slice(0, 10);
+        if(!board.length){
+          const li = document.createElement('li');
+          li.textContent = 'No leaderboard entries yet.';
+          rewardsLeaderboard.appendChild(li);
+        }else{
+          board.forEach((entry, idx) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>#${idx + 1} @${entry.name}</span><b>${entry.points} pts</b>`;
+            rewardsLeaderboard.appendChild(li);
+          });
+        }
+      }
       rewardsHistory.innerHTML = '';
       const history = Array.isArray(rewards.history) ? rewards.history : [];
       if(!history.length){
@@ -2847,7 +2899,8 @@ body.streams-flex-fit #video-container[hidden] {
       history.slice(0, 10).forEach((entry) => {
         const li = document.createElement('li');
         const stamp = new Date(entry.ts || Date.now()).toLocaleString();
-        li.textContent = `+${entry.points} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${stamp}`;
+        const delta = Number(entry.points || 0);
+        li.textContent = `${delta >= 0 ? '+' : ''}${delta} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${stamp}`;
         rewardsHistory.appendChild(li);
       });
     }
@@ -2855,15 +2908,20 @@ body.streams-flex-fit #video-container[hidden] {
       if(!rewardsModal) return;
       renderRewardsMenu();
       rewardsModal.hidden = false;
+      document.body.style.overflow = 'hidden';
     }
     function closeRewardsMenu(){
       if(!rewardsModal) return;
       rewardsModal.hidden = true;
+      document.body.style.overflow = '';
     }
     rewardsMenuBtn?.addEventListener('click', openRewardsMenu);
     rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
     rewardsModal?.addEventListener('click', (event) => {
       if(event.target === rewardsModal) closeRewardsMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if(event.key === 'Escape' && rewardsModal && !rewardsModal.hidden) closeRewardsMenu();
     });
     rewardsSpendActions?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-reward-spend]');
