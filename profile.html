@@ -236,6 +236,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .rewards-total{margin:0; color:var(--muted);}
 .rewards-total b{color:var(--accent); font-size:20px;}
 .rewards-rank{margin:6px 0 0; color:var(--muted); font-size:13px;}
+.rewards-tier{margin:6px 0 0; color:var(--muted); font-size:13px;}
+.rewards-progress{margin-top:8px;}
+.rewards-progress-track{height:8px; border:1px solid var(--lining); border-radius:999px; background:rgba(148,163,184,.15); overflow:hidden;}
+.rewards-progress-fill{display:block; height:100%; width:0%; background:linear-gradient(90deg, #22d3ee, #7c3aed);}
+.rewards-progress-meta{margin:6px 0 0; color:var(--muted); font-size:12px;}
+.rewards-breakdown{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
+.rewards-breakdown li{border:1px solid var(--lining); border-radius:10px; padding:6px 8px; font-size:12px;}
 .rewards-log{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
 .rewards-log li{border:1px solid var(--lining); border-radius:10px; padding:6px 8px; font-size:12px;}
 .rewards-board{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px;}
@@ -292,8 +299,16 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <h3>👻 Ghost Coin Rewards</h3>
     <p id="profile-rewards-total" class="rewards-total">Total: <b>0</b> points</p>
     <p id="profile-rewards-rank" class="rewards-rank">Rank: unranked</p>
+    <p id="profile-rewards-tier" class="rewards-tier">Tier: Starter</p>
+    <div class="rewards-progress">
+      <div class="rewards-progress-track"><span id="profile-rewards-progress-fill" class="rewards-progress-fill"></span></div>
+      <p id="profile-rewards-progress-meta" class="rewards-progress-meta">0 / 20 points to Rising</p>
+    </div>
+    <h4 style="margin:12px 0 8px;">Reward action breakdown</h4>
+    <ul id="profile-rewards-breakdown" class="rewards-breakdown"></ul>
+    <h4 style="margin:12px 0 8px;">Recent rewards log</h4>
     <ul id="profile-rewards-log" class="rewards-log"></ul>
-    <h4 style="margin:12px 0 8px;">Top reward leaderboard</h4>
+    <h4 style="margin:12px 0 8px;">Leaderboard (top + around you)</h4>
     <ul id="profile-rewards-board" class="rewards-board"></ul>
   </section>
   <div class="relation-grid">
@@ -443,6 +458,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const calendarBookings = document.getElementById('calendar-bookings');
   const profileRewardsTotal = document.getElementById('profile-rewards-total');
   const profileRewardsRank = document.getElementById('profile-rewards-rank');
+  const profileRewardsTier = document.getElementById('profile-rewards-tier');
+  const profileRewardsProgressFill = document.getElementById('profile-rewards-progress-fill');
+  const profileRewardsProgressMeta = document.getElementById('profile-rewards-progress-meta');
+  const profileRewardsBreakdown = document.getElementById('profile-rewards-breakdown');
   const profileRewardsLog = document.getElementById('profile-rewards-log');
   const profileRewardsBoard = document.getElementById('profile-rewards-board');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
@@ -488,29 +507,90 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     saveRewardsStore(store);
   }
 
+  function rewardTierMeta(points){
+    const tiers = [
+      { min: 0, name: 'Starter' },
+      { min: 20, name: 'Rising' },
+      { min: 60, name: 'Pro' },
+      { min: 120, name: 'Elite' },
+      { min: 250, name: 'Legend' }
+    ];
+    const current = tiers.reduce((acc, tier) => points >= tier.min ? tier : acc, tiers[0]);
+    const next = tiers.find((tier) => tier.min > current.min) || null;
+    return { current, next };
+  }
+
   function renderRewardsPanel(username){
     if(!profileRewardsTotal || !profileRewardsLog || !profileRewardsBoard || !profileRewardsRank) return;
     const user = String(username || '').trim();
     const store = rewardsStore();
     const rewards = store[user] || { points: 0, history: [] };
-    profileRewardsTotal.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> points`;
+    const points = Number(rewards.points || 0);
+    profileRewardsTotal.innerHTML = `Total: <b>${points}</b> points`;
     const board = Object.entries(store)
       .filter(([name, data]) => !!String(name || '').trim() && data && typeof data === 'object')
       .map(([name, data]) => ({ name, points: Math.max(0, Number(data.points || 0)) }))
       .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
     const rank = board.findIndex((entry) => entry.name === user);
     profileRewardsRank.textContent = rank >= 0 ? `Rank: #${rank + 1} of ${board.length}` : 'Rank: unranked';
+    const tierMeta = rewardTierMeta(points);
+    if(profileRewardsTier){
+      profileRewardsTier.textContent = tierMeta.next
+        ? `Tier: ${tierMeta.current.name} • Next: ${tierMeta.next.name} at ${tierMeta.next.min} points`
+        : `Tier: ${tierMeta.current.name} • Max tier reached`;
+    }
+    if(profileRewardsProgressFill && profileRewardsProgressMeta){
+      if(!tierMeta.next){
+        profileRewardsProgressFill.style.width = '100%';
+        profileRewardsProgressMeta.textContent = `Legend tier unlocked with ${points} points.`;
+      } else {
+        const inTier = Math.max(0, points - tierMeta.current.min);
+        const span = Math.max(1, tierMeta.next.min - tierMeta.current.min);
+        const pct = Math.max(0, Math.min(100, (inTier / span) * 100));
+        profileRewardsProgressFill.style.width = `${pct.toFixed(1)}%`;
+        profileRewardsProgressMeta.textContent = `${points} / ${tierMeta.next.min} points to ${tierMeta.next.name}`;
+      }
+    }
     profileRewardsBoard.innerHTML = '';
     if(!board.length){
       const li = document.createElement('li');
       li.textContent = 'No leaderboard entries yet.';
       profileRewardsBoard.appendChild(li);
     }else{
-      board.slice(0, 8).forEach((entry, idx) => {
+      const top = board.slice(0, 8);
+      const aroundStart = rank >= 0 ? Math.max(0, rank - 1) : 0;
+      const around = board.slice(aroundStart, aroundStart + 3).filter((entry) => !top.some((topEntry) => topEntry.name === entry.name));
+      [...top, ...around].forEach((entry) => {
+        const idx = board.findIndex((row) => row.name === entry.name);
         const li = document.createElement('li');
-        li.innerHTML = `<span>#${idx + 1} @${entry.name}</span><b>${entry.points} pts</b>`;
+        const marker = entry.name === user ? ' (you)' : '';
+        li.innerHTML = `<span>#${idx + 1} @${entry.name}${marker}</span><b>${entry.points} pts</b>`;
         profileRewardsBoard.appendChild(li);
       });
+    }
+    if(profileRewardsBreakdown){
+      profileRewardsBreakdown.innerHTML = '';
+      const history = Array.isArray(rewards.history) ? rewards.history : [];
+      const byAction = history.reduce((acc, entry) => {
+        const action = String(entry.action || 'unknown');
+        if(!acc[action]) acc[action] = { action, count: 0, points: 0 };
+        acc[action].count += 1;
+        acc[action].points += Number(entry.points || 0);
+        return acc;
+      }, {});
+      const rows = Object.values(byAction).sort((a, b) => b.points - a.points || b.count - a.count || a.action.localeCompare(b.action));
+      if(!rows.length){
+        const li = document.createElement('li');
+        li.textContent = 'No reward action totals yet.';
+        profileRewardsBreakdown.appendChild(li);
+      } else {
+        rows.slice(0, 10).forEach((row) => {
+          const li = document.createElement('li');
+          const signed = row.points >= 0 ? `+${row.points}` : `${row.points}`;
+          li.textContent = `${row.action}: ${signed} pts across ${row.count} event${row.count === 1 ? '' : 's'}`;
+          profileRewardsBreakdown.appendChild(li);
+        });
+      }
     }
     profileRewardsLog.innerHTML = '';
     const history = Array.isArray(rewards.history) ? rewards.history : [];
