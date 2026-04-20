@@ -237,6 +237,7 @@
     </section>
   </div>
 
+  <script src="static/rewards.js"></script>
   <script>
     (() => {
       const $ = (q) => document.querySelector(q);
@@ -718,6 +719,10 @@
         });
         save(items);
         try { localStorage.setItem('chaines_username', user); } catch {}
+        if(window.CHAINESRewards){
+          window.CHAINESRewards.grantPoints(user, 'post', 2);
+          window.CHAINESRewards.grantPoints(user, 'listing', 5);
+        }
         postForm.reset();
         postUser.value = user;
         postCategory.value = listing.category;
