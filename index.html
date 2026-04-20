@@ -2010,7 +2010,6 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
-                <button id="rewards-program-btn-desktop" class="chip action-chip desktop-only-chip" type="button" title="Open full rewards program" aria-label="Open full rewards program"><img src="static/hologhost.svg" alt="" aria-hidden="true" />Rewards</button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
@@ -2800,7 +2799,6 @@ body.streams-flex-fit #video-container[hidden] {
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
-    const rewardsProgramBtnDesktop = el('#rewards-program-btn-desktop');
     const rewardsModal = el('#rewards-modal');
     const rewardsCloseBtn = el('#rewards-close-btn');
     const rewardsRulesList = el('#rewards-rules-list');
@@ -3022,7 +3020,6 @@ body.streams-flex-fit #video-container[hidden] {
     }
     rewardsMenuBtn?.addEventListener('click', openRewardsProgramPage);
     rewardsMenuBtnMobile?.addEventListener('click', openRewardsProgramPage);
-    rewardsProgramBtnDesktop?.addEventListener('click', openRewardsProgramPage);
     ghostBtn?.addEventListener('click', openRewardsMenu);
     rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
     rewardsModal?.addEventListener('click', (event) => {
