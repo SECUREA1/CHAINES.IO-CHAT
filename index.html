@@ -148,6 +148,23 @@
       color: color-mix(in oklab, var(--fg), var(--gold) 30%);
       display: inline-flex;
     }
+    .rewards-modal{
+      position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center;
+      background:rgba(2,6,23,0.72); backdrop-filter:blur(8px); padding:16px;
+    }
+    .rewards-modal[hidden]{ display:none; }
+    .rewards-modal__panel{
+      width:min(560px, 100%); max-height:min(88vh, 760px); overflow:auto; border-radius:18px; padding:16px;
+      border:1px solid var(--lining); box-shadow:var(--shadow);
+      background:color-mix(in oklab, var(--panel), transparent 10%);
+    }
+    .rewards-modal__head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+    .rewards-score{ font-size:15px; color:var(--muted); margin:0 0 12px; }
+    .rewards-score b{ color:var(--gold); font-size:20px; }
+    .rewards-list{ margin:0; padding-left:18px; display:grid; gap:8px; }
+    .rewards-list li{ color:var(--fg); }
+    .rewards-feed{ list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; }
+    .rewards-feed li{ border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
 
     @keyframes shimmer {
       0% { background-position: 0% 50%; }
@@ -1942,6 +1959,7 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button></li>
+                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" />Rewards</button></li>
                     </ul>
                   </details>
                   <details class="toolbar-overflow-group" open>
@@ -2195,6 +2213,19 @@ body.streams-flex-fit #video-container[hidden] {
       </button>
     </div>
   </div>
+  <div id="rewards-modal" class="rewards-modal" hidden>
+    <div class="rewards-modal__panel">
+      <div class="rewards-modal__head">
+        <h3 style="margin:0;">👻 Ghost Coin Rewards</h3>
+        <button id="rewards-close-btn" class="chip" type="button" aria-label="Close rewards menu">Close</button>
+      </div>
+      <p id="rewards-score" class="rewards-score">Total: <b>0</b> Ghost Coin points</p>
+      <h4 style="margin:0 0 8px;">How to earn points</h4>
+      <ul id="rewards-rules-list" class="rewards-list"></ul>
+      <h4 style="margin:14px 0 8px;">Recent rewards</h4>
+      <ul id="rewards-history" class="rewards-feed"></ul>
+    </div>
+  </div>
 
   <script src="static/copywriter.js"></script>
   <script>
@@ -2247,6 +2278,14 @@ body.streams-flex-fit #video-container[hidden] {
       housing: { label: 'Housing', defaults: { price: 'Rent', condition: 'Bedrooms / lease' } },
       community: { label: 'Community', defaults: { condition: 'Event type' } }
     };
+    const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
+    const REWARD_RULES = Object.freeze([
+      { action: 'post', points: 2, label: 'Post in feed (2 pts)' },
+      { action: 'listing', points: 3, label: 'Create marketplace listing (3 pts)' },
+      { action: 'stream-minute', points: 1, label: 'Stream live for 1 minute (1 pt / min)' },
+      { action: 'wallet-connected', points: 1, label: 'Verified wallet connected (1 pt per wallet)' },
+      { action: 'broadcast-start', points: 2, label: 'Go live session started (2 pts)' }
+    ]);
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
@@ -2698,6 +2737,12 @@ body.streams-flex-fit #video-container[hidden] {
     const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']
       .map(id => el(`#${id}`))
       .filter(Boolean);
+    const rewardsMenuBtn = el('#rewards-menu-btn');
+    const rewardsModal = el('#rewards-modal');
+    const rewardsCloseBtn = el('#rewards-close-btn');
+    const rewardsRulesList = el('#rewards-rules-list');
+    const rewardsScore = el('#rewards-score');
+    const rewardsHistory = el('#rewards-history');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -2706,6 +2751,83 @@ body.streams-flex-fit #video-container[hidden] {
     const streamsFitBtn = el('#streams-fit-btn');
     const streamsFitBtnMobile = el('#streams-fit-btn-mobile');
     let streamsFlexFit = false;
+    function loadRewardsStore(){
+      try{
+        const parsed = JSON.parse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      }catch{ return {}; }
+    }
+    function saveRewardsStore(store){
+      localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(store || {}));
+    }
+    function rewardsForUser(username, createIfMissing=false){
+      const user = String(username || '').trim();
+      if(!user) return null;
+      const store = loadRewardsStore();
+      if(!store[user] && createIfMissing){
+        store[user] = { points: 0, history: [], flags: {} };
+        saveRewardsStore(store);
+      }
+      return store[user] || null;
+    }
+    function awardRewards(username, action, points, detail='', opts={}){
+      const user = String(username || '').trim();
+      if(!user || !action || !Number.isFinite(points) || points <= 0) return;
+      const store = loadRewardsStore();
+      const current = store[user] || { points: 0, history: [], flags: {} };
+      current.flags = current.flags || {};
+      const onceKey = String(opts.onceKey || '').trim();
+      if(onceKey && current.flags[onceKey]) return;
+      if(onceKey) current.flags[onceKey] = Date.now();
+      current.points = Number(current.points || 0) + points;
+      current.history = Array.isArray(current.history) ? current.history : [];
+      current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
+      current.history = current.history.slice(0, 120);
+      store[user] = current;
+      saveRewardsStore(store);
+      if(user === (store?.user || '')){
+        renderRewardsMenu();
+      }
+    }
+    function renderRewardsMenu(){
+      if(!rewardsRulesList || !rewardsHistory || !rewardsScore) return;
+      rewardsRulesList.innerHTML = '';
+      REWARD_RULES.forEach((rule) => {
+        const li = document.createElement('li');
+        li.textContent = rule.label;
+        rewardsRulesList.appendChild(li);
+      });
+      const rewards = rewardsForUser(store?.user || '', true) || { points: 0, history: [] };
+      rewardsScore.innerHTML = `Total: <b>${Number(rewards.points || 0)}</b> Ghost Coin points`;
+      rewardsHistory.innerHTML = '';
+      const history = Array.isArray(rewards.history) ? rewards.history : [];
+      if(!history.length){
+        const li = document.createElement('li');
+        li.textContent = 'No rewards yet. Start posting to earn Ghost Coin points.';
+        rewardsHistory.appendChild(li);
+        return;
+      }
+      history.slice(0, 10).forEach((entry) => {
+        const li = document.createElement('li');
+        const stamp = new Date(entry.ts || Date.now()).toLocaleString();
+        li.textContent = `+${entry.points} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${stamp}`;
+        rewardsHistory.appendChild(li);
+      });
+    }
+    function openRewardsMenu(){
+      if(!rewardsModal) return;
+      renderRewardsMenu();
+      rewardsModal.hidden = false;
+    }
+    function closeRewardsMenu(){
+      if(!rewardsModal) return;
+      rewardsModal.hidden = true;
+    }
+    rewardsMenuBtn?.addEventListener('click', openRewardsMenu);
+    rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
+    rewardsModal?.addEventListener('click', (event) => {
+      if(event.target === rewardsModal) closeRewardsMenu();
+    });
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
       videoToggle.innerHTML = '<img src="static/screen.svg" alt="" aria-hidden="true" />';
@@ -3603,6 +3725,7 @@ body.streams-flex-fit #video-container[hidden] {
       const activeRooms = new Set();
     const autoWatchLiveFeeds = true;
     let broadcasting = false;
+    let broadcastStartedAt = 0;
     let broadcastTimer = null;
     let broadcastVideo = null;
     let captionTrack = null;
@@ -4899,6 +5022,7 @@ body.streams-flex-fit #video-container[hidden] {
       const record = verifiedRecordFor(store.user);
       const badgeText = record && record.badge ? ` (${record.badge})` : '';
       systemNote(`You are signed in as @${store.user}${isUserVerified(store.user) ? ` ✅ validated${badgeText}` : ''}.`);
+      renderRewardsMenu();
       setupPush();
       loadNotifications();
       if(notifPollTimer) clearInterval(notifPollTimer);
@@ -5095,9 +5219,14 @@ body.streams-flex-fit #video-container[hidden] {
     window.addEventListener('wallet:access-granted', (event) => {
       const chain = event?.detail?.chain || 'cardano';
       const currency = event?.detail?.currency || 'ADA';
+      const walletAddress = String(event?.detail?.walletAddress || '').trim().toLowerCase();
       syncAuthSelectors(chain, currency);
       const contract = event?.detail?.nativeContract || tokenGateContracts()[chain] || '';
       const walletLink = explorerLinkForRecord({ chain, contract, walletAddress: event?.detail?.walletAddress || '' });
+      if(store?.user){
+        const walletOnceKey = `wallet:${chain}:${walletAddress || 'unknown'}`;
+        awardRewards(store.user, 'wallet-connected', 1, `${chain.toUpperCase()} wallet verified`, { onceKey: walletOnceKey });
+      }
       setTokenLoginStatus({
         text: contractDisplayLabel(chain, contract),
         seed: `${chain}:${contract}:access-granted`,
@@ -5194,6 +5323,12 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       const postedMessage = postMessage(msg);
+      if(store?.user){
+        awardRewards(store.user, 'post', 2, 'Posted to cloud feed');
+        if(hasListingData){
+          awardRewards(store.user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
+        }
+      }
       showChat();
       setMarketMode('all');
       if(msgActions.length && postedMessage?.id){
@@ -5483,6 +5618,10 @@ body.streams-flex-fit #video-container[hidden] {
           const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
           broadcastVideo = mediaEl;
+          broadcastStartedAt = Date.now();
+          if(store?.user){
+            awardRewards(store.user, 'broadcast-start', 2, 'Started a live stream');
+          }
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
@@ -5666,6 +5805,8 @@ body.streams-flex-fit #video-container[hidden] {
       function endBroadcast(forced=false){
         if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
         if(!broadcasting) return;
+        const streamDurationMs = broadcastStartedAt ? (Date.now() - broadcastStartedAt) : 0;
+        broadcastStartedAt = 0;
         broadcasting = false;
         goLiveAllRequested = false;
         refreshGoLiveAllButton();
@@ -5705,6 +5846,10 @@ body.streams-flex-fit #video-container[hidden] {
       const vidCount = videoContainer.querySelectorAll('video').length;
       const baseText = `⏹ Broadcast ended${note ? ': '+note : ''}`;
       const msgText = vidCount > 1 ? `${baseText} (multi-cam)` : baseText;
+      const streamMinutes = Math.floor(streamDurationMs / 60000);
+      if(store?.user && streamMinutes > 0){
+        awardRewards(store.user, 'stream-minute', streamMinutes, `${streamMinutes} minute${streamMinutes === 1 ? '' : 's'} live`);
+      }
       const hadRecorder = !!mediaRecorder;
       if(mediaRecorder){
           mediaRecorder.onstop = () => {
