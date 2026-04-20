@@ -193,12 +193,23 @@
       { action: 'wallet-connected', points: 1, label: 'Verified wallet connected', effect: 'Identity and wallet trust bonus.' },
       { action: 'broadcast-start', points: 2, label: 'Go live session started', effect: 'Live launch activation bonus.' }
     ]);
-    const REWARD_SPEND_OPTIONS = Object.freeze([
+    const SPEND_COST_MULTIPLIER = 2;
+    const BASE_SPEND_OPTIONS = Object.freeze([
       { action: 'highlight', cost: 5, label: 'Highlight your next post', effect: 'Your next post gets extra visual emphasis.' },
       { action: 'boost', cost: 10, label: 'Boost marketplace visibility', effect: 'Listing gains temporary higher visibility.' },
       { action: 'priority', cost: 15, label: 'Priority profile spotlight', effect: 'Profile appears in priority discovery slots.' },
       { action: 'pin', cost: 20, label: 'Pin one listing for 24h', effect: 'Chosen listing stays pinned for 24 hours.' },
       { action: 'banner', cost: 25, label: 'Feature your profile banner', effect: 'Banner gets premium feature placement.' }
+    ]);
+    const REWARD_SPEND_OPTIONS = Object.freeze(
+      BASE_SPEND_OPTIONS.map((option) => ({ ...option, cost: option.cost * SPEND_COST_MULTIPLIER }))
+    );
+    const TIER_LEVELS = Object.freeze([
+      { min: 0, name: 'Starter', effect: 'Base reward collection and standard redemption.', perk: 'Earn points to unlock stronger effects.', redemptionDiscount: 0 },
+      { min: 20, name: 'Rising', effect: 'Improved growth momentum for active users.', perk: 'Starter perks and reward acceleration.', redemptionDiscount: 0.05 },
+      { min: 60, name: 'Pro', effect: 'High-value redemptions become easier to sustain.', perk: 'Mid-tier boosts and better surfacing.', redemptionDiscount: 0.1 },
+      { min: 120, name: 'Elite', effect: 'High-end program: premium spotlight consistency.', perk: 'Advanced placement and stronger promotion effects.', redemptionDiscount: 0.15 },
+      { min: 250, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.', perk: 'Top visibility weighting, premium placements favored.', redemptionDiscount: 0.2 }
     ]);
 
     function loadRewardsStore(){
@@ -306,11 +317,16 @@
     }
 
     function tierForPoints(points){
-      if(points >= 250) return { name: 'Legend', perk: 'Top visibility weighting, premium placements favored.' };
-      if(points >= 120) return { name: 'Elite', perk: 'Advanced placement and stronger promotion effects.' };
-      if(points >= 60) return { name: 'Pro', perk: 'Mid-tier boosts and better surfacing.' };
-      if(points >= 20) return { name: 'Rising', perk: 'Starter perks and reward acceleration.' };
-      return { name: 'Starter', perk: 'Earn points to unlock stronger effects.' };
+      const safePoints = Math.max(0, Number(points || 0));
+      const current = TIER_LEVELS.reduce((acc, tier) => safePoints >= tier.min ? tier : acc, TIER_LEVELS[0]);
+      const next = TIER_LEVELS.find((tier) => tier.min > current.min) || null;
+      return { current, next };
+    }
+
+    function adjustedRedemptionCost(cost, tierMeta){
+      const base = Math.max(0, Number(cost || 0));
+      const discount = Math.max(0, Math.min(0.4, Number(tierMeta?.current?.redemptionDiscount || 0)));
+      return Math.max(1, Math.ceil(base * (1 - discount)));
     }
 
     function render(){
@@ -324,13 +340,13 @@
       const activeCutoff = Date.now() - thirtyDaysMs;
       const activeProfiles = board.filter((entry) => entry.lastActiveTs >= activeCutoff);
       const rank = board.findIndex(entry => entry.name === state.user);
-      const tier = tierForPoints(pts);
+      const tierMeta = tierForPoints(pts);
       const volume = board.reduce((sum, entry) => sum + Number(entry.points || 0), 0);
 
       els.user.innerHTML = `User: <b>${state.user}</b>`;
       els.points.innerHTML = `Balance: <b>${pts}</b> Ghost Coin points`;
       els.rank.innerHTML = `Leaderboard rank: <b>${rank >= 0 ? `#${rank + 1} of ${board.length}` : 'unranked'}</b>`;
-      els.status.innerHTML = `Program status: <span class="ok">${tier.name}</span> — ${tier.perk}`;
+      els.status.innerHTML = `Program status: <span class="ok">${tierMeta.current.name}</span> — ${tierMeta.current.perk}${tierMeta.next ? ` • Next ${tierMeta.next.name} at ${tierMeta.next.min} pts` : ' • Max tier reached'}`;
       els.activeProfilesCount.textContent = String(activeProfiles.length);
       els.trackedProfilesCount.textContent = String(board.length);
       els.programVolumePoints.textContent = String(volume);
@@ -345,16 +361,11 @@
       buildRulesTable(els.spendTable, REWARD_SPEND_OPTIONS, 'spend');
 
       els.tiers.innerHTML = '';
-      [
-        { min: 0, name: 'Starter', effect: 'Base reward collection and standard redemption.' },
-        { min: 20, name: 'Rising', effect: 'Improved growth momentum for active users.' },
-        { min: 60, name: 'Pro', effect: 'High-value redemptions become easier to sustain.' },
-        { min: 120, name: 'Elite', effect: 'High-end program: premium spotlight consistency.' },
-        { min: 250, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.' }
-      ].forEach((t) => {
+      TIER_LEVELS.forEach((t) => {
         const div = document.createElement('div');
+        const discountLabel = Math.round(Number(t.redemptionDiscount || 0) * 100);
         div.className = 'tier';
-        div.innerHTML = `<h3>${t.name}</h3><p><b>${t.min}+ points</b></p><p>${t.effect}</p>`;
+        div.innerHTML = `<h3>${t.name}</h3><p><b>${t.min}+ points</b></p><p>${t.effect}</p><p class="metric">Tier algorithm: ${discountLabel}% redemption discount</p>`;
         els.tiers.appendChild(div);
       });
 
@@ -362,17 +373,18 @@
       REWARD_SPEND_OPTIONS.forEach((option) => {
         const item = document.createElement('div');
         item.className = 'shop-item';
+        const effectiveCost = adjustedRedemptionCost(option.cost, tierMeta);
         const left = document.createElement('div');
-        left.innerHTML = `<strong>${option.label}</strong><div class="metric">-${option.cost} pts • ${option.effect}</div>`;
+        left.innerHTML = `<strong>${option.label}</strong><div class="metric">-${effectiveCost} pts (base ${option.cost}) • ${option.effect}</div>`;
         const btn = document.createElement('button');
         btn.textContent = 'Redeem';
-        btn.disabled = pts < option.cost;
-        btn.title = pts < option.cost ? 'Not enough points' : 'Redeem now';
+        btn.disabled = pts < effectiveCost;
+        btn.title = pts < effectiveCost ? 'Not enough points' : 'Redeem now';
         btn.addEventListener('click', () => {
-          const ok = awardRewards(state.user, option.action, -option.cost, `${option.label} redeemed`);
+          const ok = awardRewards(state.user, option.action, -effectiveCost, `${option.label} redeemed (${effectiveCost} pts)`);
           if(ok) activateSpendEffect(state.user, option.action);
           els.status.innerHTML = ok
-            ? `Program status: <span class="ok">Redeemed ${option.label}</span>. ${option.effect}`
+            ? `Program status: <span class="ok">Redeemed ${option.label}</span>. Tier price ${effectiveCost} pts applied.`
             : `Program status: <span class="warn">Not enough points</span> for ${option.label}.`;
           render();
         });

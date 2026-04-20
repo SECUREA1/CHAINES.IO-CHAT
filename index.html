@@ -2336,13 +2336,17 @@ body.streams-flex-fit #video-container[hidden] {
       { action: 'wallet-connected', points: 1, label: 'Verified wallet connected (1 pt per wallet)' },
       { action: 'broadcast-start', points: 2, label: 'Go live session started (2 pts)' }
     ]);
-    const REWARD_SPEND_OPTIONS = Object.freeze([
+    const SPEND_COST_MULTIPLIER = 2;
+    const BASE_REWARD_SPEND_OPTIONS = Object.freeze([
       { action: 'highlight', cost: 5, label: 'Highlight your next post' },
       { action: 'boost', cost: 10, label: 'Boost marketplace visibility' },
       { action: 'priority', cost: 15, label: 'Priority profile spotlight' },
       { action: 'pin', cost: 20, label: 'Pin one listing for 24h' },
       { action: 'banner', cost: 25, label: 'Feature your profile banner' }
     ]);
+    const REWARD_SPEND_OPTIONS = Object.freeze(
+      BASE_REWARD_SPEND_OPTIONS.map((option) => ({ ...option, cost: option.cost * SPEND_COST_MULTIPLIER }))
+    );
 
     function createDownloadLink(content, filename, mime, user){
       const link = Copywriter.createDownloadLink(content, filename, mime, user);
