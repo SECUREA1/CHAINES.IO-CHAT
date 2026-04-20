@@ -241,6 +241,7 @@
     (() => {
       const $ = (q) => document.querySelector(q);
       const sourceKey = 'chaines_messages';
+      const rewardsKey = 'chaines_rewards_v1';
       const likedKey = 'chaines_marketplace_likes';
       const contactKey = 'chaines_marketplace_contacts';
       const datingMatchKey = 'chaines_marketplace_dating_matches';
@@ -329,7 +330,8 @@
         const completedFields = [l.price, l.location, l.condition, l.serviceType, l.subcategory, l.jobLocation, l.credentials, l.contactInfo, l.availability, l.interests, l.gender, l.lookingFor, l.datingIntent, l.firstDate, l.datingLikes, l.datingDislikes, l.datingBio, l.age].filter(Boolean).length;
         const likes = Number(m.likes || 0);
         const comments = Array.isArray(m.comments) ? m.comments.length : 0;
-        return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + 2;
+        const boostBonus = m.boostedAt ? 12 : 0;
+        return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + boostBonus + 2;
       };
       const load = () => {
         try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
@@ -342,6 +344,37 @@
       };
       const saveLikedMap = (map) => localStorage.setItem(likedKey, JSON.stringify(map));
       const activeViewer = () => sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || '');
+      const loadRewardsStore = () => {
+        try { return JSON.parse(localStorage.getItem(rewardsKey) || '{}'); }
+        catch { return {}; }
+      };
+      const saveRewardsStore = (store) => localStorage.setItem(rewardsKey, JSON.stringify(store || {}));
+      function awardRewards(user, action, points, detail = '', opts = {}) {
+        const safeUser = sanitizeUser(user || '');
+        if (!safeUser || !action || !Number.isFinite(Number(points))) return false;
+        const delta = Number(points || 0);
+        if (!delta) return false;
+        const store = loadRewardsStore();
+        const current = store[safeUser] || { points: 0, history: [], flags: {} };
+        current.flags = current.flags || {};
+        const onceKey = String(opts.onceKey || '').trim();
+        if (onceKey && current.flags[onceKey]) return false;
+        if (onceKey) current.flags[onceKey] = Date.now();
+        const nextTotal = Number(current.points || 0) + delta;
+        if (nextTotal < 0) return false;
+        current.points = nextTotal;
+        current.history = Array.isArray(current.history) ? current.history : [];
+        current.history.unshift({ action, points: delta, detail: String(detail || ''), ts: Date.now() });
+        current.history = current.history.slice(0, 120);
+        store[safeUser] = current;
+        saveRewardsStore(store);
+        return true;
+      }
+      const spendRewards = (user, action, cost, detail = '') => {
+        const spend = Math.max(0, Number(cost || 0));
+        if (!spend) return false;
+        return awardRewards(user, action, -spend, detail);
+      };
 
       function profileHref(name = '') {
         return `/profile.html?user=${encodeURIComponent(sanitizeUser(name || ''))}`;
@@ -509,6 +542,9 @@
         save(items);
         saveLikedMap(likedMap);
         saveDatingMatchMap(datingMatchMap);
+        if (!alreadyLiked) {
+          awardRewards(activeViewer(), 'marketplace-like', 1, 'Liked a marketplace listing');
+        }
         render();
       }
 
@@ -604,6 +640,7 @@
           const valueChip = l.category === 'dating'
             ? '<span class="chip">Dating Profile</span>'
             : `<span class="chip">Value ${valueScore(m)}</span>`;
+          const boostChip = m.boostedAt ? '<span class="chip">Boosted</span>' : '';
           const pricingRows = l.category === 'dating'
             ? ''
             : `<div class="small">Price/Salary: ${escapeHtml(l.price || '—')}</div>
@@ -635,6 +672,7 @@
               <span class="chip">Market</span>
               <span class="chip">${(MARKETPLACE_CATEGORIES[l.category] || { label: 'General' }).label}</span>
               ${valueChip}
+              ${boostChip}
             </div>
             ${pricingRows}
             ${datingLocationRow}
@@ -642,6 +680,7 @@
             <div class="actions">
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
               <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
+              <button class="ghost-btn" type="button" data-boost-id="${m.id || ''}">Boost listing (-5)</button>
               <a class="ghost-btn" href="${safeProfileHref}">Open @${safeUser} Profile</a>
               <span class="small">${matched ? '💘 Matched' : ''} Likes ${m.likes || 0} • Comments ${comments.length}</span>
             </div>
@@ -717,6 +756,13 @@
           listing
         });
         save(items);
+        awardRewards(user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
+        if (listing.category === 'services' || listing.category === 'meal-delivery') {
+          awardRewards(user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
+        }
+        if (listing.category === 'dating') {
+          awardRewards(user, 'listing-dating', 4, 'Marketplace dating profile listing');
+        }
         try { localStorage.setItem('chaines_username', user); } catch {}
         postForm.reset();
         postUser.value = user;
@@ -760,11 +806,31 @@
           return;
         }
         const contactToggle = ev.target.closest('[data-toggle-contact-id]');
-        if (!contactToggle) return;
-        const id = contactToggle.getAttribute('data-toggle-contact-id');
-        const compose = list.querySelector(`[data-contact-compose-id="${id}"]`);
-        if (!compose) return;
-        compose.hidden = !compose.hidden;
+        if (contactToggle) {
+          const id = contactToggle.getAttribute('data-toggle-contact-id');
+          const compose = list.querySelector(`[data-contact-compose-id="${id}"]`);
+          if (!compose) return;
+          compose.hidden = !compose.hidden;
+          return;
+        }
+        const boostButton = ev.target.closest('[data-boost-id]');
+        if (!boostButton) return;
+        const id = boostButton.getAttribute('data-boost-id');
+        const items = load();
+        const idx = items.findIndex((item) => item.id === id);
+        if (idx === -1) return;
+        const viewer = activeViewer();
+        const ok = spendRewards(viewer, 'boost', 5, `Boosted listing #${id}`);
+        if (!ok) {
+          const rewardsStore = loadRewardsStore();
+          const balance = Number(rewardsStore[viewer]?.points || 0);
+          setPostStatus(`Need 5 Ghost Coin points to boost. Current balance: ${balance}.`, 'error');
+          return;
+        }
+        items[idx].boostedAt = Date.now();
+        save(items);
+        setPostStatus('Listing boosted for priority visibility. (-5 points)', 'success');
+        render();
       });
       list.addEventListener('submit', (ev) => {
         const commentForm = ev.target.closest('[data-comment-form-id]');
@@ -774,6 +840,7 @@
           const user = commentForm.elements.user.value;
           const text = commentForm.elements.comment.value;
           if (!addComment(id, user, text)) return;
+          awardRewards(user, 'marketplace-comment', 2, 'Commented on a marketplace listing');
           const items = load();
           const post = items.find((entry) => entry.id === id);
           emitNotification({
@@ -796,6 +863,7 @@
         const from = contactForm.elements.from.value;
         const message = contactForm.elements.message.value;
         if (!sendContact(id, from, to, message)) return;
+        awardRewards(from, 'marketplace-contact', 2, `Contacted @${sanitizeUser(to || '')}`);
         emitNotification({
           actor: sanitizeUser(from || ''),
           target: sanitizeUser(to || ''),

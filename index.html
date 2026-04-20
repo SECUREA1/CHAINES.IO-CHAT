@@ -2222,6 +2222,12 @@ body.streams-flex-fit #video-container[hidden] {
       <p id="rewards-score" class="rewards-score">Total: <b>0</b> Ghost Coin points</p>
       <h4 style="margin:0 0 8px;">How to earn points</h4>
       <ul id="rewards-rules-list" class="rewards-list"></ul>
+      <h4 style="margin:14px 0 8px;">Spend Ghost Coin points</h4>
+      <div id="rewards-spend-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="chip" type="button" data-reward-spend="5" data-reward-spend-action="highlight" data-reward-spend-label="Highlight your next post">Highlight next post (-5)</button>
+        <button class="chip" type="button" data-reward-spend="10" data-reward-spend-action="boost" data-reward-spend-label="Boost marketplace visibility">Boost listing (-10)</button>
+        <button class="chip" type="button" data-reward-spend="15" data-reward-spend-action="priority" data-reward-spend-label="Priority profile spotlight">Profile spotlight (-15)</button>
+      </div>
       <h4 style="margin:14px 0 8px;">Recent rewards</h4>
       <ul id="rewards-history" class="rewards-feed"></ul>
     </div>
@@ -2282,6 +2288,11 @@ body.streams-flex-fit #video-container[hidden] {
     const REWARD_RULES = Object.freeze([
       { action: 'post', points: 2, label: 'Post in feed (2 pts)' },
       { action: 'listing', points: 3, label: 'Create marketplace listing (3 pts)' },
+      { action: 'listing-services', points: 4, label: 'Service/meal marketplace listing (4 pts)' },
+      { action: 'listing-dating', points: 4, label: 'Dating marketplace listing (4 pts)' },
+      { action: 'marketplace-like', points: 1, label: 'Like marketplace listing (1 pt)' },
+      { action: 'marketplace-comment', points: 2, label: 'Comment marketplace listing (2 pts)' },
+      { action: 'marketplace-contact', points: 2, label: 'Send marketplace contact (2 pts)' },
       { action: 'stream-minute', points: 1, label: 'Stream live for 1 minute (1 pt / min)' },
       { action: 'wallet-connected', points: 1, label: 'Verified wallet connected (1 pt per wallet)' },
       { action: 'broadcast-start', points: 2, label: 'Go live session started (2 pts)' }
@@ -2743,6 +2754,7 @@ body.streams-flex-fit #video-container[hidden] {
     const rewardsRulesList = el('#rewards-rules-list');
     const rewardsScore = el('#rewards-score');
     const rewardsHistory = el('#rewards-history');
+    const rewardsSpendActions = el('#rewards-spend-actions');
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -2772,14 +2784,16 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function awardRewards(username, action, points, detail='', opts={}){
       const user = String(username || '').trim();
-      if(!user || !action || !Number.isFinite(points) || points <= 0) return;
+      if(!user || !action || !Number.isFinite(points) || points === 0) return false;
       const store = loadRewardsStore();
       const current = store[user] || { points: 0, history: [], flags: {} };
       current.flags = current.flags || {};
       const onceKey = String(opts.onceKey || '').trim();
-      if(onceKey && current.flags[onceKey]) return;
+      if(onceKey && current.flags[onceKey]) return false;
       if(onceKey) current.flags[onceKey] = Date.now();
-      current.points = Number(current.points || 0) + points;
+      const nextPoints = Number(current.points || 0) + points;
+      if(nextPoints < 0) return false;
+      current.points = nextPoints;
       current.history = Array.isArray(current.history) ? current.history : [];
       current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
       current.history = current.history.slice(0, 120);
@@ -2788,6 +2802,12 @@ body.streams-flex-fit #video-container[hidden] {
       if(user === (store?.user || '')){
         renderRewardsMenu();
       }
+      return true;
+    }
+    function spendRewards(username, action, cost, detail=''){
+      const spend = Math.max(0, Number(cost) || 0);
+      if(!spend) return false;
+      return awardRewards(username, action, -spend, detail);
     }
     function renderRewardsMenu(){
       if(!rewardsRulesList || !rewardsHistory || !rewardsScore) return;
@@ -2827,6 +2847,21 @@ body.streams-flex-fit #video-container[hidden] {
     rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
     rewardsModal?.addEventListener('click', (event) => {
       if(event.target === rewardsModal) closeRewardsMenu();
+    });
+    rewardsSpendActions?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-reward-spend]');
+      if(!button) return;
+      const cost = Number(button.dataset.rewardSpend || 0);
+      const action = String(button.dataset.rewardSpendAction || 'spend');
+      const detail = String(button.dataset.rewardSpendLabel || 'Reward redeemed');
+      const user = String(store?.user || '').trim();
+      if(!user) return;
+      const ok = spendRewards(user, action, cost, detail);
+      if(!ok){
+        const current = rewardsForUser(user, true);
+        const left = Number(current?.points || 0);
+        alert(`Not enough Ghost Coin points. You have ${left} point${left === 1 ? '' : 's'}.`);
+      }
     });
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
@@ -5327,6 +5362,12 @@ body.streams-flex-fit #video-container[hidden] {
         awardRewards(store.user, 'post', 2, 'Posted to cloud feed');
         if(hasListingData){
           awardRewards(store.user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
+          if(listing.category === 'services' || listing.category === 'meal-delivery'){
+            awardRewards(store.user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
+          }
+          if(listing.category === 'dating'){
+            awardRewards(store.user, 'listing-dating', 4, 'Marketplace dating profile listing');
+          }
         }
       }
       showChat();
