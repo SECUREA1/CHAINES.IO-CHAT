@@ -2136,6 +2136,7 @@ body.streams-flex-fit #video-container[hidden] {
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
+          <button class="send" id="live-x-space-btn" type="button" aria-label="Post Live X Space" title="Live X Space">🎙️</button>
           <button class="send" id="command-btn" type="button" aria-label="Show emoji keyboard"><img src="static/whitehat.svg" alt="Emoji keyboard" /></button>
           <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
         </div>
@@ -2315,6 +2316,7 @@ body.streams-flex-fit #video-container[hidden] {
     const attachBtn = el('#attach');
     const fileInput = el('#file');
     const sendBtn = el('#send');
+    const liveXSpaceBtn = el('#live-x-space-btn');
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const composerActionBoard = el('#composer-action-board');
@@ -2584,6 +2586,7 @@ body.streams-flex-fit #video-container[hidden] {
       heart:     { text: 'sends a heart', emoji: '❤️', colors: ['#ff78b3','#ff4f8f'], svg: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/>' },
       fire:      { text: 'drops fire', emoji: '🔥', colors: ['#ffb25f','#ff5a4d'], svg: '<path d="M12 3c2 3 2 5 0 7 3-1 6 2 6 6a6 6 0 0 1-12 0c0-3 2-5 4-6-1-2 0-5 2-7z"/>' },
       sparkle:   { text: 'adds sparkle', emoji: '✨', colors: ['#7de6ff','#7a7dff'], svg: '<path d="M12 3l1.7 4.8L18 9.5l-4.3 1.7L12 16l-1.7-4.8L6 9.5l4.3-1.7z"/><path d="M19 3l.7 2 .3.1-2 .7-.7 2-.7-2-2-.7.3-.1z"/><path d="M5 16l.9 2.5L8.5 20l-2.6 1-1 2.5-1-2.5-2.4-1 2.4-1.5z"/>' },
+      'live-x-space': { text: 'shares a live X Space', emoji: '🎙️', colors: ['#7de6ff','#4facfe'], svg: '<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M6 11v1a6 6 0 0 0 12 0v-1"/><path d="M12 18v3"/><path d="M9 21h6"/>' },
       party:     { text: 'throws a party', emoji: '🥳', colors: ['#6ad5ff','#5670ff'], svg: '<path d="M4 20l6-6"/><path d="M8 8l8 8"/><path d="M14 4l2 2"/><path d="M18 7l2-1"/><path d="M19 12h3"/><path d="M12 19l1 3"/><path d="M7 17l-3 1"/>' }
     };
     const actionEmojiToSvg = Object.values(actionCommands).reduce((map, def) => {
@@ -5707,20 +5710,32 @@ body.streams-flex-fit #video-container[hidden] {
       postMessage({ text: msgText, broadcast: true });
       broadcastInput.value = '';
     });
-    if(broadcastSpaceBtn){
-      broadcastSpaceBtn.addEventListener('click', () => {
-        const typed = prompt('Paste a live X Space URL (x.com/i/spaces/...)');
-        const normalizedSpaceUrl = normalizeXSpaceUrl(typed || '');
-        if(!normalizedSpaceUrl){
-          alert('Please paste a valid X Space link.');
-          return;
-        }
-        postMessage({
-          text: `🎙️ Live X Space: ${normalizedSpaceUrl}\nTap Tune In to listen.`,
-          broadcast: true,
-          xSpaceUrl: normalizedSpaceUrl
-        });
+    function postLiveXSpace({ broadcast=false } = {}){
+      const typed = prompt('Paste a live X Space URL (x.com/i/spaces/...)');
+      const normalizedSpaceUrl = normalizeXSpaceUrl(typed || '');
+      if(!normalizedSpaceUrl){
+        alert('Please paste a valid X Space link.');
+        return;
+      }
+      const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
+      postMessage({
+        text: `🎙️ Live X Space: ${normalizedSpaceUrl}\nTap Tune In to listen.${signature}`,
+        broadcast,
+        xSpaceUrl: normalizedSpaceUrl,
+        actions: [{
+          command: 'live-x-space',
+          emoji: actionCommands['live-x-space']?.emoji || '🎙️',
+          svg: actionCommands['live-x-space']?.svg || '',
+          text: actionCommands['live-x-space']?.text || 'shares a live X Space',
+          colors: actionCommands['live-x-space']?.colors || ['#7de6ff','#4facfe']
+        }]
       });
+    }
+    if(liveXSpaceBtn){
+      liveXSpaceBtn.addEventListener('click', () => postLiveXSpace({ broadcast: false }));
+    }
+    if(broadcastSpaceBtn){
+      broadcastSpaceBtn.addEventListener('click', () => postLiveXSpace({ broadcast: true }));
     }
 
     if(cmdListBtn){
