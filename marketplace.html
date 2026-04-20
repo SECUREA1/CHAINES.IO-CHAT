@@ -375,6 +375,19 @@
         if (!spend) return false;
         return awardRewards(user, action, -spend, detail);
       };
+      const consumeRewardCredit = (user, key) => {
+        const safeUser = sanitizeUser(user || '');
+        if (!safeUser || !key) return false;
+        const store = loadRewardsStore();
+        const current = store[safeUser] || { points: 0, history: [], flags: {} };
+        current.flags = current.flags || {};
+        const available = Math.max(0, Number(current.flags[key] || 0));
+        if (available < 1) return false;
+        current.flags[key] = available - 1;
+        store[safeUser] = current;
+        saveRewardsStore(store);
+        return true;
+      };
 
       function profileHref(name = '') {
         return `/profile.html?user=${encodeURIComponent(sanitizeUser(name || ''))}`;
@@ -820,7 +833,8 @@
         const idx = items.findIndex((item) => item.id === id);
         if (idx === -1) return;
         const viewer = activeViewer();
-        const ok = spendRewards(viewer, 'boost', 5, `Boosted listing #${id}`);
+        const usedCredit = consumeRewardCredit(viewer, 'marketBoostCredits');
+        const ok = usedCredit || spendRewards(viewer, 'boost', 5, `Boosted listing #${id}`);
         if (!ok) {
           const rewardsStore = loadRewardsStore();
           const balance = Number(rewardsStore[viewer]?.points || 0);
@@ -829,7 +843,7 @@
         }
         items[idx].boostedAt = Date.now();
         save(items);
-        setPostStatus('Listing boosted for priority visibility. (-5 points)', 'success');
+        setPostStatus(usedCredit ? 'Listing boosted with rewards credit.' : 'Listing boosted for priority visibility. (-5 points)', 'success');
         render();
       });
       list.addEventListener('submit', (ev) => {

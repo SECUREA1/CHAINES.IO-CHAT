@@ -170,6 +170,11 @@
     .rewards-leaderboard{ list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; }
     .rewards-leaderboard li{ display:flex; justify-content:space-between; gap:10px; border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
     .rewards-leaderboard li b{ color:var(--gold); }
+    .rewards-active-effects{ list-style:none; margin:8px 0 0; padding:0; display:grid; gap:6px; }
+    .rewards-active-effects li{ border:1px solid var(--lining); border-radius:10px; padding:8px; font-size:13px; background:color-mix(in oklab, var(--panel), transparent 20%); }
+    .reward-effect-chip{ display:inline-flex; align-items:center; font-size:11px; border-radius:999px; padding:2px 8px; border:1px solid var(--lining); color:var(--gold); background:color-mix(in oklab, var(--accent), transparent 86%); margin-top:6px; }
+    .msg.reward-highlight .bubble{ border-color: color-mix(in oklab, var(--gold), var(--lining) 25%); box-shadow:0 0 0 1px color-mix(in oklab, var(--gold), transparent 60%), var(--shadow); }
+    .msg.reward-pinned .bubble{ border-style:solid; }
     @media (max-width: 600px){
       .rewards-modal{ padding:10px; align-items:flex-end; }
       .rewards-modal__panel{ width:100%; max-height:92dvh; border-bottom-left-radius:0; border-bottom-right-radius:0; padding:14px; }
@@ -278,6 +283,7 @@
       justify-content:center;
       font-size:0;
     }
+    .desktop-only-chip { display:inline-flex; }
     .const-buttons { flex-wrap:nowrap; justify-content:space-evenly; }
     .multi-camera-controls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
     .multi-camera-controls .chip.off { opacity:0.55; }
@@ -1709,6 +1715,9 @@ body.streams-flex-fit #video-container[hidden] {
       .mobile-only-chip {
         display:inline-flex;
       }
+      .desktop-only-chip {
+        display:none !important;
+      }
       .footer-market-btn span {
         display:none;
       }
@@ -2001,6 +2010,7 @@ body.streams-flex-fit #video-container[hidden] {
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="rewards-program-btn-desktop" class="chip action-chip desktop-only-chip" type="button" title="Open full rewards program" aria-label="Open full rewards program"><img src="static/hologhost.svg" alt="" aria-hidden="true" />Rewards</button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="rewards-menu-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
@@ -2251,6 +2261,9 @@ body.streams-flex-fit #video-container[hidden] {
       <h4 style="margin:14px 0 8px;">Spend Ghost Coin points</h4>
       <div id="rewards-spend-actions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       <ul id="rewards-shop-list" class="rewards-shop"></ul>
+      <h4 style="margin:14px 0 8px;">Active reward effects</h4>
+      <ul id="rewards-active-effects" class="rewards-active-effects"></ul>
+      <a id="rewards-program-link" class="chip" href="/rewards-program" style="margin-top:8px;display:inline-flex;">Open full rewards program</a>
       <h4 style="margin:14px 0 8px;">Rewards leaderboard</h4>
       <ul id="rewards-leaderboard" class="rewards-leaderboard"></ul>
       <h4 style="margin:14px 0 8px;">Recent rewards</h4>
@@ -2788,6 +2801,7 @@ body.streams-flex-fit #video-container[hidden] {
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
+    const rewardsProgramBtnDesktop = el('#rewards-program-btn-desktop');
     const rewardsModal = el('#rewards-modal');
     const rewardsCloseBtn = el('#rewards-close-btn');
     const rewardsRulesList = el('#rewards-rules-list');
@@ -2795,6 +2809,7 @@ body.streams-flex-fit #video-container[hidden] {
     const rewardsHistory = el('#rewards-history');
     const rewardsSpendActions = el('#rewards-spend-actions');
     const rewardsShopList = el('#rewards-shop-list');
+    const rewardsActiveEffects = el('#rewards-active-effects');
     const rewardsLeaderboard = el('#rewards-leaderboard');
     const streams = {};
     const guestMap = {};
@@ -2850,6 +2865,50 @@ body.streams-flex-fit #video-container[hidden] {
       if(!spend) return false;
       return awardRewards(username, action, -spend, detail);
     }
+    function readRewardFlags(username){
+      const user = String(username || '').trim();
+      const state = loadRewardsStore();
+      const flags = state[user]?.flags;
+      return flags && typeof flags === 'object' ? flags : {};
+    }
+    function patchRewardFlags(username, updater){
+      const user = String(username || '').trim();
+      if(!user || typeof updater !== 'function') return null;
+      const state = loadRewardsStore();
+      const current = state[user] || { points: 0, history: [], flags: {} };
+      current.flags = current.flags || {};
+      const nextFlags = updater({ ...current.flags }) || current.flags;
+      current.flags = nextFlags;
+      state[user] = current;
+      saveRewardsStore(state);
+      return current.flags;
+    }
+    function activateSpendEffect(username, action){
+      const user = String(username || '').trim();
+      if(!user || !action) return;
+      patchRewardFlags(user, (flags) => {
+        if(action === 'highlight') flags.highlightNextPost = Math.max(0, Number(flags.highlightNextPost || 0)) + 1;
+        if(action === 'boost') flags.marketBoostCredits = Math.max(0, Number(flags.marketBoostCredits || 0)) + 1;
+        if(action === 'pin') flags.listingPinCredits = Math.max(0, Number(flags.listingPinCredits || 0)) + 1;
+        if(action === 'priority') flags.profileSpotlightUntil = Date.now() + (24 * 60 * 60 * 1000);
+        if(action === 'banner') flags.profileBannerFeaturedUntil = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        return flags;
+      });
+    }
+    function consumeRewardFlag(username, key){
+      const user = String(username || '').trim();
+      if(!user || !key) return false;
+      let consumed = false;
+      patchRewardFlags(user, (flags) => {
+        const current = Math.max(0, Number(flags[key] || 0));
+        if(current > 0){
+          flags[key] = current - 1;
+          consumed = true;
+        }
+        return flags;
+      });
+      return consumed;
+    }
     function renderRewardsMenu(){
       if(!rewardsRulesList || !rewardsHistory || !rewardsScore) return;
       rewardsRulesList.innerHTML = '';
@@ -2880,6 +2939,28 @@ body.streams-flex-fit #video-container[hidden] {
           button.textContent = `${option.label} (-${option.cost})`;
           rewardsSpendActions.appendChild(button);
         });
+      }
+      if(rewardsActiveEffects){
+        rewardsActiveEffects.innerHTML = '';
+        const flags = readRewardFlags(store?.user || '');
+        const activeEffects = [];
+        const now = Date.now();
+        if(Number(flags.highlightNextPost || 0) > 0) activeEffects.push(`Highlight credits: ${Number(flags.highlightNextPost)} next post(s)`);
+        if(Number(flags.marketBoostCredits || 0) > 0) activeEffects.push(`Marketplace boost credits: ${Number(flags.marketBoostCredits)}`);
+        if(Number(flags.listingPinCredits || 0) > 0) activeEffects.push(`Listing pin credits: ${Number(flags.listingPinCredits)}`);
+        if(Number(flags.profileSpotlightUntil || 0) > now) activeEffects.push(`Priority profile spotlight active until ${new Date(flags.profileSpotlightUntil).toLocaleString()}`);
+        if(Number(flags.profileBannerFeaturedUntil || 0) > now) activeEffects.push(`Featured profile banner active until ${new Date(flags.profileBannerFeaturedUntil).toLocaleString()}`);
+        if(!activeEffects.length){
+          const li = document.createElement('li');
+          li.textContent = 'No active reward effects. Redeem points to activate perks.';
+          rewardsActiveEffects.appendChild(li);
+        }else{
+          activeEffects.forEach((entry) => {
+            const li = document.createElement('li');
+            li.textContent = entry;
+            rewardsActiveEffects.appendChild(li);
+          });
+        }
       }
       if(rewardsLeaderboard){
         rewardsLeaderboard.innerHTML = '';
@@ -2919,6 +3000,10 @@ body.streams-flex-fit #video-container[hidden] {
     function openRewardsMenu(){
       if(!rewardsModal) return;
       renderRewardsMenu();
+      const activeUser = encodeURIComponent(String(store?.user || '').trim());
+      const programHref = activeUser ? `/rewards-program?user=${activeUser}` : '/rewards-program';
+      const rewardsProgramLink = el('#rewards-program-link');
+      if(rewardsProgramLink) rewardsProgramLink.setAttribute('href', programHref);
       rewardsModal.hidden = false;
       document.body.style.overflow = 'hidden';
     }
@@ -2938,6 +3023,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
     rewardsMenuBtn?.addEventListener('click', openRewardsProgramPage);
     rewardsMenuBtnMobile?.addEventListener('click', openRewardsProgramPage);
+    rewardsProgramBtnDesktop?.addEventListener('click', openRewardsProgramPage);
     ghostBtn?.addEventListener('click', openRewardsMenu);
     rewardsCloseBtn?.addEventListener('click', closeRewardsMenu);
     rewardsModal?.addEventListener('click', (event) => {
@@ -2959,6 +3045,9 @@ body.streams-flex-fit #video-container[hidden] {
         const current = rewardsForUser(user, true);
         const left = Number(current?.points || 0);
         alert(`Not enough Ghost Coin points. You have ${left} point${left === 1 ? '' : 's'}.`);
+      }else{
+        activateSpendEffect(user, action);
+        renderRewardsMenu();
       }
     });
     function setVideoToggleLabel(label){
@@ -5512,6 +5601,17 @@ body.streams-flex-fit #video-container[hidden] {
         colors: action.colors
       }));
       const msg = { text: msgText, broadcast: broadcasting, listing, actions: msgActions };
+      const activeFlags = readRewardFlags(store?.user || '');
+      const useHighlight = Number(activeFlags.highlightNextPost || 0) > 0;
+      const usePin = hasListingData && Number(activeFlags.listingPinCredits || 0) > 0;
+      if(useHighlight){
+        msg.rewardHighlight = true;
+        consumeRewardFlag(store.user, 'highlightNextPost');
+      }
+      if(usePin){
+        msg.rewardPinnedUntil = Date.now() + (24 * 60 * 60 * 1000);
+        consumeRewardFlag(store.user, 'listingPinCredits');
+      }
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
         msg.fileName = pendingFile.name;
@@ -6570,9 +6670,13 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
       function appendMessage(m, skipScroll=false, container=feed){
-        const mine = m.user === store.user;
-        const li = document.createElement('li');
+      const mine = m.user === store.user;
+      const li = document.createElement('li');
       li.className = 'msg' + (mine ? ' mine' : '');
+      const hasRewardHighlight = !!m.rewardHighlight;
+      const hasRewardPin = Number(m.rewardPinnedUntil || 0) > Date.now();
+      if(hasRewardHighlight) li.classList.add('reward-highlight');
+      if(hasRewardPin) li.classList.add('reward-pinned');
       li.dataset.id = m.id;
       li.dataset.user = m.user || '';
       if(m.repostOf) li.dataset.repostOf = String(m.repostOf);
@@ -6663,6 +6767,18 @@ body.streams-flex-fit #video-container[hidden] {
       categoryChip.className = 'category-chip';
       categoryChip.textContent = categoryDef.label;
       bubble.appendChild(categoryChip);
+      if(hasRewardHighlight){
+        const chip = document.createElement('span');
+        chip.className = 'reward-effect-chip';
+        chip.textContent = '✨ Highlighted post';
+        bubble.appendChild(chip);
+      }
+      if(hasRewardPin){
+        const chip = document.createElement('span');
+        chip.className = 'reward-effect-chip';
+        chip.textContent = `📌 Pinned until ${new Date(m.rewardPinnedUntil).toLocaleString()}`;
+        bubble.appendChild(chip);
+      }
       bubble.appendChild(text);
       const messageActions = Array.isArray(m.actions) ? m.actions.filter(a => a && (a.emoji || a.command || a.svg)) : [];
       if(messageActions.length){
