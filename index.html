@@ -1957,6 +1957,19 @@ body.streams-flex-fit #video-container[hidden] {
                       <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" />CHAINeS AR Collectibles</button></li>
                     </ul>
                   </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Rewards</summary>
+                    <div class="toolbar-overflow-copy">
+                      <p><strong id="rewards-points-total">0</strong> cool points</p>
+                      <ul class="toolbar-overflow-list">
+                        <li>📝 +2 points for posting to the feed</li>
+                        <li>🏷️ +5 points for publishing marketplace listings</li>
+                        <li>📡 +1 point per live stream minute</li>
+                        <li>✅ +1 point for each newly verified connected wallet</li>
+                        <li>👻 +1 point for each Ghost coin collected</li>
+                      </ul>
+                    </div>
+                  </details>
                 </div>
               </div>
               <div class="toolbar-primary">
@@ -2197,6 +2210,7 @@ body.streams-flex-fit #video-container[hidden] {
   </div>
 
   <script src="static/copywriter.js"></script>
+  <script src="static/rewards.js"></script>
   <script>
   ;(() => {
     const el = (q, parent=document) => parent.querySelector(q);
@@ -2694,6 +2708,7 @@ body.streams-flex-fit #video-container[hidden] {
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
+    const rewardsPointsTotal = el('#rewards-points-total');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
     const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']
       .map(id => el(`#${id}`))
@@ -2706,6 +2721,9 @@ body.streams-flex-fit #video-container[hidden] {
     const streamsFitBtn = el('#streams-fit-btn');
     const streamsFitBtnMobile = el('#streams-fit-btn-mobile');
     let streamsFlexFit = false;
+    let streamingRewardInterval = null;
+    let streamingRewardStartMs = 0;
+    let streamingRewardMinutesGranted = 0;
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
       videoToggle.innerHTML = '<img src="static/screen.svg" alt="" aria-hidden="true" />';
@@ -3343,6 +3361,27 @@ body.streams-flex-fit #video-container[hidden] {
         try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
       }
     };
+
+    function getCurrentRewardsSummary(){
+      if(!window.CHAINESRewards || typeof window.CHAINESRewards.getSummary !== 'function'){
+        return { totalPoints: 0, actions: {} };
+      }
+      return window.CHAINESRewards.getSummary(store.user || '');
+    }
+
+    function refreshRewardsPointsMenu(){
+      if(!rewardsPointsTotal) return;
+      const summary = getCurrentRewardsSummary();
+      rewardsPointsTotal.textContent = String(summary.totalPoints || 0);
+      rewardsPointsTotal.title = 'Total rewards points';
+    }
+
+    function grantRewardPoints(action, points){
+      if(!window.CHAINESRewards || typeof window.CHAINESRewards.grantPoints !== 'function') return null;
+      const result = window.CHAINESRewards.grantPoints(store.user || '', action, points);
+      refreshRewardsPointsMenu();
+      return result;
+    }
 
     async function fetchDropperStatus(force){
       if(dropperStatus && !force) return dropperStatus;
@@ -4869,6 +4908,7 @@ body.streams-flex-fit #video-container[hidden] {
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       applyVerificationToProfile(store.user, opts.verified || null);
+      refreshRewardsPointsMenu();
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
         profileLink.href = '/profile.html?user=' + encodeURIComponent(store.user);
@@ -5095,9 +5135,10 @@ body.streams-flex-fit #video-container[hidden] {
     window.addEventListener('wallet:access-granted', (event) => {
       const chain = event?.detail?.chain || 'cardano';
       const currency = event?.detail?.currency || 'ADA';
+      const walletAddress = event?.detail?.walletAddress || '';
       syncAuthSelectors(chain, currency);
       const contract = event?.detail?.nativeContract || tokenGateContracts()[chain] || '';
-      const walletLink = explorerLinkForRecord({ chain, contract, walletAddress: event?.detail?.walletAddress || '' });
+      const walletLink = explorerLinkForRecord({ chain, contract, walletAddress });
       setTokenLoginStatus({
         text: contractDisplayLabel(chain, contract),
         seed: `${chain}:${contract}:access-granted`,
@@ -5105,6 +5146,13 @@ body.streams-flex-fit #video-container[hidden] {
         currency,
         walletLink
       }, 'success');
+      if(window.CHAINESRewards && typeof window.CHAINESRewards.grantWalletConnection === 'function'){
+        const reward = window.CHAINESRewards.grantWalletConnection(store.user || '', chain, walletAddress);
+        refreshRewardsPointsMenu();
+        if(reward?.awarded){
+          systemNote(`✅ Wallet verified reward unlocked (+${reward.points} point).`);
+        }
+      }
     });
 
     function applyVerificationToProfile(username, verification){
@@ -5194,6 +5242,10 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       const postedMessage = postMessage(msg);
+      grantRewardPoints('post', 2);
+      if(hasListingData){
+        grantRewardPoints('listing', 5);
+      }
       showChat();
       setMarketMode('all');
       if(msgActions.length && postedMessage?.id){
@@ -5321,6 +5373,38 @@ body.streams-flex-fit #video-container[hidden] {
       return msg;
       }
 
+    function stopStreamingRewardTimer(){
+      if(streamingRewardInterval){
+        clearInterval(streamingRewardInterval);
+        streamingRewardInterval = null;
+      }
+    }
+
+    function beginStreamingRewards(){
+      stopStreamingRewardTimer();
+      streamingRewardStartMs = Date.now();
+      streamingRewardMinutesGranted = 0;
+      streamingRewardInterval = setInterval(() => {
+        const elapsedMinutes = Math.floor((Date.now() - streamingRewardStartMs) / 60000);
+        while(streamingRewardMinutesGranted < elapsedMinutes){
+          grantRewardPoints('streamMinute', 1);
+          streamingRewardMinutesGranted += 1;
+        }
+      }, 10000);
+    }
+
+    function finalizeStreamingRewards(){
+      if(!streamingRewardStartMs) return;
+      const elapsedMinutes = Math.floor((Date.now() - streamingRewardStartMs) / 60000);
+      while(streamingRewardMinutesGranted < elapsedMinutes){
+        grantRewardPoints('streamMinute', 1);
+        streamingRewardMinutesGranted += 1;
+      }
+      streamingRewardStartMs = 0;
+      streamingRewardMinutesGranted = 0;
+      stopStreamingRewardTimer();
+    }
+
     // --- WebRTC helpers ---
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
@@ -5336,6 +5420,7 @@ body.streams-flex-fit #video-container[hidden] {
               ? createBroadcastCameraBundle().catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false })))
               : navigator.mediaDevices.getUserMedia({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: true }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
+          beginStreamingRewards();
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
           const activeStream = activeBundle.stream;
           const primaryPreview = activeBundle.previews?.[0] || activeStream;
@@ -5486,6 +5571,7 @@ body.streams-flex-fit #video-container[hidden] {
           sendSignal({ type: audioOnly ? 'mic-broadcaster' : 'broadcaster' });
           if(!pendingJoinHost) postMessage({ text: '🔴 Broadcast started' });
         }).catch(() => {
+          finalizeStreamingRewards();
           broadcasting = false;
           goLiveAllRequested = false;
           refreshGoLiveAllButton();
@@ -5666,6 +5752,7 @@ body.streams-flex-fit #video-container[hidden] {
       function endBroadcast(forced=false){
         if(broadcastTimer){ clearTimeout(broadcastTimer); broadcastTimer = null; }
         if(!broadcasting) return;
+        finalizeStreamingRewards();
         broadcasting = false;
         goLiveAllRequested = false;
         refreshGoLiveAllButton();
@@ -7000,6 +7087,13 @@ body.streams-flex-fit #video-container[hidden] {
         const detail = event.detail || {};
         syncGhostBadge(detail.count);
         showGhostTicker({ message: detail.message, count: detail.count });
+        if(window.CHAINESRewards && typeof window.CHAINESRewards.grantGhostCoins === 'function'){
+          const reward = window.CHAINESRewards.grantGhostCoins(store.user || '', detail.count);
+          refreshRewardsPointsMenu();
+          if(reward?.awarded){
+            systemNote(`👻 Ghost coin reward unlocked (+${reward.points} point${reward.points === 1 ? '' : 's'}).`);
+          }
+        }
       });
 
       document.addEventListener('mousemove', (e) => {
@@ -7011,6 +7105,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     // Boot
+    refreshRewardsPointsMenu();
     requireAuth();
   })();
   </script>
