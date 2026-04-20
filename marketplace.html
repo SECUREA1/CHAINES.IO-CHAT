@@ -693,7 +693,7 @@
             <div class="actions">
               <button class="like-btn" type="button" aria-pressed="${liked}" data-like-id="${m.id || ''}">${liked ? '♥ Interested' : '♡ Interested'}</button>
               <button class="ghost-btn" type="button" data-toggle-contact-id="${m.id || ''}">Contact @${safeUser}</button>
-              <button class="ghost-btn" type="button" data-boost-id="${m.id || ''}">Boost listing (-5)</button>
+              <button class="ghost-btn" type="button" data-boost-id="${m.id || ''}">Boost listing (-10)</button>
               <a class="ghost-btn" href="${safeProfileHref}">Open @${safeUser} Profile</a>
               <span class="small">${matched ? '💘 Matched' : ''} Likes ${m.likes || 0} • Comments ${comments.length}</span>
             </div>
@@ -834,16 +834,16 @@
         if (idx === -1) return;
         const viewer = activeViewer();
         const usedCredit = consumeRewardCredit(viewer, 'marketBoostCredits');
-        const ok = usedCredit || spendRewards(viewer, 'boost', 5, `Boosted listing #${id}`);
+        const ok = usedCredit || spendRewards(viewer, 'boost', 10, `Boosted listing #${id}`);
         if (!ok) {
           const rewardsStore = loadRewardsStore();
           const balance = Number(rewardsStore[viewer]?.points || 0);
-          setPostStatus(`Need 5 Ghost Coin points to boost. Current balance: ${balance}.`, 'error');
+          setPostStatus(`Need 10 Ghost Coin points to boost. Current balance: ${balance}.`, 'error');
           return;
         }
         items[idx].boostedAt = Date.now();
         save(items);
-        setPostStatus(usedCredit ? 'Listing boosted with rewards credit.' : 'Listing boosted for priority visibility. (-5 points)', 'success');
+        setPostStatus(usedCredit ? 'Listing boosted with rewards credit.' : 'Listing boosted for priority visibility. (-10 points)', 'success');
         render();
       });
       list.addEventListener('submit', (ev) => {

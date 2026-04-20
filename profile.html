@@ -302,7 +302,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <p id="profile-rewards-tier" class="rewards-tier">Tier: Starter</p>
     <div class="rewards-progress">
       <div class="rewards-progress-track"><span id="profile-rewards-progress-fill" class="rewards-progress-fill"></span></div>
-      <p id="profile-rewards-progress-meta" class="rewards-progress-meta">0 / 20 points to Rising</p>
+      <p id="profile-rewards-progress-meta" class="rewards-progress-meta">0 / 40 points to Rising</p>
     </div>
     <h4 style="margin:12px 0 8px;">Reward action breakdown</h4>
     <ul id="profile-rewards-breakdown" class="rewards-breakdown"></ul>
@@ -507,16 +507,18 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     saveRewardsStore(store);
   }
 
+  const REWARD_TIERS = Object.freeze([
+    { min: 0, name: 'Starter' },
+    { min: 40, name: 'Rising' },
+    { min: 120, name: 'Pro' },
+    { min: 240, name: 'Elite' },
+    { min: 500, name: 'Legend' }
+  ]);
+
   function rewardTierMeta(points){
-    const tiers = [
-      { min: 0, name: 'Starter' },
-      { min: 20, name: 'Rising' },
-      { min: 60, name: 'Pro' },
-      { min: 120, name: 'Elite' },
-      { min: 250, name: 'Legend' }
-    ];
-    const current = tiers.reduce((acc, tier) => points >= tier.min ? tier : acc, tiers[0]);
-    const next = tiers.find((tier) => tier.min > current.min) || null;
+    const safePoints = Math.max(0, Number(points || 0));
+    const current = REWARD_TIERS.reduce((acc, tier) => safePoints >= tier.min ? tier : acc, REWARD_TIERS[0]);
+    const next = REWARD_TIERS.find((tier) => tier.min > current.min) || null;
     return { current, next };
   }
 

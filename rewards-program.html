@@ -194,11 +194,18 @@
       { action: 'broadcast-start', points: 2, label: 'Go live session started', effect: 'Live launch activation bonus.' }
     ]);
     const REWARD_SPEND_OPTIONS = Object.freeze([
-      { action: 'highlight', cost: 5, label: 'Highlight your next post', effect: 'Your next post gets extra visual emphasis.' },
-      { action: 'boost', cost: 10, label: 'Boost marketplace visibility', effect: 'Listing gains temporary higher visibility.' },
-      { action: 'priority', cost: 15, label: 'Priority profile spotlight', effect: 'Profile appears in priority discovery slots.' },
-      { action: 'pin', cost: 20, label: 'Pin one listing for 24h', effect: 'Chosen listing stays pinned for 24 hours.' },
-      { action: 'banner', cost: 25, label: 'Feature your profile banner', effect: 'Banner gets premium feature placement.' }
+      { action: 'highlight', cost: 10, label: 'Highlight your next post', effect: 'Your next post gets extra visual emphasis.' },
+      { action: 'boost', cost: 20, label: 'Boost marketplace visibility', effect: 'Listing gains temporary higher visibility.' },
+      { action: 'priority', cost: 30, label: 'Priority profile spotlight', effect: 'Profile appears in priority discovery slots.' },
+      { action: 'pin', cost: 40, label: 'Pin one listing for 24h', effect: 'Chosen listing stays pinned for 24 hours.' },
+      { action: 'banner', cost: 50, label: 'Feature your profile banner', effect: 'Banner gets premium feature placement.' }
+    ]);
+    const TIER_DEFINITIONS = Object.freeze([
+      { min: 0, name: 'Starter', effect: 'Base reward collection and standard redemption.' },
+      { min: 40, name: 'Rising', effect: 'Improved growth momentum for active users.' },
+      { min: 120, name: 'Pro', effect: 'High-value redemptions become easier to sustain.' },
+      { min: 240, name: 'Elite', effect: 'High-end program: premium spotlight consistency.' },
+      { min: 500, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.' }
     ]);
 
     function loadRewardsStore(){
@@ -306,11 +313,8 @@
     }
 
     function tierForPoints(points){
-      if(points >= 250) return { name: 'Legend', perk: 'Top visibility weighting, premium placements favored.' };
-      if(points >= 120) return { name: 'Elite', perk: 'Advanced placement and stronger promotion effects.' };
-      if(points >= 60) return { name: 'Pro', perk: 'Mid-tier boosts and better surfacing.' };
-      if(points >= 20) return { name: 'Rising', perk: 'Starter perks and reward acceleration.' };
-      return { name: 'Starter', perk: 'Earn points to unlock stronger effects.' };
+      const total = Math.max(0, Number(points || 0));
+      return TIER_DEFINITIONS.reduce((acc, tier) => total >= tier.min ? tier : acc, TIER_DEFINITIONS[0]);
     }
 
     function render(){
@@ -330,7 +334,7 @@
       els.user.innerHTML = `User: <b>${state.user}</b>`;
       els.points.innerHTML = `Balance: <b>${pts}</b> Ghost Coin points`;
       els.rank.innerHTML = `Leaderboard rank: <b>${rank >= 0 ? `#${rank + 1} of ${board.length}` : 'unranked'}</b>`;
-      els.status.innerHTML = `Program status: <span class="ok">${tier.name}</span> — ${tier.perk}`;
+      els.status.innerHTML = `Program status: <span class="ok">${tier.name}</span> — ${tier.effect}`;
       els.activeProfilesCount.textContent = String(activeProfiles.length);
       els.trackedProfilesCount.textContent = String(board.length);
       els.programVolumePoints.textContent = String(volume);
@@ -345,13 +349,7 @@
       buildRulesTable(els.spendTable, REWARD_SPEND_OPTIONS, 'spend');
 
       els.tiers.innerHTML = '';
-      [
-        { min: 0, name: 'Starter', effect: 'Base reward collection and standard redemption.' },
-        { min: 20, name: 'Rising', effect: 'Improved growth momentum for active users.' },
-        { min: 60, name: 'Pro', effect: 'High-value redemptions become easier to sustain.' },
-        { min: 120, name: 'Elite', effect: 'High-end program: premium spotlight consistency.' },
-        { min: 250, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.' }
-      ].forEach((t) => {
+      TIER_DEFINITIONS.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'tier';
         div.innerHTML = `<h3>${t.name}</h3><p><b>${t.min}+ points</b></p><p>${t.effect}</p>`;
