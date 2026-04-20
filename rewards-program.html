@@ -8,10 +8,11 @@
     :root{--bg:#080d18;--panel:#11182a;--fg:#e8f0ff;--muted:#9eb0d4;--line:#25314a;--gold:#f6c54f;--ok:#3ddc97;--warn:#ff9f43;}
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(1100px 560px at 15% -10%,#1c335f 0%,#080d18 60%);color:var(--fg)}
-    .wrap{max-width:980px;margin:0 auto;padding:18px}
-    .card{background:color-mix(in oklab,var(--panel),black 10%);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-    h1,h2,h3{margin:0 0 8px}
-    p{margin:0 0 8px;color:var(--muted)}
+    .wrap{max-width:920px;margin:0 auto;padding:18px}
+    .card{background:color-mix(in oklab,var(--panel),black 10%);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+    h1,h2,h3{margin:0 0 8px;line-height:1.28}
+    h2{font-size:1.16rem}
+    p{margin:0 0 8px;color:var(--muted);line-height:1.48}
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .chip{border:1px solid var(--line);background:#0f1627;color:var(--fg);padding:8px 12px;border-radius:999px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
     .metric{font-size:14px;color:var(--muted)}
@@ -33,7 +34,8 @@
     .leaderboard{list-style:none;margin:0;padding:0;display:grid;gap:8px}
     .leaderboard li{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#0c1322}
     .leaderboard li b{color:var(--gold)}
-    .split{display:grid;grid-template-columns:1.15fr .85fr;gap:10px}
+    .split{display:grid;grid-template-columns:1fr;gap:10px}
+    .table-wrap{overflow-x:auto}
     .brand-banner{display:grid;gap:8px;padding:12px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(135deg,#132549 0%,#0d1932 60%,#0a1426 100%)}
     .brand-banner p{margin:0}
     .brand-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -41,8 +43,8 @@
     .brand-kpi strong{display:block;color:var(--gold);font-size:18px}
     .badge{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:12px;background:#0b1323;color:var(--muted)}
     .badge.active{color:var(--ok)}
-    @media (max-width:900px){.split{grid-template-columns:1fr}}
-    @media (max-width:700px){.brand-kpis{grid-template-columns:1fr}}
+    @media (max-width:900px){.wrap{padding:14px}}
+    @media (max-width:700px){.brand-kpis{grid-template-columns:1fr}.card{padding:13px}}
     .ok{color:var(--ok)}
     .warn{color:var(--warn)}
   </style>
@@ -80,48 +82,54 @@
       <div class="split">
         <div>
           <p>Earn options (all live actions).</p>
-          <table class="logic-table" id="earn-options-table" aria-label="Earn options table"></table>
+          <div class="table-wrap">
+            <table class="logic-table" id="earn-options-table" aria-label="Earn options table"></table>
+          </div>
         </div>
         <div>
           <p>Spend options (instant redemption effects).</p>
-          <table class="logic-table" id="spend-options-table" aria-label="Spend options table"></table>
+          <div class="table-wrap">
+            <table class="logic-table" id="spend-options-table" aria-label="Spend options table"></table>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="card">
       <h2>Platform rewards map (all pages)</h2>
-      <table class="logic-table" aria-label="Rewards logic across pages">
-        <thead>
-          <tr>
-            <th>Page / Surface</th>
-            <th>Main earning actions</th>
-            <th>Why points are granted</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Chat feed + profile posts</td>
-            <td>Post, reply, like, follow</td>
-            <td>Rewards active social participation and relationship growth.</td>
-          </tr>
-          <tr>
-            <td>Marketplace</td>
-            <td>Create listings, likes, comments, contact actions</td>
-            <td>Rewards buyer/seller activity that creates commerce trust.</td>
-          </tr>
-          <tr>
-            <td>Live streaming</td>
-            <td>Start stream session + per-minute stream activity</td>
-            <td>Rewards consistency and live retention behavior.</td>
-          </tr>
-          <tr>
-            <td>Wallet + identity profile</td>
-            <td>Connect verified wallet</td>
-            <td>Rewards account trust and verifiable ownership signals.</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="logic-table" aria-label="Rewards logic across pages">
+          <thead>
+            <tr>
+              <th>Page / Surface</th>
+              <th>Main earning actions</th>
+              <th>Why points are granted</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Chat feed + profile posts</td>
+              <td>Post, reply, like, follow</td>
+              <td>Rewards active social participation and relationship growth.</td>
+            </tr>
+            <tr>
+              <td>Marketplace</td>
+              <td>Create listings, likes, comments, contact actions</td>
+              <td>Rewards buyer/seller activity that creates commerce trust.</td>
+            </tr>
+            <tr>
+              <td>Live streaming</td>
+              <td>Start stream session + per-minute stream activity</td>
+              <td>Rewards consistency and live retention behavior.</td>
+            </tr>
+            <tr>
+              <td>Wallet + identity profile</td>
+              <td>Connect verified wallet</td>
+              <td>Rewards account trust and verifiable ownership signals.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card">
