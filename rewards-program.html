@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ghost Coin Rewards Program</title>
+  <style>
+    :root{--bg:#080d18;--panel:#11182a;--fg:#e8f0ff;--muted:#9eb0d4;--line:#25314a;--gold:#f6c54f;--ok:#3ddc97;--warn:#ff9f43;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(1100px 560px at 15% -10%,#1c335f 0%,#080d18 60%);color:var(--fg)}
+    .wrap{max-width:980px;margin:0 auto;padding:18px}
+    .card{background:color-mix(in oklab,var(--panel),black 10%);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+    h1,h2,h3{margin:0 0 8px}
+    p{margin:0 0 8px;color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);background:#0f1627;color:var(--fg);padding:8px 12px;border-radius:999px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+    .metric{font-size:14px;color:var(--muted)}
+    .metric b{color:var(--gold);font-size:20px}
+    ul{margin:0;padding-left:18px}
+    li{margin:6px 0}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+    .tier{border:1px solid var(--line);border-radius:12px;padding:10px;background:#0c1322}
+    .tier b{color:var(--gold)}
+    .shop{display:grid;gap:8px}
+    .shop-item{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);padding:10px;border-radius:10px;background:#0c1322}
+    .shop-item button{border:1px solid var(--line);background:#13213c;color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer}
+    .history{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+    .history li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#0c1322;font-size:13px}
+    .ok{color:var(--ok)}
+    .warn{color:var(--warn)}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <div>
+          <h1>👻 High-End Ghost Coin Rewards Program</h1>
+          <p>Full rewards logic, earning rules, spend effects, and your live account status.</p>
+        </div>
+        <a class="chip" href="index.html">← Back to chat</a>
+      </div>
+      <p id="user-label" class="metric">User: <b>guest</b></p>
+      <p id="points-label" class="metric">Balance: <b>0</b> Ghost Coin points</p>
+      <p id="rank-label" class="metric">Leaderboard rank: <b>unranked</b></p>
+      <p id="status" class="metric">Program status: ready.</p>
+    </section>
+
+    <section class="card">
+      <h2>How points are earned (program logic)</h2>
+      <ul id="rules"></ul>
+    </section>
+
+    <section class="card">
+      <h2>High-end tiers & effects</h2>
+      <div class="grid" id="tiers"></div>
+    </section>
+
+    <section class="card">
+      <h2>Redeem rewards (effects applied immediately)</h2>
+      <p>Redeeming deducts points and writes a record to your rewards history in local storage.</p>
+      <div id="shop" class="shop"></div>
+    </section>
+
+    <section class="card">
+      <h2>Recent rewards activity</h2>
+      <ul id="history" class="history"></ul>
+    </section>
+  </main>
+
+  <script>
+    const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
+    const REWARD_RULES = Object.freeze([
+      { action: 'post', points: 2, label: 'Post in feed', effect: 'Build your balance from social activity.' },
+      { action: 'reply', points: 2, label: 'Reply to a post', effect: 'Conversation growth bonus.' },
+      { action: 'follow', points: 2, label: 'Follow a creator', effect: 'Supports network expansion.' },
+      { action: 'like', points: 1, label: 'Like a profile post', effect: 'Micro-engagement reward.' },
+      { action: 'listing', points: 3, label: 'Create marketplace listing', effect: 'Commerce participation bonus.' },
+      { action: 'listing-services', points: 4, label: 'Service/meal listing', effect: 'High-intent market listing bonus.' },
+      { action: 'listing-dating', points: 4, label: 'Dating listing', effect: 'Premium category participation bonus.' },
+      { action: 'marketplace-like', points: 1, label: 'Like marketplace listing', effect: 'Signal quality listings.' },
+      { action: 'marketplace-comment', points: 2, label: 'Comment marketplace listing', effect: 'Discussion and trust bonus.' },
+      { action: 'marketplace-contact', points: 2, label: 'Send marketplace contact', effect: 'Qualified lead action bonus.' },
+      { action: 'stream-minute', points: 1, label: 'Stream 1 minute live', effect: 'Live consistency rewards over time.' },
+      { action: 'wallet-connected', points: 1, label: 'Verified wallet connected', effect: 'Identity and wallet trust bonus.' },
+      { action: 'broadcast-start', points: 2, label: 'Go live session started', effect: 'Live launch activation bonus.' }
+    ]);
+    const REWARD_SPEND_OPTIONS = Object.freeze([
+      { action: 'highlight', cost: 5, label: 'Highlight your next post', effect: 'Your next post gets extra visual emphasis.' },
+      { action: 'boost', cost: 10, label: 'Boost marketplace visibility', effect: 'Listing gains temporary higher visibility.' },
+      { action: 'priority', cost: 15, label: 'Priority profile spotlight', effect: 'Profile appears in priority discovery slots.' },
+      { action: 'pin', cost: 20, label: 'Pin one listing for 24h', effect: 'Chosen listing stays pinned for 24 hours.' },
+      { action: 'banner', cost: 25, label: 'Feature your profile banner', effect: 'Banner gets premium feature placement.' }
+    ]);
+
+    function loadRewardsStore(){
+      try{ const parsed = JSON.parse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}'); return parsed && typeof parsed === 'object' ? parsed : {}; }
+      catch{ return {}; }
+    }
+    function saveRewardsStore(store){
+      localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(store || {}));
+    }
+    function userFromPage(){
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = String(params.get('user') || '').trim();
+      const fromStorage = String(localStorage.getItem('chaines_username') || '').trim();
+      return fromQuery || fromStorage || 'guest';
+    }
+    function rewardsForUser(username, createIfMissing=false){
+      const user = String(username || '').trim();
+      if(!user) return null;
+      const store = loadRewardsStore();
+      if(!store[user] && createIfMissing){
+        store[user] = { points: 0, history: [], flags: {} };
+        saveRewardsStore(store);
+      }
+      return store[user] || null;
+    }
+    function awardRewards(username, action, points, detail=''){
+      const user = String(username || '').trim();
+      if(!user || !action || !Number.isFinite(points) || points === 0) return false;
+      const store = loadRewardsStore();
+      const current = store[user] || { points: 0, history: [], flags: {} };
+      const next = Number(current.points || 0) + Number(points || 0);
+      if(next < 0) return false;
+      current.points = next;
+      current.history = Array.isArray(current.history) ? current.history : [];
+      current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
+      current.history = current.history.slice(0, 120);
+      store[user] = current;
+      saveRewardsStore(store);
+      return true;
+    }
+
+    const state = { user: userFromPage() };
+
+    const els = {
+      user: document.getElementById('user-label'),
+      points: document.getElementById('points-label'),
+      rank: document.getElementById('rank-label'),
+      rules: document.getElementById('rules'),
+      tiers: document.getElementById('tiers'),
+      shop: document.getElementById('shop'),
+      history: document.getElementById('history'),
+      status: document.getElementById('status')
+    };
+
+    function tierForPoints(points){
+      if(points >= 250) return { name: 'Legend', perk: 'Top visibility weighting, premium placements favored.' };
+      if(points >= 120) return { name: 'Elite', perk: 'Advanced placement and stronger promotion effects.' };
+      if(points >= 60) return { name: 'Pro', perk: 'Mid-tier boosts and better surfacing.' };
+      if(points >= 20) return { name: 'Rising', perk: 'Starter perks and reward acceleration.' };
+      return { name: 'Starter', perk: 'Earn points to unlock stronger effects.' };
+    }
+
+    function render(){
+      const rewards = rewardsForUser(state.user, true) || { points: 0, history: [] };
+      const pts = Number(rewards.points || 0);
+      const board = Object.entries(loadRewardsStore())
+        .filter(([name, data]) => !!String(name || '').trim() && data && typeof data === 'object')
+        .map(([name, data]) => ({ name, points: Math.max(0, Number(data.points || 0)) }))
+        .sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+      const rank = board.findIndex(entry => entry.name === state.user);
+      const tier = tierForPoints(pts);
+
+      els.user.innerHTML = `User: <b>${state.user}</b>`;
+      els.points.innerHTML = `Balance: <b>${pts}</b> Ghost Coin points`;
+      els.rank.innerHTML = `Leaderboard rank: <b>${rank >= 0 ? `#${rank + 1} of ${board.length}` : 'unranked'}</b>`;
+      els.status.innerHTML = `Program status: <span class="ok">${tier.name}</span> — ${tier.perk}`;
+
+      els.rules.innerHTML = '';
+      REWARD_RULES.forEach((rule) => {
+        const li = document.createElement('li');
+        li.textContent = `${rule.label}: +${rule.points} pts. Effect: ${rule.effect}`;
+        els.rules.appendChild(li);
+      });
+
+      els.tiers.innerHTML = '';
+      [
+        { min: 0, name: 'Starter', effect: 'Base reward collection and standard redemption.' },
+        { min: 20, name: 'Rising', effect: 'Improved growth momentum for active users.' },
+        { min: 60, name: 'Pro', effect: 'High-value redemptions become easier to sustain.' },
+        { min: 120, name: 'Elite', effect: 'High-end program: premium spotlight consistency.' },
+        { min: 250, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.' }
+      ].forEach((t) => {
+        const div = document.createElement('div');
+        div.className = 'tier';
+        div.innerHTML = `<h3>${t.name}</h3><p><b>${t.min}+ points</b></p><p>${t.effect}</p>`;
+        els.tiers.appendChild(div);
+      });
+
+      els.shop.innerHTML = '';
+      REWARD_SPEND_OPTIONS.forEach((option) => {
+        const item = document.createElement('div');
+        item.className = 'shop-item';
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${option.label}</strong><div class="metric">-${option.cost} pts • ${option.effect}</div>`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Redeem';
+        btn.disabled = pts < option.cost;
+        btn.title = pts < option.cost ? 'Not enough points' : 'Redeem now';
+        btn.addEventListener('click', () => {
+          const ok = awardRewards(state.user, option.action, -option.cost, `${option.label} redeemed`);
+          els.status.innerHTML = ok
+            ? `Program status: <span class="ok">Redeemed ${option.label}</span>. ${option.effect}`
+            : `Program status: <span class="warn">Not enough points</span> for ${option.label}.`;
+          render();
+        });
+        item.append(left, btn);
+        els.shop.appendChild(item);
+      });
+
+      els.history.innerHTML = '';
+      const history = Array.isArray(rewards.history) ? rewards.history : [];
+      if(!history.length){
+        const li = document.createElement('li');
+        li.textContent = 'No rewards activity yet. Use chat, marketplace, and streaming to build points.';
+        els.history.appendChild(li);
+      } else {
+        history.slice(0, 20).forEach((entry) => {
+          const li = document.createElement('li');
+          const ts = new Date(entry.ts || Date.now()).toLocaleString();
+          const delta = Number(entry.points || 0);
+          li.textContent = `${delta >= 0 ? '+' : ''}${delta} • ${entry.action}${entry.detail ? ` — ${entry.detail}` : ''} • ${ts}`;
+          els.history.appendChild(li);
+        });
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
