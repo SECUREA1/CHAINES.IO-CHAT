@@ -951,6 +951,27 @@
     .msg.mine .msg-text { text-align:right; }
 
     .msg-text { white-space: pre-wrap; word-wrap: break-word; }
+    .space-embed {
+      margin-top: 10px;
+      border: 1px solid var(--lining);
+      border-radius: 12px;
+      overflow: hidden;
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+    }
+    .space-embed iframe {
+      display: block;
+      width: 100%;
+      min-height: 232px;
+      border: 0;
+    }
+    .space-embed__link {
+      display: inline-flex;
+      margin: 8px 10px 10px;
+      font-size: 12px;
+      color: color-mix(in oklab, var(--fg), var(--muted) 35%);
+      text-decoration: none;
+    }
+    .space-embed__link:hover { text-decoration: underline; }
     .inline-svg-emoji {
       display:inline-flex;
       vertical-align: -0.2em;
@@ -2128,6 +2149,7 @@ body.streams-flex-fit #video-container[hidden] {
         <label class="input" for="broadcast-text">
           <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
         </label>
+        <button class="send" id="broadcast-space-btn" type="button" aria-label="Embed an X Space">🎙️</button>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <span class="legal footer-copyright">© <span id="year"></span> CHAINeS. All rights reserved.</span>
@@ -2761,6 +2783,7 @@ body.streams-flex-fit #video-container[hidden] {
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
+    const broadcastSpaceBtn = el('#broadcast-space-btn');
     const headerBar = el('header');
     const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
@@ -5662,6 +5685,21 @@ body.streams-flex-fit #video-container[hidden] {
       postMessage({ text: msgText, broadcast: true });
       broadcastInput.value = '';
     });
+    if(broadcastSpaceBtn){
+      broadcastSpaceBtn.addEventListener('click', () => {
+        const typed = prompt('Paste a live X Space URL (x.com/i/spaces/...)');
+        const normalizedSpaceUrl = normalizeXSpaceUrl(typed || '');
+        if(!normalizedSpaceUrl){
+          alert('Please paste a valid X Space link.');
+          return;
+        }
+        postMessage({
+          text: `🎙️ Live X Space: ${normalizedSpaceUrl}\nTap Tune In to listen.`,
+          broadcast: true,
+          xSpaceUrl: normalizedSpaceUrl
+        });
+      });
+    }
 
     if(cmdListBtn){
       cmdListBtn.addEventListener('click', () => {
@@ -5713,10 +5751,11 @@ body.streams-flex-fit #video-container[hidden] {
       fileInput.value = '';
     });
 
-      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room, listing, actions=[] }){
+      function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room, listing, actions=[], xSpaceUrl='' }){
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
       }
+      const normalizedSpaceUrl = normalizeXSpaceUrl(xSpaceUrl || text || '');
       const normalizedListing = normalizeListing(listing);
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
@@ -5734,6 +5773,7 @@ body.streams-flex-fit #video-container[hidden] {
         isAction,
         broadcast,
         video,
+        xSpaceUrl: normalizedSpaceUrl || '',
         ts: Date.now(),
         likes: 0,
         comments: [],
@@ -6887,6 +6927,27 @@ body.streams-flex-fit #video-container[hidden] {
           bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         }
       }
+      const embeddedSpaceUrl = normalizeXSpaceUrl(m.xSpaceUrl || m.text || '');
+      const embeddedSpaceId = extractXSpaceId(embeddedSpaceUrl);
+      if(embeddedSpaceId){
+        const embed = document.createElement('div');
+        embed.className = 'space-embed';
+        const frame = document.createElement('iframe');
+        frame.src = `https://platform.twitter.com/embed/Tweet.html?dnt=true&theme=dark&url=${encodeURIComponent(`https://x.com/i/spaces/${embeddedSpaceId}`)}`;
+        frame.loading = 'lazy';
+        frame.referrerPolicy = 'no-referrer-when-downgrade';
+        frame.allow = 'autoplay; encrypted-media; picture-in-picture';
+        frame.title = 'Live X Space';
+        embed.appendChild(frame);
+        const tuneLink = document.createElement('a');
+        tuneLink.className = 'space-embed__link';
+        tuneLink.href = `https://x.com/i/spaces/${embeddedSpaceId}`;
+        tuneLink.target = '_blank';
+        tuneLink.rel = 'noopener noreferrer';
+        tuneLink.textContent = 'Tune in on X ↗';
+        embed.appendChild(tuneLink);
+        bubble.appendChild(embed);
+      }
 
       if(container === feed){
         const actions = document.createElement('div');
@@ -7118,6 +7179,18 @@ body.streams-flex-fit #video-container[hidden] {
         if(t.def) track.default = true;
         vid.appendChild(track);
       });
+    }
+
+    function extractXSpaceId(value=''){
+      const str = String(value || '').trim();
+      if(!str) return '';
+      const match = str.match(/(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/i\/spaces\/([a-zA-Z0-9]+)/i);
+      return match ? match[1] : '';
+    }
+
+    function normalizeXSpaceUrl(value=''){
+      const spaceId = extractXSpaceId(value);
+      return spaceId ? `https://x.com/i/spaces/${spaceId}` : '';
     }
 
     // --- Helpers ---
