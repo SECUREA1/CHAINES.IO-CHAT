@@ -5699,6 +5699,9 @@ body.streams-flex-fit #video-container[hidden] {
       selectedComposerActions = [];
       renderComposerActionBoard();
       pendingFile = null;
+      if(!form.hidden){
+        setComposerMinimized(true);
+      }
     });
 
     broadcastComposer.addEventListener('submit', ev => {
@@ -6728,7 +6731,8 @@ body.streams-flex-fit #video-container[hidden] {
       function receive(m, isLocal=false){
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
-        if(activeRooms.size > 0 && !m.room) return;
+        const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal;
+        if(shouldSuppressGlobalFeed) return;
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
