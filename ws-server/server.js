@@ -48,6 +48,9 @@ db.exec(`
     message_id INTEGER,
     user TEXT,
     text TEXT,
+    file TEXT,
+    file_name TEXT,
+    file_type TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS likes (
@@ -141,6 +144,9 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
@@ -1308,7 +1314,7 @@ function loadHistory(room = null) {
   const rows = room ? stmt.all(room) : stmt.all();
   const commentRows = db
     .prepare(
-      `SELECT id, message_id, user, text, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
+      `SELECT id, message_id, user, text, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM comments ORDER BY id`
     )
     .all();
   const likeRows = db
@@ -1320,6 +1326,9 @@ function loadHistory(room = null) {
       id: c.id,
       user: c.user,
       text: c.text,
+      file: c.file,
+      fileName: c.file_name,
+      fileType: c.file_type,
       ts: c.ts,
     });
   }
@@ -1711,18 +1720,26 @@ wss.on("connection", (ws) => {
         return;
       }
       case "comment": {
-        if (!msg.messageId || !msg.text) return;
+        const text = String(msg.text || "").trim();
+        const file = typeof msg.file === "string" ? msg.file : null;
+        const fileName = msg.file_name || msg.fileName || null;
+        const fileType = msg.file_type || msg.fileType || null;
+        if (!msg.messageId || (!text && !file)) return;
+        if (file && file.length > 50_000_000) return;
         const info = db
           .prepare(
-            "INSERT INTO comments (message_id, user, text) VALUES (?, ?, ?)"
+            "INSERT INTO comments (message_id, user, text, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?)"
           )
-          .run(msg.messageId, msg.user || "", msg.text);
+          .run(msg.messageId, msg.user || "", text, file, fileName, fileType);
         const out = {
           type: "comment",
           id: info.lastInsertRowid,
           messageId: msg.messageId,
           user: msg.user || "",
-          text: msg.text,
+          text,
+          file,
+          fileName,
+          fileType,
           ts: Date.now(),
         };
         for (const client of wss.clients) {
