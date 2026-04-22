@@ -5723,15 +5723,15 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastInput.value = '';
     });
     function postLiveXSpace({ broadcast=false } = {}){
-      const typed = prompt('Paste a live X Space URL (x.com/i/spaces/...)');
+      const typed = prompt('Paste a live X Space/Broadcast URL (x.com/i/spaces/... or x.com/i/broadcasts/...)');
       const normalizedSpaceUrl = normalizeXSpaceUrl(typed || '');
       if(!normalizedSpaceUrl){
-        alert('Please paste a valid X Space link.');
+        alert('Please paste a valid X Space or Broadcast link.');
         return;
       }
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
       postMessage({
-        text: `🎙️ Live X Space: ${normalizedSpaceUrl}\nTap Tune In to listen.${signature}`,
+        text: `🎙️ Live X: ${normalizedSpaceUrl}\nTap Tune In to listen/watch.${signature}`,
         broadcast,
         xSpaceUrl: normalizedSpaceUrl,
         actions: [{
@@ -6978,12 +6978,11 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       const embeddedSpaceUrl = normalizeXSpaceUrl(m.xSpaceUrl || m.text || '');
-      const embeddedSpaceId = extractXSpaceId(embeddedSpaceUrl);
-      if(embeddedSpaceId){
+      if(embeddedSpaceUrl){
         const embed = document.createElement('div');
         embed.className = 'space-embed';
         const frame = document.createElement('iframe');
-        frame.src = `https://platform.twitter.com/embed/Tweet.html?dnt=true&theme=dark&url=${encodeURIComponent(`https://x.com/i/spaces/${embeddedSpaceId}`)}`;
+        frame.src = `https://platform.twitter.com/embed/Tweet.html?dnt=true&theme=dark&url=${encodeURIComponent(embeddedSpaceUrl)}`;
         frame.loading = 'lazy';
         frame.referrerPolicy = 'no-referrer-when-downgrade';
         frame.allow = 'autoplay; encrypted-media; picture-in-picture';
@@ -6991,7 +6990,7 @@ body.streams-flex-fit #video-container[hidden] {
         embed.appendChild(frame);
         const tuneLink = document.createElement('a');
         tuneLink.className = 'space-embed__link';
-        tuneLink.href = `https://x.com/i/spaces/${embeddedSpaceId}`;
+        tuneLink.href = embeddedSpaceUrl;
         tuneLink.target = '_blank';
         tuneLink.rel = 'noopener noreferrer';
         tuneLink.textContent = 'Tune in on X ↗';
@@ -7312,13 +7311,15 @@ body.streams-flex-fit #video-container[hidden] {
     function extractXSpaceId(value=''){
       const str = String(value || '').trim();
       if(!str) return '';
-      const match = str.match(/(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/i\/spaces\/([a-zA-Z0-9]+)/i);
-      return match ? match[1] : '';
+      const match = str.match(/(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/i\/(spaces|broadcasts)\/([a-zA-Z0-9]+)/i);
+      if(!match) return '';
+      const [, kind, id] = match;
+      return `${kind}/${id}`;
     }
 
     function normalizeXSpaceUrl(value=''){
       const spaceId = extractXSpaceId(value);
-      return spaceId ? `https://x.com/i/spaces/${spaceId}` : '';
+      return spaceId ? `https://x.com/i/${spaceId}` : '';
     }
 
     // --- Helpers ---
