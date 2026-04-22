@@ -784,6 +784,7 @@
             ? '<span class="chip">Dating Profile</span>'
             : `<span class="chip">Value ${valueScore(m)}</span>`;
           const boostChip = m.boostedAt ? '<span class="chip">Boosted</span>' : '';
+          const boostCost = currentBoostCostForUser(activeViewer());
           const pricingRows = l.category === 'dating'
             ? ''
             : `<div class="small">Price/Salary: ${escapeHtml(l.price || '—')}</div>
