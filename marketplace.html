@@ -349,7 +349,7 @@
                 type: String(media?.type || '').trim(),
                 name: String(media?.name || '').trim(),
                 size: Number(media?.size) || 0,
-                url: ''
+                url: String(media?.url || '').trim()
               }))
             }
           };

@@ -2401,6 +2401,17 @@ body.streams-flex-fit #video-container[hidden] {
     function normalizeListing(listing = {}){
       const rawCategory = String(listing.category || NON_MARKETPLACE_CATEGORY).trim();
       const category = rawCategory === 'comment' ? NON_MARKETPLACE_CATEGORY : rawCategory;
+      const media = Array.isArray(listing.media)
+        ? listing.media
+            .filter((item) => item && item.url && item.type)
+            .map((item) => ({
+              url: String(item.url || '').trim(),
+              type: String(item.type || '').trim(),
+              name: String(item.name || '').trim(),
+              size: Number(item.size) || 0
+            }))
+            .filter((item) => item.url && item.type)
+        : [];
       return {
         category: category || NON_MARKETPLACE_CATEGORY,
         price: String(listing.price || '').trim(),
@@ -2410,13 +2421,14 @@ body.streams-flex-fit #video-container[hidden] {
         subcategory: String(listing.subcategory || '').trim(),
         jobLocation: String(listing.jobLocation || '').trim(),
         credentials: String(listing.credentials || '').trim(),
-        contactInfo: String(listing.contactInfo || '').trim()
+        contactInfo: String(listing.contactInfo || '').trim(),
+        media
       };
     }
     function isMarketplacePost(m){
       const listing = normalizeListing(m?.listing || { category: m?.category });
       return listing.category !== NON_MARKETPLACE_CATEGORY
-        || !!(listing.price || listing.location || listing.condition || listing.serviceType || listing.subcategory || listing.jobLocation || listing.credentials || listing.contactInfo);
+        || !!(listing.price || listing.location || listing.condition || listing.serviceType || listing.subcategory || listing.jobLocation || listing.credentials || listing.contactInfo || listing.media?.length);
     }
     function isCloudPost(m){
       return !!(m && (m.room || m.broadcast || m.video));
@@ -2428,7 +2440,20 @@ body.streams-flex-fit #video-container[hidden] {
       const q = String(marketSearchInput?.value || '').trim().toLowerCase();
       if(!q) return true;
       const listing = normalizeListing(m?.listing || { category: m?.category });
-      const haystack = [m?.user, m?.text, listing.category, listing.price, listing.location, listing.condition, listing.serviceType, listing.subcategory, listing.jobLocation, listing.credentials, listing.contactInfo].join(' ').toLowerCase();
+      const haystack = [
+        m?.user,
+        m?.text,
+        listing.category,
+        listing.price,
+        listing.location,
+        listing.condition,
+        listing.serviceType,
+        listing.subcategory,
+        listing.jobLocation,
+        listing.credentials,
+        listing.contactInfo,
+        ...(Array.isArray(listing.media) ? listing.media.flatMap((item) => [item?.name, item?.type]) : [])
+      ].join(' ').toLowerCase();
       return haystack.includes(q);
     }
     function applyFeedFilters(){
@@ -3675,6 +3700,7 @@ body.streams-flex-fit #video-container[hidden] {
 
     // --- Basic state ---
     const MESSAGE_SOURCE_KEY = 'chaines_messages';
+    const MARKETPLACE_LISTINGS_ENDPOINT = '/api/marketplace/listings';
     function loadPersistentMessages(){
       try {
         const parsed = JSON.parse(localStorage.getItem(MESSAGE_SOURCE_KEY) || '[]');
@@ -3688,6 +3714,17 @@ body.streams-flex-fit #video-container[hidden] {
         const safeItems = Array.isArray(items) ? items : [];
         localStorage.setItem(MESSAGE_SOURCE_KEY, JSON.stringify(safeItems));
       } catch {}
+    }
+    function upsertPersistentMessage(item){
+      if(!item || !item.id) return;
+      const items = loadPersistentMessages();
+      const idx = items.findIndex((entry) => String(entry?.id || '') === String(item.id));
+      if(idx >= 0){
+        items[idx] = { ...items[idx], ...item };
+      } else {
+        items.push(item);
+      }
+      savePersistentMessages(items);
     }
 
     const store = {
@@ -3777,6 +3814,80 @@ body.streams-flex-fit #video-container[hidden] {
         try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
       }
     };
+
+    function toMarketplaceItem(message = {}){
+      const listing = normalizeListing(message.listing || { category: message.category });
+      return {
+        id: String(message.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        user: String(message.user || 'anon').trim() || 'anon',
+        text: String(message.text || '').trim(),
+        ts: Number(message.ts) || Date.now(),
+        likes: Number(message.likes || 0),
+        comments: Array.isArray(message.comments) ? message.comments : [],
+        category: listing.category,
+        listing,
+        boostedAt: Number(message.boostedAt || 0) || null
+      };
+    }
+    function toChatMessageFromMarketplace(item = {}){
+      const listing = normalizeListing(item.listing || { category: item.category });
+      const primaryMedia = listing.media[0] || null;
+      return {
+        id: String(item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        type: 'chat',
+        user: String(item.user || 'anon').trim() || 'anon',
+        text: String(item.text || '').trim(),
+        ts: Number(item.ts) || Date.now(),
+        likes: Number(item.likes || 0),
+        comments: Array.isArray(item.comments) ? item.comments : [],
+        category: listing.category,
+        listing,
+        boostedAt: Number(item.boostedAt || 0) || null,
+        file: primaryMedia ? primaryMedia.url : '',
+        fileType: primaryMedia ? primaryMedia.type : '',
+        fileName: primaryMedia ? primaryMedia.name : ''
+      };
+    }
+    async function fetchMarketplaceListings(){
+      const res = await fetch(MARKETPLACE_LISTINGS_ENDPOINT);
+      if(!res.ok) throw new Error('Could not load marketplace listings.');
+      const data = await res.json().catch(() => ({}));
+      return Array.isArray(data?.items) ? data.items : [];
+    }
+    async function putMarketplaceListings(items){
+      const res = await fetch(MARKETPLACE_LISTINGS_ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: Array.isArray(items) ? items : [] })
+      });
+      if(!res.ok) throw new Error('Could not sync marketplace listings.');
+    }
+    async function syncMarketplacePost(message){
+      if(!isMarketplacePost(message)) return;
+      const newItem = toMarketplaceItem(message);
+      try {
+        const existing = await fetchMarketplaceListings().catch(() => []);
+        const idx = existing.findIndex((entry) => String(entry?.id || '') === newItem.id);
+        if(idx >= 0){
+          existing[idx] = { ...existing[idx], ...newItem };
+        } else {
+          existing.push(newItem);
+        }
+        await putMarketplaceListings(existing);
+      } catch {}
+    }
+    async function hydrateMarketplacePostsIntoFeed(){
+      try {
+        const items = await fetchMarketplaceListings();
+        items.forEach((item) => {
+          const msg = toChatMessageFromMarketplace(item);
+          if(!msg.id || seen.has(msg.id)) return;
+          upsertPersistentMessage(msg);
+          receive(msg, true);
+        });
+        applyFeedFilters();
+      } catch {}
+    }
 
     async function fetchDropperStatus(force){
       if(dropperStatus && !force) return dropperStatus;
@@ -5393,6 +5504,7 @@ body.streams-flex-fit #video-container[hidden] {
       auth.style.display = 'none';
 
       renderHistory();
+      hydrateMarketplacePostsIntoFeed();
       if (!socket || socket.readyState > 1) connectWS();
       else sendJoin();
       if (!bc) setupLocal();
@@ -5712,10 +5824,8 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       const postedMessage = postMessage(msg);
-      if(hasListingData){
-        crossPostFeedMarketplaceListing(postedMessage).then((ok) => {
-          if(ok) systemNote('Marketplace listing cross-posted from feed.');
-        });
+      if(hasListingData && postedMessage){
+        syncMarketplacePost(postedMessage);
       }
       if(store?.user){
         awardRewards(store.user, 'post', 2, 'Posted to cloud feed');
@@ -6823,7 +6933,8 @@ body.streams-flex-fit #video-container[hidden] {
         m.listing?.subcategory,
         m.listing?.jobLocation,
         m.listing?.credentials,
-        m.listing?.contactInfo
+        m.listing?.contactInfo,
+        ...(Array.isArray(m.listing?.media) ? m.listing.media.flatMap((item) => [item?.name, item?.type]) : [])
       ].join(' ').toLowerCase();
 
       const av = document.createElement('div');
@@ -7014,6 +7125,40 @@ body.streams-flex-fit #video-container[hidden] {
         } else {
           bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         }
+      }
+      const listingMedia = Array.isArray(listing.media) ? listing.media : [];
+      if(listingMedia.length){
+        const renderedPrimary = fileData ? String(fileData) : '';
+        listingMedia
+          .filter((entry) => entry && entry.url && entry.type && String(entry.url) !== renderedPrimary)
+          .forEach((entry) => {
+            const mime = entry.type;
+            const filename = entry.name || '';
+            const src = entry.url;
+            if(mime.startsWith('video/')){
+              const vid = document.createElement('video');
+              vid.src = src;
+              vid.controls = true;
+              vid.playsInline = true;
+              vid.setAttribute('playsinline', '');
+              vid.style.maxWidth = '100%';
+              vid.style.borderRadius = '8px';
+              attachCaptions(vid);
+              bubble.appendChild(vid);
+              bubble.appendChild(createDownloadLink(src, filename, mime, m.user));
+            } else if(mime.startsWith('image/')){
+              const img = document.createElement('img');
+              img.src = src;
+              img.alt = filename || 'listing image';
+              img.style.maxWidth = '100%';
+              img.style.borderRadius = '8px';
+              img.loading = 'lazy';
+              bubble.appendChild(img);
+              bubble.appendChild(createDownloadLink(src, filename, mime, m.user));
+            } else {
+              bubble.appendChild(createDownloadLink(src, filename, mime, m.user));
+            }
+          });
       }
       const embeddedSpaceUrl = normalizeXSpaceUrl(m.xSpaceUrl || m.text || '');
       if(embeddedSpaceUrl){
