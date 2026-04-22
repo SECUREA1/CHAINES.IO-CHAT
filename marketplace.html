@@ -222,7 +222,7 @@
             <textarea id="post-dating-bio" maxlength="300" placeholder="Dating profile description / bio (optional)"></textarea>
           </div>
           <input id="post-media" class="wide" type="file" accept="image/*,video/*" multiple />
-          <p class="hint wide">Upload up to 4 files (images or videos). Stored locally in browser storage for now.</p>
+          <p class="hint wide">Upload up to 4 files (images or videos). Videos must be 6 seconds or shorter. Stored locally in browser storage for now.</p>
           <textarea id="post-text" maxlength="800" required placeholder="Write your listing and call to action..."></textarea>
           <button type="submit">Publish Listing</button>
         </form>
@@ -337,7 +337,9 @@
         try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
         catch { return []; }
       };
-      const save = (items) => localStorage.setItem(sourceKey, JSON.stringify(items));
+      const save = (items) => {
+        localStorage.setItem(sourceKey, JSON.stringify(items));
+      };
       const loadLikedMap = () => {
         try { return JSON.parse(localStorage.getItem(likedKey) || '{}'); }
         catch { return {}; }
@@ -510,8 +512,44 @@
         }
         return true;
       };
+      const MAX_MARKET_MEDIA_FILES = 4;
+      const MAX_MARKET_IMAGE_DATA_URL_LENGTH = 8_500_000;
+      const MAX_MARKET_VIDEO_DATA_URL_LENGTH = 14_000_000;
+      const MAX_MARKET_COMBINED_DATA_URL_LENGTH = 20_000_000;
+      const MAX_MARKET_VIDEO_SECONDS = 6;
+
+      const mediaDurationSeconds = (file) => new Promise((resolve) => {
+        if (!file || !(file.type || '').startsWith('video/')) {
+          resolve(0);
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        const cleanup = () => {
+          URL.revokeObjectURL(url);
+          video.removeAttribute('src');
+          video.load();
+        };
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          const duration = Number(video.duration || 0);
+          cleanup();
+          resolve(Number.isFinite(duration) ? duration : 0);
+        };
+        video.onerror = () => {
+          cleanup();
+          resolve(0);
+        };
+        video.src = url;
+      });
+
       const readMediaFiles = async (fileList) => {
-        const files = Array.from(fileList || []).slice(0, 4);
+        const files = Array.from(fileList || []).slice(0, MAX_MARKET_MEDIA_FILES);
+        const videoDurations = await Promise.all(files.map((file) => mediaDurationSeconds(file)));
+        const tooLongVideo = videoDurations.some((seconds, idx) => (files[idx]?.type || '').startsWith('video/') && seconds > MAX_MARKET_VIDEO_SECONDS);
+        if (tooLongVideo) {
+          return { error: `Marketplace videos must be ${MAX_MARKET_VIDEO_SECONDS} seconds or shorter.` };
+        }
         const fileReaders = files.map((file) => new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve({ type: file.type || 'application/octet-stream', url: String(reader.result || ''), name: file.name || 'file' });
@@ -519,8 +557,16 @@
           reader.readAsDataURL(file);
         }));
         const media = (await Promise.all(fileReaders)).filter(Boolean);
-        const oversized = media.some((item) => item.url.length > 2_000_000);
-        if (oversized) return { error: 'One or more files are too large for browser storage. Please use smaller media.' };
+        const oversized = media.some((item) => {
+          if ((item.type || '').startsWith('video/')) return item.url.length > MAX_MARKET_VIDEO_DATA_URL_LENGTH;
+          if ((item.type || '').startsWith('image/')) return item.url.length > MAX_MARKET_IMAGE_DATA_URL_LENGTH;
+          return item.url.length > MAX_MARKET_IMAGE_DATA_URL_LENGTH;
+        });
+        if (oversized) return { error: 'One or more files exceed marketplace upload limits. Use smaller files.' };
+        const combinedSize = media.reduce((sum, item) => sum + item.url.length, 0);
+        if (combinedSize > MAX_MARKET_COMBINED_DATA_URL_LENGTH) {
+          return { error: 'Combined media is too large for browser storage. Use fewer or smaller files.' };
+        }
         return { media };
       };
 
@@ -794,7 +840,18 @@
           category: listing.category,
           listing
         });
-        save(items);
+        try {
+          save(items);
+        } catch (err) {
+          const isQuota = /quota|storage/i.test(String(err && (err.message || err.name || err)));
+          setPostStatus(
+            isQuota
+              ? 'Browser storage is full for this listing. Try fewer files, smaller files, or clear old marketplace listings.'
+              : 'Could not save marketplace listing. Please try again.',
+            'error'
+          );
+          return;
+        }
         awardRewards(user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
         if (listing.category === 'services' || listing.category === 'meal-delivery') {
           awardRewards(user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
