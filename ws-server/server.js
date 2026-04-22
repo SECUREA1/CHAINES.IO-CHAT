@@ -136,6 +136,17 @@ db.exec(`
     iv TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id TEXT PRIMARY KEY,
+    user TEXT,
+    text TEXT,
+    ts INTEGER,
+    likes INTEGER DEFAULT 0,
+    comments_json TEXT,
+    category TEXT,
+    listing_json TEXT,
+    boosted_at INTEGER
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
@@ -1262,6 +1273,148 @@ const server = http.createServer(app);
 function dmChannelId(userA = "", userB = "") {
   return [String(userA).toLowerCase(), String(userB).toLowerCase()].sort().join("|");
 }
+
+const MARKETPLACE_ALLOWED_CATEGORIES = new Set([
+  "general",
+  "jobs",
+  "for-sale",
+  "services",
+  "meal-delivery",
+  "housing",
+  "community",
+  "dating",
+  "ads",
+]);
+
+function normalizeMarketplaceListingPayload(payload = {}, fallbackCategory = "general") {
+  const categoryCandidate = String(payload.category || fallbackCategory || "general").trim().toLowerCase();
+  const category = MARKETPLACE_ALLOWED_CATEGORIES.has(categoryCandidate) ? categoryCandidate : "general";
+  const media = Array.isArray(payload.media)
+    ? payload.media
+        .filter((item) => item && item.url && item.type)
+        .map((item) => ({
+          url: String(item.url || "").trim(),
+          type: String(item.type || "").trim(),
+          name: String(item.name || "").trim(),
+          size: Number(item.size) || 0,
+        }))
+        .filter((item) => item.url && item.type)
+    : [];
+  return {
+    category,
+    price: String(payload.price || "").trim(),
+    location: String(payload.location || "").trim(),
+    condition: String(payload.condition || "").trim(),
+    serviceType: String(payload.serviceType || "").trim(),
+    subcategory: String(payload.subcategory || "").trim(),
+    jobLocation: String(payload.jobLocation || "").trim(),
+    credentials: String(payload.credentials || "").trim(),
+    contactInfo: String(payload.contactInfo || "").trim(),
+    availability: String(payload.availability || "").trim(),
+    interests: String(payload.interests || "").trim(),
+    age: Number.isFinite(Number(payload.age)) ? Number(payload.age) : null,
+    gender: String(payload.gender || "").trim(),
+    lookingFor: String(payload.lookingFor || "").trim(),
+    datingIntent: String(payload.datingIntent || "").trim(),
+    firstDate: String(payload.firstDate || "").trim(),
+    datingLikes: String(payload.datingLikes || "").trim(),
+    datingDislikes: String(payload.datingDislikes || "").trim(),
+    datingBio: String(payload.datingBio || "").trim(),
+    media,
+  };
+}
+
+function normalizeMarketplaceItem(item = {}) {
+  const now = Date.now();
+  const listing = normalizeMarketplaceListingPayload(item.listing || {}, item.category || "general");
+  const comments = Array.isArray(item.comments)
+    ? item.comments
+        .map((comment) => ({
+          user: String((comment && comment.user) || "anon").trim().slice(0, 24) || "anon",
+          text: String((comment && comment.text) || "").trim().slice(0, 240),
+          ts: Number(comment && comment.ts) || now,
+        }))
+        .filter((comment) => comment.text)
+    : [];
+  return {
+    id: String(item.id || `${now}-${Math.random().toString(36).slice(2, 8)}`),
+    user: String(item.user || "anon").trim().slice(0, 24) || "anon",
+    text: String(item.text || "").trim().slice(0, 800),
+    ts: Number(item.ts) || now,
+    likes: Math.max(0, Number(item.likes || 0)),
+    comments,
+    category: listing.category,
+    listing,
+    boostedAt: item.boostedAt ? Number(item.boostedAt) : null,
+  };
+}
+
+app.get("/api/marketplace/listings", (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT id, user, text, ts, likes, comments_json, category, listing_json, boosted_at
+       FROM marketplace_listings
+       ORDER BY ts ASC`
+    )
+    .all();
+  const items = rows.map((row) => {
+    let listing = {};
+    let comments = [];
+    try {
+      listing = row.listing_json ? JSON.parse(row.listing_json) : {};
+    } catch {}
+    try {
+      comments = row.comments_json ? JSON.parse(row.comments_json) : [];
+    } catch {}
+    return normalizeMarketplaceItem({
+      id: row.id,
+      user: row.user,
+      text: row.text,
+      ts: row.ts,
+      likes: row.likes,
+      comments,
+      category: row.category,
+      listing,
+      boostedAt: row.boosted_at,
+    });
+  });
+  res.json({ items });
+});
+
+app.put("/api/marketplace/listings", (req, res) => {
+  const payloadItems = Array.isArray(req.body?.items) ? req.body.items : null;
+  if (!payloadItems) {
+    res.status(400).json({ error: "items array is required" });
+    return;
+  }
+  if (payloadItems.length > 600) {
+    res.status(400).json({ error: "Too many listings in one sync request" });
+    return;
+  }
+  const cleaned = payloadItems.map((item) => normalizeMarketplaceItem(item));
+  const writeTxn = db.transaction((items) => {
+    db.prepare("DELETE FROM marketplace_listings").run();
+    const insert = db.prepare(
+      `INSERT INTO marketplace_listings (id, user, text, ts, likes, comments_json, category, listing_json, boosted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const item of items) {
+      insert.run(
+        item.id,
+        item.user,
+        item.text,
+        item.ts,
+        item.likes,
+        JSON.stringify(item.comments || []),
+        item.category,
+        JSON.stringify(item.listing || {}),
+        item.boostedAt || null
+      );
+    }
+  });
+  writeTxn(cleaned);
+  res.json({ ok: true, count: cleaned.length });
+});
 
 const MARKETPLACE_CATEGORIES = new Set([
   "general",

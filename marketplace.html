@@ -333,12 +333,70 @@
         const boostBonus = m.boostedAt ? 12 : 0;
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + boostBonus + 2;
       };
-      const load = () => {
-        try { return JSON.parse(localStorage.getItem(sourceKey) || '[]'); }
+      let listingCache = [];
+      const cloneItems = (items = []) => {
+        try { return JSON.parse(JSON.stringify(Array.isArray(items) ? items : [])); }
         catch { return []; }
       };
+      const compactForLocalCache = (items = []) => (
+        Array.isArray(items) ? items.slice(-120).map((item) => {
+          const listing = normalizeListing(item?.listing || { category: item?.category });
+          return {
+            ...item,
+            listing: {
+              ...listing,
+              media: listing.media.map((media) => ({
+                type: String(media?.type || '').trim(),
+                name: String(media?.name || '').trim(),
+                size: Number(media?.size) || 0,
+                url: ''
+              }))
+            }
+          };
+        }) : []
+      );
+      const load = () => cloneItems(listingCache);
+      const persistRemoteListings = async (items) => {
+        const res = await fetch('/api/marketplace/listings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+        if (!res.ok) throw new Error('marketplace sync failed');
+      };
       const save = (items) => {
-        localStorage.setItem(sourceKey, JSON.stringify(items));
+        listingCache = cloneItems(items);
+        try {
+          localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
+        } catch {}
+        persistRemoteListings(listingCache).catch(() => {});
+      };
+      const saveNow = async (items) => {
+        listingCache = cloneItems(items);
+        try {
+          localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
+        } catch {}
+        await persistRemoteListings(listingCache);
+      };
+      const hydrateListings = async () => {
+        try {
+          const cached = JSON.parse(localStorage.getItem(sourceKey) || '[]');
+          listingCache = Array.isArray(cached) ? cached : [];
+        } catch {
+          listingCache = [];
+        }
+        render();
+        try {
+          const res = await fetch('/api/marketplace/listings');
+          if (!res.ok) return;
+          const data = await res.json().catch(() => ({}));
+          if (!Array.isArray(data?.items)) return;
+          listingCache = cloneItems(data.items);
+          try {
+            localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
+          } catch {}
+          render();
+        } catch {}
       };
       const loadLikedMap = () => {
         try { return JSON.parse(localStorage.getItem(likedKey) || '{}'); }
@@ -841,13 +899,10 @@
           listing
         });
         try {
-          save(items);
-        } catch (err) {
-          const isQuota = /quota|storage/i.test(String(err && (err.message || err.name || err)));
+          await saveNow(items);
+        } catch {
           setPostStatus(
-            isQuota
-              ? 'Browser storage is full for this listing. Try fewer files, smaller files, or clear old marketplace listings.'
-              : 'Could not save marketplace listing. Please try again.',
+            'Could not sync listing to marketplace storage right now. Please retry in a moment.',
             'error'
           );
           return;
@@ -976,7 +1031,15 @@
         loadNotifications();
       });
       window.addEventListener('storage', (ev) => {
-        if (ev.key === sourceKey || ev.key === likedKey || ev.key === contactKey || ev.key === datingMatchKey) render();
+        if (ev.key === sourceKey) {
+          try {
+            const cached = JSON.parse(localStorage.getItem(sourceKey) || '[]');
+            listingCache = Array.isArray(cached) ? cached : listingCache;
+          } catch {}
+          render();
+          return;
+        }
+        if (ev.key === likedKey || ev.key === contactKey || ev.key === datingMatchKey) render();
       });
       postUser.value = sanitizeUser(localStorage.getItem('chaines_username') || '');
       postUser.addEventListener('input', () => renderInbox());
@@ -999,7 +1062,7 @@
       });
       syncPostFieldsByCategory();
       postForm.addEventListener('submit', postListing);
-      render();
+      hydrateListings();
       loadNotifications();
     })();
   </script>
