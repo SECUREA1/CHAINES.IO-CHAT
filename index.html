@@ -6941,17 +6941,26 @@ body.streams-flex-fit #video-container[hidden] {
       scrollToTop();
     }
 
-      function resolveAttachment(payload = {}){
+    function resolveAttachment(payload = {}){
       const src = [
         payload.file,
         payload.file_data,
         payload.fileData,
-        payload.image
+        payload.image,
+        payload.video,
+        payload.videoUrl,
+        payload.video_url
       ].find((candidate) => typeof candidate === 'string' && candidate.trim()) || '';
       const typeCandidate = payload.fileType || payload.file_type || payload.mimeType || payload.mime_type || '';
-      const type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
+      let type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
       const nameCandidate = payload.fileName || payload.file_name || payload.name || payload.filename || '';
       const name = String(nameCandidate || '').trim();
+      if(!type){
+        const lower = `${name} ${src}`.toLowerCase();
+        if(/\.(mp4|webm|mov|m4v|ogv)(\?|$)/.test(lower)) type = 'video/mp4';
+        else if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(lower)) type = 'image/*';
+        else if(/\.(mp3|wav|ogg|m4a|aac|flac)(\?|$)/.test(lower)) type = 'audio/*';
+      }
       return { src, type, name };
     }
 
