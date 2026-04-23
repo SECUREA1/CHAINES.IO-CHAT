@@ -355,6 +355,50 @@
         return (likes * 3) + (comments * 2) + completedFields + (l.media.length * 2) + boostBonus + 2;
       };
       let listingCache = [];
+      const dedupeListingKey = (item = {}) => {
+        const listing = normalizeListing(item.listing || { category: item.category });
+        const mediaKey = listing.media.map((entry) => `${String(entry.type || '').trim()}::${String(entry.url || '').trim().slice(0, 256)}`).join('|');
+        return [
+          sanitizeUser(item.user || '').toLowerCase(),
+          String(item.text || '').trim().toLowerCase(),
+          listing.category,
+          String(listing.price || '').trim().toLowerCase(),
+          String(listing.location || '').trim().toLowerCase(),
+          String(listing.condition || '').trim().toLowerCase(),
+          String(listing.serviceType || '').trim().toLowerCase(),
+          String(listing.subcategory || '').trim().toLowerCase(),
+          String(listing.jobLocation || '').trim().toLowerCase(),
+          String(listing.credentials || '').trim().toLowerCase(),
+          String(listing.contactInfo || '').trim().toLowerCase(),
+          String(listing.availability || '').trim().toLowerCase(),
+          String(listing.interests || '').trim().toLowerCase(),
+          String(listing.age || '').trim().toLowerCase(),
+          String(listing.gender || '').trim().toLowerCase(),
+          String(listing.lookingFor || '').trim().toLowerCase(),
+          String(listing.datingIntent || '').trim().toLowerCase(),
+          String(listing.firstDate || '').trim().toLowerCase(),
+          String(listing.datingLikes || '').trim().toLowerCase(),
+          String(listing.datingDislikes || '').trim().toLowerCase(),
+          String(listing.datingBio || '').trim().toLowerCase(),
+          mediaKey
+        ].join('::');
+      };
+      const uniqueListings = (items = []) => {
+        const dedupeSeen = new Set();
+        const idSeen = new Set();
+        const out = [];
+        for (const raw of Array.isArray(items) ? items : []) {
+          const item = { ...raw, listing: normalizeListing(raw?.listing || { category: raw?.category }) };
+          const id = String(item.id || '').trim();
+          const key = dedupeListingKey(item);
+          if (!id || idSeen.has(id) || dedupeSeen.has(key)) continue;
+          idSeen.add(id);
+          dedupeSeen.add(key);
+          out.push(item);
+        }
+        out.sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+        return out;
+      };
       const cloneItems = (items = []) => {
         try { return JSON.parse(JSON.stringify(Array.isArray(items) ? items : [])); }
         catch { return []; }
@@ -386,14 +430,14 @@
         if (!res.ok) throw new Error('marketplace sync failed');
       };
       const save = (items) => {
-        listingCache = cloneItems(items);
+        listingCache = uniqueListings(cloneItems(items));
         try {
           localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
         } catch {}
         persistRemoteListings(listingCache).catch(() => {});
       };
       const saveNow = async (items) => {
-        listingCache = cloneItems(items);
+        listingCache = uniqueListings(cloneItems(items));
         try {
           localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
         } catch {}
@@ -402,7 +446,7 @@
       const hydrateListings = async () => {
         try {
           const cached = JSON.parse(localStorage.getItem(sourceKey) || '[]');
-          listingCache = Array.isArray(cached) ? cached : [];
+          listingCache = uniqueListings(Array.isArray(cached) ? cached : []);
         } catch {
           listingCache = [];
         }
@@ -412,7 +456,7 @@
           if (!res.ok) return;
           const data = await res.json().catch(() => ({}));
           if (!Array.isArray(data?.items)) return;
-          listingCache = cloneItems(data.items);
+          listingCache = uniqueListings(cloneItems(data.items));
           try {
             localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
           } catch {}
@@ -972,8 +1016,7 @@
           media: mediaResult.media
         });
         const now = Date.now();
-        const items = load();
-        items.push({
+        const draft = {
           id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
           user: user || 'anon',
           text,
@@ -982,9 +1025,24 @@
           comments: [],
           category: listing.category,
           listing
-        });
+        };
         try {
-          await saveNow(items);
+          const res = await fetch('/api/marketplace/listings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(draft)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 409) {
+            setPostStatus('That ad already exists in marketplace. Duplicate publishing was prevented.', 'error');
+            await hydrateListings();
+            return;
+          }
+          if (!res.ok || !data?.item) {
+            throw new Error('publish failed');
+          }
+          listingCache = uniqueListings([...load(), data.item]);
+          await saveNow(listingCache);
         } catch {
           setPostStatus(
             'Could not sync listing to marketplace storage right now. Please retry in a moment.',
@@ -992,7 +1050,7 @@
           );
           return;
         }
-        const createdItem = items[items.length - 1];
+        const createdItem = listingCache[listingCache.length - 1] || draft;
         const mirroredToIndex = await crossPostListingToIndexFeed({
           user: createdItem.user,
           text: createdItem.text,
