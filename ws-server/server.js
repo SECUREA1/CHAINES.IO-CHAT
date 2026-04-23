@@ -145,7 +145,8 @@ db.exec(`
     comments_json TEXT,
     category TEXT,
     listing_json TEXT,
-    boosted_at INTEGER
+    boosted_at INTEGER,
+    dedupe_key TEXT
   );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
@@ -160,6 +161,10 @@ try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
+} catch {}
+try { db.exec("ALTER TABLE marketplace_listings ADD COLUMN dedupe_key TEXT"); } catch {}
+try {
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS marketplace_listings_dedupe_idx ON marketplace_listings(dedupe_key)");
 } catch {}
 
 const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
@@ -1356,7 +1361,54 @@ function normalizeMarketplaceItem(item = {}) {
   };
 }
 
-app.get("/api/marketplace/listings", (req, res) => {
+function listingDedupeKey(item = {}) {
+  const listing = normalizeMarketplaceListingPayload(item.listing || {}, item.category || "general");
+  const mediaKey = Array.isArray(listing.media)
+    ? listing.media
+        .map((entry) => `${String(entry.type || "").trim()}::${String(entry.url || "").trim().slice(0, 256)}`)
+        .join("|")
+    : "";
+  const base = [
+    String(item.user || "").trim().toLowerCase(),
+    String(item.text || "").trim().toLowerCase(),
+    listing.category,
+    String(listing.price || "").trim().toLowerCase(),
+    String(listing.location || "").trim().toLowerCase(),
+    String(listing.condition || "").trim().toLowerCase(),
+    String(listing.serviceType || "").trim().toLowerCase(),
+    String(listing.subcategory || "").trim().toLowerCase(),
+    String(listing.jobLocation || "").trim().toLowerCase(),
+    String(listing.credentials || "").trim().toLowerCase(),
+    String(listing.contactInfo || "").trim().toLowerCase(),
+    String(listing.availability || "").trim().toLowerCase(),
+    String(listing.interests || "").trim().toLowerCase(),
+    String(listing.age || "").trim().toLowerCase(),
+    String(listing.gender || "").trim().toLowerCase(),
+    String(listing.lookingFor || "").trim().toLowerCase(),
+    String(listing.datingIntent || "").trim().toLowerCase(),
+    String(listing.firstDate || "").trim().toLowerCase(),
+    String(listing.datingLikes || "").trim().toLowerCase(),
+    String(listing.datingDislikes || "").trim().toLowerCase(),
+    String(listing.datingBio || "").trim().toLowerCase(),
+    mediaKey,
+  ];
+  return base.join("::").slice(0, 2000);
+}
+
+function normalizeMarketplaceUniqueItems(items = []) {
+  const uniqueById = new Map();
+  const dedupeSeen = new Set();
+  for (const raw of Array.isArray(items) ? items : []) {
+    const item = normalizeMarketplaceItem(raw);
+    const dedupeKey = listingDedupeKey(item);
+    if (dedupeSeen.has(dedupeKey)) continue;
+    dedupeSeen.add(dedupeKey);
+    uniqueById.set(item.id, item);
+  }
+  return Array.from(uniqueById.values()).sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+}
+
+function loadMarketplaceListingCache() {
   const rows = db
     .prepare(
       `SELECT id, user, text, ts, likes, comments_json, category, listing_json, boosted_at
@@ -1364,7 +1416,7 @@ app.get("/api/marketplace/listings", (req, res) => {
        ORDER BY ts ASC`
     )
     .all();
-  const items = rows.map((row) => {
+  const parsed = rows.map((row) => {
     let listing = {};
     let comments = [];
     try {
@@ -1385,7 +1437,41 @@ app.get("/api/marketplace/listings", (req, res) => {
       boostedAt: row.boosted_at,
     });
   });
-  res.json({ items });
+  return normalizeMarketplaceUniqueItems(parsed);
+}
+
+let marketplaceListingCache = loadMarketplaceListingCache();
+
+function saveMarketplaceCacheToDb(items = []) {
+  const cleaned = normalizeMarketplaceUniqueItems(items);
+  const writeTxn = db.transaction((records) => {
+    db.prepare("DELETE FROM marketplace_listings").run();
+    const insert = db.prepare(
+      `INSERT INTO marketplace_listings (id, user, text, ts, likes, comments_json, category, listing_json, boosted_at, dedupe_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const item of records) {
+      insert.run(
+        item.id,
+        item.user,
+        item.text,
+        item.ts,
+        item.likes,
+        JSON.stringify(item.comments || []),
+        item.category,
+        JSON.stringify(item.listing || {}),
+        item.boostedAt || null,
+        listingDedupeKey(item)
+      );
+    }
+  });
+  writeTxn(cleaned);
+  marketplaceListingCache = cleaned;
+  return cleaned;
+}
+
+app.get("/api/marketplace/listings", (req, res) => {
+  res.json({ items: normalizeMarketplaceUniqueItems(marketplaceListingCache) });
 });
 
 app.put("/api/marketplace/listings", (req, res) => {
@@ -1398,29 +1484,29 @@ app.put("/api/marketplace/listings", (req, res) => {
     res.status(400).json({ error: "Too many listings in one sync request" });
     return;
   }
-  const cleaned = payloadItems.map((item) => normalizeMarketplaceItem(item));
-  const writeTxn = db.transaction((items) => {
-    db.prepare("DELETE FROM marketplace_listings").run();
-    const insert = db.prepare(
-      `INSERT INTO marketplace_listings (id, user, text, ts, likes, comments_json, category, listing_json, boosted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    for (const item of items) {
-      insert.run(
-        item.id,
-        item.user,
-        item.text,
-        item.ts,
-        item.likes,
-        JSON.stringify(item.comments || []),
-        item.category,
-        JSON.stringify(item.listing || {}),
-        item.boostedAt || null
-      );
-    }
-  });
-  writeTxn(cleaned);
-  res.json({ ok: true, count: cleaned.length });
+  const merged = normalizeMarketplaceUniqueItems([
+    ...marketplaceListingCache,
+    ...payloadItems,
+  ]);
+  const saved = saveMarketplaceCacheToDb(merged);
+  res.json({ ok: true, count: saved.length });
+});
+
+app.post("/api/marketplace/listings", (req, res) => {
+  const normalized = normalizeMarketplaceItem(req.body || {});
+  if (!normalized.text) {
+    res.status(400).json({ error: "Listing text is required" });
+    return;
+  }
+  const dedupeKey = listingDedupeKey(normalized);
+  const duplicate = marketplaceListingCache.find((item) => listingDedupeKey(item) === dedupeKey);
+  if (duplicate) {
+    res.status(409).json({ error: "Duplicate listing detected", item: duplicate });
+    return;
+  }
+  const saved = saveMarketplaceCacheToDb([...marketplaceListingCache, normalized]);
+  const created = saved.find((item) => item.id === normalized.id) || normalized;
+  res.status(201).json({ ok: true, item: created, count: saved.length });
 });
 
 const MARKETPLACE_CATEGORIES = new Set([
