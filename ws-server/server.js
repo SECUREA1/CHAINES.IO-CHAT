@@ -2214,7 +2214,7 @@ wss.on("connection", (ws) => {
       for (const c of targets) c.send(JSON.stringify(msg));
     } else {
       for (const client of wss.clients) {
-        if (client.readyState === 1 && !watching.has(client.id)) {
+        if (client.readyState === 1) {
           client.send(JSON.stringify(msg));
         }
       }
