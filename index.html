@@ -2123,8 +2123,8 @@ body.streams-flex-fit #video-container[hidden] {
             <input id="market-search" type="search" placeholder="Search market and cloud posts" />
             <select id="market-view-mode" aria-label="Marketplace feed mode">
               <option value="all">All posts</option>
-              <option value="cloud" selected>Cloud only</option>
               <option value="market">Marketplace only</option>
+              <option value="cloud">Cloud only</option>
             </select>
           </div>
           <div class="marketplace-panel">
@@ -2471,7 +2471,7 @@ body.streams-flex-fit #video-container[hidden] {
       return !!(m && (m.room || m.broadcast || m.video));
     }
     function matchesFeedFilters(m){
-      const mode = marketViewMode?.value || 'cloud';
+      const mode = marketViewMode?.value || 'all';
       if(mode === 'market' && !isMarketplacePost(m)) return false;
       if(mode === 'cloud' && !isCloudPost(m)) return false;
       const q = String(marketSearchInput?.value || '').trim().toLowerCase();
@@ -2495,9 +2495,9 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function applyFeedFilters(){
       [...feed.querySelectorAll('li.msg')].forEach((node) => {
-        const mode = node.dataset.marketMode || 'cloud';
+        const mode = node.dataset.marketMode || 'all';
         const text = node.dataset.searchText || '';
-        const modeFilter = marketViewMode?.value || 'cloud';
+        const modeFilter = marketViewMode?.value || 'all';
         const searchFilter = String(marketSearchInput?.value || '').trim().toLowerCase();
         const modeOk = modeFilter === 'all' || mode === modeFilter || (modeFilter === 'market' && mode === 'market-cloud') || (modeFilter === 'cloud' && mode === 'market-cloud');
         const textOk = !searchFilter || text.includes(searchFilter);
@@ -2506,12 +2506,12 @@ body.streams-flex-fit #video-container[hidden] {
     }
     const MARKET_VIEW_MODES = [
       { value: 'all', label: 'All posts' },
-      { value: 'market', label: 'Marketplace Only' },
-      { value: 'cloud', label: 'Cloud Only' }
+      { value: 'market', label: 'Market Only' },
+      { value: 'cloud', label: 'Feed Only' }
     ];
     function syncMarketModeToggleLabel(){
       if(!marketModeToggle) return;
-      const currentMode = marketViewMode?.value || 'cloud';
+      const currentMode = marketViewMode?.value || 'all';
       const modeDef = MARKET_VIEW_MODES.find((entry) => entry.value === currentMode) || MARKET_VIEW_MODES[0];
       marketModeToggle.innerHTML = '<img src="static/wallet.svg" alt="" aria-hidden="true" />';
       marketModeToggle.dataset.mode = modeDef.value;
@@ -2520,7 +2520,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
     function setMarketMode(nextMode){
       if(!marketViewMode) return;
-      const safeMode = MARKET_VIEW_MODES.some((entry) => entry.value === nextMode) ? nextMode : 'cloud';
+      const safeMode = MARKET_VIEW_MODES.some((entry) => entry.value === nextMode) ? nextMode : 'all';
       marketViewMode.value = safeMode;
       syncMarketModeToggleLabel();
       applyFeedFilters();
@@ -2599,14 +2599,14 @@ body.streams-flex-fit #video-container[hidden] {
     });
     marketModeToggle?.addEventListener('click', () => {
       showChat();
-      const currentMode = marketViewMode?.value || 'cloud';
+      const currentMode = marketViewMode?.value || 'all';
       const currentIndex = MARKET_VIEW_MODES.findIndex((entry) => entry.value === currentMode);
       const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % MARKET_VIEW_MODES.length : 0;
       setMarketMode(MARKET_VIEW_MODES[nextIndex].value);
     });
     feedBtn?.addEventListener('click', () => {
       showChat();
-      setMarketMode('cloud');
+      setMarketMode('all');
     });
     marketplaceFeedBtn?.addEventListener('click', () => {
       showChat();
@@ -5878,7 +5878,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       showChat();
-      setMarketMode('cloud');
+      setMarketMode('all');
       if(msgActions.length && postedMessage?.id){
         const postedRow = feed.querySelector(`li[data-id="${postedMessage.id}"] .message-actions`) || feed.querySelector('li.msg .message-actions');
         if(postedRow){
