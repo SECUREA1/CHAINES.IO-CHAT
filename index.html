@@ -6903,7 +6903,10 @@ body.streams-flex-fit #video-container[hidden] {
         if(!m || seen.has(m.id)) return;
         seen.add(m.id);
         const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal;
-        if(shouldSuppressGlobalFeed) return;
+        if(shouldSuppressGlobalFeed){
+          store.pushMsg(m);
+          return;
+        }
         if(m.room){
           if(!streams[m.room]) ensureStreamThumb(m.room, m.room);
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
