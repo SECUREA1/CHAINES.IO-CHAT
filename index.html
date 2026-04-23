@@ -5830,7 +5830,8 @@ body.streams-flex-fit #video-container[hidden] {
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
       const listingFallbackText = listing.category !== NON_MARKETPLACE_CATEGORY ? `${categoryDef?.label || 'Marketplace'} listing` : '';
-      const baseText = raw || listingFallbackText || '';
+      const attachmentFallbackText = pendingFile?.name ? `Attachment: ${pendingFile.name}` : '';
+      const baseText = raw || listingFallbackText || attachmentFallbackText || '';
       let msgText = baseText ? baseText + signature : signature;
       const msgActions = selectedComposerActions.map((action) => ({
         command: action.command,
@@ -5854,7 +5855,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(pendingFile){
         msg.file = pendingFile.dataUrl;
         msg.fileName = pendingFile.name;
-        msg.fileType = pendingFile.type;
+        msg.fileType = pendingFile.type || ((pendingFile.dataUrl || '').match(/^data:([^;]+);/i) || [])[1] || 'application/octet-stream';
         if(pendingFile.type.startsWith('image/')){
           msg.image = pendingFile.dataUrl;
           msg.name = pendingFile.name;
