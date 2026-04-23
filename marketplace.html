@@ -293,6 +293,8 @@
       const postDatingBio = $('#post-dating-bio');
       const postMedia = $('#post-media');
       const postText = $('#post-text');
+      const postSubmitBtn = postForm?.querySelector('button[type="submit"]');
+      let publishInFlight = false;
       const contactInbox = $('#contact-inbox');
       const notifBell = $('#notif-bell');
       const notifPanel = $('#notif-panel');
@@ -937,6 +939,7 @@
 
       async function postListing(ev) {
         ev.preventDefault();
+        if (publishInFlight) return;
         const text = String(postText.value || '').trim();
         const user = sanitizeUser(postUser.value || localStorage.getItem('chaines_username') || 'anon');
         if (!text) {
@@ -944,79 +947,93 @@
           postText.focus();
           return;
         }
-        const mediaResult = await readMediaFiles(postMedia.files);
-        if (mediaResult.error) {
-          setPostStatus(mediaResult.error, 'error');
-          return;
+        publishInFlight = true;
+        if (postSubmitBtn) {
+          postSubmitBtn.disabled = true;
+          postSubmitBtn.textContent = 'Publishing…';
         }
-        const listing = normalizeListing({
-          category: postCategory.value,
-          price: postPrice.value,
-          location: postLocation.value,
-          condition: postDetails.value,
-          serviceType: postServiceType.value,
-          subcategory: postServiceSubcategory.value,
-          jobLocation: postJobLocation.value,
-          credentials: postCredentials.value,
-          contactInfo: postContactInfo.value,
-          availability: postAvailability.value,
-          interests: postInterests.value,
-          age: postAge.value,
-          gender: postGender.value,
-          lookingFor: postLookingFor.value,
-          datingIntent: postDatingIntent.value,
-          firstDate: postFirstDate.value,
-          datingLikes: postLikes.value,
-          datingDislikes: postDislikes.value,
-          datingBio: postDatingBio.value,
-          media: mediaResult.media
-        });
-        const now = Date.now();
-        const items = load();
-        items.push({
-          id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-          user: user || 'anon',
-          text,
-          ts: now,
-          likes: 0,
-          comments: [],
-          category: listing.category,
-          listing
-        });
+        setPostStatus('Publishing listing…', 'success');
         try {
-          await saveNow(items);
-        } catch {
+          const mediaResult = await readMediaFiles(postMedia.files);
+          if (mediaResult.error) {
+            setPostStatus(mediaResult.error, 'error');
+            return;
+          }
+          const listing = normalizeListing({
+            category: postCategory.value,
+            price: postPrice.value,
+            location: postLocation.value,
+            condition: postDetails.value,
+            serviceType: postServiceType.value,
+            subcategory: postServiceSubcategory.value,
+            jobLocation: postJobLocation.value,
+            credentials: postCredentials.value,
+            contactInfo: postContactInfo.value,
+            availability: postAvailability.value,
+            interests: postInterests.value,
+            age: postAge.value,
+            gender: postGender.value,
+            lookingFor: postLookingFor.value,
+            datingIntent: postDatingIntent.value,
+            firstDate: postFirstDate.value,
+            datingLikes: postLikes.value,
+            datingDislikes: postDislikes.value,
+            datingBio: postDatingBio.value,
+            media: mediaResult.media
+          });
+          const now = Date.now();
+          const items = load();
+          items.push({
+            id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+            user: user || 'anon',
+            text,
+            ts: now,
+            likes: 0,
+            comments: [],
+            category: listing.category,
+            listing
+          });
+          try {
+            await saveNow(items);
+          } catch {
+            setPostStatus(
+              'Could not sync listing to marketplace storage right now. Please retry in a moment.',
+              'error'
+            );
+            return;
+          }
+          const createdItem = items[items.length - 1];
+          const mirroredToIndex = await crossPostListingToIndexFeed({
+            user: createdItem.user,
+            text: createdItem.text,
+            listing: createdItem.listing,
+            sourceId: createdItem.id
+          });
+          awardRewards(user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
+          if (listing.category === 'services' || listing.category === 'meal-delivery') {
+            awardRewards(user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
+          }
+          if (listing.category === 'dating') {
+            awardRewards(user, 'listing-dating', 4, 'Marketplace dating profile listing');
+          }
+          try { localStorage.setItem('chaines_username', user); } catch {}
+          postForm.reset();
+          postUser.value = user;
+          postCategory.value = listing.category;
           setPostStatus(
-            'Could not sync listing to marketplace storage right now. Please retry in a moment.',
-            'error'
+            mirroredToIndex
+              ? 'Listing published and cross-posted to the index feed.'
+              : 'Listing published to CHAINeS Marketplace. Index cross-post is retrying in background.',
+            'success'
           );
-          return;
+          render();
+        } finally {
+          publishInFlight = false;
+          if (postSubmitBtn) {
+            postSubmitBtn.disabled = false;
+            postSubmitBtn.textContent = 'Publish Listing';
+          }
         }
-        const createdItem = items[items.length - 1];
-        const mirroredToIndex = await crossPostListingToIndexFeed({
-          user: createdItem.user,
-          text: createdItem.text,
-          listing: createdItem.listing,
-          sourceId: createdItem.id
-        });
-        awardRewards(user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
-        if (listing.category === 'services' || listing.category === 'meal-delivery') {
-          awardRewards(user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
-        }
-        if (listing.category === 'dating') {
-          awardRewards(user, 'listing-dating', 4, 'Marketplace dating profile listing');
-        }
-        try { localStorage.setItem('chaines_username', user); } catch {}
-        postForm.reset();
-        postUser.value = user;
-        postCategory.value = listing.category;
-        setPostStatus(
-          mirroredToIndex
-            ? 'Listing published and cross-posted to the index feed.'
-            : 'Listing published to CHAINeS Marketplace. Index cross-post is retrying in background.',
-          'success'
-        );
-        render();
       }
 
       Object.values(controls).forEach((el) => {
