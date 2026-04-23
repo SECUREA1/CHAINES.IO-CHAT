@@ -7553,8 +7553,25 @@ body.streams-flex-fit #video-container[hidden] {
     function openExternalShare(target, payload){
       const text = encodeURIComponent(payload.text);
       const url = encodeURIComponent(payload.url);
+      if(target === 'x'){
+        const opened = window.open(`https://x.com/intent/post?text=${encodeURIComponent(`${payload.text}\n${payload.url}`.trim())}`, '_blank', 'noopener,noreferrer');
+        if(!opened){
+          systemNote('Popup blocked. Allow popups to continue sharing on X.');
+          return;
+        }
+        if(payload.mediaData && payload.mediaData.startsWith('data:')){
+          const mediaFile = dataUrlToFile(payload.mediaData, payload.mediaName, payload.mediaType);
+          if(mediaFile){
+            triggerDownloadFile(mediaFile);
+            systemNote('X opened. Media downloaded so you can attach it to your X post without upload issues.');
+          } else {
+            systemNote('X opened. Could not prepare media file for upload.');
+          }
+        }
+        hidePopup();
+        return;
+      }
       const linkByTarget = {
-        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
         facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`,
         linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
         whatsapp: `https://wa.me/?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`,
@@ -7565,6 +7582,20 @@ body.streams-flex-fit #video-container[hidden] {
         window.open(link, '_blank', 'noopener,noreferrer');
         hidePopup();
       }
+    }
+
+    function triggerDownloadFile(file){
+      if(!file) return;
+      const blobUrl = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = file.name || `chaines-share-${Date.now()}`;
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     }
 
     function dataUrlToFile(dataUrl, suggestedName='', explicitType=''){
