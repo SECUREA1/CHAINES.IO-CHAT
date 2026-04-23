@@ -951,6 +951,29 @@
     .msg.mine .msg-text { text-align:right; }
 
     .msg-text { white-space: pre-wrap; word-wrap: break-word; }
+    .msg-text.msg-text--truncated {
+      display: -webkit-box;
+      -webkit-line-clamp: 15;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .msg-expand-btn {
+      margin-top: 8px;
+      border: 1px solid var(--lining);
+      background: color-mix(in oklab, var(--panel), transparent 10%);
+      color: var(--accent-2);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .msg-expand-btn:hover,
+    .msg-expand-btn:focus-visible {
+      border-color: color-mix(in oklab, var(--accent-2), white 18%);
+      background: color-mix(in oklab, var(--panel), var(--accent) 18%);
+      outline: none;
+    }
     .space-embed {
       margin-top: 10px;
       border: 1px solid var(--lining);
@@ -6938,6 +6961,30 @@ body.streams-flex-fit #video-container[hidden] {
       return { src, type, name };
     }
 
+      function makeMessageExpandable(textEl){
+        if(!textEl) return;
+        textEl.classList.add('msg-text--truncated');
+        requestAnimationFrame(() => {
+          const hasOverflow = textEl.scrollHeight > textEl.clientHeight + 1;
+          if(!hasOverflow){
+            textEl.classList.remove('msg-text--truncated');
+            return;
+          }
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'msg-expand-btn';
+          btn.textContent = 'Show more';
+          btn.setAttribute('aria-expanded', 'false');
+          btn.addEventListener('click', () => {
+            const expanded = btn.getAttribute('aria-expanded') === 'true';
+            btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            btn.textContent = expanded ? 'Show more' : 'Show less';
+            textEl.classList.toggle('msg-text--truncated', expanded);
+          });
+          textEl.after(btn);
+        });
+      }
+
       function appendMessage(m, skipScroll=false, container=feed){
       const mine = m.user === store.user;
       const li = document.createElement('li');
@@ -7009,6 +7056,7 @@ body.streams-flex-fit #video-container[hidden] {
       const text = document.createElement('div');
       text.className = 'msg-text';
       text.innerHTML = renderText(m.text || '', !!m.isAction);
+      if(container === feed) makeMessageExpandable(text);
       let repostMeta = null;
       if(m.repostOf){
         repostMeta = document.createElement('div');
