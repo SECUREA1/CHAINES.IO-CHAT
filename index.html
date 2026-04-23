@@ -6924,6 +6924,20 @@ body.streams-flex-fit #video-container[hidden] {
       scrollToTop();
     }
 
+      function resolveAttachment(payload = {}){
+      const src = [
+        payload.file,
+        payload.file_data,
+        payload.fileData,
+        payload.image
+      ].find((candidate) => typeof candidate === 'string' && candidate.trim()) || '';
+      const typeCandidate = payload.fileType || payload.file_type || payload.mimeType || payload.mime_type || '';
+      const type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
+      const nameCandidate = payload.fileName || payload.file_name || payload.name || payload.filename || '';
+      const name = String(nameCandidate || '').trim();
+      return { src, type, name };
+    }
+
       function appendMessage(m, skipScroll=false, container=feed){
       const mine = m.user === store.user;
       const li = document.createElement('li');
@@ -7095,10 +7109,11 @@ body.streams-flex-fit #video-container[hidden] {
       if(plain){
         bubble.appendChild(createDownloadLink(plain, 'message', 'text/plain', m.user));
       }
-      const fileData = m.file || m.image;
+      const messageAttachment = resolveAttachment(m);
+      const fileData = messageAttachment.src;
       if(fileData){
-        const mime = m.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
-        const filename = m.fileName || m.name || '';
+        const mime = messageAttachment.type;
+        const filename = messageAttachment.name;
         const isModel = mime.includes('model') || /\.glb$/i.test(filename) || /\.gltf$/i.test(filename);
         if(mime.startsWith('video/')){
           const vid = document.createElement('video');
@@ -7394,10 +7409,11 @@ body.streams-flex-fit #video-container[hidden] {
       }
 
       function createCommentMediaElement(c){
-        const fileData = c.file || c.image;
+        const commentAttachment = resolveAttachment(c);
+        const fileData = commentAttachment.src;
         if(!fileData) return null;
-        const mime = c.fileType || ((fileData.match(/^data:(.*?);/) || [])[1] || '');
-        const filename = c.fileName || c.name || 'attachment';
+        const mime = commentAttachment.type;
+        const filename = commentAttachment.name || 'attachment';
         const wrap = document.createElement('div');
         wrap.className = 'comment-media';
         if(mime.startsWith('video/')){
