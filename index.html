@@ -2468,7 +2468,9 @@ body.streams-flex-fit #video-container[hidden] {
         || !!(listing.price || listing.location || listing.condition || listing.serviceType || listing.subcategory || listing.jobLocation || listing.credentials || listing.contactInfo || listing.media?.length);
     }
     function isCloudPost(m){
-      return !!(m && (m.room || m.broadcast || m.video));
+      if(!m) return false;
+      const mediaType = String(m.fileType || m.file_type || '').toLowerCase();
+      return !!(m.room || m.broadcast || m.video || mediaType.startsWith('video/'));
     }
     function matchesFeedFilters(m){
       const mode = marketViewMode?.value || 'all';
@@ -5859,6 +5861,8 @@ body.streams-flex-fit #video-container[hidden] {
         if(pendingFile.type.startsWith('image/')){
           msg.image = pendingFile.dataUrl;
           msg.name = pendingFile.name;
+        } else if(pendingFile.type.startsWith('video/')){
+          msg.video = pendingFile.dataUrl;
         }
       }
       const postedMessage = postMessage(msg);
