@@ -2161,6 +2161,14 @@ wss.on("connection", (ws) => {
     msg.ts ||= Date.now();
     const text = msg.text ?? msg.message ?? "";
     msg.text = text;
+    const normalizedRoom = (() => {
+      const room = (msg.room || "").toString().trim().toLowerCase();
+      if (!room || room === "cloud") return null;
+      return msg.room;
+    })();
+    if (!msg.file && msg.video) {
+      msg.file = msg.video;
+    }
     const fileName = msg.file_name || msg.fileName || null;
     const fileType = msg.file_type || msg.fileType || null;
     const listing = normalizeListingPayload(msg.listing || {}, msg.category || "general");
@@ -2177,7 +2185,7 @@ wss.on("connection", (ws) => {
       .run(
         msg.user || "",
         msg.verified ? 1 : 0,
-        msg.room || null,
+        normalizedRoom,
         text,
         msg.image || null,
         msg.file || null,
@@ -2199,11 +2207,12 @@ wss.on("connection", (ws) => {
       msg.fileType = fileType;
     }
     // broadcast
-    if (msg.room) {
+    msg.room = normalizedRoom;
+    if (normalizedRoom) {
       const targets = new Set();
-      const host = broadcasters.get(msg.room);
+      const host = broadcasters.get(normalizedRoom);
       if (host && host.readyState === 1) targets.add(host);
-      const set = listeners.get(msg.room);
+      const set = listeners.get(normalizedRoom);
       if (set) {
         for (const id of set) {
           const c = clients.get(id);
