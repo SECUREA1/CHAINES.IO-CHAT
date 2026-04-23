@@ -2122,7 +2122,8 @@ body.streams-flex-fit #video-container[hidden] {
           <div class="marketplace-tools">
             <input id="market-search" type="search" placeholder="Search market and cloud posts" />
             <select id="market-view-mode" aria-label="Marketplace feed mode">
-              <option value="cloud">Cloud only</option>
+              <option value="all">All posts</option>
+              <option value="cloud" selected>Cloud only</option>
               <option value="market">Marketplace only</option>
             </select>
           </div>
@@ -2498,14 +2499,15 @@ body.streams-flex-fit #video-container[hidden] {
         const text = node.dataset.searchText || '';
         const modeFilter = marketViewMode?.value || 'cloud';
         const searchFilter = String(marketSearchInput?.value || '').trim().toLowerCase();
-        const modeOk = mode === modeFilter || (modeFilter === 'market' && mode === 'market-cloud') || (modeFilter === 'cloud' && mode === 'market-cloud');
+        const modeOk = modeFilter === 'all' || mode === modeFilter || (modeFilter === 'market' && mode === 'market-cloud') || (modeFilter === 'cloud' && mode === 'market-cloud');
         const textOk = !searchFilter || text.includes(searchFilter);
         node.hidden = !(modeOk && textOk);
       });
     }
     const MARKET_VIEW_MODES = [
-      { value: 'cloud', label: 'Cloud Only' },
-      { value: 'market', label: 'Marketplace Only' }
+      { value: 'all', label: 'All posts' },
+      { value: 'market', label: 'Marketplace Only' },
+      { value: 'cloud', label: 'Cloud Only' }
     ];
     function syncMarketModeToggleLabel(){
       if(!marketModeToggle) return;
@@ -2535,6 +2537,39 @@ body.streams-flex-fit #video-container[hidden] {
         credentials: marketplaceCredentials?.value,
         contactInfo: marketplaceContactInfo?.value
       });
+    }
+    async function crossPostFeedMarketplaceListing(message = {}){
+      const listing = normalizeListing(message?.listing || { category: message?.category });
+      if(!isMarketplacePost({ listing })) return false;
+      const postId = String(message?.id || '').trim();
+      if(!postId) return false;
+      const sourceRef = `feed:${postId}`;
+      try {
+        const res = await fetch('/api/marketplace/listings');
+        if(!res.ok) return false;
+        const data = await res.json().catch(() => ({}));
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if(items.some((item) => String(item?.sourceRef || '').trim() === sourceRef)) return true;
+        const nextItem = {
+          id: `mkt-${postId}`,
+          sourceRef,
+          user: String(message?.user || store?.user || 'anon').trim() || 'anon',
+          text: String(message?.text || '').trim(),
+          ts: Number(message?.ts) || Date.now(),
+          likes: 0,
+          comments: [],
+          category: listing.category,
+          listing
+        };
+        const write = await fetch('/api/marketplace/listings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: [...items, nextItem] })
+        });
+        return write.ok;
+      } catch {
+        return false;
+      }
     }
     function syncMarketplaceHints(){
       const listing = getListingFromComposer();
