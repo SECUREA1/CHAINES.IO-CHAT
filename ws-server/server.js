@@ -2183,8 +2183,15 @@ wss.on("connection", (ws) => {
     if (!msg.file && msg.video) {
       msg.file = msg.video;
     }
-    const fileName = msg.file_name || msg.fileName || null;
-    const fileType = msg.file_type || msg.fileType || null;
+    const inferredFileType =
+      (typeof msg.file === "string" && (msg.file.match(/^data:([^;]+);/i) || [])[1]) ||
+      null;
+    const fileName = msg.file_name || msg.fileName || (msg.file ? "attachment" : null);
+    const fileType =
+      msg.file_type ||
+      msg.fileType ||
+      inferredFileType ||
+      (msg.file ? "application/octet-stream" : null);
     const listing = normalizeListingPayload(msg.listing || {}, msg.category || "general");
     msg.category = listing.category;
     msg.listing = listing;
