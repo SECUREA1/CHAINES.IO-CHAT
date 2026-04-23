@@ -2468,9 +2468,7 @@ body.streams-flex-fit #video-container[hidden] {
         || !!(listing.price || listing.location || listing.condition || listing.serviceType || listing.subcategory || listing.jobLocation || listing.credentials || listing.contactInfo || listing.media?.length);
     }
     function isCloudPost(m){
-      if(!m) return false;
-      const mediaType = String(m.fileType || m.file_type || '').toLowerCase();
-      return !!(m.room || m.broadcast || m.video || mediaType.startsWith('video/'));
+      return !!(m && (m.room || m.broadcast || m.video));
     }
     function matchesFeedFilters(m){
       const mode = marketViewMode?.value || 'all';
@@ -5861,8 +5859,6 @@ body.streams-flex-fit #video-container[hidden] {
         if(pendingFile.type.startsWith('image/')){
           msg.image = pendingFile.dataUrl;
           msg.name = pendingFile.name;
-        } else if(pendingFile.type.startsWith('video/')){
-          msg.video = pendingFile.dataUrl;
         }
       }
       const postedMessage = postMessage(msg);
@@ -6941,26 +6937,17 @@ body.streams-flex-fit #video-container[hidden] {
       scrollToTop();
     }
 
-    function resolveAttachment(payload = {}){
+      function resolveAttachment(payload = {}){
       const src = [
         payload.file,
         payload.file_data,
         payload.fileData,
-        payload.image,
-        payload.video,
-        payload.videoUrl,
-        payload.video_url
+        payload.image
       ].find((candidate) => typeof candidate === 'string' && candidate.trim()) || '';
       const typeCandidate = payload.fileType || payload.file_type || payload.mimeType || payload.mime_type || '';
-      let type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
+      const type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
       const nameCandidate = payload.fileName || payload.file_name || payload.name || payload.filename || '';
       const name = String(nameCandidate || '').trim();
-      if(!type){
-        const lower = `${name} ${src}`.toLowerCase();
-        if(/\.(mp4|webm|mov|m4v|ogv)(\?|$)/.test(lower)) type = 'video/mp4';
-        else if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(lower)) type = 'image/*';
-        else if(/\.(mp3|wav|ogg|m4a|aac|flac)(\?|$)/.test(lower)) type = 'audio/*';
-      }
       return { src, type, name };
     }
 
