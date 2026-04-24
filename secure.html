@@ -637,6 +637,32 @@
       border:0;
       background:#05070B;
     }
+    .broadcast-feed-stage{
+      position:relative;
+      display:grid;
+      gap:8px;
+      padding:10px;
+    }
+    .broadcast-feed-status{
+      font-size:11px;
+      color:var(--muted);
+      line-height:1.4;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .broadcast-feed-status.good{ color:#86efac; }
+    .broadcast-feed-status.warn{ color:#fbbf24; }
+    .broadcast-feed-retry{
+      font-size:11px;
+      padding:5px 8px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.2);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      cursor:pointer;
+    }
     .secure-live-wrap{
       margin-top:14px;
       border:1px solid rgba(255,255,255,.12);
@@ -2350,6 +2376,92 @@
         return `${location.protocol}//${raw.replace(/\/+$/, "")}`;
       }
 
+      function buildBroadcastFeedSrc(base){
+        try{
+          const url = new URL("/index.html", `${base}/`);
+          url.searchParams.set("embed", "1");
+          url.searchParams.set("feed", "watchtower");
+          return url.toString();
+        }catch{
+          return `${base}/index.html?embed=1&feed=watchtower`;
+        }
+      }
+
+      function applyBroadcastFeedStatus(node, text, tone = ""){
+        if(!node) return;
+        node.textContent = text;
+        node.classList.remove("good", "warn");
+        if(tone) node.classList.add(tone);
+      }
+
+      let broadcastFeedObserver = null;
+      function getBroadcastFeedObserver(){
+        if(broadcastFeedObserver || !("IntersectionObserver" in window)) return broadcastFeedObserver;
+        broadcastFeedObserver = new IntersectionObserver((entries, obs)=>{
+          for(const entry of entries){
+            if(!entry.isIntersecting) continue;
+            const iframe = entry.target;
+            const src = iframe?.dataset?.src;
+            if(src && !iframe.src){
+              iframe.src = src;
+            }
+            obs.unobserve(iframe);
+          }
+        }, { rootMargin: "180px 0px" });
+        return broadcastFeedObserver;
+      }
+
+      function mountBroadcastFeedFrame(stage, base, label){
+        if(!stage || !base) return;
+        const iframe = document.createElement("iframe");
+        iframe.className = "broadcast-feed-frame";
+        iframe.title = `Broadcast feed from ${label}`;
+        iframe.referrerPolicy = "no-referrer-when-downgrade";
+        iframe.allow = "autoplay; fullscreen; picture-in-picture; camera; microphone; display-capture";
+        iframe.loading = isLikelyMobile() ? "lazy" : "eager";
+
+        const statusNode = stage.querySelector("[data-feed-status]");
+        const retryBtn = stage.querySelector("[data-feed-retry]");
+        const srcBase = buildBroadcastFeedSrc(base);
+        let timeoutId = null;
+
+        const applySrc = ()=>{
+          const retrySrc = `${srcBase}${srcBase.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+          applyBroadcastFeedStatus(statusNode, "Loading live feed…");
+          iframe.src = retrySrc;
+          if(timeoutId) window.clearTimeout(timeoutId);
+          timeoutId = window.setTimeout(()=>{
+            applyBroadcastFeedStatus(statusNode, "Feed is taking longer than expected. Tap retry if it stays black.", "warn");
+          }, isLikelyMobile() ? 18000 : 12000);
+        };
+
+        iframe.addEventListener("load", ()=>{
+          if(timeoutId) window.clearTimeout(timeoutId);
+          applyBroadcastFeedStatus(statusNode, "Live feed connected.", "good");
+        });
+        iframe.addEventListener("error", ()=>{
+          if(timeoutId) window.clearTimeout(timeoutId);
+          applyBroadcastFeedStatus(statusNode, "Feed failed to load. Tap retry to reconnect.", "warn");
+        });
+        if(retryBtn){
+          retryBtn.addEventListener("click", ()=>{
+            applySrc();
+          });
+        }
+
+        stage.insertBefore(iframe, stage.firstChild);
+        if(isLikelyMobile()){
+          const obs = getBroadcastFeedObserver();
+          if(obs){
+            iframe.dataset.src = `${srcBase}${srcBase.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+            obs.observe(iframe);
+            applyBroadcastFeedStatus(statusNode, "Feed queued. Scroll into view to start loading.");
+            return;
+          }
+        }
+        applySrc();
+      }
+
       function getSelectedBroadcastServers(){
         const selected = Array.isArray(settings.broadcastServers) ? settings.broadcastServers : [];
         const picked = BROADCAST_SERVER_OPTIONS.filter((srv)=>selected.includes(srv.id));
@@ -2461,15 +2573,13 @@
               <b>${safeLabel}</b>
               <span class="small">${safeBase}</span>
             </div>
-            <iframe
-              class="broadcast-feed-frame"
-              src="${base}/index.html"
-              loading="eager"
-              allow="camera *; microphone *; autoplay *; fullscreen *; display-capture *"
-              referrerpolicy="no-referrer-when-downgrade"
-              title="Broadcast feed from ${safeLabel}">
-            </iframe>
+            <div class="broadcast-feed-stage">
+              <div class="broadcast-feed-status" data-feed-status>Loading live feed…</div>
+              <button type="button" class="broadcast-feed-retry" data-feed-retry>Retry feed</button>
+            </div>
           `;
+            const stage = card.querySelector(".broadcast-feed-stage");
+            mountBroadcastFeedFrame(stage, base, srv.label);
           }
           broadcastFeedGrid.appendChild(card);
         }
