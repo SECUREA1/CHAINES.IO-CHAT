@@ -4791,7 +4791,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Join with camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4803,8 +4803,9 @@ body.streams-flex-fit #video-container[hidden] {
         const joinBtns = div.querySelector('.join-btns');
         const liveState = div.querySelector('.stream-live-state');
         if(!isSelf){
-          camBtn.addEventListener('click', () => {
-            sendSignal({ type: 'join-request', id, user: store.user });
+          camBtn.addEventListener('click', async () => {
+            await startSeparateBroadcastFromOnline();
+            systemNote('Started a separate broadcast feed.');
           });
           micBtn.addEventListener('click', () => {
             sendSignal({ type: 'mic-request', id, user: store.user });
