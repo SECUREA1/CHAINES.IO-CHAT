@@ -4095,22 +4095,13 @@ body.streams-flex-fit #video-container[hidden] {
         alert('Cloud connection unavailable. Try again in a moment.');
         return;
       }
-      const others = Object.keys(streams).filter(id => id !== clientId);
-      if (others.length > 0 && !joinApproved) {
-        const hostId = others[0];
-        pendingJoinHost = hostId;
-        sendSignal({ type: 'join-request', id: hostId, user: store.user });
-        broadcastBtn.disabled = true;
-        if(broadcastLabel) broadcastLabel.textContent = 'Pending';
-      } else {
-        broadcastThumb = await chooseThumbnail();
-        if (broadcastThumb) {
-          ensureStreamThumb(clientId, store.user, true);
-          handleThumbnail(clientId, broadcastThumb);
-          sendSignal({ type: 'thumb', thumb: broadcastThumb });
-        }
-        startBroadcast();
+      broadcastThumb = await chooseThumbnail();
+      if (broadcastThumb) {
+        ensureStreamThumb(clientId, store.user, true);
+        handleThumbnail(clientId, broadcastThumb);
+        sendSignal({ type: 'thumb', thumb: broadcastThumb });
       }
+      startBroadcast();
     }
     broadcastBtn.addEventListener('click', () => { requestGoLive(); });
     if(goLiveAllBtn){
