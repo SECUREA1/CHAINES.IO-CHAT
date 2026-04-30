@@ -4895,7 +4895,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, translatedCaptionTracks: null, thumbEl, liveState };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
@@ -6341,6 +6341,7 @@ body.streams-flex-fit #video-container[hidden] {
               attachCaptions(tileEl);
               selfStream.captionTrack = tileEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
               selfStream.captionTrack.mode = 'showing';
+              selfStream.translatedCaptionTracks = (tileEl && tileEl.__translatedCaptionTracks) ? tileEl.__translatedCaptionTracks : null;
             }
             selfStream.vid = tileEl;
             selfStream.started = true;
@@ -6808,6 +6809,7 @@ body.streams-flex-fit #video-container[hidden] {
                     setStreamLiveState(msg.id, 'Live now', true);
                     if(!guestTarget.vid) guestTarget.vid = guestVid;
                     guestTarget.captionTrack = liveTrack;
+                    guestTarget.translatedCaptionTracks = (guestVid && guestVid.__translatedCaptionTracks) ? guestVid.__translatedCaptionTracks : null;
                     guestVid.muted = false;
                     guestVid.removeAttribute('muted');
                     tryPlay(guestVid);
@@ -6839,6 +6841,7 @@ body.streams-flex-fit #video-container[hidden] {
                   if(streams[msg.id]){
                     if(!streams[msg.id].vid) streams[msg.id].vid = vid;
                     streams[msg.id].captionTrack = liveTrack;
+                    streams[msg.id].translatedCaptionTracks = (vid && vid.__translatedCaptionTracks) ? vid.__translatedCaptionTracks : null;
                   }
                   pc._videos = pc._videos || [];
                   pc._videos.push(vid);
@@ -7659,11 +7662,25 @@ body.streams-flex-fit #video-container[hidden] {
         if(btn) btn.textContent = `❤️ ${l.count}`;
       }
 
-      function handleCaption(c){
+      async function handleCaption(c){
         const s = streams[c.id];
-        if(!s || !s.captionTrack || !s.vid) return;
+        if(!s || !s.vid) return;
         const Cue = window.VTTCue || window.TextTrackCue;
-        try{ s.captionTrack.addCue(new Cue(s.vid.currentTime, s.vid.currentTime+5, c.text)); }catch{}
+        const start = Number.isFinite(s.vid.currentTime) ? s.vid.currentTime : 0;
+        const end = start + 5;
+        const sourceText = String(c?.text || '').trim();
+        if(!sourceText) return;
+        if(s.captionTrack){
+          try{ s.captionTrack.addCue(new Cue(start, end, sourceText)); }catch{}
+        }
+        const translated = await translateCaptionVariants(sourceText, 'en');
+        const translatedTracks = (s.translatedCaptionTracks && typeof s.translatedCaptionTracks === 'object') ? s.translatedCaptionTracks : null;
+        if(!translatedTracks) return;
+        Object.entries(translated).forEach(([lang, text]) => {
+          const track = translatedTracks[lang];
+          if(!track || !text) return;
+          try{ track.addCue(new Cue(start, end, text)); }catch{}
+        });
       }
 
       function showPopup(message, actions){
@@ -7694,13 +7711,48 @@ body.streams-flex-fit #video-container[hidden] {
       feed.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    const CAPTION_TRANSLATION_LANGS = ['pt', 'ko', 'ar'];
+    const captionTranslationCache = new Map();
+
+    async function translateCaptionText(text, targetLang, sourceLang='en'){
+      const source = String(sourceLang || 'en').toLowerCase();
+      const target = String(targetLang || '').toLowerCase();
+      const input = String(text || '').trim();
+      if(!input || !target || source === target) return input;
+      const cacheKey = `${source}:${target}:${input}`;
+      if(captionTranslationCache.has(cacheKey)) return captionTranslationCache.get(cacheKey);
+      let translated = '';
+      try{
+        const res = await fetch('https://libretranslate.com/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: input, source, target, format: 'text' })
+        });
+        if(res.ok){
+          const data = await res.json();
+          translated = String(data?.translatedText || '').trim();
+        }
+      }catch{}
+      const output = translated || input;
+      captionTranslationCache.set(cacheKey, output);
+      return output;
+    }
+
+    async function translateCaptionVariants(text, sourceLang='en'){
+      const entries = await Promise.all(CAPTION_TRANSLATION_LANGS.map(async (lang) => {
+        const translated = await translateCaptionText(text, lang, sourceLang);
+        return [lang, translated];
+      }));
+      return Object.fromEntries(entries);
+    }
+
     function attachCaptions(vid){
       if(!vid) return;
       const tracks = [
         { src: 'static/captions/en.vtt', srclang: 'en', label: 'English', def: true },
-        { src: 'static/captions/pt-en.vtt', srclang: 'pt', label: 'Portuguese/English' },
+        { src: 'static/captions/pt-en.vtt', srclang: 'pt', label: 'Portuguese / English' },
         { src: 'static/captions/ko.vtt', srclang: 'ko', label: 'Korean' },
-        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic/English' }
+        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic / English' }
       ];
       tracks.forEach(t => {
         const track = document.createElement('track');
@@ -7711,6 +7763,18 @@ body.streams-flex-fit #video-container[hidden] {
         if(t.def) track.default = true;
         vid.appendChild(track);
       });
+      const translatedTracks = {};
+      CAPTION_TRANSLATION_LANGS.forEach((lang) => {
+        try{
+          const liveTrack = vid.addTextTrack('captions', `Live ${lang.toUpperCase()}`, lang);
+          liveTrack.mode = 'hidden';
+          translatedTracks[lang] = liveTrack;
+        }catch{}
+      });
+      if(Object.keys(translatedTracks).length){
+        vid.dataset.translatedCaptionLangs = JSON.stringify(Object.keys(translatedTracks));
+        vid.__translatedCaptionTracks = translatedTracks;
+      }
     }
 
     function extractXSpaceId(value=''){
