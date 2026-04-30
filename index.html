@@ -4747,12 +4747,14 @@ body.streams-flex-fit #video-container[hidden] {
           li.appendChild(nameSpan);
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
-            camBtn.title = 'Start a new broadcast';
-            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Start separate broadcast" />';
-            camBtn.addEventListener('click', async e => {
+            camBtn.title = 'Request to join with camera';
+            camBtn.innerHTML = '<img src="static/camera.svg" alt="Request camera" />';
+            camBtn.addEventListener('click', e => {
               e.stopPropagation();
-              await startSeparateBroadcastFromOnline();
-              systemNote('Started a separate broadcast feed.');
+              currentHost = id;
+              pendingJoinHost = id;
+              sendSignal({ type: 'join-request', id, user: store.user });
+              systemNote('Camera request sent');
             });
             li.appendChild(camBtn);
             const micBtn = document.createElement('button');
@@ -4817,7 +4819,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-top"><div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><button class="stream-close-btn" type="button" title="Hide this broadcast" aria-label="Hide this broadcast">×</button></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-top"><div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><button class="stream-close-btn" type="button" title="Hide this broadcast" aria-label="Hide this broadcast">×</button></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join with camera"><img src="static/camera.svg" alt="Request camera" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4842,12 +4844,17 @@ body.streams-flex-fit #video-container[hidden] {
         };
         if(closeBtn) closeBtn.addEventListener('click', hideStream);
         if(!isSelf){
-          camBtn.addEventListener('click', async () => {
-            await startSeparateBroadcastFromOnline();
-            systemNote('Started a separate broadcast feed.');
+          camBtn.addEventListener('click', () => {
+            currentHost = id;
+            pendingJoinHost = id;
+            sendSignal({ type: 'join-request', id, user: store.user });
+            systemNote('Camera request sent');
           });
           micBtn.addEventListener('click', () => {
+            currentHost = id;
+            pendingMicHost = id;
             sendSignal({ type: 'mic-request', id, user: store.user });
+            systemNote('Mic request sent');
           });
           camBtn.hidden = true;
           micBtn.hidden = true;
