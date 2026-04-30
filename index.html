@@ -7623,11 +7623,24 @@ body.streams-flex-fit #video-container[hidden] {
       return {
         title,
         text: `${title}\n${description}`.trim(),
+        postText: String(m?.text || '').trim(),
         url,
         mediaData: m?.file || m?.image || '',
         mediaType: m?.fileType || '',
         mediaName: m?.fileName || m?.name || ''
       };
+    }
+
+    function limitWords(text='', maxWords=25){
+      const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+      if(!words.length) return '';
+      if(words.length <= maxWords) return words.join(' ');
+      return `${words.slice(0, maxWords).join(' ')}…`;
+    }
+
+    function getXShareText(payload){
+      const baseText = limitWords(payload.postText || payload.text || payload.title || '', 25);
+      return baseText ? `Read mode: ${baseText}` : 'Read mode';
     }
 
     async function sharePostNative(payload){
@@ -7656,7 +7669,8 @@ body.streams-flex-fit #video-container[hidden] {
       const text = encodeURIComponent(payload.text);
       const url = encodeURIComponent(payload.url);
       if(target === 'x'){
-        const opened = window.open(`https://x.com/intent/post?text=${encodeURIComponent(`${payload.text}\n${payload.url}`.trim())}`, '_blank', 'noopener,noreferrer');
+        const xReadModeText = getXShareText(payload);
+        const opened = window.open(`https://x.com/intent/post?text=${encodeURIComponent(xReadModeText)}`, '_blank', 'noopener,noreferrer');
         if(!opened){
           systemNote('Popup blocked. Allow popups to continue sharing on X.');
           return;
@@ -7665,7 +7679,7 @@ body.streams-flex-fit #video-container[hidden] {
           const mediaFile = dataUrlToFile(payload.mediaData, payload.mediaName, payload.mediaType);
           if(mediaFile){
             triggerDownloadFile(mediaFile);
-            systemNote('X opened. Media downloaded so you can attach it to your X post without upload issues.');
+            systemNote('X opened in read mode (25 words max). Media downloaded so you can attach it directly to your X post.');
           } else {
             systemNote('X opened. Could not prepare media file for upload.');
           }
