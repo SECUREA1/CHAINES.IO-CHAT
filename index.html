@@ -4395,20 +4395,85 @@ body.streams-flex-fit #video-container[hidden] {
       clearMultiCamControls();
       if(!entries || entries.length <= 1) return;
       multiCamTrackEntries = entries;
+
+      const picker = document.createElement('select');
+      picker.className = 'chip';
+      picker.title = 'Select a camera to toggle';
+      entries.forEach((entry, idx) => {
+        const option = document.createElement('option');
+        const label = entry.device?.label || entry.track?.label || `Camera ${idx + 1}`;
+        option.value = String(idx);
+        option.textContent = `Cam ${idx + 1}: ${label}`;
+        picker.appendChild(option);
+      });
+      multiCameraControls.appendChild(picker);
+
+      const toggleSelectedBtn = document.createElement('button');
+      toggleSelectedBtn.type = 'button';
+      toggleSelectedBtn.className = 'chip';
+      toggleSelectedBtn.textContent = 'Toggle Selected';
+      toggleSelectedBtn.title = 'Toggle selected camera on or off';
+      multiCameraControls.appendChild(toggleSelectedBtn);
+
+      const refreshBtn = document.createElement('button');
+      refreshBtn.type = 'button';
+      refreshBtn.className = 'chip';
+      refreshBtn.textContent = 'Refresh Cameras';
+      refreshBtn.title = 'Refresh camera list from this device';
+      refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        try {
+          await detectAvailableCameras({ requestPermission: true });
+          if(multiCamBroadcast){
+            const bundle = await createBroadcastCameraBundle();
+            if(bundle?.multiCam && bundle.stream){
+              localStream = bundle.stream;
+              if(broadcastVideo && bundle.previews?.[0]) broadcastVideo.srcObject = bundle.previews[0];
+              renderExtraCameraPreviews(bundle.previews);
+            }
+          }
+        } catch(err){
+          console.warn('Unable to refresh camera list', err);
+        } finally {
+          refreshBtn.disabled = false;
+        }
+      });
+      multiCameraControls.appendChild(refreshBtn);
+
+      const updateChips = () => {
+        multiCameraControls.querySelectorAll('button[data-cam-index]').forEach(btn => {
+          const idx = Number(btn.dataset.camIndex || -1);
+          const entry = entries[idx];
+          if(!entry) return;
+          const label = entry.device?.label || entry.track?.label || `Camera ${idx + 1}`;
+          btn.textContent = `Cam ${idx + 1}: ${entry.enabled ? 'On' : 'Off'} · ${label}`;
+          btn.classList.toggle('off', !entry.enabled);
+        });
+      };
+
       entries.forEach((entry, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'chip';
-        btn.textContent = `Cam ${idx + 1}: Approved`;
-        btn.title = `Approve camera ${idx + 1}`;
+        btn.dataset.camIndex = String(idx);
         btn.addEventListener('click', () => {
           entry.enabled = !entry.enabled;
           if(entry.track) entry.track.enabled = entry.enabled;
-          btn.textContent = `Cam ${idx + 1}: ${entry.enabled ? 'Approved' : 'Muted'}`;
-          btn.classList.toggle('off', !entry.enabled);
+          updateChips();
         });
         multiCameraControls.appendChild(btn);
       });
+
+      toggleSelectedBtn.addEventListener('click', () => {
+        const idx = Number(picker.value || 0);
+        const entry = entries[idx];
+        if(!entry) return;
+        entry.enabled = !entry.enabled;
+        if(entry.track) entry.track.enabled = entry.enabled;
+        updateChips();
+      });
+
+      updateChips();
       multiCameraControls.removeAttribute('hidden');
     }
 
@@ -4475,7 +4540,12 @@ body.streams-flex-fit #video-container[hidden] {
         return { stream: base, previews: [base], multiCam: false };
       }
 
-      const entries = opened.map(s => ({ stream: s, track: s.getVideoTracks()[0], enabled: true }));
+      const entries = opened.map(s => {
+        const track = s.getVideoTracks()[0];
+        const trackId = track?.getSettings?.().deviceId || '';
+        const device = videoInputs.find(input => input.deviceId === trackId) || null;
+        return { stream: s, track, enabled: true, device };
+      });
       const separated = new MediaStream();
       entries.forEach(entry => {
         if(entry.track) separated.addTrack(entry.track);
