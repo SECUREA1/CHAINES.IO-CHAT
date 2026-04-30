@@ -799,13 +799,13 @@
       gap:8px;
     }
     .secure-live-grid.layout-4{
-      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
     }
     .secure-live-grid.layout-1{
       grid-template-columns:minmax(0, 1fr);
     }
     .secure-live-grid.layout-2{
-      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
     }
     @media (min-width: 1200px){
       .secure-live-grid{
@@ -862,7 +862,11 @@
       aspect-ratio:16/9;
       display:block;
       background:#000;
-      object-fit:cover;
+      object-fit:contain;
+    }
+    .secure-live-row.is-focused{
+      border-color:rgba(73,185,255,.65);
+      box-shadow:0 0 0 1px rgba(73,185,255,.45), 0 0 24px rgba(73,185,255,.18);
     }
     .secure-live-grid.layout-1 .secure-live-row video{
       height:calc(100% - 34px);
@@ -2771,14 +2775,8 @@
 
       function secureLiveVisibleIds(liveIds){
         if(!Array.isArray(liveIds) || !liveIds.length) return [];
-        const layoutCount = Math.max(1, Math.min(4, Number(secureLive.layoutCount) || 1));
         const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId) ? secureLive.selectedId : liveIds[0];
-        const focusIndex = Math.max(0, liveIds.indexOf(focus));
-        const visible = [];
-        for(let i = 0; i < Math.min(layoutCount, liveIds.length); i += 1){
-          visible.push(liveIds[(focusIndex + i) % liveIds.length]);
-        }
-        return visible;
+        return [focus, ...liveIds.filter((id)=>id !== focus)];
       }
 
       function secureLiveCycleSelected(liveIds){
@@ -2788,8 +2786,7 @@
       }
 
       function syncSecureLiveRotateTimer(liveIds = []){
-        const layoutCount = Math.max(1, Math.min(4, Number(secureLive.layoutCount) || 1));
-        const canRotate = secureLive.rotateEnabled && liveIds.length > layoutCount;
+        const canRotate = secureLive.rotateEnabled && liveIds.length > 1;
         if(!canRotate){
           if(secureLive.rotateTimer){
             clearInterval(secureLive.rotateTimer);
@@ -2800,7 +2797,7 @@
         if(secureLive.rotateTimer) return;
         secureLive.rotateTimer = setInterval(()=>{
           const nextLiveIds = secureLiveGetLiveIds();
-          if(nextLiveIds.length <= layoutCount) return;
+          if(nextLiveIds.length <= 1) return;
           secureLiveCycleSelected(nextLiveIds);
           secureLiveRenderRows();
         }, secureLive.rotateMs);
@@ -2836,7 +2833,7 @@
           if(!liveIds.length){
             secureLiveLayoutMeta.textContent = "No cameras are live yet.";
           }else{
-            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} of ${liveIds.length} live camera feeds.`;
+            secureLiveLayoutMeta.textContent = `Showing all ${liveIds.length} live camera feeds. Tap any tile to tune in.`;
           }
         }
       }
@@ -2870,6 +2867,7 @@
         if(video){
           video.srcObject = stream || null;
         }
+        row.classList.toggle("is-focused", id === secureLive.selectedId);
         if(compact) return row;
         row.addEventListener("click", (event)=>{
           const action = event.target?.closest?.("[data-action]")?.dataset?.action || "";
