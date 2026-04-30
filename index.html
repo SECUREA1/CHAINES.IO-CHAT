@@ -6869,24 +6869,9 @@ body.streams-flex-fit #video-container[hidden] {
           startWatching(host);
           hostStream.started = true;
         }
-        // Other viewers watch the guest separately so their video can be merged
+        // Watch guest media so it can be rendered inside the host broadcast feed.
         if(id !== clientId) startWatching(id);
-      }
-      if(!streams[id]){
-        const u = userCache && userCache.find(u => (typeof u === 'string' ? u : u.id) === id);
-        const name = typeof u === 'string' ? u : (u && u.name) || id;
-        ensureStreamThumb(id, name, id === clientId);
-      }
-      if(streams[id]){
-        streams[id].container.classList.add('open');
-        streams[id].started = true;
-        if(streams[id].liveState) streams[id].liveState.textContent = 'Connecting…';
-      }
-      const hostBox = hostStream && hostStream.video;
-      const guestBox = streams[id] && streams[id].video;
-      if(hostBox && guestBox){
-        const aud = hostBox.querySelector(`audio[data-guest="${id}"]`);
-        if(aud && !guestBox.querySelector('audio')) guestBox.appendChild(aud);
+        if(hostStream.liveState) hostStream.liveState.textContent = 'Live now';
       }
       showStream();
       updateVideoLayout();
