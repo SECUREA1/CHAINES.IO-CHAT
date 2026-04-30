@@ -1444,6 +1444,30 @@ body.streams-flex-fit #video-container[hidden] {
     }
     .stream-feed { list-style:none; margin:8px 0 0; padding:0; max-height:120px; overflow-y:auto; display:none; }
     .stream.open .stream-feed { display:block; }
+    .stream-top {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
+    }
+    .stream-close-btn {
+      width:24px;
+      height:24px;
+      min-width:24px;
+      border-radius:999px;
+      border:1px solid var(--lining);
+      background: color-mix(in oklab, var(--panel), transparent 25%);
+      color: var(--text);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      line-height:1;
+      cursor:pointer;
+      padding:0;
+    }
+    .stream-close-btn:hover { opacity:.9; }
     #video-container {
       display: flex;
       flex-wrap: wrap;
@@ -3322,6 +3346,7 @@ body.streams-flex-fit #video-container[hidden] {
     }
     let currentHost = null;
     let broadcastThumb = null;
+    const hiddenStreams = new Set();
     let pendingJoinHost = null;
     let joinApproved = false;
     let pendingMicHost = null;
@@ -4792,7 +4817,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-top"><div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><button class="stream-close-btn" type="button" title="Hide this broadcast" aria-label="Hide this broadcast">×</button></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4803,6 +4828,19 @@ body.streams-flex-fit #video-container[hidden] {
         const micBtn = div.querySelector('.mic-btn');
         const joinBtns = div.querySelector('.join-btns');
         const liveState = div.querySelector('.stream-live-state');
+        const closeBtn = div.querySelector('.stream-close-btn');
+        const hideStream = () => {
+          hiddenStreams.add(id);
+          if(streams[id]?.started){
+            endWatching(id);
+            streams[id].started = false;
+            streams[id].liveActive = false;
+          }
+          div.classList.remove('open');
+          div.setAttribute('hidden','');
+          refreshPrimaryStreamTile();
+        };
+        if(closeBtn) closeBtn.addEventListener('click', hideStream);
         if(!isSelf){
           camBtn.addEventListener('click', async () => {
             await startSeparateBroadcastFromOnline();
@@ -4844,6 +4882,9 @@ body.streams-flex-fit #video-container[hidden] {
           camBtn.style.display = 'none';
           micBtn.style.display = 'none';
           if(joinBtns) joinBtns.style.display = 'none';
+        }
+        if(hiddenStreams.has(id)){
+          div.setAttribute('hidden','');
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
