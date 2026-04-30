@@ -2115,7 +2115,7 @@
       let tunedAudioCtx = null;
 
       // Camera + render state
-      const MAX_CAM_UI = isLikelyMobile() ? 2 : 20;
+      const MAX_CAM_UI = 20; // Keep all camera slots available, including mobile-class devices (e.g., Jetson/Orrin setups).
       const camLabel = (idx)=>`Camera ${idx + 1}`;
       let camLatestLog = Array.from({ length: MAX_CAM_UI }, () => null);
       let camStreams = new Map();  // slotIdx -> MediaStream
