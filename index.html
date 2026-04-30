@@ -4103,6 +4103,16 @@ body.streams-flex-fit #video-container[hidden] {
       }
       startBroadcast();
     }
+
+    async function startSeparateBroadcastFromOnline(){
+      pendingJoinHost = null;
+      pendingMicHost = null;
+      currentHost = null;
+      joinApproved = false;
+      micApproved = false;
+      activeRooms.clear();
+      await requestGoLive({ allCameras: false });
+    }
     broadcastBtn.addEventListener('click', () => { requestGoLive(); });
     if(goLiveAllBtn){
       goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: true }); });
@@ -4641,14 +4651,12 @@ body.streams-flex-fit #video-container[hidden] {
           li.appendChild(nameSpan);
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
-            camBtn.title = 'Request to join with camera';
-            camBtn.innerHTML = '<img src="static/camera.svg" alt="Join with camera" />';
-            camBtn.addEventListener('click', e => {
+            camBtn.title = 'Start a new broadcast';
+            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Start separate broadcast" />';
+            camBtn.addEventListener('click', async e => {
               e.stopPropagation();
-              currentHost = id;
-              pendingJoinHost = id;
-              sendSignal({ type: 'join-request', id, user: store.user });
-              systemNote('Join request sent');
+              await startSeparateBroadcastFromOnline();
+              systemNote('Started a separate broadcast feed.');
             });
             li.appendChild(camBtn);
             const micBtn = document.createElement('button');
