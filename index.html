@@ -4086,6 +4086,9 @@ body.streams-flex-fit #video-container[hidden] {
     async function requestGoLive({ allCameras = false } = {}){
       if (broadcasting) { endBroadcast(); return; }
       goLiveAllRequested = !!allCameras;
+      if(goLiveAllRequested){
+        await probeAllUsbCameraPorts();
+      }
       const connected = await ensureCloudConnection();
       if(!connected){
         goLiveAllRequested = false;
@@ -4304,6 +4307,11 @@ body.streams-flex-fit #video-container[hidden] {
       return /(camera|cam|webcam|usb|capture|video)/.test(label);
     }
 
+    function isLikelyUsbCamera(device){
+      const label = String(device?.label || '').toLowerCase();
+      return /(usb|capture|hdmi)/.test(label);
+    }
+
     function buildBroadcastAudioConstraints(){
       const base = {
         echoCancellation: true,
@@ -4454,6 +4462,25 @@ body.streams-flex-fit #video-container[hidden] {
       base.getAudioTracks().forEach(t => separated.addTrack(t));
       renderMultiCamControls(entries);
       return { stream: separated, previews: opened, multiCam: true };
+    }
+
+    async function probeAllUsbCameraPorts(){
+      const cams = await detectAvailableCameras({ requestPermission: true });
+      if(!Array.isArray(cams) || cams.length <= 1){
+        return cams || [];
+      }
+      const usbCams = cams.filter(isLikelyUsbCamera);
+      for(const cam of usbCams){
+        const id = cam?.deviceId;
+        if(!id) continue;
+        try {
+          const probe = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
+          probe.getTracks().forEach(track => track.stop());
+        } catch(err){
+          console.warn('USB camera probe failed', cam?.label || id, err);
+        }
+      }
+      return detectAvailableCameras();
     }
 
     function removeExtraCameraPreviews(){
