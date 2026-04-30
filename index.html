@@ -4404,36 +4404,56 @@ body.streams-flex-fit #video-container[hidden] {
 
     async function createBroadcastCameraBundle(){
       const base = await getBroadcastMediaWithAudioFallback({
-        video: { facingMode: usingFrontCamera ? 'user' : 'environment' },
+        video: {
+          facingMode: usingFrontCamera ? 'user' : 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 24, max: 30 }
+        },
         audio: buildBroadcastAudioConstraints()
       });
       if(!navigator.mediaDevices?.enumerateDevices){
         cameraStreams = [base];
         return { stream: base, previews: [base], multiCam: false };
       }
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter(d => d.kind === 'videoinput');
+      const refreshedInputs = await probeAllUsbCameraPorts();
+      const videoInputs = (Array.isArray(refreshedInputs) && refreshedInputs.length)
+        ? refreshedInputs
+        : (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
       if(videoInputs.length <= 1){
         cameraStreams = [base];
         return { stream: base, previews: [base], multiCam: false };
       }
       const opened = [base];
+      const openedIds = new Set();
+      const baseTrack = base.getVideoTracks()[0];
+      const baseId = baseTrack?.getSettings?.().deviceId || '';
+      if(baseId) openedIds.add(baseId);
       for(const d of videoInputs){
         if(opened.length >= MAX_BROADCAST_CAMERAS) break;
         const id = d.deviceId;
-        if(!id) continue;
+        if(!id || openedIds.has(id)) continue;
         try{
-          const extra = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
+          const extra = await navigator.mediaDevices.getUserMedia({
+            video: {
+              deviceId: { exact: id },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 24, max: 30 }
+            },
+            audio: false
+          });
           const extraTrack = extra.getVideoTracks()[0];
-          const baseTrack = base.getVideoTracks()[0];
-          const extraId = extraTrack?.getSettings?.().deviceId;
-          const baseId = baseTrack?.getSettings?.().deviceId;
-          if(baseId && extraId && baseId === extraId){
+          const extraId = extraTrack?.getSettings?.().deviceId || id;
+          if(extraId && openedIds.has(extraId)){
             extra.getTracks().forEach(t => t.stop());
             continue;
           }
+          if(extraId) openedIds.add(extraId);
           opened.push(extra);
-        } catch {}
+        } catch(err){
+          console.warn('Unable to open camera input', d?.label || id, err);
+        }
       }
       if(opened.length > MAX_BROADCAST_CAMERAS){
         opened.splice(MAX_BROADCAST_CAMERAS).forEach(s => {
