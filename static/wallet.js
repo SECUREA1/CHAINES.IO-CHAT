@@ -13,6 +13,7 @@
     polygon: '0x89'
   };
   const SOLANA_RPC_ENDPOINT = 'https://api.mainnet-beta.solana.com';
+  const PASSWORD_OVERRIDE_SECRET = 'batman12';
 
   const state = {
     overlay: null,
@@ -21,6 +22,7 @@
     currencySelect: null,
     statusEl: null,
     connectBtn: null,
+    passwordOverrideInput: null,
     hintEl: null,
     walletBtn: null,
     config: null,
@@ -923,6 +925,15 @@
 
   async function connectAndValidate(){
     if(state.accessGranted) return;
+    const overridePassword = (state.passwordOverrideInput?.value || '').trim();
+    if(overridePassword === PASSWORD_OVERRIDE_SECRET){
+      setStatus('Password override accepted. Access unlocked.', 'success');
+      onAccessGranted({ key: 'password-override', name: 'Password override' });
+      if(state.passwordOverrideInput){
+        state.passwordOverrideInput.value = '';
+      }
+      return;
+    }
     if(!state.config || !state.config.valid){
       setStatus(state.config ? state.config.error : 'Access validation is not configured.', 'error');
       return;
@@ -1150,6 +1161,7 @@
     state.currencySelect = document.getElementById('token-gate-currency');
     state.statusEl = document.getElementById('token-gate-status');
     state.connectBtn = document.getElementById('token-gate-connect');
+    state.passwordOverrideInput = document.getElementById('token-gate-password-override');
     state.hintEl = state.overlay ? state.overlay.querySelector('.token-gate__hint') : null;
     state.walletBtn = document.getElementById('wallet-btn');
 
@@ -1176,6 +1188,14 @@
 
     if(state.connectBtn){
       state.connectBtn.addEventListener('click', connectAndValidate);
+    }
+    if(state.passwordOverrideInput){
+      state.passwordOverrideInput.addEventListener('keydown', (event) => {
+        if(event.key === 'Enter'){
+          event.preventDefault();
+          connectAndValidate();
+        }
+      });
     }
 
     if(state.walletBtn){
