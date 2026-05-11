@@ -126,7 +126,8 @@
     .token-gate__tags { display:flex; flex-wrap:wrap; gap:10px; }
     .token-gate__tag { padding:6px 10px; border-radius:999px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%); font-size:12px; font-weight:600; }
     .token-gate__wallets { display:grid; gap:6px; }
-    .token-gate__wallets select {
+    .token-gate__wallets select,
+    .token-gate__wallets input {
       width:100%; border-radius:14px; padding:12px 14px; border:1px solid color-mix(in oklab, var(--gold), transparent 55%);
       background: color-mix(in oklab, var(--panel), transparent 8%); color:var(--fg); font:inherit;
     }
@@ -1996,6 +1997,10 @@ body.streams-flex-fit #video-container[hidden] {
             <option value="MATIC">MATIC</option>
             <option value="SOL">SOL</option>
           </select>
+        </label>
+        <label class="token-gate__wallets">
+          <span>Password override</span>
+          <input id="token-gate-password-override" type="password" autocomplete="off" placeholder="Enter override password" aria-label="Password override" />
         </label>
         <p class="token-gate__status" id="token-gate-status" role="status" aria-live="polite"></p>
         <button id="token-gate-connect" class="token-gate__button" type="button" data-action="connect">
