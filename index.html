@@ -3460,16 +3460,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     }
 
-    function ensureParticipantVideoElement(id){
+    function ensureParticipantVideoElement(id, trackId = ''){
       const participant = streams[id];
       if(!participant || !participant.video) return null;
       if(participant.connectionState === 'camera-error'){
         participant.video.textContent = '';
       }
-      let video = participant.video.querySelector(`video[data-stream-owner="${CSS.escape(id)}"]`);
+      const ownerSelector = CSS.escape(id);
+      const trackSelector = trackId ? `[data-stream-track="${CSS.escape(trackId)}"]` : ':not([data-stream-track])';
+      let video = participant.video.querySelector(`video[data-stream-owner="${ownerSelector}"]${trackSelector}`);
       if(!video){
         video = document.createElement('video');
         tagMediaOwner(video, id);
+        if(trackId) video.dataset.streamTrack = trackId;
         video.autoplay = true;
         video.setAttribute('autoplay', '');
         video.playsInline = true;
@@ -3485,9 +3488,47 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         attachCaptions(video);
         const liveTrack = video.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
         liveTrack.mode = 'showing';
-        participant.captionTrack = liveTrack;
+        if(!participant.captionTrack) participant.captionTrack = liveTrack;
       }
       return video;
+    }
+
+    function syncParticipantVideoElements(participantId, stream){
+      const participant = streams[participantId];
+      if(!participant || !stream) return null;
+      const videoTracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+      const audioTracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
+      const expectedTrackIds = new Set(videoTracks.map(track => track.id));
+      participant.video.querySelectorAll(`video[data-stream-owner="${CSS.escape(participantId)}"][data-stream-track]`).forEach(video => {
+        if(!expectedTrackIds.has(video.dataset.streamTrack)){
+          try { video.pause?.(); video.srcObject = null; } catch {}
+          video.remove();
+        }
+      });
+      if(videoTracks.length <= 1){
+        const video = ensureParticipantVideoElement(participantId);
+        if(video) attachStreamToVideo(video, stream, { muted: participantId === clientId });
+        return video;
+      }
+      let primaryVideo = null;
+      videoTracks.forEach((track, index) => {
+        const cameraStream = new MediaStream([track]);
+        if(index === 0){
+          audioTracks.forEach(audioTrack => cameraStream.addTrack(audioTrack));
+        }
+        const video = ensureParticipantVideoElement(participantId, track.id);
+        if(video){
+          video.title = track.label || `Camera ${index + 1}`;
+          attachStreamToVideo(video, cameraStream, { muted: participantId === clientId || index > 0 });
+          if(index === 0) primaryVideo = video;
+        }
+      });
+      const legacyVideo = participant.video.querySelector(`video[data-stream-owner="${CSS.escape(participantId)}"]:not([data-stream-track])`);
+      if(legacyVideo){
+        try { legacyVideo.pause?.(); legacyVideo.srcObject = null; } catch {}
+        legacyVideo.remove();
+      }
+      return primaryVideo;
     }
 
     function updateParticipantStream(participantId, stream){
@@ -3499,11 +3540,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       participant.liveActive = true;
       participant.container.classList.add('open');
       if(participant.liveState) participant.liveState.textContent = 'Live now';
-      const video = ensureParticipantVideoElement(participantId);
-      if(video){
-        attachStreamToVideo(video, stream, { muted: participantId === clientId });
-        participant.vid = video;
-      }
+      const video = syncParticipantVideoElements(participantId, stream);
+      if(video) participant.vid = video;
       console.log('Participant:', participantId);
       console.log('Stream:', participant.stream);
       console.log('Video tracks:', participant.stream?.getVideoTracks());
