@@ -42,6 +42,9 @@
         --caption-bg: rgba(0,0,0,0.6);
         --header-height: 0px;
         --footer-height: 0px;
+        --nav-layer: 1200;
+        --menu-layer: 1300;
+        --action-layer: 1600;
       }
       :root[data-theme='light']{
         --bg:#f1f5f9;
@@ -203,7 +206,7 @@
         overflow:hidden;
       }
 
-    header { display:flex; flex-direction:column; gap:8px; padding:8px 10px; position: sticky; top: 0; z-index: 1200; background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); border-radius:16px; }
+    header { display:flex; flex-direction:column; gap:8px; padding:8px 10px; position: sticky; top: 0; z-index: var(--nav-layer); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); border:1px solid var(--lining); border-radius:16px; }
     .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:nowrap; width:100%; }
     .bar-right { display:flex; align-items:center; gap:8px; margin-left:auto; min-width:0; }
     header, .bar, .toolbar, .toolbar-primary, .toolbar-shell { min-width:0; }
@@ -223,7 +226,7 @@
       border-radius:10px;
     }
     .toolbar-panel { width:100%; }
-    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); }
+    .toolbar, .const-buttons { display:flex; align-items:center; gap:8px; padding:6px; width:100%; border:1px solid var(--lining); border-radius:var(--radius); background: color-mix(in oklab, var(--panel), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--shadow); position:relative; z-index:var(--nav-layer); }
     .toolbar {
       justify-content:flex-start;
       flex-wrap:nowrap;
@@ -233,8 +236,8 @@
     .toolbar::-webkit-scrollbar { display:none; }
     .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
-    .toolbar-overflow { position:relative; flex:0 0 auto; margin-right:2px; }
-    .toolbar-overflow-panel { position:absolute; left:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:8px; min-width:240px; max-width:min(92vw, 320px); max-height:min(58vh, 420px); overflow-y:auto; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:1300; }
+    .toolbar-overflow { position:relative; flex:0 0 auto; margin-right:2px; z-index:var(--menu-layer); }
+    .toolbar-overflow-panel { position:absolute; left:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:8px; min-width:240px; max-width:min(92vw, 320px); max-height:min(58vh, 420px); overflow-y:auto; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:var(--menu-layer); }
     .toolbar-overflow.is-open .toolbar-overflow-panel { display:flex; }
     .toolbar-overflow-panel .chip { width:100%; justify-content:flex-start; }
     .toolbar-overflow-group { border:1px solid var(--lining); border-radius:10px; padding:6px; background: color-mix(in oklab, var(--panel), transparent 15%); }
@@ -243,14 +246,16 @@
     .toolbar-overflow-list { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
     .toolbar-overflow-list .chip { min-height:32px; padding:5px 8px; font-size:12px; gap:6px; border-radius:10px; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
-    .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
+    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; position:relative; z-index:var(--action-layer); }
     .toolbar-additional-desktop {
       display:none;
       align-items:center;
       gap:8px;
       min-width:0;
       flex:0 1 auto;
+      position:relative;
+      z-index:var(--action-layer);
     }
     .toolbar-additional-desktop .chip {
       width:36px;
@@ -388,8 +393,8 @@
     }
     .composer-actions .send { width:56px; height:56px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--lining);
-            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; }
-    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #streams-fit-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #market-page-btn, #voice3-btn, #omconsole-gaming-demos-btn, #chaines-ar-btn, #chaines-ar-btn-mobile { cursor:pointer; }
+            border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 25%); box-shadow: var(--shadow); color: var(--fg); backdrop-filter: blur(8px); text-decoration:none; position:relative; z-index:var(--action-layer); }
+    #live-chip, #theme-toggle, #cmd-list, #ghost-btn, #feed-btn, #logout-btn, #conn-chip, #camera-btn, #add-camera-btn, #screen-btn, #omconsole-btn, #ioncore-btn, #rednode-btn, #watchtower-btn, #watchtower-btn-mobile, #streams-fit-btn-mobile, #market-mode-toggle, #toolbar-overflow-toggle, #marketplace-feed-btn, #marketplace-menu-btn, #market-page-btn, #voice3-btn, #omconsole-gaming-demos-btn, #chaines-ar-btn, #chaines-ar-btn-mobile { cursor:pointer; }
     #theme-toggle, #cmd-list, #logout-btn, #camera-btn, #add-camera-btn, #screen-btn {
       width:36px;
       height:36px;
@@ -400,7 +405,7 @@
       #conn-chip img, #theme-toggle img, #cmd-list img, #ghost-btn img, #feed-btn img, #logout-btn img, #live-chip img,
       #camera-btn img, #add-camera-btn img, #screen-btn img, #chat-toggle img, #exit-broadcast img,
       #broadcast-btn img, #attach img, #send img, #command-btn img, #wallet-btn img, #broadcast-send img,
-      #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #market-page-btn img,
+      #message-btn img, #stream-code-btn img, #camera-flip-btn img, #invite-btn img, #listener-count img, #end-btn img, #marketplace-feed-btn img, #marketplace-menu-btn img, #market-page-btn img,
       #streams-fit-btn img, #streams-fit-btn-mobile img, #video-toggle img, #market-mode-toggle img, #watchtower-btn img, #watchtower-btn-mobile img, #omconsole-btn img, #ioncore-btn img, #rednode-btn img, #voice3-btn img, #omconsole-gaming-demos-btn img, #chaines-ar-btn img, #chaines-ar-btn-mobile img {
         width:24px;
         height:24px;
@@ -2042,6 +2047,7 @@ body.streams-flex-fit #video-container[hidden] {
                   <details class="toolbar-overflow-group" open>
                     <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
+                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" />Marketplace</a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /></button></li>
