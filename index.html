@@ -1315,7 +1315,9 @@ body.broadcast-mode #streams .stream {
   min-height: 150px;
 }
 body.broadcast-mode #streams .stream .video,
-body.broadcast-mode #streams .stream.open .video { display:block; }
+body.broadcast-mode #streams .stream.open .video,
+body.has-live-room #streams .stream .video,
+body.has-live-room #streams .stream.open .video { display:block; }
 body.broadcast-mode #streams .stream .thumb,
 body.broadcast-mode #streams .stream .tune-btn { display:none; }
 body.broadcast-mode #streams .stream.speaking {
@@ -1326,6 +1328,18 @@ body.broadcast-mode #streams .stream.speaking {
 .stream-pill { border:1px solid var(--lining); border-radius:999px; padding:2px 6px; font-size:10px; color:var(--muted); background:rgba(0,0,0,.18); }
 .stream-pill.is-on { color:#fff; border-color:color-mix(in oklab, var(--accent), #fff 15%); }
 .camera-off-placeholder { display:grid; place-items:center; aspect-ratio:16/9; border-radius:8px; background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(0,0,0,.35)); color:#fff; font-weight:800; font-size:28px; }
+.room-stage { display:none; margin:10px; border:1px solid var(--lining); border-radius:18px; background:color-mix(in oklab, var(--panel), #000 10%); min-height:clamp(260px, 58vh, 720px); overflow:hidden; position:relative; box-shadow:0 18px 50px rgba(0,0,0,.22); }
+body.broadcast-mode .room-stage, body.has-live-room .room-stage { display:grid; place-items:center; }
+.room-stage video { width:100%; height:100%; min-height:clamp(260px, 58vh, 720px); object-fit:contain; background:#000; }
+.room-stage .camera-off-placeholder { width:100%; min-height:clamp(260px, 58vh, 720px); border-radius:0; font-size:clamp(42px, 10vw, 96px); }
+.room-stage-label { position:absolute; left:14px; bottom:14px; padding:7px 10px; border-radius:999px; background:rgba(0,0,0,.52); color:#fff; font-weight:800; backdrop-filter:blur(10px); }
+.stream { animation:tile-fade-in .22s ease both; }
+.stream.is-leaving { animation:tile-fade-out .18s ease both; }
+.stream.speaking { transform:translateY(-5px); border-color:var(--gold); box-shadow:0 0 0 3px color-mix(in oklab, var(--gold), transparent 45%), 0 16px 34px rgba(0,0,0,.32); }
+.stream.is-host { order:-999; }
+.stream.is-stage-selected { border-color:color-mix(in oklab, var(--accent), #fff 28%); }
+@keyframes tile-fade-in { from{ opacity:0; transform:translateY(8px) scale(.98); } to{ opacity:1; transform:translateY(0) scale(1); } }
+@keyframes tile-fade-out { to{ opacity:0; transform:translateY(-6px) scale(.98); } }
 @media (max-width: 640px){
   body.broadcast-mode #streams { top: calc(54px + env(safe-area-inset-top)); gap:8px; padding:8px; }
   body.broadcast-mode #streams .stream { width: 132px; min-height: 128px; padding:6px; }
@@ -2146,6 +2160,7 @@ body.streams-flex-fit #video-container[hidden] {
 
       <main>
         <div id="streams" class="streams"></div>
+        <div id="broadcast-stage" class="room-stage" aria-live="polite"></div>
         <div id="video-container" hidden></div>
         <div id="overlay-chat" hidden></div>
         <ul id="feed" class="feed" aria-live="polite" aria-busy="false"></ul>
@@ -2918,6 +2933,7 @@ body.streams-flex-fit #video-container[hidden] {
     const popupText = el('#popup-text');
     const popupActions = el('#popup-actions');
     let userCache = [];
+    const broadcastStage = el('#broadcast-stage');
     const broadcastBtn = el('#broadcast-btn');
     const broadcastIcon = broadcastBtn.querySelector('img');
     const broadcastLabel = broadcastBtn.querySelector('.label');
@@ -3275,6 +3291,59 @@ body.streams-flex-fit #video-container[hidden] {
         watchtowerBtnMobile.setAttribute('aria-label', mobileLabel);
       }
     }
+    let selectedStageId = null;
+    let stageAutoMode = true;
+    function participantName(id){
+      return (streams[id]?.container?.querySelector('.title')?.textContent || '@participant').replace(/\s*\(.*/, '').trim();
+    }
+    function renderStage(id){
+      if(!broadcastStage) return;
+      const targetId = id && streams[id] ? id : (broadcastParticipantOrder.find(pid => streams[pid]) || Object.keys(streams).find(pid => streams[pid]?.liveActive || streams[pid]?.started));
+      broadcastStage.innerHTML = '';
+      Object.values(streams).forEach(s => s.container.classList.remove('is-stage-selected'));
+      if(!targetId || !streams[targetId]){
+        document.body.classList.remove('has-live-room');
+        return;
+      }
+      document.body.classList.add('has-live-room');
+      const stream = streams[targetId];
+      stream.container.classList.add('is-stage-selected');
+      const srcVideo = stream.video?.querySelector('video');
+      const placeholder = stream.video?.querySelector('.camera-off-placeholder');
+      if(srcVideo && srcVideo.srcObject){
+        const stageVideo = document.createElement('video');
+        tagMediaOwner(stageVideo, targetId);
+        stageVideo.srcObject = srcVideo.srcObject;
+        stageVideo.autoplay = true;
+        stageVideo.playsInline = true;
+        stageVideo.controls = true;
+        stageVideo.muted = targetId === clientId;
+        if(stageVideo.muted) stageVideo.setAttribute('muted','');
+        broadcastStage.appendChild(stageVideo);
+        tryPlay(stageVideo);
+      } else if(placeholder){
+        broadcastStage.appendChild(placeholder.cloneNode(true));
+      } else {
+        const initials = participantName(targetId).replace('@','').slice(0,2).toUpperCase() || '👤';
+        const div = document.createElement('div');
+        div.className = 'camera-off-placeholder';
+        div.textContent = initials;
+        broadcastStage.appendChild(div);
+      }
+      const label = document.createElement('div');
+      label.className = 'room-stage-label';
+      label.textContent = participantName(targetId) + (stageAutoMode ? ' · Auto stage' : ' · Pinned');
+      broadcastStage.appendChild(label);
+    }
+    function promoteStage(id, manual=false){
+      if(!id || !streams[id]) return;
+      selectedStageId = id;
+      if(manual) stageAutoMode = false;
+      renderStage(id);
+    }
+    if(broadcastStage){
+      broadcastStage.addEventListener('dblclick', () => { stageAutoMode = true; selectedStageId = null; renderStage(); });
+    }
     let watchtowerWindow = null;
     function setStreamsFlexFit(next){
       streamsFlexFit = !!next;
@@ -3296,6 +3365,7 @@ body.streams-flex-fit #video-container[hidden] {
       let score = 0;
       const participantIndex = broadcastParticipantOrder.indexOf(id);
       if(participantIndex >= 0) score += 6000 - participantIndex;
+      if(streams[id]?.role === 'host') score += 10000;
       if(id === clientId && broadcasting) score += 3000;
       if(s.isPrimary) score += 2200;
       if(s.liveActive) score += 1200;
@@ -3325,6 +3395,7 @@ body.streams-flex-fit #video-container[hidden] {
         .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))
         .forEach(id => streamsEl.appendChild(streams[id].container));
       renderAudioFeedControls();
+      renderStage(selectedStageId);
     }
     function setStreamLiveState(id, stateText, isLive){
       if(!streams[id]) return;
@@ -4799,9 +4870,11 @@ body.streams-flex-fit #video-container[hidden] {
                 endWatching(id);
               }
               closePeerConnection(id);
-              streams[id].container.remove();
+              streams[id].container.classList.add('is-leaving');
+              setTimeout(() => streams[id]?.container?.remove(), 180);
               delete streams[id];
               delete streamPresence[id];
+              renderStage(selectedStageId);
             }
           } else {
             streamPresence[id] = Date.now();
@@ -4838,6 +4911,8 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
+        div.addEventListener('click', () => promoteStage(id, true));
+        div.addEventListener('dblclick', (ev) => { ev.stopPropagation(); stageAutoMode = true; selectedStageId = null; renderStage(); });
         div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="stream-role"><span class="stream-pill" data-role>Guest</span><span class="stream-pill" data-connection>Loading</span></div><div class="stream-indicators"><span class="stream-pill" data-mic>Mic on</span><span class="stream-pill" data-camera>Camera on</span></div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join the main broadcast"><img src="static/go-live.svg" alt="Request to join" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
@@ -4895,7 +4970,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, roleEl: div.querySelector("[data-role]"), connectionEl: div.querySelector("[data-connection]"), micEl: div.querySelector("[data-mic]"), cameraEl: div.querySelector("[data-camera]") };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, role: isSelf && broadcasting ? 'host' : 'guest', started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, roleEl: div.querySelector("[data-role]"), connectionEl: div.querySelector("[data-connection]"), micEl: div.querySelector("[data-mic]"), cameraEl: div.querySelector("[data-camera]") };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
@@ -6629,6 +6704,7 @@ body.streams-flex-fit #video-container[hidden] {
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       updateVideoLayout();
+      renderStage();
       if(activeRooms.size === 0) showChat();
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
@@ -6853,6 +6929,7 @@ body.streams-flex-fit #video-container[hidden] {
                     updateParticipantTileState(msg.id, { connected: true, cameraOff: false });
                     updateVideoLayout(box);
                     setStreamLiveState(msg.id, 'Live now', true);
+                    if(stageAutoMode) promoteStage(msg.id);
                   }
                   vid.muted = false;
                   vid.removeAttribute('muted');
@@ -6984,7 +7061,11 @@ body.streams-flex-fit #video-container[hidden] {
         const tick = () => {
           analyser.getByteFrequencyData(data);
           const avg = data.reduce((sum, value) => sum + value, 0) / Math.max(1, data.length);
-          if(streams[id]) streams[id].container.classList.toggle('speaking', avg > 18);
+          if(streams[id]){
+            const speaking = avg > 18;
+            streams[id].container.classList.toggle('speaking', speaking);
+            if(speaking && stageAutoMode) promoteStage(id);
+          }
           const monitor = speakingMonitors.get(id);
           if(monitor) monitor.raf = requestAnimationFrame(tick);
         };
@@ -7003,7 +7084,9 @@ body.streams-flex-fit #video-container[hidden] {
     function updateParticipantTileState(id, { role, connected, muted, cameraOff: camOff } = {}){
       const stream = streams[id];
       if(!stream) return;
-      if(stream.roleEl){ stream.roleEl.textContent = role === 'host' ? 'Host' : 'Guest'; stream.roleEl.classList.toggle('is-on', role === 'host'); }
+      if(role) stream.role = role;
+      stream.container.classList.toggle('is-host', stream.role === 'host');
+      if(stream.roleEl){ stream.roleEl.textContent = stream.role === 'host' ? 'Host' : 'Guest'; stream.roleEl.classList.toggle('is-on', stream.role === 'host'); }
       if(stream.connectionEl){ stream.connectionEl.textContent = connected ? 'Connected' : 'Loading'; stream.connectionEl.classList.toggle('is-on', !!connected); }
       if(stream.micEl){ stream.micEl.textContent = muted ? '🔇 Muted' : '🎙️ Mic on'; stream.micEl.classList.toggle('is-on', !muted); }
       if(stream.cameraEl){ stream.cameraEl.textContent = camOff ? '📷 Off' : '📹 Camera on'; stream.cameraEl.classList.toggle('is-on', !camOff); }
@@ -7014,6 +7097,7 @@ body.streams-flex-fit #video-container[hidden] {
       const initials = (stream.container.querySelector('.title')?.textContent || '@?').replace('@','').trim().slice(0,2).toUpperCase();
       stream.video.innerHTML = `<div class="camera-off-placeholder" aria-label="Camera disabled">${initials || '👤'}</div>`;
       updateParticipantTileState(id, { connected: true, cameraOff: true });
+      renderStage(selectedStageId || id);
     }
 
     function handleMainBroadcastState(state){
@@ -7022,10 +7106,11 @@ body.streams-flex-fit #video-container[hidden] {
       const participants = Array.isArray(state.participants) && state.participants.length ? state.participants : [state.host, state.guest].filter(Boolean);
       const guest = state.guest;
       broadcastParticipantOrder = participants.map((participant) => participant.id).filter(Boolean);
+      document.body.classList.toggle('has-live-room', broadcastParticipantOrder.length > 0);
       if(listenerCountSpan) listenerCountSpan.textContent = String(state.listeners || 0);
       participants.forEach((participant, index) => {
         ensureStreamThumb(participant.id, participant.name || (participant.role === 'host' ? 'host' : 'guest'), participant.id === clientId);
-        updateParticipantTileState(participant.id, { role: participant.role || (index === 0 ? 'host' : 'guest'), connected: !!streams[participant.id]?.vid || participant.id === clientId, muted: !!participant.muted, cameraOff: !!participant.cameraOff });
+        updateParticipantTileState(participant.id, { role: participant.role || (index === 0 ? 'host' : 'guest'), connected: !!streams[participant.id]?.vid || participant.id === clientId, muted: !!participant.muted, cameraOff: !!participant.cameraOff || (!!participant.mic && !streams[participant.id]?.vid) });
       });
       if(host){
         ensureStreamThumb(host.id, host.name || 'host', host.id === clientId);
@@ -7052,7 +7137,9 @@ body.streams-flex-fit #video-container[hidden] {
           updateParticipantTileState(participant.id, { role: participant.role, connected: false });
         }
       });
+      if(stageAutoMode) selectedStageId = host?.id || guest?.id || selectedStageId;
       refreshPrimaryStreamTile(host?.id || guest?.id || null);
+      renderStage(selectedStageId);
     }
 
     function handleJoinRequest(id, user){
