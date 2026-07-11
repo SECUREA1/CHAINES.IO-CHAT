@@ -567,69 +567,6 @@
         postStatus.textContent = text;
         postStatus.className = `post-status${tone ? ` ${tone}` : ''}`;
       };
-      async function crossPostListingToIndexFeed({ user = '', text = '', listing = {}, sourceId = '' } = {}) {
-        const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsHost = (location.hostname && !/localhost|127\.0\.0\.1/.test(location.hostname))
-          ? 'chaines-io-chat.onrender.com'
-          : location.host;
-        const wsUrl = `${wsProtocol}${wsHost}/ws`;
-        const cleanUser = sanitizeUser(user || 'anon') || 'anon';
-        const cleanText = String(text || '').trim();
-        if (!cleanText) return false;
-        const normalizedListing = normalizeListing(listing || {});
-        return await new Promise((resolve) => {
-          let settled = false;
-          const done = (ok) => {
-            if (settled) return;
-            settled = true;
-            try { socket.close(); } catch {}
-            resolve(!!ok);
-          };
-          let socket;
-          try {
-            socket = new WebSocket(wsUrl);
-          } catch {
-            resolve(false);
-            return;
-          }
-          const timeout = setTimeout(() => done(false), 4200);
-          socket.addEventListener('open', () => {
-            try {
-              socket.send(JSON.stringify({ type: 'join', user: cleanUser }));
-              socket.send(JSON.stringify({
-                type: 'chat',
-                user: cleanUser,
-                text: `${cleanText}\n\n— ${cleanUser} • Marketplace ad`,
-                category: normalizedListing.category,
-                listing: {
-                  ...normalizedListing,
-                  sourceRef: sourceId ? `market:${sourceId}` : ''
-                }
-              }));
-            } catch {
-              clearTimeout(timeout);
-              done(false);
-            }
-          });
-          socket.addEventListener('message', (event) => {
-            try {
-              const data = JSON.parse(event.data || '{}');
-              if (data?.type === 'chat' && data?.user === cleanUser && String(data?.text || '').includes(cleanText.slice(0, 20))) {
-                clearTimeout(timeout);
-                done(true);
-              }
-            } catch {}
-          });
-          socket.addEventListener('error', () => {
-            clearTimeout(timeout);
-            done(false);
-          });
-          socket.addEventListener('close', () => {
-            clearTimeout(timeout);
-            done(settled);
-          });
-        });
-      }
       const formatTime = (ts) => {
         try { return new Date(ts).toLocaleString(); } catch { return ''; }
       };
@@ -1002,13 +939,6 @@
             );
             return;
           }
-          const createdItem = items[items.length - 1];
-          const mirroredToIndex = await crossPostListingToIndexFeed({
-            user: createdItem.user,
-            text: createdItem.text,
-            listing: createdItem.listing,
-            sourceId: createdItem.id
-          });
           awardRewards(user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
           if (listing.category === 'services' || listing.category === 'meal-delivery') {
             awardRewards(user, 'listing-services', 4, `Marketplace ${listing.category} service listing`);
@@ -1020,12 +950,8 @@
           postForm.reset();
           postUser.value = user;
           postCategory.value = listing.category;
-          setPostStatus(
-            mirroredToIndex
-              ? 'Listing published and cross-posted to the index feed.'
-              : 'Listing published to CHAINeS Marketplace. Index cross-post is retrying in background.',
-            'success'
-          );
+          syncPostFieldsByCategory();
+          setPostStatus('Listing published to CHAINeS Marketplace.', 'success');
           render();
         } finally {
           publishInFlight = false;
