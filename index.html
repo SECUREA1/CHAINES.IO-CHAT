@@ -1301,52 +1301,6 @@
   align-items: stretch;
 }
 
-body.broadcast-mode #streams, body.has-live-room #streams {
-  position: sticky;
-  top: calc(64px + env(safe-area-inset-top));
-  z-index: 40;
-  display:flex;
-  flex-wrap:wrap;
-  align-items:stretch;
-  gap:10px;
-  padding:10px;
-  background: color-mix(in oklab, var(--bg), transparent 8%);
-  border-bottom: 1px solid var(--lining);
-  backdrop-filter: blur(14px);
-  -webkit-overflow-scrolling: touch;
-}
-body.broadcast-mode #streams .stream, body.has-live-room #streams .stream {
-  width: clamp(170px, 22vw, 260px);
-  min-height: 170px;
-  flex: 1 1 clamp(170px, 22vw, 260px);
-}
-body.broadcast-mode #streams .stream .video,
-body.broadcast-mode #streams .stream.open .video,
-body.has-live-room #streams .stream .video,
-body.has-live-room #streams .stream.open .video { display:block; }
-body.broadcast-mode #streams .stream .thumb,
-body.broadcast-mode #streams .stream .tune-btn { display:none; }
-body.broadcast-mode #streams .stream.speaking {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gold), transparent 45%), 0 14px 30px rgba(0,0,0,.3);
-}
-.stream-role, .stream-indicators { display:flex; gap:5px; flex-wrap:wrap; margin:4px 0; }
-.stream-pill { border:1px solid var(--lining); border-radius:999px; padding:2px 6px; font-size:10px; color:var(--muted); background:rgba(0,0,0,.18); }
-.stream-pill.is-on { color:#fff; border-color:color-mix(in oklab, var(--accent), #fff 15%); }
-.camera-off-placeholder { display:grid; place-items:center; aspect-ratio:16/9; border-radius:8px; background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(0,0,0,.35)); color:#fff; font-weight:800; font-size:28px; }
-.room-stage { display:none !important; }
-.stream { animation:tile-fade-in .22s ease both; }
-.stream.is-leaving { animation:tile-fade-out .18s ease both; }
-.stream.speaking { transform:translateY(-5px); border-color:var(--gold); box-shadow:0 0 0 3px color-mix(in oklab, var(--gold), transparent 45%), 0 16px 34px rgba(0,0,0,.32); }
-.stream.is-host { order:-999; }
-@keyframes tile-fade-in { from{ opacity:0; transform:translateY(8px) scale(.98); } to{ opacity:1; transform:translateY(0) scale(1); } }
-@keyframes tile-fade-out { to{ opacity:0; transform:translateY(-6px) scale(.98); } }
-@media (max-width: 640px){
-  body.broadcast-mode #streams, body.has-live-room #streams { top: calc(54px + env(safe-area-inset-top)); gap:8px; padding:8px; overflow-x:auto; flex-wrap:nowrap; }
-  body.broadcast-mode #streams .stream, body.has-live-room #streams .stream { width: 45vw; min-width: 150px; min-height: 128px; padding:6px; flex:0 0 45vw; }
-  .stream .title { font-size:12px; }
-}
-
 /* Stream cards */
 .stream {
   position: relative;
@@ -1530,7 +1484,7 @@ body.streams-flex-fit #video-container[hidden] {
       display: block;
     }
     body.broadcast-mode #video-container {
-      display: none;
+      display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       overflow: auto;
       align-content: start;
@@ -2135,10 +2089,10 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
-        <button class="chip" id="add-camera-btn" type="button" title="Additional camera feeds are disabled for the single live channel" hidden aria-hidden="true">
+        <button class="chip" id="add-camera-btn" type="button" title="Add camera to broadcast" hidden>
           <img src="static/insert.svg" alt="Add camera" />
         </button>
-        <div class="multi-camera-controls" id="multi-camera-controls" hidden aria-hidden="true"></div>
+        <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
         <label class="audio-input-picker" id="audio-input-picker" title="Choose which microphone or camera audio is sent live">
           <span>Audio In</span>
           <select id="broadcast-audio-input">
@@ -2256,7 +2210,7 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" />
         </button>
-        <button class="chip" id="go-live-all-btn" type="button" title="Single live channel only" hidden aria-hidden="true">Go Live All Cams</button>
+        <button class="chip" id="go-live-all-btn" type="button" title="Go live on all detected cameras" hidden>Go Live All Cams</button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <span class="footer-notif-wrap">
           <button class="chip" id="notif-bell" title="Notifications" aria-label="Notifications">🔔<span id="notif-dot"></span></button>
@@ -2933,7 +2887,6 @@ body.streams-flex-fit #video-container[hidden] {
     const popupText = el('#popup-text');
     const popupActions = el('#popup-actions');
     let userCache = [];
-    const broadcastStage = el('#broadcast-stage');
     const broadcastBtn = el('#broadcast-btn');
     const broadcastIcon = broadcastBtn.querySelector('img');
     const broadcastLabel = broadcastBtn.querySelector('.label');
@@ -3008,7 +2961,6 @@ body.streams-flex-fit #video-container[hidden] {
     const rewardsShopList = el('#rewards-shop-list');
     const rewardsActiveEffects = el('#rewards-active-effects');
     const rewardsLeaderboard = el('#rewards-leaderboard');
-    const MAIN_BROADCAST_ROOM = 'live:main';
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -3291,17 +3243,6 @@ body.streams-flex-fit #video-container[hidden] {
         watchtowerBtnMobile.setAttribute('aria-label', mobileLabel);
       }
     }
-    let selectedStageId = null;
-    let stageAutoMode = false;
-    function participantName(id){
-      return (streams[id]?.container?.querySelector('.title')?.textContent || '@participant').replace(/\s*\(.*/, '').trim();
-    }
-    function renderStage(){
-      document.body.classList.toggle('has-live-room', broadcastParticipantOrder.length > 0 || Object.values(streams).some(s => s.liveActive || s.started));
-    }
-    function promoteStage(){
-      renderStage();
-    }
     let watchtowerWindow = null;
     function setStreamsFlexFit(next){
       streamsFlexFit = !!next;
@@ -3316,14 +3257,10 @@ body.streams-flex-fit #video-container[hidden] {
       if(streamsFlexFit) showStream();
       refreshPrimaryStreamTile();
     }
-    let broadcastParticipantOrder = [];
     function getStreamSortScore(id){
       const s = streams[id];
       if(!s) return -1;
       let score = 0;
-      const participantIndex = broadcastParticipantOrder.indexOf(id);
-      if(participantIndex >= 0) score += 6000 - participantIndex;
-      if(streams[id]?.role === 'host') score += 10000;
       if(id === clientId && broadcasting) score += 3000;
       if(s.isPrimary) score += 2200;
       if(s.liveActive) score += 1200;
@@ -3353,7 +3290,6 @@ body.streams-flex-fit #video-container[hidden] {
         .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))
         .forEach(id => streamsEl.appendChild(streams[id].container));
       renderAudioFeedControls();
-      renderStage();
     }
     function setStreamLiveState(id, stateText, isLive){
       if(!streams[id]) return;
@@ -3507,12 +3443,13 @@ body.streams-flex-fit #video-container[hidden] {
         return;
       }
       if(selectedAudioFeedId && !streams[selectedAudioFeedId]) selectedAudioFeedId = null;
+      if(!selectedAudioFeedId && feedIds.length) selectedAudioFeedId = feedIds[0];
       audioFeedControls.innerHTML = '';
       const splitBtn = document.createElement('button');
       splitBtn.type = 'button';
       splitBtn.className = 'chip';
-      splitBtn.textContent = 'Gallery View';
-      splitBtn.title = 'Show all live participant tiles';
+      splitBtn.textContent = 'Separate Feeds';
+      splitBtn.title = 'Split all live feeds into individual tiles';
       splitBtn.addEventListener('click', separateAllLiveFeeds);
       audioFeedControls.appendChild(splitBtn);
       feedIds.forEach(id => {
@@ -4160,7 +4097,10 @@ body.streams-flex-fit #video-container[hidden] {
     });
     async function requestGoLive({ allCameras = false } = {}){
       if (broadcasting) { endBroadcast(); return; }
-      goLiveAllRequested = false;
+      goLiveAllRequested = !!allCameras;
+      if(goLiveAllRequested){
+        await probeAllUsbCameraPorts();
+      }
       const connected = await ensureCloudConnection();
       if(!connected){
         goLiveAllRequested = false;
@@ -4177,20 +4117,17 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function startSeparateBroadcastFromOnline(){
-      // Single-channel mode: users join the main broadcast instead of creating side feeds.
-      const targetHost = currentHost || Object.keys(streams).find(id => id !== clientId && streams[id]?.liveActive);
-      if(targetHost){
-        pendingJoinHost = targetHost;
-        sendSignal({ type: 'join-request', id: targetHost, user: store.user });
-        systemNote('Request sent to join the main broadcast.');
-      } else {
-        await requestGoLive({ allCameras: false });
-      }
+      pendingJoinHost = null;
+      pendingMicHost = null;
+      currentHost = null;
+      joinApproved = false;
+      micApproved = false;
+      activeRooms.clear();
+      await requestGoLive({ allCameras: false });
     }
     broadcastBtn.addEventListener('click', () => { requestGoLive(); });
     if(goLiveAllBtn){
-      goLiveAllBtn.hidden = true;
-      goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: false }); });
+      goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: true }); });
     }
     streamCodeBtn.addEventListener('click', () => {
       const code = `stream-${clientId || store.user}`;
@@ -4303,9 +4240,11 @@ body.streams-flex-fit #video-container[hidden] {
 
     function refreshAddCameraButton(){
       if(!addCameraBtn) return;
-      addCameraBtn.hidden = true;
-      addCameraBtn.disabled = true;
-      addCameraBtn.title = 'Single live channel mode uses one camera or screen source.';
+      const hasLiveVideo = !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
+      const canUseNow = broadcasting && !screenSharing && !multiCamBroadcast && !cameraOff && hasLiveVideo && detectedVideoInputs.length > 1;
+      addCameraBtn.hidden = !canUseNow;
+      addCameraBtn.disabled = !canUseNow;
+      addCameraBtn.title = canUseNow ? 'Go live on all detected cameras' : 'Add camera to broadcast';
     }
 
     function closePeerConnection(id){
@@ -4324,8 +4263,6 @@ body.streams-flex-fit #video-container[hidden] {
       const pc = new RTCPeerConnection(rtcConfig);
       peerConnections[id] = pc;
       pc.onconnectionstatechange = () => {
-        console.log(`PEER CONNECTION STATE ${id}: ${pc.connectionState}`);
-        updateParticipantTileState(id, { connected: pc.connectionState === 'connected' || pc.connectionState === 'completed' });
         if(['failed', 'closed', 'disconnected'].includes(pc.connectionState)){
           closePeerConnection(id);
         }
@@ -4796,14 +4733,12 @@ body.streams-flex-fit #video-container[hidden] {
           li.appendChild(nameSpan);
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
-            camBtn.title = 'Request to join the main broadcast';
-            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Request to join" />';
-            camBtn.addEventListener('click', e => {
+            camBtn.title = 'Start a new broadcast';
+            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Start separate broadcast" />';
+            camBtn.addEventListener('click', async e => {
               e.stopPropagation();
-              currentHost = id;
-              pendingJoinHost = id;
-              sendSignal({ type: 'join-request', id, user: store.user });
-              systemNote('Request sent to join the main broadcast.');
+              await startSeparateBroadcastFromOnline();
+              systemNote('Started a separate broadcast feed.');
             });
             li.appendChild(camBtn);
             const micBtn = document.createElement('button');
@@ -4829,11 +4764,9 @@ body.streams-flex-fit #video-container[hidden] {
                 endWatching(id);
               }
               closePeerConnection(id);
-              streams[id].container.classList.add('is-leaving');
-              setTimeout(() => streams[id]?.container?.remove(), 180);
+              streams[id].container.remove();
               delete streams[id];
               delete streamPresence[id];
-              renderStage();
             }
           } else {
             streamPresence[id] = Date.now();
@@ -4870,7 +4803,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="stream-role"><span class="stream-pill" data-role>Guest</span><span class="stream-pill" data-connection>Loading</span></div><div class="stream-indicators"><span class="stream-pill" data-mic>Mic on</span><span class="stream-pill" data-camera>Camera on</span></div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join the main broadcast"><img src="static/go-live.svg" alt="Request to join" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4882,11 +4815,9 @@ body.streams-flex-fit #video-container[hidden] {
         const joinBtns = div.querySelector('.join-btns');
         const liveState = div.querySelector('.stream-live-state');
         if(!isSelf){
-          camBtn.addEventListener('click', () => {
-            currentHost = id;
-            pendingJoinHost = id;
-            sendSignal({ type: 'join-request', id, user: store.user });
-            systemNote('Request sent to join the main broadcast.');
+          camBtn.addEventListener('click', async () => {
+            await startSeparateBroadcastFromOnline();
+            systemNote('Started a separate broadcast feed.');
           });
           micBtn.addEventListener('click', () => {
             sendSignal({ type: 'mic-request', id, user: store.user });
@@ -4927,13 +4858,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, role: isSelf && broadcasting ? 'host' : 'guest', started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, roleEl: div.querySelector("[data-role]"), connectionEl: div.querySelector("[data-connection]"), micEl: div.querySelector("[data-mic]"), cameraEl: div.querySelector("[data-camera]") };
-        setTimeout(() => {
-          if(streams[id] && streams[id].connectionEl?.textContent === 'Loading'){
-            showCameraOffPlaceholder(id);
-            updateParticipantTileState(id, { connected: true, cameraOff: true });
-          }
-        }, 3000);
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
@@ -5117,7 +5042,6 @@ body.streams-flex-fit #video-container[hidden] {
           if(data && data.type === 'invite') handleInvite(data);
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
           if(data && data.type === 'guest-start') handleGuestStart(data);
-          if(data && data.type === 'main-broadcast') handleMainBroadcastState(data);
           if(data && data.type === 'delete') {
             const el = feed.querySelector(`li[data-id="${data.id}"]`);
             if(el) el.remove();
@@ -6246,8 +6170,6 @@ body.streams-flex-fit #video-container[hidden] {
               : getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
-          activeBundle.previews = activeBundle.previews ? activeBundle.previews.slice(0, 1) : [activeBundle.stream];
-          activeBundle.multiCam = false;
           const activeStream = activeBundle.stream;
           const primaryPreview = activeBundle.previews?.[0] || activeStream;
           localStream = activeStream;
@@ -6255,13 +6177,13 @@ body.streams-flex-fit #video-container[hidden] {
           goLiveAllRequested = false;
           refreshGoLiveAllButton();
           removeExtraCameraPreviews();
-          renderExtraCameraPreviews(activeBundle.previews ? activeBundle.previews.slice(0, 1) : [activeStream]);
+          renderExtraCameraPreviews(activeBundle.previews);
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
             recordCtx = recordCanvas.getContext('2d');
             const draw = () => {
-              const vids = streamsEl.querySelectorAll('video');
+              const vids = videoContainer.querySelectorAll('video');
               let w = 0, h = 0;
               vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
               if(w && h){
@@ -6332,7 +6254,6 @@ body.streams-flex-fit #video-container[hidden] {
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
       tagMediaOwner(mediaEl, clientId);
       mediaEl.srcObject = primaryPreview;
-      startSpeakingMonitor(activeStream, clientId);
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -6363,25 +6284,22 @@ body.streams-flex-fit #video-container[hidden] {
               try{ speechRec.start(); }catch{}
             }
           }
-          // Keep local preview only in the participant tile; do not duplicate it in a stage.
-          ensureStreamThumb(clientId, store.user, true);
+          videoContainer.appendChild(mediaEl);
+          // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
             const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
             tagMediaOwner(tileEl, clientId);
             tileEl.srcObject = primaryPreview;
-            startSpeakingMonitor(activeStream, clientId);
             tileEl.muted = true;
             tileEl.setAttribute('muted','');
             tileEl.autoplay = true;
             tileEl.setAttribute('autoplay','');
             tileEl.playsInline = true;
             tileEl.setAttribute('playsinline','');
-            tileEl.controls = false;
+            tileEl.controls = true;
             selfStream.video.innerHTML = '';
             selfStream.video.appendChild(tileEl);
-            console.log(`VIDEO ATTACHED ${participantName(clientId)} (${clientId})`, primaryPreview);
-            tileEl.addEventListener('playing', () => console.log(`VIDEO PLAYING ${participantName(clientId)} (${clientId})`), { once: true });
             if(!audioOnly){
               attachCaptions(tileEl);
               selfStream.captionTrack = tileEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
@@ -6393,12 +6311,11 @@ body.streams-flex-fit #video-container[hidden] {
             if(selfStream.liveState) selfStream.liveState.textContent = 'Live now';
             updateVideoLayout(selfStream.video);
           }
-          console.log(`HOST STREAM FOUND ${participantName(clientId)} (${clientId})`, activeStream);
           updateVideoLayout();
           refreshPrimaryStreamTile(clientId);
-          const start = selfStream?.vid?.play?.();
+          const start = mediaEl.play();
           if(start && start.catch){ start.catch(() => {}); }
-          broadcastVideo = selfStream?.vid || mediaEl;
+          broadcastVideo = mediaEl;
           broadcastStartedAt = Date.now();
           if(store?.user){
             awardRewards(store.user, 'broadcast-start', 2, 'Started a live stream');
@@ -6453,8 +6370,6 @@ body.streams-flex-fit #video-container[hidden] {
             if(sender) sender.replaceTrack(blankTrack);
           }
           if(broadcastVideo) broadcastVideo.srcObject = localStream;
-          updateParticipantTileState(clientId, { cameraOff: true, connected: true });
-          showCameraOffPlaceholder(clientId);
           cameraOff = true;
           if(cameraBtn){ cameraBtn.classList.add('off'); cameraBtn.title = 'Turn camera on'; }
           refreshAddCameraButton();
@@ -6473,7 +6388,6 @@ body.streams-flex-fit #video-container[hidden] {
                 if(sender) sender.replaceTrack(newVideoTrack);
               }
               if(broadcastVideo) broadcastVideo.srcObject = localStream;
-              updateParticipantTileState(clientId, { cameraOff: false, connected: true });
               cameraOff = false;
               if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
               refreshAddCameraButton();
@@ -6670,7 +6584,6 @@ body.streams-flex-fit #video-container[hidden] {
       sendSignal({ type: 'end-broadcast' });
       videoContainer.innerHTML = '';
       updateVideoLayout();
-      renderStage();
       if(activeRooms.size === 0) showChat();
       document.body.classList.remove('broadcast-mode');
       document.body.classList.remove('chat-open');
@@ -6683,7 +6596,6 @@ body.streams-flex-fit #video-container[hidden] {
       if(!hadRecorder && share){
         postMessage({ text: msgText, image: broadcastThumb });
       }
-      stopSpeakingMonitor(clientId);
       const selfStream = streams[clientId];
       if(selfStream){
         selfStream.feed.innerHTML = '';
@@ -6733,8 +6645,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!localStream) return;
       const pc = createPeerConnection(id);
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      pc.onicecandidate = e => { if(e.candidate){ console.log(`ICE CANDIDATE OUT ${id}`, e.candidate); sendSignal({ type:'candidate', id, candidate: e.candidate }); } };
-      console.log(`CREATE OFFER ${id}`);
+      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
       pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
         sendSignal({ type:'offer', id, sdp: pc.localDescription });
       });
@@ -6744,47 +6655,196 @@ body.streams-flex-fit #video-container[hidden] {
         if(!pc){
           pc = createPeerConnection(msg.id);
           pc.ontrack = ev => {
-            const stream = ev.streams?.[0] || new MediaStream([ev.track]);
-            console.log(`TRACK RECEIVED ${participantName(msg.id)} (${msg.id})`, ev.track);
-            attachStreamToParticipantTile(msg.id, stream);
-            if(broadcasting && msg.id !== clientId){
-              try{
-                if(localStream && !localStream.getTracks().some(track => track.id === ev.track.id)){
-                  localStream.addTrack(ev.track);
-                }
-              }catch{}
-              for(const id in peerConnections){
-                if(id === msg.id) continue;
-                try{
-                  const pc2 = peerConnections[id];
-                  if(!pc2.getSenders().some(sender => sender.track?.id === ev.track.id)){
+            const stream = ev.streams[0];
+            if(broadcasting && !joinApproved){
+              if(ev.track.kind === 'video'){
+                const stream = new MediaStream([ev.track]);
+                const vid = document.createElement('video');
+                tagMediaOwner(vid, msg.id);
+                vid.srcObject = stream;
+                vid.autoplay = true;
+                vid.setAttribute('autoplay','');
+                vid.playsInline = true;
+                vid.setAttribute('playsinline','');
+                vid.controls = true;
+                attachCaptions(vid);
+                const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                liveTrack.mode = 'showing';
+                videoContainer.appendChild(vid);
+                updateVideoLayout();
+                setStreamLiveState(msg.id, 'Live now', true);
+                try{ localStream && localStream.addTrack(ev.track); }catch{}
+                for(const id in peerConnections){
+                  if(id === msg.id) continue;
+                  try{
+                    const pc2 = peerConnections[id];
                     pc2.addTrack(ev.track, stream);
                     pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
                       sendSignal({ type:'offer', id, sdp: pc2.localDescription });
-                    }).catch(() => {});
+                    });
+                  }catch{}
+                }
+                vid.muted = false;                 // remote video: let audio be heard
+                vid.removeAttribute('muted');
+                tryPlay(vid);                      // will queue for unlock if blocked
+                pc._videos = pc._videos || [];
+                pc._videos.push(vid);
+              } else if(ev.track.kind === 'audio'){
+                try{ localStream && localStream.addTrack(ev.track); }catch{}
+                // Prefer a single <audio> sink in the stage during broadcast
+                if(broadcasting){
+                  let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
+                  if(!stageAud){
+                    stageAud = document.createElement('audio');
+                    tagMediaOwner(stageAud, msg.id);
+                    stageAud.autoplay = true;
+                    stageAud.controls = false;
+                    stageAud.muted = false;
+                    stageAud.removeAttribute('muted');
+                    stageAud.dataset.guest = msg.id;
+                    videoContainer.appendChild(stageAud);
                   }
-                }catch{}
+                  stageAud.srcObject = ev.streams[0];
+                  tryPlay(stageAud);
+                }
+
+                // Keep tile audio for viewers too (as you already had)
+                let target = streams[msg.id];
+                let box = target && target.video;
+                if(!box && guestMap[msg.id]){
+                  target = streams[guestMap[msg.id]];
+                  box = target && target.video;
+                }
+                if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                  const aud = document.createElement('audio');
+                  tagMediaOwner(aud, msg.id);
+                  aud.srcObject = ev.streams[0];
+                  aud.autoplay = true;
+                  aud.controls = true;
+                  aud.muted = false;                 // remote audio should be audible
+                  aud.removeAttribute('muted');
+                  aud.dataset.guest = msg.id;
+                  box.appendChild(aud);
+                  tryPlay(aud);
+                }
               }
+            } else {
+              if(ev.track.kind === 'video'){
+                const stream = new MediaStream([ev.track]);
+                if(guestMap[msg.id]){
+                  const hostTarget = streams[guestMap[msg.id]];
+                  const guestTarget = streams[msg.id];
+                  if(hostTarget && hostTarget.video){
+                    const hostVid = document.createElement('video');
+                    tagMediaOwner(hostVid, msg.id);
+                    hostVid.srcObject = stream;
+                    hostVid.autoplay = true;
+                    hostVid.setAttribute('autoplay','');
+                    hostVid.playsInline = true;
+                    hostVid.setAttribute('playsinline','');
+                    hostVid.controls = true;
+                    attachCaptions(hostVid);
+                    hostTarget.video.appendChild(hostVid);
+                    updateVideoLayout(hostTarget.video);
+                    setStreamLiveState(guestMap[msg.id], 'Live now', true);
+                    hostTarget.guestVid = hostVid;
+                    hostVid.muted = false;
+                    hostVid.removeAttribute('muted');
+                    tryPlay(hostVid);
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(hostVid);
+                  }
+                  if(guestTarget && guestTarget.video){
+                    const guestVid = document.createElement('video');
+                    tagMediaOwner(guestVid, msg.id);
+                    guestVid.srcObject = stream;
+                    guestVid.autoplay = true;
+                    guestVid.setAttribute('autoplay','');
+                    guestVid.playsInline = true;
+                    guestVid.setAttribute('playsinline','');
+                    guestVid.controls = true;
+                    attachCaptions(guestVid);
+                    const liveTrack = guestVid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                    liveTrack.mode = 'showing';
+                    guestTarget.video.appendChild(guestVid);
+                    updateVideoLayout(guestTarget.video);
+                    setStreamLiveState(msg.id, 'Live now', true);
+                    if(!guestTarget.vid) guestTarget.vid = guestVid;
+                    guestTarget.captionTrack = liveTrack;
+                    guestVid.muted = false;
+                    guestVid.removeAttribute('muted');
+                    tryPlay(guestVid);
+                    pc._videos = pc._videos || [];
+                    pc._videos.push(guestVid);
+                  }
+                } else {
+                  const vid = document.createElement('video');
+                  tagMediaOwner(vid, msg.id);
+                  vid.srcObject = stream;
+                  vid.autoplay = true;
+                  vid.setAttribute('autoplay','');
+                  vid.playsInline = true;
+                  vid.setAttribute('playsinline','');
+                  vid.controls = true;
+                  attachCaptions(vid);
+                  const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+                  liveTrack.mode = 'showing';
+                  const target = streams[msg.id];
+                  const box = target && target.video;
+                  if(box){
+                    box.appendChild(vid);
+                    updateVideoLayout(box);
+                    setStreamLiveState(msg.id, 'Live now', true);
+                  }
+                  vid.muted = false;
+                  vid.removeAttribute('muted');
+                  tryPlay(vid);
+                  if(streams[msg.id]){
+                    if(!streams[msg.id].vid) streams[msg.id].vid = vid;
+                    streams[msg.id].captionTrack = liveTrack;
+                  }
+                  pc._videos = pc._videos || [];
+                  pc._videos.push(vid);
+                }
+                } else if(ev.track.kind === 'audio'){
+                  let target = streams[msg.id];
+                  let box = target && target.video;
+                  if(!box && guestMap[msg.id]){
+                    target = streams[guestMap[msg.id]];
+                    box = target && target.video;
+                  }
+                  if(box && !box.querySelector(`audio[data-guest="${msg.id}"]`)){
+                    const aud = document.createElement('audio');
+                    tagMediaOwner(aud, msg.id);
+                    aud.srcObject = stream;
+                    aud.autoplay = true;
+                    aud.controls = true;
+                    aud.muted = false;                 // remote audio should be audible
+                    aud.removeAttribute('muted');
+                    aud.dataset.guest = msg.id;
+                    box.appendChild(aud);
+                    tryPlay(aud);
+                  }
+                }
             }
             applySelectedAudioFeed();
           };
-          pc.onicecandidate = e => { if(e.candidate){ console.log(`ICE CANDIDATE OUT ${msg.id}`, e.candidate); sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); } };
+          pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
         }
-        console.log(`REMOTE OFFER ${msg.id}`, msg.sdp);
         pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-          .then(() => { console.log(`CREATE ANSWER ${msg.id}`); return pc.createAnswer(); })
+          .then(() => pc.createAnswer())
           .then(ans => pc.setLocalDescription(ans))
           .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
       }
 
     function handleAnswer(msg){
       const pc = peerConnections[msg.id];
-      if(pc){ console.log(`REMOTE ANSWER ${msg.id}`, msg.sdp); pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); }
+      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
     }
 
     function handleCandidate(msg){
       const pc = peerConnections[msg.id];
-      if(pc && msg.candidate){ console.log(`ICE CANDIDATE IN ${msg.id}`, msg.candidate); pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); }
+      if(pc && msg.candidate) pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
     }
 
       function handleBye(msg){
@@ -6796,7 +6856,6 @@ body.streams-flex-fit #video-container[hidden] {
         const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
         if(selectedAudioFeedId === msg.id) selectedAudioFeedId = null;
-        stopSpeakingMonitor(msg.id);
         for(const id in peerConnections){
           const senders = peerConnections[id].getSenders();
           senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
@@ -6846,159 +6905,6 @@ body.streams-flex-fit #video-container[hidden] {
         }
         renderAudioFeedControls();
       }
-
-
-
-
-
-    const speakingMonitors = new Map();
-    function startSpeakingMonitor(stream, id){
-      if(!stream || !id || speakingMonitors.has(id) || !stream.getAudioTracks?.().length) return;
-      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-      if(!AudioContextCtor) return;
-      try{
-        const ctx = new AudioContextCtor();
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        const tick = () => {
-          analyser.getByteFrequencyData(data);
-          const avg = data.reduce((sum, value) => sum + value, 0) / Math.max(1, data.length);
-          if(streams[id]){
-            const speaking = avg > 18;
-            streams[id].container.classList.toggle('speaking', speaking);
-          }
-          const monitor = speakingMonitors.get(id);
-          if(monitor) monitor.raf = requestAnimationFrame(tick);
-        };
-        speakingMonitors.set(id, { ctx, source, analyser, raf: requestAnimationFrame(tick) });
-      }catch(_err){ /* active speaker highlighting is best-effort */ }
-    }
-    function stopSpeakingMonitor(id){
-      const monitor = speakingMonitors.get(id);
-      if(!monitor) return;
-      if(monitor.raf) cancelAnimationFrame(monitor.raf);
-      try{ monitor.ctx.close(); }catch(_err){}
-      speakingMonitors.delete(id);
-      if(streams[id]) streams[id].container.classList.remove('speaking');
-    }
-
-    function logParticipantStream(id, message, extra){
-      const name = participantName(id);
-      if(extra !== undefined) console.log(`${message} ${name} (${id})`, extra);
-      else console.log(`${message} ${name} (${id})`);
-    }
-
-    function ensureTileVideoElement(id, stream){
-      const target = streams[id];
-      if(!target?.video) return null;
-      let video = target.video.querySelector(`video[data-stream-owner="${id}"]`);
-      if(!video){
-        target.video.querySelectorAll('video, audio, .camera-off-placeholder').forEach(node => node.remove());
-        video = document.createElement('video');
-        tagMediaOwner(video, id);
-        video.autoplay = true;
-        video.setAttribute('autoplay','');
-        video.playsInline = true;
-        video.setAttribute('playsinline','');
-        video.controls = false;
-        video.muted = id === clientId;
-        if(video.muted) video.setAttribute('muted','');
-        else video.removeAttribute('muted');
-        video.addEventListener('playing', () => logParticipantStream(id, 'VIDEO PLAYING'), { once: true });
-        target.video.appendChild(video);
-      }
-      if(video.srcObject !== stream){
-        video.srcObject = stream;
-        logParticipantStream(id, 'VIDEO ATTACHED', stream);
-      }
-      target.vid = video;
-      target.started = true;
-      target.liveActive = true;
-      if(target.liveState) target.liveState.textContent = id === clientId ? 'Live now' : 'Live now';
-      updateParticipantTileState(id, { connected: true, cameraOff: stream.getVideoTracks().length === 0 });
-      startSpeakingMonitor(stream, id);
-      tryPlay(video);
-      renderStage();
-      applySelectedAudioFeed();
-      return video;
-    }
-
-    function attachStreamToParticipantTile(participantId, stream){
-      if(!participantId || !stream) return;
-      ensureStreamThumb(participantId, participantId, participantId === clientId);
-      const hasVideo = stream.getVideoTracks().some(track => track.readyState !== 'ended');
-      const hasAudio = stream.getAudioTracks().some(track => track.readyState !== 'ended');
-      logParticipantStream(participantId, participantId === clientId || streams[participantId]?.role === 'host' ? 'HOST STREAM FOUND' : 'GUEST STREAM FOUND', stream);
-      if(hasVideo){
-        ensureTileVideoElement(participantId, stream);
-      } else {
-        showCameraOffPlaceholder(participantId);
-      }
-      if(hasAudio) startSpeakingMonitor(stream, participantId);
-    }
-
-    function updateParticipantTileState(id, { role, connected, muted, cameraOff: camOff } = {}){
-      const stream = streams[id];
-      if(!stream) return;
-      if(role) stream.role = role;
-      stream.container.classList.toggle('is-host', stream.role === 'host');
-      if(stream.roleEl){ stream.roleEl.textContent = stream.role === 'host' ? 'Host' : 'Guest'; stream.roleEl.classList.toggle('is-on', stream.role === 'host'); }
-      if(stream.connectionEl){ stream.connectionEl.textContent = connected ? 'Connected' : 'Loading'; stream.connectionEl.classList.toggle('is-on', !!connected); }
-      if(stream.micEl){ stream.micEl.textContent = muted ? '🔇 Muted' : '🎙️ Mic on'; stream.micEl.classList.toggle('is-on', !muted); }
-      if(stream.cameraEl){ stream.cameraEl.textContent = camOff ? '📷 Off' : '📹 Camera on'; stream.cameraEl.classList.toggle('is-on', !camOff); }
-    }
-    function showCameraOffPlaceholder(id){
-      const stream = streams[id];
-      if(!stream || stream.video.querySelector('video')) return;
-      const initials = (stream.container.querySelector('.title')?.textContent || '@?').replace('@','').trim().slice(0,2).toUpperCase();
-      stream.video.innerHTML = `<div class="camera-off-placeholder" aria-label="Camera disabled">${initials || '👤'}</div>`;
-      updateParticipantTileState(id, { connected: true, cameraOff: true });
-      renderStage();
-    }
-
-    function handleMainBroadcastState(state){
-      if(!state || state.room !== 'live:main') return;
-      const host = state.host;
-      const participants = Array.isArray(state.participants) && state.participants.length ? state.participants : [state.host, state.guest].filter(Boolean);
-      const guest = state.guest;
-      broadcastParticipantOrder = participants.map((participant) => participant.id).filter(Boolean);
-      document.body.classList.toggle('has-live-room', broadcastParticipantOrder.length > 0);
-      if(listenerCountSpan) listenerCountSpan.textContent = String(state.listeners || 0);
-      participants.forEach((participant, index) => {
-        ensureStreamThumb(participant.id, participant.name || (participant.role === 'host' ? 'host' : 'guest'), participant.id === clientId);
-        updateParticipantTileState(participant.id, { role: participant.role || (index === 0 ? 'host' : 'guest'), connected: !!streams[participant.id]?.vid || participant.id === clientId, muted: !!participant.muted, cameraOff: !!participant.cameraOff || (!!participant.mic && !streams[participant.id]?.vid) });
-      });
-      if(host){
-        ensureStreamThumb(host.id, host.name || 'host', host.id === clientId);
-        if(streams[host.id]){
-          streams[host.id].liveActive = true;
-          setStreamLiveState(host.id, 'Main broadcast', true);
-          streams[host.id].container.classList.add('stream--primary');
-        }
-      }
-      for(const id in streams){
-        if(!broadcastParticipantOrder.includes(id)){
-          streams[id].container.classList.remove('stream--primary');
-        }
-      }
-      participants.filter((participant) => participant.id !== host?.id).forEach((participant) => {
-        guestMap[participant.id] = host?.id || MAIN_BROADCAST_ROOM;
-        setStreamLiveState(participant.id, 'Guest on main', true);
-      });
-      participants.forEach((participant) => {
-        if(participant.id && participant.id !== clientId && autoWatchLiveFeeds && !streams[participant.id]?.started){
-          startWatching(participant.id);
-          streams[participant.id].started = true;
-          streams[participant.id].container.classList.add('open');
-          updateParticipantTileState(participant.id, { role: participant.role, connected: false });
-        }
-      });
-      refreshPrimaryStreamTile(host?.id || guest?.id || null);
-      renderStage();
-    }
 
     function handleJoinRequest(id, user){
       if(!broadcasting) return;
