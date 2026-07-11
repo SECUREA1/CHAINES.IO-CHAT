@@ -1296,6 +1296,37 @@
   align-items: stretch;
 }
 
+body.broadcast-mode #streams {
+  position: sticky;
+  top: calc(64px + env(safe-area-inset-top));
+  z-index: 40;
+  background: color-mix(in oklab, var(--bg), transparent 8%);
+  border-bottom: 1px solid var(--lining);
+  backdrop-filter: blur(14px);
+  -webkit-overflow-scrolling: touch;
+}
+body.broadcast-mode #streams .stream {
+  width: clamp(150px, 20vw, 220px);
+  min-height: 150px;
+}
+body.broadcast-mode #streams .stream .video,
+body.broadcast-mode #streams .stream.open .video { display:block; }
+body.broadcast-mode #streams .stream .thumb,
+body.broadcast-mode #streams .stream .tune-btn { display:none; }
+body.broadcast-mode #streams .stream.speaking {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gold), transparent 45%), 0 14px 30px rgba(0,0,0,.3);
+}
+.stream-role, .stream-indicators { display:flex; gap:5px; flex-wrap:wrap; margin:4px 0; }
+.stream-pill { border:1px solid var(--lining); border-radius:999px; padding:2px 6px; font-size:10px; color:var(--muted); background:rgba(0,0,0,.18); }
+.stream-pill.is-on { color:#fff; border-color:color-mix(in oklab, var(--accent), #fff 15%); }
+.camera-off-placeholder { display:grid; place-items:center; aspect-ratio:16/9; border-radius:8px; background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(0,0,0,.35)); color:#fff; font-weight:800; font-size:28px; }
+@media (max-width: 640px){
+  body.broadcast-mode #streams { top: calc(54px + env(safe-area-inset-top)); gap:8px; padding:8px; }
+  body.broadcast-mode #streams .stream { width: 132px; min-height: 128px; padding:6px; }
+  .stream .title { font-size:12px; }
+}
+
 /* Stream cards */
 .stream {
   position: relative;
@@ -1479,7 +1510,7 @@ body.streams-flex-fit #video-container[hidden] {
       display: block;
     }
     body.broadcast-mode #video-container {
-      display: grid;
+      display: none;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       overflow: auto;
       align-content: start;
@@ -3252,10 +3283,13 @@ body.streams-flex-fit #video-container[hidden] {
       if(streamsFlexFit) showStream();
       refreshPrimaryStreamTile();
     }
+    let broadcastParticipantOrder = [];
     function getStreamSortScore(id){
       const s = streams[id];
       if(!s) return -1;
       let score = 0;
+      const participantIndex = broadcastParticipantOrder.indexOf(id);
+      if(participantIndex >= 0) score += 6000 - participantIndex;
       if(id === clientId && broadcasting) score += 3000;
       if(s.isPrimary) score += 2200;
       if(s.liveActive) score += 1200;
@@ -4798,7 +4832,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join the main broadcast"><img src="static/go-live.svg" alt="Request to join" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><div class="stream-role"><span class="stream-pill" data-role>Guest</span><span class="stream-pill" data-connection>Loading</span></div><div class="stream-indicators"><span class="stream-pill" data-mic>Mic on</span><span class="stream-pill" data-camera>Camera on</span></div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join the main broadcast"><img src="static/go-live.svg" alt="Request to join" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4855,7 +4889,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, roleEl: div.querySelector("[data-role]"), connectionEl: div.querySelector("[data-connection]"), micEl: div.querySelector("[data-mic]"), cameraEl: div.querySelector("[data-camera]") };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
@@ -6254,6 +6288,7 @@ body.streams-flex-fit #video-container[hidden] {
       const mediaEl = document.createElement(audioOnly ? 'audio' : 'video');
       tagMediaOwner(mediaEl, clientId);
       mediaEl.srcObject = primaryPreview;
+      startSpeakingMonitor(activeStream, clientId);
       mediaEl.muted = true;
           mediaEl.setAttribute('muted','');
           mediaEl.autoplay = true;
@@ -6291,6 +6326,7 @@ body.streams-flex-fit #video-container[hidden] {
             const tileEl = document.createElement(audioOnly ? 'audio' : 'video');
             tagMediaOwner(tileEl, clientId);
             tileEl.srcObject = primaryPreview;
+            startSpeakingMonitor(activeStream, clientId);
             tileEl.muted = true;
             tileEl.setAttribute('muted','');
             tileEl.autoplay = true;
@@ -6370,6 +6406,8 @@ body.streams-flex-fit #video-container[hidden] {
             if(sender) sender.replaceTrack(blankTrack);
           }
           if(broadcastVideo) broadcastVideo.srcObject = localStream;
+          updateParticipantTileState(clientId, { cameraOff: true, connected: true });
+          showCameraOffPlaceholder(clientId);
           cameraOff = true;
           if(cameraBtn){ cameraBtn.classList.add('off'); cameraBtn.title = 'Turn camera on'; }
           refreshAddCameraButton();
@@ -6388,6 +6426,7 @@ body.streams-flex-fit #video-container[hidden] {
                 if(sender) sender.replaceTrack(newVideoTrack);
               }
               if(broadcastVideo) broadcastVideo.srcObject = localStream;
+              updateParticipantTileState(clientId, { cameraOff: false, connected: true });
               cameraOff = false;
               if(cameraBtn){ cameraBtn.classList.remove('off'); cameraBtn.title = 'Turn camera off'; }
               refreshAddCameraButton();
@@ -6596,6 +6635,7 @@ body.streams-flex-fit #video-container[hidden] {
       if(!hadRecorder && share){
         postMessage({ text: msgText, image: broadcastThumb });
       }
+      stopSpeakingMonitor(clientId);
       const selfStream = streams[clientId];
       if(selfStream){
         selfStream.feed.innerHTML = '';
@@ -6662,6 +6702,7 @@ body.streams-flex-fit #video-container[hidden] {
                 const vid = document.createElement('video');
                 tagMediaOwner(vid, msg.id);
                 vid.srcObject = stream;
+                startSpeakingMonitor(ev.streams[0] || stream, msg.id);
                 vid.autoplay = true;
                 vid.setAttribute('autoplay','');
                 vid.playsInline = true;
@@ -6670,7 +6711,9 @@ body.streams-flex-fit #video-container[hidden] {
                 attachCaptions(vid);
                 const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
                 liveTrack.mode = 'showing';
+                videoContainer.querySelectorAll(`[data-stream-owner="${msg.id}"]`).forEach((node) => node.remove());
                 videoContainer.appendChild(vid);
+                updateParticipantTileState(msg.id, { connected: true, cameraOff: false });
                 updateVideoLayout();
                 setStreamLiveState(msg.id, 'Live now', true);
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
@@ -6738,13 +6781,16 @@ body.streams-flex-fit #video-container[hidden] {
                     const hostVid = document.createElement('video');
                     tagMediaOwner(hostVid, msg.id);
                     hostVid.srcObject = stream;
+                    startSpeakingMonitor(ev.streams[0] || stream, msg.id);
                     hostVid.autoplay = true;
                     hostVid.setAttribute('autoplay','');
                     hostVid.playsInline = true;
                     hostVid.setAttribute('playsinline','');
                     hostVid.controls = true;
                     attachCaptions(hostVid);
+                    hostTarget.video.querySelectorAll(`[data-stream-owner="${msg.id}"]`).forEach((node) => node.remove());
                     hostTarget.video.appendChild(hostVid);
+                    updateParticipantTileState(msg.id, { connected: true, cameraOff: false });
                     updateVideoLayout(hostTarget.video);
                     setStreamLiveState(guestMap[msg.id], 'Live now', true);
                     hostTarget.guestVid = hostVid;
@@ -6758,6 +6804,7 @@ body.streams-flex-fit #video-container[hidden] {
                     const guestVid = document.createElement('video');
                     tagMediaOwner(guestVid, msg.id);
                     guestVid.srcObject = stream;
+                    startSpeakingMonitor(ev.streams[0] || stream, msg.id);
                     guestVid.autoplay = true;
                     guestVid.setAttribute('autoplay','');
                     guestVid.playsInline = true;
@@ -6766,7 +6813,9 @@ body.streams-flex-fit #video-container[hidden] {
                     attachCaptions(guestVid);
                     const liveTrack = guestVid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
                     liveTrack.mode = 'showing';
+                    guestTarget.video.querySelectorAll(`[data-stream-owner="${msg.id}"]`).forEach((node) => node.remove());
                     guestTarget.video.appendChild(guestVid);
+                    updateParticipantTileState(msg.id, { connected: true, cameraOff: false });
                     updateVideoLayout(guestTarget.video);
                     setStreamLiveState(msg.id, 'Live now', true);
                     if(!guestTarget.vid) guestTarget.vid = guestVid;
@@ -6781,6 +6830,7 @@ body.streams-flex-fit #video-container[hidden] {
                   const vid = document.createElement('video');
                   tagMediaOwner(vid, msg.id);
                   vid.srcObject = stream;
+                  startSpeakingMonitor(ev.streams[0] || stream, msg.id);
                   vid.autoplay = true;
                   vid.setAttribute('autoplay','');
                   vid.playsInline = true;
@@ -6792,7 +6842,9 @@ body.streams-flex-fit #video-container[hidden] {
                   const target = streams[msg.id];
                   const box = target && target.video;
                   if(box){
+                    box.querySelectorAll(`[data-stream-owner="${msg.id}"]`).forEach((node) => node.remove());
                     box.appendChild(vid);
+                    updateParticipantTileState(msg.id, { connected: true, cameraOff: false });
                     updateVideoLayout(box);
                     setStreamLiveState(msg.id, 'Live now', true);
                   }
@@ -6856,6 +6908,7 @@ body.streams-flex-fit #video-container[hidden] {
         const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
         if(selectedAudioFeedId === msg.id) selectedAudioFeedId = null;
+        stopSpeakingMonitor(msg.id);
         for(const id in peerConnections){
           const senders = peerConnections[id].getSenders();
           senders.forEach(s => { if(s.track && s.track.readyState === 'ended'){ try{ peerConnections[id].removeTrack(s); }catch{} } });
@@ -6908,11 +6961,66 @@ body.streams-flex-fit #video-container[hidden] {
 
 
 
+
+
+    const speakingMonitors = new Map();
+    function startSpeakingMonitor(stream, id){
+      if(!stream || !id || speakingMonitors.has(id) || !stream.getAudioTracks?.().length) return;
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if(!AudioContextCtor) return;
+      try{
+        const ctx = new AudioContextCtor();
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          analyser.getByteFrequencyData(data);
+          const avg = data.reduce((sum, value) => sum + value, 0) / Math.max(1, data.length);
+          if(streams[id]) streams[id].container.classList.toggle('speaking', avg > 18);
+          const monitor = speakingMonitors.get(id);
+          if(monitor) monitor.raf = requestAnimationFrame(tick);
+        };
+        speakingMonitors.set(id, { ctx, source, analyser, raf: requestAnimationFrame(tick) });
+      }catch(_err){ /* active speaker highlighting is best-effort */ }
+    }
+    function stopSpeakingMonitor(id){
+      const monitor = speakingMonitors.get(id);
+      if(!monitor) return;
+      if(monitor.raf) cancelAnimationFrame(monitor.raf);
+      try{ monitor.ctx.close(); }catch(_err){}
+      speakingMonitors.delete(id);
+      if(streams[id]) streams[id].container.classList.remove('speaking');
+    }
+
+    function updateParticipantTileState(id, { role, connected, muted, cameraOff: camOff } = {}){
+      const stream = streams[id];
+      if(!stream) return;
+      if(stream.roleEl){ stream.roleEl.textContent = role === 'host' ? 'Host' : 'Guest'; stream.roleEl.classList.toggle('is-on', role === 'host'); }
+      if(stream.connectionEl){ stream.connectionEl.textContent = connected ? 'Connected' : 'Loading'; stream.connectionEl.classList.toggle('is-on', !!connected); }
+      if(stream.micEl){ stream.micEl.textContent = muted ? '🔇 Muted' : '🎙️ Mic on'; stream.micEl.classList.toggle('is-on', !muted); }
+      if(stream.cameraEl){ stream.cameraEl.textContent = camOff ? '📷 Off' : '📹 Camera on'; stream.cameraEl.classList.toggle('is-on', !camOff); }
+    }
+    function showCameraOffPlaceholder(id){
+      const stream = streams[id];
+      if(!stream || stream.video.querySelector('video')) return;
+      const initials = (stream.container.querySelector('.title')?.textContent || '@?').replace('@','').trim().slice(0,2).toUpperCase();
+      stream.video.innerHTML = `<div class="camera-off-placeholder" aria-label="Camera disabled">${initials || '👤'}</div>`;
+      updateParticipantTileState(id, { connected: true, cameraOff: true });
+    }
+
     function handleMainBroadcastState(state){
       if(!state || state.room !== 'live:main') return;
       const host = state.host;
+      const participants = Array.isArray(state.participants) && state.participants.length ? state.participants : [state.host, state.guest].filter(Boolean);
       const guest = state.guest;
+      broadcastParticipantOrder = participants.map((participant) => participant.id).filter(Boolean);
       if(listenerCountSpan) listenerCountSpan.textContent = String(state.listeners || 0);
+      participants.forEach((participant, index) => {
+        ensureStreamThumb(participant.id, participant.name || (participant.role === 'host' ? 'host' : 'guest'), participant.id === clientId);
+        updateParticipantTileState(participant.id, { role: participant.role || (index === 0 ? 'host' : 'guest'), connected: !!streams[participant.id]?.vid || participant.id === clientId, muted: !!participant.muted, cameraOff: !!participant.cameraOff });
+      });
       if(host){
         ensureStreamThumb(host.id, host.name || 'host', host.id === clientId);
         if(streams[host.id]){
@@ -6922,19 +7030,22 @@ body.streams-flex-fit #video-container[hidden] {
         }
       }
       for(const id in streams){
-        if(id !== host?.id && id !== guest?.id){
+        if(!broadcastParticipantOrder.includes(id)){
           streams[id].container.classList.remove('stream--primary');
         }
       }
-      if(guest){
-        ensureStreamThumb(guest.id, guest.name || 'guest', guest.id === clientId);
-        guestMap[guest.id] = host?.id || MAIN_BROADCAST_ROOM;
-        setStreamLiveState(guest.id, 'Guest on main', true);
-      }
-      if(host?.id && host.id !== clientId && autoWatchLiveFeeds && !streams[host.id]?.started){
-        startWatching(host.id);
-        streams[host.id].started = true;
-      }
+      participants.filter((participant) => participant.id !== host?.id).forEach((participant) => {
+        guestMap[participant.id] = host?.id || MAIN_BROADCAST_ROOM;
+        setStreamLiveState(participant.id, 'Guest on main', true);
+      });
+      participants.forEach((participant) => {
+        if(participant.id && participant.id !== clientId && autoWatchLiveFeeds && !streams[participant.id]?.started){
+          startWatching(participant.id);
+          streams[participant.id].started = true;
+          streams[participant.id].container.classList.add('open');
+          updateParticipantTileState(participant.id, { role: participant.role, connected: false });
+        }
+      });
       refreshPrimaryStreamTile(host?.id || guest?.id || null);
     }
 
