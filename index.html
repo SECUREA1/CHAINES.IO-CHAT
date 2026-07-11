@@ -4977,20 +4977,36 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         refreshPrimaryStreamTile();
         if(autoWatchLiveFeeds){
           liveIds.forEach(id => {
-            if(id === clientId || !streams[id] || streams[id].started) return;
-            startWatching(id);
-            streams[id].started = true;
-            streams[id].container.classList.add('open');
-            const tuneBtn = streams[id].container.querySelector('.tune-btn');
-            if(tuneBtn) tuneBtn.textContent = 'Leave';
-            const camBtn = streams[id].container.querySelector('.cam-btn');
-            const micBtn = streams[id].container.querySelector('.mic-btn');
-            const joinBtns = streams[id].container.querySelector('.join-btns');
-            if(camBtn) camBtn.hidden = false;
-            if(micBtn) micBtn.hidden = false;
-            if(joinBtns) joinBtns.hidden = false;
+            if(id === clientId || !streams[id]) return;
+            activateLiveFeedFromPresence(id);
           });
         }
+      }
+
+      function activateLiveFeedFromPresence(id){
+        const stream = streams[id];
+        if(!stream || stream.self) return;
+        const now = Date.now();
+        const hasLiveMedia = !!(stream.stream && stream.stream.getTracks && stream.stream.getTracks().some(track => track.readyState === 'live'));
+        const staleConnecting = stream.started && !hasLiveMedia && now - Number(stream.lastWatchRequest || 0) > 4500;
+        if(!stream.started || staleConnecting){
+          startWatching(id);
+          stream.started = true;
+          stream.liveActive = true;
+          stream.connectionState = 'connecting';
+          stream.lastWatchRequest = now;
+        }
+        stream.container.classList.add('open');
+        const tuneBtn = stream.container.querySelector('.tune-btn');
+        if(tuneBtn) tuneBtn.textContent = 'Leave';
+        const camBtn = stream.container.querySelector('.cam-btn');
+        const micBtn = stream.container.querySelector('.mic-btn');
+        const joinBtns = stream.container.querySelector('.join-btns');
+        if(camBtn) camBtn.hidden = false;
+        if(micBtn) micBtn.hidden = false;
+        if(joinBtns) joinBtns.hidden = false;
+        if(stream.liveState && !hasLiveMedia) stream.liveState.textContent = staleConnecting ? 'Reconnecting…' : 'Connecting…';
+        refreshPrimaryStreamTile(id);
       }
 
       function ensureStreamThumb(id, name, isSelf=false){
@@ -5060,7 +5076,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         if(pendingThumbs[id]){ thumbEl.src = pendingThumbs[id]; thumbEl.removeAttribute('hidden'); delete pendingThumbs[id]; }
         streamsEl.appendChild(div);
-        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, stream: null, connectionState: 'standby' };
+        streams[id] = { container: div, video: videoBox, feed, input, count, self: isSelf, started:false, liveActive: false, isPrimary: false, vid: null, captionTrack: null, thumbEl, liveState, stream: null, connectionState: 'standby', lastWatchRequest: 0 };
         if(isSelf){
           div.classList.add('open');
           streams[id].started = true;
@@ -5120,11 +5136,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       // open stream bubble programmatically if needed
       function watchLive(id, name){
         ensureStreamThumb(id, name, id === clientId);
-        streams[id].container.classList.add('open');
-        if(!streams[id].started && !streams[id].self){
-          startWatching(id);
-          streams[id].started = true;
+        if(id !== clientId){
+          activateLiveFeedFromPresence(id);
+          return;
         }
+        streams[id].container.classList.add('open');
         refreshPrimaryStreamTile(id);
       }
 
