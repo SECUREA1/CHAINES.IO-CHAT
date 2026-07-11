@@ -1293,19 +1293,25 @@
 #streams {
   display: flex;
   flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
   overflow-x: auto;
-  gap: 10px;
-  padding: 10px;
+  overflow-y: hidden;
   --broadcast-tile-columns: 10;
   scroll-snap-type: x mandatory;
-  align-items: stretch;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Stream cards */
 .stream {
   position: relative;
-  width: clamp(120px, calc((100vw - 140px) / var(--broadcast-tile-columns)), 170px);
-  flex: 0 0 auto;
+  width: auto;
+  flex: 0 0 clamp(280px, 32vw, 360px);
+  aspect-ratio: 16 / 9;
   border: 1px solid var(--lining);
   border-radius: 12px;
   padding: 8px;
@@ -1315,10 +1321,10 @@
   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
 
-/* Expanded stream state */
+/* Live tiles stay compact; opening a stream reveals media without expanding it. */
 .stream.open {
-  width: min(300px, 76vw);
-  flex: 0 0 auto;
+  width: auto;
+  flex: 0 0 clamp(280px, 32vw, 360px);
 }
 .stream.active {
   border-color: color-mix(in oklab, var(--accent), #fff 20%);
@@ -1326,8 +1332,7 @@
 }
 .stream--primary {
   border-color: color-mix(in oklab, var(--accent), #fff 15%);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 20%), 0 16px 32px rgba(0,0,0,.26);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 20%), 0 12px 24px rgba(0,0,0,.22);
 }
 .stream-live-badge {
   display:inline-flex;
@@ -1353,44 +1358,44 @@
 }
 
 body.streams-flex-fit #streams {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  scroll-snap-type: none;
-  display: grid;
-  grid-template-columns: repeat(var(--broadcast-tile-columns), minmax(140px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   overflow-x: auto;
-  align-content: start;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
 }
 body.streams-flex-fit #streams .stream,
 body.streams-flex-fit #streams .stream.open {
-  width: 100%;
-  min-height: 170px;
-  flex: 1 1 auto;
+  flex: 0 0 clamp(280px, 32vw, 360px);
+  width: auto;
 }
-body.streams-flex-fit #streams .stream--primary {
-  grid-column: span 2;
-}
-@media (max-width: 900px) {
-  body.streams-flex-fit #streams .stream--primary { grid-column: span 1; }
-}
-body.streams-flex-fit #streams .stream .video {
-  display: block;
-}
-body.streams-flex-fit #streams .stream .thumb {
-  display: none;
-}
-body.streams-flex-fit #feed {
-  display: none;
-}
-body.streams-flex-fit #video-container[hidden] {
-  display: none !important;
-}
+body.streams-flex-fit #feed { display: none; }
+body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     .stream .title { font-weight:700; margin-bottom:6px; }
+    .stream .feed-label {
+      position:absolute;
+      left:10px;
+      bottom:10px;
+      max-width:calc(100% - 20px);
+      padding:6px 10px;
+      border-radius:10px;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      color:#fff;
+      font-size:12px;
+      font-weight:800;
+      background:rgba(0,0,0,.62);
+      backdrop-filter: blur(8px);
+      z-index:2;
+    }
     .stream .thumb { width:100%; border-radius:8px; }
-    .stream.open .thumb { display:none; }
-    .stream .video { display:none; }
-    .stream.open .video { display:block; }
+    .stream.open .thumb,
+    .stream.active .thumb { display:none; }
+    .stream .video { display:block; width:100%; height:100%; }
+    .stream.open .video,
+    .stream.active .video { display:block; }
     .stream .tune-btn { margin-top:6px; width:100%; }
     .stream .join-btns {
       position:absolute;
@@ -1405,11 +1410,14 @@ body.streams-flex-fit #video-container[hidden] {
       padding:0;
     }
     .stream .video video {
+      display:block;
       width:100%;
+      height:100%;
       border-radius:8px;
       aspect-ratio:16/9;
       object-fit:cover;
     }
+    .stream .video audio { width:100%; position:absolute; left:0; bottom:0; z-index:3; }
     .stream.open .video.has-guest { display:flex; }
     .stream.open .video.has-guest video {
       width:50%;
@@ -1483,25 +1491,23 @@ body.streams-flex-fit #video-container[hidden] {
       background: #000;
       display: block;
     }
-    body.broadcast-mode #video-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      overflow: auto;
-      align-content: start;
-      align-items: start;
+    body.broadcast-mode #video-container,
+    .fullscreen-host-feed,
+    .featured-video-stage,
+    .primary-broadcast-video {
+      display: none !important;
     }
-    body.broadcast-mode #video-container.has-guest {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    }
-    body.broadcast-mode #video-container.has-guest video {
-      max-width: 100%;
-    }
-    body.broadcast-mode #video-container video {
-      max-width: 100%;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      height: auto;
-      object-fit: contain;
+
+
+    @media (max-width: 768px) {
+      #streams { gap:10px; padding:10px; }
+      .stream,
+      .stream.open,
+      body.streams-flex-fit #streams .stream,
+      body.streams-flex-fit #streams .stream.open {
+        flex-basis:84vw;
+        max-width:84vw;
+      }
     }
 
     @media (min-width: 901px) {
@@ -3254,41 +3260,56 @@ body.streams-flex-fit #video-container[hidden] {
         streamsFitBtnMobile.setAttribute('aria-pressed', streamsFlexFit ? 'true' : 'false');
       }
       setStreamsFitLabel(streamsFlexFit ? 'Tiles Row' : 'Flex Fit');
-      if(streamsFlexFit) showStream();
+      showStream();
       refreshPrimaryStreamTile();
     }
-    function getStreamSortScore(id){
-      const s = streams[id];
-      if(!s) return -1;
-      let score = 0;
-      if(id === clientId && broadcasting) score += 3000;
-      if(s.isPrimary) score += 2200;
-      if(s.liveActive) score += 1200;
-      if(s.started) score += 400;
-      if(s.self) score += 120;
-      return score;
+    function getStreamRole(id){
+      if(id === clientId && broadcasting) return 'host';
+      if(currentHost && id === currentHost) return 'host';
+      if((pendingJoinHost || pendingMicHost) && id === clientId) return 'cohost';
+      if(guestMap[id] || Object.values(guestMap).includes(id)) return 'cohost';
+      return 'participant';
     }
-    function refreshPrimaryStreamTile(preferredId){
+    function getStreamJoinedAt(id){
+      return streamPresence[id] || 0;
+    }
+    function getStreamDisplayName(id){
+      const title = streams[id]?.container?.querySelector('.title')?.textContent || '';
+      return title.split('(')[0].trim() || `@${id}`;
+    }
+    function updateStreamRoleLabel(id){
+      const stream = streams[id];
+      if(!stream) return;
+      const role = getStreamRole(id);
+      stream.role = role;
+      stream.container.classList.toggle('host-feed', role === 'host');
+      stream.container.classList.toggle('cohost-feed', role === 'cohost');
+      let label = stream.container.querySelector('.feed-label');
+      if(!label){
+        label = document.createElement('div');
+        label.className = 'feed-label';
+        stream.container.appendChild(label);
+      }
+      const roleLabel = role === 'host' ? 'Host' : (role === 'cohost' ? 'Co-host' : 'Participant');
+      label.textContent = `${roleLabel} · ${getStreamDisplayName(id)}`;
+    }
+    function compareStreamFeeds(a, b){
+      const rolePriority = { host: 0, cohost: 1, participant: 2 };
+      const roleDelta = (rolePriority[getStreamRole(a)] ?? 2) - (rolePriority[getStreamRole(b)] ?? 2);
+      if(roleDelta) return roleDelta;
+      return getStreamJoinedAt(a) - getStreamJoinedAt(b);
+    }
+    function refreshPrimaryStreamTile(){
       const ids = Object.keys(streams);
       if(!ids.length) return;
-      let primaryId = preferredId && streams[preferredId] ? preferredId : null;
-      if(!primaryId){
-        if(broadcasting && streams[clientId]) primaryId = clientId;
-        if(!primaryId){
-          primaryId = ids
-            .filter(id => streams[id] && (streams[id].liveActive || streams[id].started))
-            .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))[0] || null;
-        }
-      }
       ids.forEach(id => {
         const stream = streams[id];
-        stream.isPrimary = id === primaryId;
+        updateStreamRoleLabel(id);
+        stream.isPrimary = getStreamRole(id) === 'host';
         stream.container.classList.toggle('stream--primary', stream.isPrimary);
-        stream.container.classList.toggle('active', !!(stream.liveActive || stream.isPrimary));
+        stream.container.classList.toggle('active', !!(stream.liveActive || stream.started || stream.isPrimary));
       });
-      ids
-        .sort((a,b) => getStreamSortScore(b) - getStreamSortScore(a))
-        .forEach(id => streamsEl.appendChild(streams[id].container));
+      ids.sort(compareStreamFeeds).forEach(id => streamsEl.appendChild(streams[id].container));
       renderAudioFeedControls();
     }
     function setStreamLiveState(id, stateText, isLive){
@@ -6183,7 +6204,7 @@ body.streams-flex-fit #video-container[hidden] {
             recordCanvas = document.createElement('canvas');
             recordCtx = recordCanvas.getContext('2d');
             const draw = () => {
-              const vids = videoContainer.querySelectorAll('video');
+              const vids = streamsEl.querySelectorAll('.stream.active video, .stream.open video');
               let w = 0, h = 0;
               vids.forEach(v => { w += v.videoWidth || 0; h = Math.max(h, v.videoHeight || 0); });
               if(w && h){
@@ -6240,7 +6261,10 @@ body.streams-flex-fit #video-container[hidden] {
       broadcastBtn.title = 'End live broadcast';
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
-      if(!audioOnly) document.body.classList.add('broadcast-mode');
+      if(!audioOnly){
+        document.body.classList.add('broadcast-mode');
+        setStreamsFlexFit(false);
+      }
       broadcastControls.removeAttribute('hidden');
       if(constButtons) constButtons.removeAttribute('hidden');
       if(cameraBtn){
@@ -6284,7 +6308,9 @@ body.streams-flex-fit #video-container[hidden] {
               try{ speechRec.start(); }catch{}
             }
           }
-          videoContainer.appendChild(mediaEl);
+          // Keep the host camera only in the horizontal stream tile row; do not
+          // duplicate it in the oversized broadcast stage.
+          mediaEl.classList.add('primary-broadcast-video');
           // also show our local stream in the self tile so it appears in the tiles list
           const selfStream = streams[clientId];
           if(selfStream){
@@ -6670,8 +6696,15 @@ body.streams-flex-fit #video-container[hidden] {
                 attachCaptions(vid);
                 const liveTrack = vid.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
                 liveTrack.mode = 'showing';
-                videoContainer.appendChild(vid);
-                updateVideoLayout();
+                const target = streams[msg.id];
+                const box = target && target.video;
+                if(box){
+                  box.innerHTML = '';
+                  box.appendChild(vid);
+                  target.started = true;
+                  target.container.classList.add('open');
+                  updateVideoLayout(box);
+                }
                 setStreamLiveState(msg.id, 'Live now', true);
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
                 for(const id in peerConnections){
@@ -6691,24 +6724,7 @@ body.streams-flex-fit #video-container[hidden] {
                 pc._videos.push(vid);
               } else if(ev.track.kind === 'audio'){
                 try{ localStream && localStream.addTrack(ev.track); }catch{}
-                // Prefer a single <audio> sink in the stage during broadcast
-                if(broadcasting){
-                  let stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
-                  if(!stageAud){
-                    stageAud = document.createElement('audio');
-                    tagMediaOwner(stageAud, msg.id);
-                    stageAud.autoplay = true;
-                    stageAud.controls = false;
-                    stageAud.muted = false;
-                    stageAud.removeAttribute('muted');
-                    stageAud.dataset.guest = msg.id;
-                    videoContainer.appendChild(stageAud);
-                  }
-                  stageAud.srcObject = ev.streams[0];
-                  tryPlay(stageAud);
-                }
-
-                // Keep tile audio for viewers too (as you already had)
+                // Keep participant audio attached to the same horizontal feed tile instead of a hidden stage.
                 let target = streams[msg.id];
                 let box = target && target.video;
                 if(!box && guestMap[msg.id]){
@@ -6735,24 +6751,7 @@ body.streams-flex-fit #video-container[hidden] {
                   const hostTarget = streams[guestMap[msg.id]];
                   const guestTarget = streams[msg.id];
                   if(hostTarget && hostTarget.video){
-                    const hostVid = document.createElement('video');
-                    tagMediaOwner(hostVid, msg.id);
-                    hostVid.srcObject = stream;
-                    hostVid.autoplay = true;
-                    hostVid.setAttribute('autoplay','');
-                    hostVid.playsInline = true;
-                    hostVid.setAttribute('playsinline','');
-                    hostVid.controls = true;
-                    attachCaptions(hostVid);
-                    hostTarget.video.appendChild(hostVid);
-                    updateVideoLayout(hostTarget.video);
                     setStreamLiveState(guestMap[msg.id], 'Live now', true);
-                    hostTarget.guestVid = hostVid;
-                    hostVid.muted = false;
-                    hostVid.removeAttribute('muted');
-                    tryPlay(hostVid);
-                    pc._videos = pc._videos || [];
-                    pc._videos.push(hostVid);
                   }
                   if(guestTarget && guestTarget.video){
                     const guestVid = document.createElement('video');
