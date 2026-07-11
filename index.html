@@ -3431,12 +3431,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(videoElement.srcObject !== stream){
         videoElement.srcObject = stream;
       }
-      const playPromise = videoElement.play?.();
-      if(playPromise && typeof playPromise.catch === 'function'){
-        playPromise.catch(error => {
-          console.warn('Video autoplay failed:', error);
-          pendingPlayables.add(videoElement);
-        });
+      const startPlayback = () => {
+        const playPromise = videoElement.play?.();
+        if(playPromise && typeof playPromise.catch === 'function'){
+          playPromise.catch(error => {
+            console.warn('Video autoplay failed:', error);
+            pendingPlayables.add(videoElement);
+          });
+        }
+      };
+      if(videoElement.readyState >= 2){
+        startPlayback();
+      } else {
+        videoElement.addEventListener('loadedmetadata', startPlayback, { once: true });
+        startPlayback();
       }
     }
 
@@ -4409,13 +4417,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       peerConnections[id] = pc;
       pc.onconnectionstatechange = () => {
         console.log(id, 'connection:', pc.connectionState);
-        if(['failed', 'closed', 'disconnected'].includes(pc.connectionState)){
+        if(pc.connectionState === 'connected'){
+          const participantId = guestMap[id] || id;
+          if(streams[participantId]?.stream){
+            updateParticipantStream(participantId, streams[participantId].stream);
+          }
+        }
+        if(['failed', 'closed'].includes(pc.connectionState)){
           closePeerConnection(id);
         }
       };
       pc.oniceconnectionstatechange = () => {
         console.log(id, 'ICE:', pc.iceConnectionState);
       };
+      pc._pendingCandidates = [];
       return pc;
     }
 
@@ -6860,6 +6875,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
         }
         pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          .then(() => flushPendingCandidates(pc))
           .then(() => pc.createAnswer())
           .then(ans => pc.setLocalDescription(ans))
           .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
@@ -6867,12 +6883,27 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     function handleAnswer(msg){
       const pc = peerConnections[msg.id];
-      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => flushPendingCandidates(pc));
+    }
+
+    function flushPendingCandidates(pc){
+      if(!pc || !pc.remoteDescription || !pc._pendingCandidates?.length) return;
+      const pending = pc._pendingCandidates.splice(0);
+      pending.forEach(candidate => {
+        pc.addIceCandidate(candidate).catch(error => console.warn('Failed to add queued ICE candidate:', error));
+      });
     }
 
     function handleCandidate(msg){
       const pc = peerConnections[msg.id];
-      if(pc && msg.candidate) pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      if(!pc || !msg.candidate) return;
+      const candidate = new RTCIceCandidate(msg.candidate);
+      if(!pc.remoteDescription){
+        if(!pc._pendingCandidates) pc._pendingCandidates = [];
+        pc._pendingCandidates.push(candidate);
+        return;
+      }
+      pc.addIceCandidate(candidate).catch(error => console.warn('Failed to add ICE candidate:', error));
     }
 
       function handleBye(msg){
