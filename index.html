@@ -2083,10 +2083,10 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip" id="camera-btn" type="button" title="Turn camera off">
           <img src="static/camera.svg" alt="Toggle camera" />
         </button>
-        <button class="chip" id="add-camera-btn" type="button" title="Add camera to broadcast" hidden>
+        <button class="chip" id="add-camera-btn" type="button" title="Additional camera feeds are disabled for the single live channel" hidden aria-hidden="true">
           <img src="static/insert.svg" alt="Add camera" />
         </button>
-        <div class="multi-camera-controls" id="multi-camera-controls" hidden></div>
+        <div class="multi-camera-controls" id="multi-camera-controls" hidden aria-hidden="true"></div>
         <label class="audio-input-picker" id="audio-input-picker" title="Choose which microphone or camera audio is sent live">
           <span>Audio In</span>
           <select id="broadcast-audio-input">
@@ -2204,7 +2204,7 @@ body.streams-flex-fit #video-container[hidden] {
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/go-live.svg" alt="Go Live" />
         </button>
-        <button class="chip" id="go-live-all-btn" type="button" title="Go live on all detected cameras" hidden>Go Live All Cams</button>
+        <button class="chip" id="go-live-all-btn" type="button" title="Single live channel only" hidden aria-hidden="true">Go Live All Cams</button>
         <span id="live-chip" class="chip" title="Users active"><img src="static/user.svg" alt="Users" /><span id="live-count">0</span></span>
         <span class="footer-notif-wrap">
           <button class="chip" id="notif-bell" title="Notifications" aria-label="Notifications">🔔<span id="notif-dot"></span></button>
@@ -2955,6 +2955,7 @@ body.streams-flex-fit #video-container[hidden] {
     const rewardsShopList = el('#rewards-shop-list');
     const rewardsActiveEffects = el('#rewards-active-effects');
     const rewardsLeaderboard = el('#rewards-leaderboard');
+    const MAIN_BROADCAST_ROOM = 'live:main';
     const streams = {};
     const guestMap = {};
     const pendingThumbs = {};
@@ -4091,10 +4092,7 @@ body.streams-flex-fit #video-container[hidden] {
     });
     async function requestGoLive({ allCameras = false } = {}){
       if (broadcasting) { endBroadcast(); return; }
-      goLiveAllRequested = !!allCameras;
-      if(goLiveAllRequested){
-        await probeAllUsbCameraPorts();
-      }
+      goLiveAllRequested = false;
       const connected = await ensureCloudConnection();
       if(!connected){
         goLiveAllRequested = false;
@@ -4111,17 +4109,20 @@ body.streams-flex-fit #video-container[hidden] {
     }
 
     async function startSeparateBroadcastFromOnline(){
-      pendingJoinHost = null;
-      pendingMicHost = null;
-      currentHost = null;
-      joinApproved = false;
-      micApproved = false;
-      activeRooms.clear();
-      await requestGoLive({ allCameras: false });
+      // Single-channel mode: users join the main broadcast instead of creating side feeds.
+      const targetHost = currentHost || Object.keys(streams).find(id => id !== clientId && streams[id]?.liveActive);
+      if(targetHost){
+        pendingJoinHost = targetHost;
+        sendSignal({ type: 'join-request', id: targetHost, user: store.user });
+        systemNote('Request sent to join the main broadcast.');
+      } else {
+        await requestGoLive({ allCameras: false });
+      }
     }
     broadcastBtn.addEventListener('click', () => { requestGoLive(); });
     if(goLiveAllBtn){
-      goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: true }); });
+      goLiveAllBtn.hidden = true;
+      goLiveAllBtn.addEventListener('click', () => { requestGoLive({ allCameras: false }); });
     }
     streamCodeBtn.addEventListener('click', () => {
       const code = `stream-${clientId || store.user}`;
@@ -4234,11 +4235,9 @@ body.streams-flex-fit #video-container[hidden] {
 
     function refreshAddCameraButton(){
       if(!addCameraBtn) return;
-      const hasLiveVideo = !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
-      const canUseNow = broadcasting && !screenSharing && !multiCamBroadcast && !cameraOff && hasLiveVideo && detectedVideoInputs.length > 1;
-      addCameraBtn.hidden = !canUseNow;
-      addCameraBtn.disabled = !canUseNow;
-      addCameraBtn.title = canUseNow ? 'Go live on all detected cameras' : 'Add camera to broadcast';
+      addCameraBtn.hidden = true;
+      addCameraBtn.disabled = true;
+      addCameraBtn.title = 'Single live channel mode uses one camera or screen source.';
     }
 
     function closePeerConnection(id){
@@ -4727,12 +4726,14 @@ body.streams-flex-fit #video-container[hidden] {
           li.appendChild(nameSpan);
           if(u.live && id !== clientId){
             const camBtn = document.createElement('button');
-            camBtn.title = 'Start a new broadcast';
-            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Start separate broadcast" />';
-            camBtn.addEventListener('click', async e => {
+            camBtn.title = 'Request to join the main broadcast';
+            camBtn.innerHTML = '<img src="static/go-live.svg" alt="Request to join" />';
+            camBtn.addEventListener('click', e => {
               e.stopPropagation();
-              await startSeparateBroadcastFromOnline();
-              systemNote('Started a separate broadcast feed.');
+              currentHost = id;
+              pendingJoinHost = id;
+              sendSignal({ type: 'join-request', id, user: store.user });
+              systemNote('Request sent to join the main broadcast.');
             });
             li.appendChild(camBtn);
             const micBtn = document.createElement('button');
@@ -4797,7 +4798,7 @@ body.streams-flex-fit #video-container[hidden] {
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Request to join the main broadcast"><img src="static/go-live.svg" alt="Request to join" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -4809,9 +4810,11 @@ body.streams-flex-fit #video-container[hidden] {
         const joinBtns = div.querySelector('.join-btns');
         const liveState = div.querySelector('.stream-live-state');
         if(!isSelf){
-          camBtn.addEventListener('click', async () => {
-            await startSeparateBroadcastFromOnline();
-            systemNote('Started a separate broadcast feed.');
+          camBtn.addEventListener('click', () => {
+            currentHost = id;
+            pendingJoinHost = id;
+            sendSignal({ type: 'join-request', id, user: store.user });
+            systemNote('Request sent to join the main broadcast.');
           });
           micBtn.addEventListener('click', () => {
             sendSignal({ type: 'mic-request', id, user: store.user });
@@ -5036,6 +5039,7 @@ body.streams-flex-fit #video-container[hidden] {
           if(data && data.type === 'invite') handleInvite(data);
           if(data && data.type === 'thumb') handleThumbnail(data.id, data.thumb);
           if(data && data.type === 'guest-start') handleGuestStart(data);
+          if(data && data.type === 'main-broadcast') handleMainBroadcastState(data);
           if(data && data.type === 'delete') {
             const el = feed.querySelector(`li[data-id="${data.id}"]`);
             if(el) el.remove();
@@ -6164,6 +6168,8 @@ body.streams-flex-fit #video-container[hidden] {
               : getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
+          activeBundle.previews = activeBundle.previews ? activeBundle.previews.slice(0, 1) : [activeBundle.stream];
+          activeBundle.multiCam = false;
           const activeStream = activeBundle.stream;
           const primaryPreview = activeBundle.previews?.[0] || activeStream;
           localStream = activeStream;
@@ -6171,7 +6177,7 @@ body.streams-flex-fit #video-container[hidden] {
           goLiveAllRequested = false;
           refreshGoLiveAllButton();
           removeExtraCameraPreviews();
-          renderExtraCameraPreviews(activeBundle.previews);
+          renderExtraCameraPreviews(activeBundle.previews ? activeBundle.previews.slice(0, 1) : [activeStream]);
           recordedChunks = [];
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
@@ -6899,6 +6905,38 @@ body.streams-flex-fit #video-container[hidden] {
         }
         renderAudioFeedControls();
       }
+
+
+
+    function handleMainBroadcastState(state){
+      if(!state || state.room !== 'live:main') return;
+      const host = state.host;
+      const guest = state.guest;
+      if(listenerCountSpan) listenerCountSpan.textContent = String(state.listeners || 0);
+      if(host){
+        ensureStreamThumb(host.id, host.name || 'host', host.id === clientId);
+        if(streams[host.id]){
+          streams[host.id].liveActive = true;
+          setStreamLiveState(host.id, 'Main broadcast', true);
+          streams[host.id].container.classList.add('stream--primary');
+        }
+      }
+      for(const id in streams){
+        if(id !== host?.id && id !== guest?.id){
+          streams[id].container.classList.remove('stream--primary');
+        }
+      }
+      if(guest){
+        ensureStreamThumb(guest.id, guest.name || 'guest', guest.id === clientId);
+        guestMap[guest.id] = host?.id || MAIN_BROADCAST_ROOM;
+        setStreamLiveState(guest.id, 'Guest on main', true);
+      }
+      if(host?.id && host.id !== clientId && autoWatchLiveFeeds && !streams[host.id]?.started){
+        startWatching(host.id);
+        streams[host.id].started = true;
+      }
+      refreshPrimaryStreamTile(host?.id || guest?.id || null);
+    }
 
     function handleJoinRequest(id, user){
       if(!broadcasting) return;

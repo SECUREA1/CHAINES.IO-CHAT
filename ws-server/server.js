@@ -1539,8 +1539,10 @@ function loadHistory(room = null) {
 const wss = new WebSocketServer({ server, path: "/ws" });
 const clients = new Map();
 const broadcasters = new Map();
+const MAIN_BROADCAST_ID = "live:main";
+let mainBroadcasterId = null;
 const thumbnails = new Map();
-// track viewers per broadcaster
+// track viewers for the single main broadcast channel
 const listeners = new Map(); // hostId -> Set of watcherIds
 const watching = new Map();  // watcherId -> Set of hostIds
 const guestApprovedByHost = new Map(); // hostId -> approved guestId
@@ -1554,6 +1556,31 @@ function uid(){
   return Math.random().toString(36).slice(2,9);
 }
 
+function resolveMainBroadcastId(id = MAIN_BROADCAST_ID) {
+  if (id === MAIN_BROADCAST_ID || !id) return mainBroadcasterId;
+  return broadcasters.has(id) ? id : mainBroadcasterId;
+}
+
+function mainBroadcastPayload() {
+  const host = mainBroadcasterId ? broadcasters.get(mainBroadcasterId) : null;
+  const guestId = mainBroadcasterId ? guestApprovedByHost.get(mainBroadcasterId) : null;
+  const guest = guestId ? clients.get(guestId) : null;
+  return {
+    type: "main-broadcast",
+    room: MAIN_BROADCAST_ID,
+    host: host ? { id: host.id, name: host.username || "host", profilePic: host.profilePic || null, mic: micGuests.has(host.id) } : null,
+    guest: guest ? { id: guest.id, name: guest.username || "guest", profilePic: guest.profilePic || null, mic: micGuests.has(guest.id) } : null,
+    listeners: mainBroadcasterId ? (listeners.get(mainBroadcasterId)?.size || 0) : 0,
+  };
+}
+
+function broadcastMainState() {
+  const payload = JSON.stringify(mainBroadcastPayload());
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
 function broadcastUsers() {
   const users = [];
   for (const client of wss.clients) {
@@ -1561,7 +1588,7 @@ function broadcastUsers() {
       users.push({
         name: client.username,
         id: client.id,
-        live: broadcasters.has(client.id),
+        live: mainBroadcasterId === client.id,
         mic: micGuests.has(client.id),
         profilePic: client.profilePic || null,
       });
@@ -1622,6 +1649,7 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
   ws.send(JSON.stringify({ type: "id", id: ws.id }));
   broadcastUsers();
+  ws.send(JSON.stringify(mainBroadcastPayload()));
   for(const [id, thumb] of thumbnails.entries()){
     ws.send(JSON.stringify({ type: "thumb", id, thumb }));
   }
@@ -1633,6 +1661,7 @@ wss.on("connection", (ws) => {
       broadcastSecureLiveActiveCount();
     }
     if (broadcasters.has(ws.id)) {
+      if (mainBroadcasterId === ws.id) mainBroadcasterId = null;
       broadcasters.delete(ws.id);
       micGuests.delete(ws.id);
       for (const client of wss.clients) {
@@ -1664,6 +1693,7 @@ wss.on("connection", (ws) => {
       if(g === ws.id || h === ws.id) guestHosts.delete(g);
     }
     broadcastUsers();
+    broadcastMainState();
   });
   ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
@@ -1678,8 +1708,20 @@ wss.on("connection", (ws) => {
     }
     switch (msg?.type) {
       case "broadcaster":
+        if (mainBroadcasterId && mainBroadcasterId !== ws.id) {
+          const previousHost = broadcasters.get(mainBroadcasterId);
+          if (previousHost && previousHost.readyState === 1) {
+            previousHost.send(JSON.stringify({ type: "bye", id: previousHost.id, reason: "main-broadcast-replaced" }));
+          }
+          broadcasters.delete(mainBroadcasterId);
+          micGuests.delete(mainBroadcasterId);
+          guestApprovedByHost.delete(mainBroadcasterId);
+          listeners.delete(mainBroadcasterId);
+        }
+        mainBroadcasterId = ws.id;
         broadcasters.set(ws.id, ws);
         broadcastUsers();
+        broadcastMainState();
         const followers = db
           .prepare("SELECT follower FROM follows WHERE following = ?")
           .all(ws.username || "");
@@ -1711,9 +1753,15 @@ wss.on("connection", (ws) => {
         }
         return;
       case "mic-broadcaster":
+        if (mainBroadcasterId && mainBroadcasterId !== ws.id && !guestHosts.has(ws.id)) {
+          ws.send(JSON.stringify({ type: "join-denied" }));
+          return;
+        }
+        if (!mainBroadcasterId) mainBroadcasterId = ws.id;
         broadcasters.set(ws.id, ws);
         micGuests.add(ws.id);
         broadcastUsers();
+        broadcastMainState();
         return;
       case "end-broadcast":
         if (broadcasters.has(ws.id)) {
@@ -1722,6 +1770,7 @@ wss.on("connection", (ws) => {
               client.send(JSON.stringify({ type: "bye", id: ws.id }));
             }
           }
+          if (mainBroadcasterId === ws.id) mainBroadcasterId = null;
           broadcasters.delete(ws.id);
           micGuests.delete(ws.id);
           thumbnails.delete(ws.id);
@@ -1734,11 +1783,13 @@ wss.on("connection", (ws) => {
             sendListenerCount(ws.id);
           }
           broadcastUsers();
+          broadcastMainState();
         }
         return;
       case "join-request": {
-        const host = broadcasters.get(msg.id);
-        if (msg.id && guestApprovedByHost.get(msg.id)) {
+        const targetHostId = resolveMainBroadcastId(msg.id);
+        const host = targetHostId ? broadcasters.get(targetHostId) : null;
+        if (targetHostId && guestApprovedByHost.get(targetHostId)) {
           ws.send(JSON.stringify({ type: "join-denied" }));
           return;
         }
@@ -1766,7 +1817,8 @@ wss.on("connection", (ws) => {
         return;
       }
       case "mic-request": {
-        const host = broadcasters.get(msg.id);
+        const targetHostId = resolveMainBroadcastId(msg.id);
+        const host = targetHostId ? broadcasters.get(targetHostId) : null;
         if (host && host.readyState === 1) {
           host.send(
             JSON.stringify({ type: "mic-request", id: ws.id, user: ws.username })
@@ -1814,10 +1866,17 @@ wss.on("connection", (ws) => {
       case "approve-join": {
         if (guestApprovedByHost.get(ws.id)) return;
         const guest = clients.get(msg.id);
-        if (guest && broadcasters.has(ws.id)) {
+        if (guest && broadcasters.has(ws.id) && mainBroadcasterId === ws.id) {
+          const priorGuestId = guestApprovedByHost.get(ws.id);
+          if (priorGuestId && priorGuestId !== msg.id) {
+            const priorGuest = clients.get(priorGuestId);
+            if (priorGuest && priorGuest.readyState === 1) priorGuest.send(JSON.stringify({ type: "bye", id: priorGuestId, reason: "guest-replaced" }));
+            guestHosts.delete(priorGuestId);
+          }
           guestApprovedByHost.set(ws.id, msg.id);
           guestHosts.set(msg.id, ws.id);
-          guest.send(JSON.stringify({ type: "join-approved" }));
+          guest.send(JSON.stringify({ type: "join-approved", host: ws.id, room: MAIN_BROADCAST_ID }));
+          broadcastMainState();
         }
         return;
       }
@@ -1839,29 +1898,33 @@ wss.on("connection", (ws) => {
         return;
       }
       case "watcher": {
-        const host = broadcasters.get(msg.id);
+        const targetHostId = resolveMainBroadcastId(msg.id);
+        const host = targetHostId ? broadcasters.get(targetHostId) : null;
         if (host && host.readyState === 1) {
           host.send(JSON.stringify({ type: "watcher", id: ws.id }));
-          if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
-          listeners.get(msg.id).add(ws.id);
+          if(!listeners.has(targetHostId)) listeners.set(targetHostId, new Set());
+          listeners.get(targetHostId).add(ws.id);
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
-          watching.get(ws.id).add(msg.id);
-          sendListenerCount(msg.id);
-          const history = loadHistory(msg.id);
+          watching.get(ws.id).add(targetHostId);
+          sendListenerCount(targetHostId);
+          broadcastMainState();
+          const history = loadHistory(targetHostId);
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
       }
       case "unwatcher": {
-        const set = listeners.get(msg.id);
+        const targetHostId = resolveMainBroadcastId(msg.id) || msg.id;
+        const set = listeners.get(targetHostId);
         if(set){
           set.delete(ws.id);
-          if(set.size === 0) listeners.delete(msg.id);
-          sendListenerCount(msg.id);
+          if(set.size === 0) listeners.delete(targetHostId);
+          sendListenerCount(targetHostId);
+          broadcastMainState();
         }
         const list = watching.get(ws.id);
         if(list){
-          list.delete(msg.id);
+          list.delete(targetHostId);
           if(list.size === 0) watching.delete(ws.id);
         }
         return;
