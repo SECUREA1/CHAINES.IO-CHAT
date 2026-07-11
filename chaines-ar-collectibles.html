@@ -80,8 +80,21 @@
     textarea{min-height:90px;resize:vertical}
     .note{margin-top:.75rem;font-size:.92rem;color:var(--muted)}
     .collection-toolbar{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
-    .collection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.62rem;margin-top:.9rem;max-height:340px;overflow:auto;padding-right:.2rem}
-    .token-btn{width:100%;border-radius:14px;padding:.72rem;text-align:left;flex-direction:column;align-items:flex-start}
+    .collection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.85rem;margin-top:.9rem;max-height:540px;overflow:auto;padding:.15rem .25rem .35rem;scroll-snap-type:y proximity}
+    .token-btn{width:100%;min-height:168px;border-radius:20px;padding:0;text-align:left;flex-direction:column;align-items:stretch;justify-content:space-between;overflow:hidden;position:relative;isolation:isolate;background:linear-gradient(145deg,rgba(102,221,255,.12),rgba(124,92,255,.10) 48%,rgba(255,255,255,.035));border-color:rgba(102,221,255,.25);box-shadow:0 16px 42px rgba(0,0,0,.24);scroll-snap-align:start;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+    .token-btn::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 180deg,transparent,rgba(102,221,255,.22),transparent 36%,rgba(124,92,255,.2),transparent 70%);opacity:.62;animation:tileFlow 8s linear infinite;z-index:-2}
+    .token-btn::after{content:"";position:absolute;inset:1px;border-radius:19px;background:linear-gradient(180deg,rgba(7,17,26,.18),rgba(7,17,26,.86));z-index:-1}
+    .token-btn:hover,.token-btn:focus-visible,.token-btn.open{transform:translateY(-3px);border-color:rgba(102,221,255,.72);box-shadow:0 22px 54px rgba(55,168,255,.2)}
+    .token-tile-media{height:82px;border-bottom:1px solid rgba(102,221,255,.16);background:radial-gradient(circle at 28% 18%,rgba(104,240,184,.32),transparent 26%),radial-gradient(circle at 72% 0,rgba(124,92,255,.34),transparent 32%),linear-gradient(135deg,rgba(102,221,255,.16),rgba(255,255,255,.03));display:flex;align-items:end;justify-content:space-between;padding:.7rem}
+    .token-tile-media strong{font-size:1.5rem;color:white;text-shadow:0 8px 20px rgba(0,0,0,.35)}
+    .token-live-dot{width:.62rem;height:.62rem;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(104,240,184,.65);animation:livePulse 1.8s ease-out infinite}
+    .token-tile-body{padding:.8rem;display:grid;gap:.35rem}
+    .token-tile-kicker{font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-weight:900}
+    .token-tile-label{color:white;font-weight:900;line-height:1.15}
+    .token-tile-path{font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    @keyframes tileFlow{to{transform:rotate(1turn)}}
+    @keyframes livePulse{70%{box-shadow:0 0 0 10px rgba(104,240,184,0)}}
+    @media (prefers-reduced-motion:reduce){.token-btn,.token-btn::before,.token-live-dot{animation:none;transition:none}}
     .terminal{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel-strong)}
     .terminal-head{padding:1rem 1rem 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.7rem}
     .terminal-placeholder{padding:1.2rem 1rem;color:var(--muted)}
@@ -92,7 +105,7 @@
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}}
+    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}.collection-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));max-height:none;overflow:visible}.token-btn{min-height:154px}}
   
     .site-copyright {
       text-align: center;
@@ -160,10 +173,10 @@
               <button class="btn secondary" id="buildRangeBtn" type="button">Build numeric range</button>
             </div>
             <div class="grid" style="margin-top:.7rem">
-              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="226"/></div>
+              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="200"/></div>
               <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
             </div>
-            <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
+            <p class="note" id="collectionMessage">Live tile feed starts at token #200. Tap any open tile to sync mint embed + viewer inputs.</p>
             <div class="collection-list" id="collectionList"></div>
           </div>
 
@@ -253,6 +266,8 @@
         if (/^https?:\/\//i.test(withoutTrailing)) return withoutTrailing;
         return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
       };
+
+      const MIN_LIVE_TILE_TOKEN = 200;
 
       const tokenToStem = (token) => `NFT_${String(token).padStart(4, '0')}`;
 
@@ -349,9 +364,14 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn token-btn';
-        button.innerHTML = `<span style="font-size:.76rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Token</span><strong style="color:white;font-size:1rem;">#${tokenId}</strong><span style="font-size:.82rem;color:var(--muted);">${label}</span>`;
+        button.setAttribute('aria-label', `Open token #${tokenId} tile`);
+        const pathLabel = glb ? normalizeAssetUrl(glb).split('/').pop() : `${tokenToStem(tokenId)}.glb`;
+        button.innerHTML = `<span class="token-tile-media"><strong>#${tokenId}</strong><span class="token-live-dot" aria-hidden="true"></span></span><span class="token-tile-body"><span class="token-tile-kicker">Live tile</span><span class="token-tile-label">${label}</span><span class="token-tile-path">${pathLabel}</span></span>`;
         button.addEventListener('click', async () => {
+          collectionList.querySelectorAll('.token-btn.open').forEach((tile) => tile.classList.remove('open'));
+          button.classList.add('open');
           await syncSelectionFromToken({ tokenId, label, glb });
+          await loadCollectible();
           updateMintEmbedConfig();
           openTerminal();
           collectionMessage.textContent = `Token #${tokenId} is active in the CHAINeS mint terminal.`;
@@ -361,8 +381,12 @@
 
       const renderTokenButtons = (tokens, source) => {
         collectionList.innerHTML = '';
-        tokens.forEach((token) => collectionList.appendChild(createTokenButton(token)));
-        collectionSource.textContent = source;
+        const liveTokens = tokens.filter((token) => Number(token.tokenId) >= MIN_LIVE_TILE_TOKEN);
+        liveTokens.forEach((token) => collectionList.appendChild(createTokenButton(token)));
+        collectionSource.textContent = `${source} Live tiles #${MIN_LIVE_TILE_TOKEN}+.`;
+        if (!liveTokens.length) {
+          collectionMessage.textContent = `No token IDs at #${MIN_LIVE_TILE_TOKEN} or above were found for this feed.`;
+        }
       };
 
       const buildListedCollection = () => {
@@ -377,7 +401,7 @@
       };
 
       const buildNumericCollection = () => {
-        const start = Math.max(1, Number(rangeStartInput.value || 226));
+        const start = Math.max(MIN_LIVE_TILE_TOKEN, Number(rangeStartInput.value || MIN_LIVE_TILE_TOKEN));
         const end = Math.max(start, Number(rangeEndInput.value || start));
         const cappedEnd = Math.min(end, start + 999);
         const tokens = [];
@@ -416,7 +440,7 @@
             return;
           }
           renderTokenButtons(tokens, `JPG metadata manifest (${tokens.length} mapped GLBs).`);
-          rangeStartInput.value = String(tokens[0].tokenId);
+          rangeStartInput.value = String(Math.max(MIN_LIVE_TILE_TOKEN, tokens[0].tokenId));
           rangeEndInput.value = String(tokens[tokens.length - 1].tokenId);
           collectionMessage.textContent = `Loaded ${tokens.length} NFTs from JPG metadata with GLB path mapping.`;
         } catch (err) {
@@ -469,7 +493,11 @@
             return;
           }
 
-          const tokens = Array.from(tokenMap.values()).sort((a, b) => a.tokenId - b.tokenId);
+          const tokens = Array.from(tokenMap.values()).filter((token) => token.tokenId >= MIN_LIVE_TILE_TOKEN).sort((a, b) => a.tokenId - b.tokenId);
+          if (!tokens.length) {
+            collectionMessage.textContent = `Polygon index returned tokens, but none were #${MIN_LIVE_TILE_TOKEN} or above.`;
+            return;
+          }
           renderTokenButtons(tokens, `Polygon collection index (${tokens.length} discovered IDs).`);
           const first = tokens[0].tokenId;
           const last = tokens[tokens.length - 1].tokenId;
@@ -560,7 +588,7 @@
       setMintUnlocked(false);
       syncPathFromToken();
       updateMintEmbedConfig();
-      buildListedCollection();
+      buildNumericCollection();
     })();
   </script>
 
