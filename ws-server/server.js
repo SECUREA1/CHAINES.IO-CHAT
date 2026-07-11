@@ -1590,12 +1590,13 @@ function broadcastMainState() {
 
 function broadcastUsers() {
   const users = [];
+  const activeParticipantIds = new Set([mainBroadcasterId, ...Array.from(guestHosts.keys())].filter(Boolean));
   for (const client of wss.clients) {
     if (client.readyState === 1 && client.username) {
       users.push({
         name: client.username,
         id: client.id,
-        live: mainBroadcasterId === client.id,
+        live: activeParticipantIds.has(client.id),
         mic: micGuests.has(client.id),
         profilePic: client.profilePic || null,
       });
@@ -1894,7 +1895,11 @@ wss.on("connection", (ws) => {
       case "approve-mic": {
         const guest = clients.get(msg.id);
         if (guest && broadcasters.has(ws.id)) {
-          guest.send(JSON.stringify({ type: "mic-approved" }));
+          if (!guestApprovedByHost.has(ws.id)) guestApprovedByHost.set(ws.id, new Set());
+          guestApprovedByHost.get(ws.id).add(msg.id);
+          guestHosts.set(msg.id, ws.id);
+          guest.send(JSON.stringify({ type: "mic-approved", host: ws.id, room: MAIN_BROADCAST_ID }));
+          broadcastMainState();
         }
         return;
       }
