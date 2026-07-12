@@ -3431,6 +3431,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(videoElement.srcObject !== stream){
         videoElement.srcObject = stream;
       }
+      const markVisible = () => {
+        videoElement.classList.add('is-live');
+        videoElement.style.backgroundColor = 'transparent';
+      };
+      stream.getVideoTracks?.().forEach(track => {
+        if(!track.onunmute) track.addEventListener('unmute', markVisible, { once: true });
+      });
       const startPlayback = () => {
         const playPromise = videoElement.play?.();
         if(playPromise && typeof playPromise.catch === 'function'){
@@ -4382,6 +4389,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     // --- WebRTC state ---
       const peerConnections = {};
+      const pendingIceCandidatesByPeer = {};
       const rtcConfig = {
         iceServers: [
           { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -4447,6 +4455,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         pc.close();
       } catch {}
       delete peerConnections[id];
+      delete pendingIceCandidatesByPeer[id];
     }
 
     function createPeerConnection(id){
@@ -4463,12 +4472,21 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         if(['failed', 'closed'].includes(pc.connectionState)){
           closePeerConnection(id);
+          const participantId = guestMap[id] || id;
+          const stream = streams[participantId];
+          if(stream && !stream.self && (stream.started || stream.liveActive)){
+            stream.started = false;
+            stream.stream = null;
+            stream.connectionState = 'standby';
+            window.setTimeout(() => activateLiveFeedFromPresence(participantId), 500);
+          }
         }
       };
       pc.oniceconnectionstatechange = () => {
         console.log(id, 'ICE:', pc.iceConnectionState);
       };
-      pc._pendingCandidates = [];
+      pc._pendingCandidates = pendingIceCandidatesByPeer[id] || [];
+      pendingIceCandidatesByPeer[id] = pc._pendingCandidates;
       return pc;
     }
 
@@ -6943,6 +6961,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function flushPendingCandidates(pc){
       if(!pc || !pc.remoteDescription || !pc._pendingCandidates?.length) return;
       const pending = pc._pendingCandidates.splice(0);
+      for(const peerId in pendingIceCandidatesByPeer){
+        if(pendingIceCandidatesByPeer[peerId] === pc._pendingCandidates) delete pendingIceCandidatesByPeer[peerId];
+      }
       pending.forEach(candidate => {
         pc.addIceCandidate(candidate).catch(error => console.warn('Failed to add queued ICE candidate:', error));
       });
@@ -6950,11 +6971,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     function handleCandidate(msg){
       const pc = peerConnections[msg.id];
-      if(!pc || !msg.candidate) return;
+      if(!msg.candidate) return;
       const candidate = new RTCIceCandidate(msg.candidate);
+      if(!pc){
+        if(!pendingIceCandidatesByPeer[msg.id]) pendingIceCandidatesByPeer[msg.id] = [];
+        pendingIceCandidatesByPeer[msg.id].push(candidate);
+        return;
+      }
       if(!pc.remoteDescription){
         if(!pc._pendingCandidates) pc._pendingCandidates = [];
         pc._pendingCandidates.push(candidate);
+        pendingIceCandidatesByPeer[msg.id] = pc._pendingCandidates;
         return;
       }
       pc.addIceCandidate(candidate).catch(error => console.warn('Failed to add ICE candidate:', error));
