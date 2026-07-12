@@ -3538,6 +3538,29 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       return primaryVideo;
     }
 
+    function attachGuestStreamToHost(hostId, guestId, stream){
+      const hostStream = streams[hostId];
+      if(!hostStream || !hostStream.video || !stream) return;
+      const videoTracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+      if(!videoTracks.length) return;
+      let video = hostStream.video.querySelector(`video[data-stream-owner="${CSS.escape(guestId)}"]`);
+      if(!video){
+        video = document.createElement('video');
+        tagMediaOwner(video, guestId);
+        video.controls = true;
+        hostStream.video.appendChild(video);
+        attachCaptions(video);
+      }
+      attachStreamToVideo(video, stream, { muted: guestId === clientId });
+      hostStream.guestVid = video;
+      hostStream.container.classList.add('open');
+      hostStream.started = true;
+      hostStream.liveActive = true;
+      if(hostStream.liveState) hostStream.liveState.textContent = 'Live now';
+      updateVideoLayout(hostStream.video);
+      refreshPrimaryStreamTile(hostId);
+    }
+
     function updateParticipantStream(participantId, stream){
       const participant = streams[participantId];
       if(!participant || !stream) return;
@@ -6458,6 +6481,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
               ? createBroadcastCameraBundle().catch(() => getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false })))
               : getBroadcastMediaWithAudioFallback({ video: { facingMode: usingFrontCamera ? 'user' : 'environment' }, audio: buildBroadcastAudioConstraints() }).then(s => ({ stream: s, previews: [s], multiCam: false }))));
         getStream.then(bundle => {
+          if(clientId && !streams[clientId]){
+            ensureStreamThumb(clientId, store.user || clientId, true);
+          }
           const activeBundle = bundle && bundle.stream ? bundle : { stream: bundle, previews: [bundle], multiCam: false };
           const activeStream = activeBundle.stream;
           const primaryPreview = activeBundle.previews?.[0] || activeStream;
@@ -6971,15 +6997,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             if(targetId !== msg.id && streams[targetId]){
               setStreamLiveState(targetId, 'Live now', true);
             }
-            if(targetId !== msg.id && streams[msg.id]){
-              updateParticipantStream(msg.id, remoteStream);
+            if(targetId !== msg.id){
+              attachGuestStreamToHost(targetId, msg.id, remoteStream);
             }
             if(broadcasting && !joinApproved){
-              try{
-                if(localStream && ev.track && !localStream.getTracks().some(track => track.id === ev.track.id)){
-                  localStream.addTrack(ev.track);
-                }
-              }catch{}
               for(const id in peerConnections){
                 if(id === msg.id) continue;
                 try{
