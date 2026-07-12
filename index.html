@@ -3438,19 +3438,32 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       stream.getVideoTracks?.().forEach(track => {
         if(!track.onunmute) track.addEventListener('unmute', markVisible, { once: true });
       });
-      const startPlayback = () => {
+      const startPlayback = (retryMuted = true) => {
         const playPromise = videoElement.play?.();
         if(playPromise && typeof playPromise.catch === 'function'){
           playPromise.catch(error => {
             console.warn('Video autoplay failed:', error);
+            if(retryMuted && !videoElement.muted){
+              // Browsers often block remote camera elements that contain audio
+              // until a user gesture happens. Retry muted so video frames render
+              // instead of leaving the live tile black, then let the existing
+              // audio unlock flow restore sound after interaction.
+              videoElement.muted = true;
+              videoElement.defaultMuted = true;
+              videoElement.setAttribute('muted', '');
+              startPlayback(false);
+              return;
+            }
             pendingPlayables.add(videoElement);
           });
         }
       };
+      videoElement.addEventListener('loadeddata', markVisible, { once: true });
       if(videoElement.readyState >= 2){
+        markVisible();
         startPlayback();
       } else {
-        videoElement.addEventListener('loadedmetadata', startPlayback, { once: true });
+        videoElement.addEventListener('loadedmetadata', () => startPlayback(), { once: true });
         startPlayback();
       }
     }
