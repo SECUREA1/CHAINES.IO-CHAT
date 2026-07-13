@@ -245,8 +245,12 @@
     .toolbar-overflow-group summary::-webkit-details-marker { display:none; }
     .toolbar-overflow-list { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
     .toolbar-overflow-list .chip { min-height:32px; padding:5px 8px; font-size:12px; gap:6px; border-radius:10px; }
+    .toolbar-overflow-list .chip img { flex:0 0 auto; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--accent), transparent 35%)); }
+    .toolbar-overflow-list .menu-link-copy { display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-width:0; line-height:1.15; }
+    .toolbar-overflow-list .menu-link-title { font-weight:800; color:var(--text); }
+    .toolbar-overflow-list .menu-link-description { max-width:220px; color:var(--muted); font-size:10px; font-weight:600; white-space:normal; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; }
+    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; position:relative; z-index:var(--action-layer); }
     .toolbar-additional-desktop {
       display:none;
@@ -2070,28 +2074,28 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   <details class="toolbar-overflow-group" open>
                     <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
-                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" />Marketplace</a></li>
-                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button></li>
-                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button></li>
-                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /></button></li>
-                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button></li>
-                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" />Rewards</button></li>
+                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
+                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
+                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
+                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
                     </ul>
                   </details>
                   <details class="toolbar-overflow-group" open>
                     <summary>Cloud Links</summary>
                     <ul class="toolbar-overflow-list">
-                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" />Open Watchtower</button></li>
-                      <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" />Watchtower</a></li>
-                      <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" />Ioncore Store</a></li>
-                      <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" />Muzikaz House</a></li>
-                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" />OMConsole</button></li>
-                      <li><button id="ioncore-btn" class="chip" type="button" title="Open ION Core fundraising page"><img src="static/ioncore.svg" alt="" aria-hidden="true" />ION Core Energy</button></li>
-                      <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" />Rednode AI</button></li>
-                      <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" />Voice3 App</button></li>
-                      <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" />Gaming Demos</button></li>
-                      <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" />Drone Engine</button></li>
-                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" />CHAINeS AR Collectibles</button></li>
+                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
+                      <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
+                      <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
+                      <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
+                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
+                      <li><button id="ioncore-btn" class="chip" type="button" title="Open ION Core fundraising page"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">ION Core Energy</span><span class="menu-link-description">View the ION Core fundraising page.</span></span></button></li>
+                      <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rednode AI</span><span class="menu-link-description">Open rednode.ai intelligence tools.</span></span></button></li>
+                      <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Voice3 App</span><span class="menu-link-description">Open the Voice3 audio app.</span></span></button></li>
+                      <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Gaming Demos</span><span class="menu-link-description">Play OMConsole gaming demos.</span></span></button></li>
+                      <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Drone Engine</span><span class="menu-link-description">Open the drone engine investor model.</span></span></button></li>
+                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
                   </details>
                 </div>
@@ -2551,7 +2555,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(!marketModeToggle) return;
       const currentMode = marketViewMode?.value || 'all';
       const modeDef = MARKET_VIEW_MODES.find((entry) => entry.value === currentMode) || MARKET_VIEW_MODES[0];
-      marketModeToggle.innerHTML = '<img src="static/wallet.svg" alt="" aria-hidden="true" />';
+      marketModeToggle.innerHTML = '<img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span>';
       marketModeToggle.dataset.mode = modeDef.value;
       marketModeToggle.title = `View mode: ${modeDef.label}`;
       marketModeToggle.setAttribute('aria-label', `View mode: ${modeDef.label}`);
@@ -3242,13 +3246,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     });
     function setVideoToggleLabel(label){
       if(!videoToggle) return;
-      videoToggle.innerHTML = '<img src="static/screen.svg" alt="" aria-hidden="true" />';
+      videoToggle.innerHTML = '<img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span>';
       videoToggle.setAttribute('title', label);
       videoToggle.setAttribute('aria-label', label);
     }
     function setStreamsFitLabel(label){
       if(streamsFitBtn){
-        streamsFitBtn.innerHTML = '<img src="static/split.svg" alt="" aria-hidden="true" />';
+        streamsFitBtn.innerHTML = '<img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span>';
         streamsFitBtn.setAttribute('title', label);
         streamsFitBtn.setAttribute('aria-label', label);
       }
