@@ -2,123 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="description" content="Mint, preview, and launch CHAINeS Polygon collectibles in one unified AR command center with token-aware controls and branded NFT flows." />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="description" content="Explore CHAINeS AR collectibles in a polished 3D model gallery with WebXR, Scene Viewer, and Quick Look support." />
   <meta name="keywords" content="CHAINeS, Polygon NFT, AR collectible, NFT mint, WebXR, model-viewer" />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#07111a" />
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
   <link rel="canonical" href="/chaines-ar-collectibles.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
-  <meta property="og:description" content="A single branded page to mint Polygon NFTs, browse token IDs, and launch AR previews." />
+  <meta property="og:title" content="CHAINeS AR Collectibles — Immersive Model Gallery" />
+  <meta property="og:description" content="Preview, inspect, mint, and launch available CHAINeS collectibles in AR." />
   <meta property="og:url" content="/chaines-ar-collectibles.html" />
   <meta property="og:image" content="/static/logo.svg" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
-  <meta name="twitter:description" content="Unified CHAINeS mint + AR viewer experience for Polygon collectibles." />
+  <meta name="twitter:title" content="CHAINeS AR Collectibles — Immersive Model Gallery" />
+  <meta name="twitter:description" content="A premium AR showroom for CHAINeS digital collectibles." />
   <meta name="twitter:image" content="/static/logo.svg" />
-  <title>CHAINeS AR Collectibles — Polygon NFT Player & Minter</title>
+  <title>CHAINeS AR Collectibles — Immersive Model Gallery</title>
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "name": "CHAINeS AR Collectibles",
-      "description": "Mint, browse, and launch CHAINeS Polygon collectibles in AR.",
+      "description": "Preview, inspect, mint, and launch CHAINeS Polygon collectibles in AR.",
       "url": "/chaines-ar-collectibles.html",
-      "publisher": {
-        "@type": "Organization",
-        "name": "CHAINeS",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "/static/logo.svg"
-        }
-      }
+      "publisher": {"@type":"Organization","name":"CHAINeS","logo":{"@type":"ImageObject","url":"/static/logo.svg"}}
     }
   </script>
   <style>
-    :root {
-      --bg:#07111a;--bg2:#0c1824;--panel:rgba(14,27,40,.88);--panel-strong:rgba(12,21,32,.95);
-      --line:rgba(102,221,255,.18);--line-strong:rgba(102,221,255,.34);
-      --text:#eef9ff;--muted:#9ec8da;--muted2:#79a9bd;--accent:#66ddff;--accent2:#37a8ff;--accent3:#7c5cff;
-      --good:#68f0b8;--warn:#ffbe6b;--shadow:0 24px 60px rgba(0,0,0,.45);
-    }
-    *{box-sizing:border-box} html{scroll-behavior:smooth}
-    body{margin:0;color:var(--text);font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% 12%,rgba(102,221,255,.14),transparent 24%),radial-gradient(circle at 82% 18%,rgba(124,92,255,.16),transparent 24%),linear-gradient(160deg,#040b11,var(--bg) 34%,var(--bg2) 100%);min-height:100vh}
-    .shell{width:min(1220px,calc(100% - 24px));margin:0 auto}
-    .topbar{position:sticky;top:0;z-index:30;background:rgba(4,10,16,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-    .topbar-inner{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 0;flex-wrap:wrap}
-    .brand{display:inline-flex;align-items:center;gap:.9rem;text-decoration:none;color:inherit}
-    .mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(102,221,255,.22),rgba(124,92,255,.22));border:1px solid rgba(102,221,255,.26);overflow:hidden}
-    .mark img{width:100%;height:100%;object-fit:cover}
-    .brand strong{display:block;letter-spacing:.14em;text-transform:uppercase;font-size:.92rem}.brand span{display:block;color:var(--muted);font-size:.88rem}
-    .btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;padding:.85rem 1.1rem;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.45rem}
-    .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;border-color:transparent;box-shadow:0 14px 30px rgba(55,168,255,.28)}
-    .btn.secondary{background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(102,221,255,.08));border-color:rgba(124,92,255,.28)}
-    .btn:hover,.btn:focus-visible{transform:translateY(-1px)}
-    .hero{padding:1.8rem 0 1rem;display:grid;grid-template-columns:1.1fr .9fr;gap:1rem}
-    .panel{background:var(--panel);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:1rem;position:relative;overflow:hidden}
-    .panel::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(102,221,255,.08),transparent 30%);pointer-events:none}
-    .badge{display:inline-flex;padding:.42rem .74rem;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--accent);font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-    h1{margin:.5rem 0;font-size:clamp(2rem,4.7vw,3.7rem);line-height:1.02;letter-spacing:-.04em;max-width:12ch} h2,h3{margin:0;letter-spacing:-.03em}
-    p{margin:0;color:var(--muted)}
-    .hero-actions,.row{display:flex;gap:.7rem;flex-wrap:wrap}
-    .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:.6rem}
-    .stat{padding:.85rem .95rem;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}
-    .stat strong{display:block;color:white}.stat span{font-size:.9rem;color:var(--muted)}
-    main{padding-bottom:2.5rem}.section{margin-top:1rem;padding:1rem}
-    .section-head{display:flex;align-items:end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
-    .mint-layout{display:grid;grid-template-columns:1.08fr .92fr;gap:1rem}
-    .card{border:1px solid var(--line);border-radius:20px;background:var(--panel-strong);box-shadow:var(--shadow);padding:1rem}
-    .mint-head{display:flex;justify-content:space-between;align-items:start;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem}
-    .status-pill{padding:.48rem .72rem;border-radius:999px;font-size:.82rem;font-weight:800;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--warn)}
-    .status-pill.ready{color:var(--good)}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.full{grid-column:1/-1}
-    label{display:block;margin-bottom:.34rem;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);font-weight:800}
-    input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--text);padding:.8rem .85rem;font:inherit}
-    textarea{min-height:90px;resize:vertical}
-    .note{margin-top:.75rem;font-size:.92rem;color:var(--muted)}
-    .collection-toolbar{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
-    .collection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.85rem;margin-top:.9rem;max-height:540px;overflow:auto;padding:.15rem .25rem .35rem;scroll-snap-type:y proximity}
-    .token-btn{width:100%;min-height:168px;border-radius:20px;padding:0;text-align:left;flex-direction:column;align-items:stretch;justify-content:space-between;overflow:hidden;position:relative;isolation:isolate;background:linear-gradient(145deg,rgba(102,221,255,.12),rgba(124,92,255,.10) 48%,rgba(255,255,255,.035));border-color:rgba(102,221,255,.25);box-shadow:0 16px 42px rgba(0,0,0,.24);scroll-snap-align:start;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
-    .token-btn::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 180deg,transparent,rgba(102,221,255,.22),transparent 36%,rgba(124,92,255,.2),transparent 70%);opacity:.62;animation:tileFlow 8s linear infinite;z-index:-2}
-    .token-btn::after{content:"";position:absolute;inset:1px;border-radius:19px;background:linear-gradient(180deg,rgba(7,17,26,.18),rgba(7,17,26,.86));z-index:-1}
-    .token-btn:hover,.token-btn:focus-visible,.token-btn.open{transform:translateY(-3px);border-color:rgba(102,221,255,.72);box-shadow:0 22px 54px rgba(55,168,255,.2)}
-    .token-tile-media{height:82px;border-bottom:1px solid rgba(102,221,255,.16);background:radial-gradient(circle at 28% 18%,rgba(104,240,184,.32),transparent 26%),radial-gradient(circle at 72% 0,rgba(124,92,255,.34),transparent 32%),linear-gradient(135deg,rgba(102,221,255,.16),rgba(255,255,255,.03));display:flex;align-items:end;justify-content:space-between;padding:.7rem}
-    .token-tile-media strong{font-size:1.5rem;color:white;text-shadow:0 8px 20px rgba(0,0,0,.35)}
-    .token-live-dot{width:.62rem;height:.62rem;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(104,240,184,.65);animation:livePulse 1.8s ease-out infinite}
-    .token-tile-body{padding:.8rem;display:grid;gap:.35rem}
-    .token-tile-kicker{font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-weight:900}
-    .token-tile-label{color:white;font-weight:900;line-height:1.15}
-    .token-tile-path{font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    @keyframes tileFlow{to{transform:rotate(1turn)}}
-    @keyframes livePulse{70%{box-shadow:0 0 0 10px rgba(104,240,184,0)}}
-    @media (prefers-reduced-motion:reduce){.token-btn,.token-btn::before,.token-live-dot{animation:none;transition:none}}
-    .terminal{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel-strong)}
-    .terminal-head{padding:1rem 1rem 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.7rem}
-    .terminal-placeholder{padding:1.2rem 1rem;color:var(--muted)}
-    .terminal iframe{width:100%;height:620px;border:0;display:none;background:#000}.terminal iframe.live{display:block}
-    model-viewer{width:100%;height:min(58vh,540px);background:radial-gradient(circle at top,rgba(102,221,255,.12),rgba(3,9,15,.9));border-radius:16px;border:1px solid var(--line)}
-    .read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem;margin-top:.7rem}
-    .read strong{color:white}
-    .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
-    .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
-    @media (max-width:1080px){.hero,.mint-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}.collection-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));max-height:none;overflow:visible}.token-btn{min-height:154px}}
-  
-    .site-copyright {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 12px;
-      padding: 14px 10px 24px;
-    }
-</style>
+    :root{--bg:#07111a;--bg2:#0c1824;--panel:rgba(14,27,40,.88);--panel-strong:rgba(12,21,32,.95);--line:rgba(102,221,255,.18);--line-strong:rgba(102,221,255,.38);--text:#eef9ff;--muted:#9ec8da;--muted2:#79a9bd;--accent:#66ddff;--accent2:#37a8ff;--accent3:#7c5cff;--good:#68f0b8;--warn:#ffbe6b;--danger:#ff7a90;--shadow:0 24px 60px rgba(0,0,0,.45)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 12% 12%,rgba(102,221,255,.14),transparent 24%),radial-gradient(circle at 82% 18%,rgba(124,92,255,.16),transparent 24%),linear-gradient(160deg,#040b11,var(--bg) 34%,var(--bg2) 100%);min-height:100vh;overflow-x:hidden}body.modal-open{overflow:hidden}.shell{width:min(1240px,calc(100% - 24px));margin:0 auto}.topbar{position:sticky;top:0;z-index:30;background:rgba(4,10,16,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}.topbar-inner{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 0;flex-wrap:wrap}.brand{display:inline-flex;align-items:center;gap:.9rem;text-decoration:none;color:inherit}.mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(102,221,255,.22),rgba(124,92,255,.22));border:1px solid rgba(102,221,255,.26);overflow:hidden}.mark img{width:100%;height:100%;object-fit:cover}.brand strong{display:block;letter-spacing:.14em;text-transform:uppercase;font-size:.92rem}.brand span span{display:block;color:var(--muted);font-size:.88rem}.btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;padding:.85rem 1.1rem;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,background .2s ease}.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;border-color:transparent;box-shadow:0 14px 30px rgba(55,168,255,.28)}.btn.secondary{background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(102,221,255,.08));border-color:rgba(124,92,255,.28)}.btn[disabled]{opacity:.48;cursor:not-allowed}.btn:not([disabled]):hover,.btn:focus-visible{transform:translateY(-1px);border-color:var(--line-strong);outline:2px solid transparent;box-shadow:0 0 0 3px rgba(102,221,255,.18)}.hero{padding:1.9rem 0 1rem;display:grid;grid-template-columns:1.05fr .95fr;gap:1rem}.panel{background:var(--panel);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:1rem;position:relative;overflow:hidden}.panel::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(102,221,255,.08),transparent 30%);pointer-events:none}.badge{display:inline-flex;padding:.42rem .74rem;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--accent);font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}h1{margin:.5rem 0;font-size:clamp(2.2rem,5vw,4.2rem);line-height:1.01;letter-spacing:-.05em;max-width:13ch}h2,h3{margin:0;letter-spacing:-.03em}p{margin:0;color:var(--muted);line-height:1.58}.hero-actions,.row{display:flex;gap:.7rem;flex-wrap:wrap}.hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:.8rem}.stat{padding:.85rem .95rem;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}.stat strong{display:block;color:white}.stat span{font-size:.9rem;color:var(--muted)}main{padding-bottom:2.5rem}.section{margin-top:1rem;padding:1rem}.section-head{display:flex;align-items:end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}.showcase-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem;align-items:start}.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}.collectible-card{min-height:100%;display:flex;flex-direction:column;position:relative;isolation:isolate;border:1px solid rgba(102,221,255,.22);border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));box-shadow:0 18px 46px rgba(0,0,0,.32);overflow:hidden;transition:transform .24s ease,border-color .24s ease,box-shadow .24s ease}.collectible-card::before{content:"";position:absolute;inset:-1px;background:radial-gradient(circle at 50% 26%,rgba(102,221,255,.18),transparent 34%),radial-gradient(circle at 80% 12%,rgba(124,92,255,.18),transparent 28%);z-index:-1}.collectible-card:hover{transform:translateY(-6px);border-color:rgba(102,221,255,.5);box-shadow:0 28px 70px rgba(55,168,255,.18)}.model-stage{position:relative;min-height:360px;padding:1rem 1rem 0;background:radial-gradient(ellipse at 50% 75%,rgba(102,221,255,.18),transparent 36%),linear-gradient(180deg,rgba(3,9,15,.18),rgba(3,9,15,.72));display:grid;place-items:center}.model-stage::after{content:"";position:absolute;left:18%;right:18%;bottom:1.1rem;height:36px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.38),rgba(0,0,0,0) 68%);filter:blur(6px);pointer-events:none}.model-stage model-viewer{width:100%;height:330px;background:transparent;border:0;z-index:1;--poster-color:transparent}.model-poster{position:absolute;inset:1rem 1rem 2.8rem;display:grid;place-items:center;text-align:center;border-radius:18px;background:radial-gradient(circle,rgba(102,221,255,.16),rgba(255,255,255,.03));color:var(--muted);padding:1rem}.model-poster img{width:min(58%,190px);max-height:190px;object-fit:contain;filter:drop-shadow(0 22px 28px rgba(0,0,0,.38))}.model-poster.hidden{display:none}.model-status{position:absolute;left:1rem;right:1rem;bottom:.8rem;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.58rem .72rem;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(2,8,13,.74);backdrop-filter:blur(10px);font-size:.8rem;color:var(--muted)}.status-dot{width:.55rem;height:.55rem;border-radius:50%;background:var(--warn);box-shadow:0 0 18px rgba(255,190,107,.55)}.status-dot.ready{background:var(--good)}.status-dot.error{background:var(--danger)}.card-body{padding:1rem;display:flex;flex-direction:column;gap:.75rem;flex:1}.card-title{display:flex;align-items:start;justify-content:space-between;gap:.75rem}.card-title h3{font-size:1.3rem;line-height:1.1}.rarity{white-space:nowrap;padding:.35rem .58rem;border-radius:999px;border:1px solid rgba(104,240,184,.25);color:var(--good);font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em;background:rgba(104,240,184,.08)}.meta{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:900}.description{font-size:.95rem}.card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:auto}.card-actions .expand{grid-column:1/-1}.side-panel{position:sticky;top:92px}.mint-card{border:1px solid var(--line);border-radius:20px;background:var(--panel-strong);box-shadow:var(--shadow);padding:1rem}.mint-head{display:flex;justify-content:space-between;align-items:start;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem}.status-pill{padding:.48rem .72rem;border-radius:999px;font-size:.82rem;font-weight:800;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--warn)}.status-pill.ready{color:var(--good)}.form-grid{display:grid;grid-template-columns:1fr;gap:.75rem}.full{grid-column:1/-1}label{display:block;margin-bottom:.34rem;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);font-weight:800}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--text);padding:.8rem .85rem;font:inherit}textarea{min-height:86px;resize:vertical}.note{margin-top:.75rem;font-size:.92rem;color:var(--muted)}.terminal{margin-top:.9rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel-strong)}.terminal-head{padding:1rem 1rem 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.7rem}.terminal-placeholder{padding:1.2rem 1rem;color:var(--muted)}.terminal iframe{width:100%;height:620px;border:0;display:none;background:#000}.terminal iframe.live{display:block}.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(1,6,10,.78);backdrop-filter:blur(14px)}.modal.open{display:flex}.modal-card{width:min(1120px,100%);max-height:min(92vh,920px);overflow:auto;border:1px solid var(--line-strong);border-radius:28px;background:linear-gradient(180deg,rgba(11,23,35,.98),rgba(4,12,19,.98));box-shadow:0 32px 120px rgba(0,0,0,.68)}.modal-head{display:flex;justify-content:space-between;gap:1rem;align-items:start;padding:1rem 1rem 0}.close-btn{font-size:1rem}.modal-content{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:1rem;padding:1rem}.modal-view{min-height:640px;border-radius:22px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 78%,rgba(102,221,255,.2),transparent 34%),radial-gradient(circle at 50% 18%,rgba(124,92,255,.16),transparent 34%),rgba(2,8,13,.72);position:relative;overflow:hidden}.modal-view::after{content:"";position:absolute;left:23%;right:23%;bottom:2rem;height:44px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.36),rgba(0,0,0,0) 70%);filter:blur(8px);pointer-events:none}.modal-view model-viewer{width:100%;height:640px;background:transparent;border:0;--poster-color:transparent}.modal-copy{display:flex;flex-direction:column;gap:.9rem}.read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem}.read strong{color:white;text-align:right}.fallback-error{border-color:rgba(255,122,144,.35)!important;color:#ffd9df!important}.footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}.footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}.site-copyright{text-align:center;color:#94a3b8;font-size:12px;padding:14px 10px 24px}@media(max-width:1160px){.showcase-layout{grid-template-columns:1fr}.side-panel{position:static}.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.modal-content{grid-template-columns:1fr}.modal-view,.modal-view model-viewer{min-height:560px;height:560px}}@media(max-width:760px){.hero{grid-template-columns:1fr}.hero-stats{grid-template-columns:1fr}.gallery{grid-template-columns:1fr}.model-stage{min-height:390px}.model-stage model-viewer{height:360px}.card-actions{grid-template-columns:1fr}.terminal iframe{height:520px}h1{max-width:none}.read{flex-direction:column}.read strong{text-align:left}.modal{padding:.45rem}.modal-card{border-radius:20px}.modal-content{padding:.7rem}.modal-view,.modal-view model-viewer{min-height:460px;height:460px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.collectible-card{transition:none}.collectible-card:hover{transform:none}model-viewer{animation:none}}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
-      <a href="#top" class="brand"><span class="mark"><img src="/static/logo.svg" alt="CHAINeS logo" loading="eager" /></span><span><strong>CHAINeS</strong><span>Polygon AR NFT Player + Minter</span></span></a>
+      <a href="#top" class="brand"><span class="mark"><img src="/static/logo.svg" alt="CHAINeS logo" loading="eager" /></span><span><strong>CHAINeS</strong><span>AR Collectible Showroom</span></span></a>
       <a class="btn" href="/index.html">Back to CHAINeS POST</a>
     </div>
   </header>
@@ -126,473 +46,107 @@
   <main class="shell" id="top">
     <section class="hero">
       <div class="panel">
-        <span class="badge">Fully branded AR experience</span>
-        <h1>CHAINeS Polygon collectible command center.</h1>
-        <p>One screen to preview, mint, browse token IDs, and launch AR for CHAINeS collectibles backed by Polygon NFTs.</p>
-        <div class="hero-actions" style="margin-top:.8rem"><a class="btn primary" href="#mint">Open mint console</a><a class="btn secondary" href="#viewer">Load AR player</a></div>
+        <span class="badge">Immersive AR model gallery</span>
+        <h1>CHAINeS collectibles, staged for inspection.</h1>
+        <p>Rotate real CHAINeS 3D collectibles, open a cinematic expanded view, launch supported AR modes, and keep Polygon minting one step away without a numbered token directory.</p>
+        <div class="hero-actions" style="margin-top:.8rem"><a class="btn primary" href="#gallery">Explore models</a><a class="btn secondary" href="#mint">Mint selected collectible</a></div>
         <div class="hero-stats">
-          <div class="stat"><strong>Polygon-native</strong><span>Token ID sync from your live collection</span></div>
-          <div class="stat"><strong>3D + AR</strong><span>GLB preview with WebXR / Quick Look launch</span></div>
-          <div class="stat"><strong>Mint & Play</strong><span>Mint embed and viewer integrated in one flow</span></div>
+          <div class="stat"><strong>Model-first</strong><span>Large previews, soft shadows, and clean controls</span></div>
+          <div class="stat"><strong>3D + AR</strong><span>WebXR, Scene Viewer, and Quick Look where assets exist</span></div>
+          <div class="stat"><strong>Resilient</strong><span>Lazy loading, posters, errors, and retry actions</span></div>
         </div>
       </div>
       <aside class="panel">
-        <span class="badge">Collection coverage</span>
-        <h3 style="margin:.55rem 0 .55rem">Display every numbered NFT the app can populate from your Polygon collection.</h3>
-        <p>Use <strong>Populate from Polygon</strong> to pull token IDs from the contract, then click any token to sync mint + viewer inputs instantly.</p>
+        <span class="badge">AR behavior</span>
+        <h3 style="margin:.55rem 0 .55rem">Supported devices can launch AR directly from each collectible.</h3>
+        <p>Tiles only enable AR for models with a valid GLB/GLTF source. iPhone and iPad Quick Look is used when a USDZ asset is supplied; otherwise the 3D viewer remains the fallback.</p>
       </aside>
     </section>
 
-    <section class="section panel" id="mint">
-      <div class="section-head"><div><span class="badge">Mint console</span><h2>CHAINeS collectible mint + unlock panel</h2></div><p>Contract-aware configuration for branded Polygon drops.</p></div>
-      <div class="mint-layout">
-        <div>
-          <div class="card">
-            <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Prepare collectible + contract</h2></div><div class="status-pill" id="mintState">Locked</div></div>
-            <div class="grid">
+    <section class="section panel" id="gallery">
+      <div class="section-head"><div><span class="badge">Available collectibles</span><h2>AR model gallery</h2></div><p>Actual project collectible models are shown directly as polished 3D tiles.</p></div>
+      <div class="showcase-layout">
+        <div class="gallery" id="collectibleGallery" aria-live="polite"></div>
+        <aside class="side-panel" id="mint">
+          <div class="mint-card">
+            <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Selected collectible</h2></div><div class="status-pill" id="mintState">Locked</div></div>
+            <div class="form-grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
-              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="226" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
+              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="214" /></div>
+              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
-              <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
-              <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
-              <div class="full"><label for="glbUrlInput">GLB model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .glb URL or choose from list" /></div>
+              <div class="full"><label for="glbUrlInput">GLB / GLTF model URL</label><input id="glbUrlInput" type="text" placeholder="Selected model source" /></div>
               <div class="full"><label for="usdzUrlInput">Optional iOS USDZ URL</label><input id="usdzUrlInput" type="text" placeholder="Optional .usdz for Quick Look" /></div>
               <div class="full"><label for="collectibleNotes">Collectible utility notes</label><textarea id="collectibleNotes" placeholder="Token-gated controls, scenes, downloadable perks, etc."></textarea></div>
             </div>
-            <div class="row"><button class="btn primary" id="loadModelBtn" type="button">Load in 3D viewer</button><button class="btn" id="openMintEmbedBtn" type="button">Open mint terminal</button><button class="btn secondary" id="simulateUnlockBtn" type="button">Simulate unlock</button></div>
-            <p class="note" id="mintMessage">Choose a collectible model and load it into the viewer, then populate token IDs from Polygon.</p>
+            <div class="row"><button class="btn primary" id="loadModelBtn" type="button">Open selected model</button><button class="btn" id="openMintEmbedBtn" type="button">Open mint terminal</button><button class="btn secondary" id="simulateUnlockBtn" type="button">Simulate unlock</button></div>
+            <p class="note" id="mintMessage">Choose a collectible tile or model to prepare the mint terminal and expanded viewer.</p>
           </div>
-
-          <div class="card" style="margin-top:.9rem">
-            <div class="mint-head"><div><span class="badge">Collection browser</span><h2 style="margin-top:.45rem">Token list from Polygon + local GLB list</h2></div></div>
-            <div class="collection-toolbar">
-              <button class="btn" id="populatePolygonBtn" type="button">Populate from Polygon</button>
-              <button class="btn" id="showListedOnlyBtn" type="button">Show listed GLBs</button>
-              <button class="btn" id="jpgManifestBtn" type="button">Load JPG metadata</button>
-              <button class="btn secondary" id="buildRangeBtn" type="button">Build numeric range</button>
-            </div>
-            <div class="grid" style="margin-top:.7rem">
-              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="200"/></div>
-              <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
-            </div>
-            <p class="note" id="collectionMessage">Live tile feed starts at token #200. Tap any open tile to sync mint embed + viewer inputs.</p>
-            <div class="collection-list" id="collectionList"></div>
-          </div>
-
           <div class="terminal">
             <div class="terminal-head"><div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div><button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button></div>
-            <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected token ID on Polygon.</div>
-            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=226&theme=dark&primaryColor=blue"></iframe>
+            <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected collectible on Polygon.</div>
+            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
           </div>
-        </div>
-
-        <div class="card" id="viewer">
-          <div class="mint-head"><div><span class="badge">AR player</span><h2 style="margin-top:.45rem">3D collectible viewer</h2></div><button class="btn" id="launchArBtn" type="button">Launch AR</button></div>
-          <model-viewer id="collectibleViewer" alt="CHAINeS collectible preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" environment-image="neutral" tone-mapping="aces"></model-viewer>
-          <div class="row"><button class="btn primary" id="spinToggleBtn" type="button">Toggle auto-rotate</button><button class="btn" id="resetCameraBtn" type="button">Reset camera</button></div>
-          <div class="read"><span>Viewer status</span><strong id="viewerStatus">No collectible loaded yet.</strong></div>
-          <div class="read"><span>Active collectible</span><strong id="viewerModelName">None selected</strong></div>
-          <div class="read"><span>Collection source</span><strong id="collectionSource">Listed GLBs loaded.</strong></div>
-        </div>
+        </aside>
       </div>
     </section>
 
     <div class="footer"><strong>CHAINeS</strong><br/>AR digital collectibles, controllable NFTs, and Polygon mint-to-view experiences.</div>
   </main>
 
+  <div class="modal" id="modelModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+    <div class="modal-card">
+      <div class="modal-head"><div><span class="badge" id="modalRarity">Collectible</span><h2 id="modalTitle" style="margin-top:.4rem">Collectible</h2></div><button class="btn close-btn" id="closeModalBtn" type="button" aria-label="Close expanded collectible view">Close ×</button></div>
+      <div class="modal-content">
+        <div class="modal-view"><model-viewer id="modalViewer" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" shadow-intensity="1" environment-image="neutral" interaction-prompt="auto" loading="lazy" reveal="interaction" tone-mapping="aces"></model-viewer></div>
+        <div class="modal-copy">
+          <p class="meta" id="modalCollection">CHAINeS</p>
+          <p id="modalDescription">Inspect this collectible in a large interactive 3D viewport.</p>
+          <div class="read"><span>Status</span><strong id="modalStatus">Ready</strong></div>
+          <div class="read"><span>Model type</span><strong id="modalType">GLB</strong></div>
+          <div class="read"><span>Token</span><strong id="modalToken">—</strong></div>
+          <button class="btn primary" id="modalArBtn" type="button">Launch AR</button>
+          <button class="btn secondary" id="modalRetryBtn" type="button">Retry model</button>
+          <p class="note" id="modalArNote">AR requires HTTPS and a supported browser/device. Normal 3D viewing remains available.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    (() => {
-      const $ = (id) => document.getElementById(id);
-      const glbSelect = $('glbSelect');
-      const tokenIdInput = $('tokenIdInput');
-      const glbUrlInput = $('glbUrlInput');
-      const usdzUrlInput = $('usdzUrlInput');
-      const collectibleName = $('collectibleName');
-      const glbBasePathInput = $('glbBasePathInput');
-      const autoPathFromTokenInput = $('autoPathFromTokenInput');
-      const collectibleNotes = $('collectibleNotes');
-      const collectionContractInput = $('collectionContractInput');
-      const rangeStartInput = $('rangeStartInput');
-      const rangeEndInput = $('rangeEndInput');
-      const populatePolygonBtn = $('populatePolygonBtn');
-      const showListedOnlyBtn = $('showListedOnlyBtn');
-      const jpgManifestBtn = $('jpgManifestBtn');
-      const buildRangeBtn = $('buildRangeBtn');
-      const collectionList = $('collectionList');
-      const collectionMessage = $('collectionMessage');
-      const collectionSource = $('collectionSource');
-      const loadModelBtn = $('loadModelBtn');
-      const openMintEmbedBtn = $('openMintEmbedBtn');
-      const simulateUnlockBtn = $('simulateUnlockBtn');
-      const toggleTerminalBtn = $('toggleTerminalBtn');
-      const terminalPlaceholder = $('terminalPlaceholder');
-      const launchArBtn = $('launchArBtn');
-      const spinToggleBtn = $('spinToggleBtn');
-      const resetCameraBtn = $('resetCameraBtn');
-      const viewer = $('collectibleViewer');
-      const viewerStatus = $('viewerStatus');
-      const viewerModelName = $('viewerModelName');
-      const mintMessage = $('mintMessage');
-      const mintState = $('mintState');
-      const mintTerminalFrame = $('mintTerminalFrame');
+    (()=>{
+      const $=(id)=>document.getElementById(id);
+      const gallery=$('collectibleGallery'), glbSelect=$('glbSelect'), tokenIdInput=$('tokenIdInput'), glbUrlInput=$('glbUrlInput'), usdzUrlInput=$('usdzUrlInput'), collectibleName=$('collectibleName'), collectibleNotes=$('collectibleNotes'), collectionContractInput=$('collectionContractInput'), loadModelBtn=$('loadModelBtn'), openMintEmbedBtn=$('openMintEmbedBtn'), simulateUnlockBtn=$('simulateUnlockBtn'), toggleTerminalBtn=$('toggleTerminalBtn'), terminalPlaceholder=$('terminalPlaceholder'), mintTerminalFrame=$('mintTerminalFrame'), mintMessage=$('mintMessage'), mintState=$('mintState'), modal=$('modelModal'), modalViewer=$('modalViewer'), closeModalBtn=$('closeModalBtn'), modalTitle=$('modalTitle'), modalDescription=$('modalDescription'), modalCollection=$('modalCollection'), modalRarity=$('modalRarity'), modalStatus=$('modalStatus'), modalType=$('modalType'), modalToken=$('modalToken'), modalArBtn=$('modalArBtn'), modalRetryBtn=$('modalRetryBtn'), modalArNote=$('modalArNote');
+      if([gallery,glbSelect,tokenIdInput,glbUrlInput,usdzUrlInput,collectibleName,collectionContractInput,loadModelBtn,openMintEmbedBtn,simulateUnlockBtn,toggleTerminalBtn,terminalPlaceholder,mintTerminalFrame,mintMessage,mintState,modal,modalViewer,closeModalBtn,modalArBtn,modalRetryBtn].some(n=>!n))return;
 
-      const required = [glbSelect, tokenIdInput, glbUrlInput, usdzUrlInput, collectibleName, glbBasePathInput, autoPathFromTokenInput, collectibleNotes, collectionContractInput, rangeStartInput, rangeEndInput, populatePolygonBtn, showListedOnlyBtn, jpgManifestBtn, buildRangeBtn, collectionList, collectionMessage, collectionSource, loadModelBtn, openMintEmbedBtn, simulateUnlockBtn, toggleTerminalBtn, terminalPlaceholder, launchArBtn, spinToggleBtn, resetCameraBtn, viewer, viewerStatus, viewerModelName, mintMessage, mintState, mintTerminalFrame];
-      if (required.some((n) => !n)) return;
-
-      let autoRotateOn = true;
-      let terminalVisible = false;
-      let mintUnlocked = false;
-      let jpgMetadataCache = null;
-
-      const normalizeAssetUrl = (value) => {
-        const raw = (value || '').trim();
-        if (!raw) return '';
-        const clean = raw.replace(/^\.\//, '/');
-        try {
-          if (/^https?:\/\//i.test(clean)) {
-            const url = new URL(clean);
-            url.pathname = encodeURI(decodeURI(url.pathname));
-            return url.toString();
-          }
-        } catch {}
-        return clean.startsWith('/') ? encodeURI(clean) : encodeURI('/' + clean);
-      };
-
-      const normalizeBasePath = (value) => {
-        const raw = (value || '').trim();
-        if (!raw) return '/';
-        const withoutTrailing = raw.endsWith('/') ? raw.slice(0, -1) : raw;
-        if (/^https?:\/\//i.test(withoutTrailing)) return withoutTrailing;
-        return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
-      };
-
-      const MIN_LIVE_TILE_TOKEN = 200;
-
-      const tokenToStem = (token) => `NFT_${String(token).padStart(4, '0')}`;
-
-      const parseTokenFromFilename = (filename) => {
-        const match = String(filename || '').match(/(\d+)/);
-        return match ? Number(match[1]) : Number.NaN;
-      };
-
-      const deriveGlbUrlFromToken = (tokenId) => {
-        const token = Number(tokenId);
-        if (!Number.isInteger(token) || token < 1) return '';
-        const base = normalizeBasePath(glbBasePathInput.value);
-        return normalizeAssetUrl(`${base}/${tokenToStem(token)}.glb`);
-      };
-
-      const deriveGlbUrlFromJpg = (jpgName) => {
-        const base = normalizeBasePath(glbBasePathInput.value);
-        const stem = String(jpgName || '').replace(/\.[^.]+$/, '');
-        if (!stem) return '';
-        return normalizeAssetUrl(`${base}/${stem}.glb`);
-      };
-
-      const syncPathFromToken = () => {
-        if (!autoPathFromTokenInput.checked) return;
-        const derived = deriveGlbUrlFromToken(tokenIdInput.value);
-        if (derived) glbUrlInput.value = derived;
-      };
-
-      const updateMintEmbedConfig = () => {
-        const tokenId = (tokenIdInput.value || '226').trim() || '226';
-        const contract = (collectionContractInput.value || '').trim();
-        const current = new URL(mintTerminalFrame.src);
-        if (/^0x[a-fA-F0-9]{40}$/.test(contract)) current.searchParams.set('contract', contract);
-        current.searchParams.set('tokenId', tokenId);
-        mintTerminalFrame.src = current.toString();
-      };
-
-      const openTerminal = () => {
-        terminalVisible = true;
-        mintTerminalFrame.classList.add('live');
-        terminalPlaceholder.style.display = 'none';
-        toggleTerminalBtn.textContent = 'Hide terminal';
-        updateMintEmbedConfig();
-      };
-
-      const setMintUnlocked = (state) => {
-        mintUnlocked = state;
-        mintState.textContent = state ? 'Unlocked' : 'Locked';
-        mintState.classList.toggle('ready', state);
-        mintMessage.textContent = state
-          ? 'Mint access unlocked. Connect wallet verification and utility controls next.'
-          : 'Choose a collectible model and load it into the viewer, then populate token IDs from Polygon.';
-      };
-
-      const loadCollectible = async () => {
-        const chosen = glbUrlInput.value.trim() || glbSelect.value;
-        const glb = normalizeAssetUrl(chosen);
-        if (!glb || !/\.glb([?#].*)?$/i.test(glb)) {
-          viewerStatus.textContent = 'Pick a valid .glb collectible before loading.';
-          mintMessage.textContent = 'A valid GLB file is required for the 3D and AR player.';
-          return;
-        }
-        const label = collectibleName.value.trim() || glb.split('/').pop() || 'CHAINeS collectible';
-        const usdz = normalizeAssetUrl(usdzUrlInput.value);
-        if (!glbUrlInput.value.trim()) glbUrlInput.value = glb;
-        const currentSrc = viewer.getAttribute('src');
-        if (currentSrc !== glb) viewer.setAttribute('src', glb);
-        if (usdz) viewer.setAttribute('ios-src', usdz); else viewer.removeAttribute('ios-src');
-        viewer.setAttribute('alt', label + ' preview');
-        viewerModelName.textContent = label;
-        viewerStatus.textContent = 'Loading collectible…';
-        mintMessage.textContent = 'Collectible loaded into the CHAINeS player. Preview 3D or launch AR.';
-        updateMintEmbedConfig();
-        try { await viewer.updateComplete; } catch {}
-      };
-
-      const syncSelectionFromToken = async ({ tokenId, label, glb }) => {
-        tokenIdInput.value = String(tokenId);
-        collectibleName.value = label;
-        if (glb) {
-          const normalizedGlb = normalizeAssetUrl(glb);
-          glbUrlInput.value = normalizedGlb;
-          const matchingOption = Array.from(glbSelect.options).find((option) => normalizeAssetUrl(option.value) === normalizedGlb);
-          if (matchingOption) glbSelect.value = matchingOption.value;
-          await loadCollectible();
-          return;
-        }
-        syncPathFromToken();
-        viewerModelName.textContent = label;
-        viewerStatus.textContent = `Token #${tokenId} selected. Path prepared for quick GLB loading.`;
-      };
-
-      const createTokenButton = ({ tokenId, label, glb }) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn token-btn';
-        button.setAttribute('aria-label', `Open token #${tokenId} tile`);
-        const pathLabel = glb ? normalizeAssetUrl(glb).split('/').pop() : `${tokenToStem(tokenId)}.glb`;
-        button.innerHTML = `<span class="token-tile-media"><strong>#${tokenId}</strong><span class="token-live-dot" aria-hidden="true"></span></span><span class="token-tile-body"><span class="token-tile-kicker">Live tile</span><span class="token-tile-label">${label}</span><span class="token-tile-path">${pathLabel}</span></span>`;
-        button.addEventListener('click', async () => {
-          collectionList.querySelectorAll('.token-btn.open').forEach((tile) => tile.classList.remove('open'));
-          button.classList.add('open');
-          await syncSelectionFromToken({ tokenId, label, glb });
-          await loadCollectible();
-          updateMintEmbedConfig();
-          openTerminal();
-          collectionMessage.textContent = `Token #${tokenId} is active in the CHAINeS mint terminal.`;
-        });
-        return button;
-      };
-
-      const renderTokenButtons = (tokens, source) => {
-        collectionList.innerHTML = '';
-        const liveTokens = tokens.filter((token) => Number(token.tokenId) >= MIN_LIVE_TILE_TOKEN);
-        liveTokens.forEach((token) => collectionList.appendChild(createTokenButton(token)));
-        collectionSource.textContent = `${source} Live tiles #${MIN_LIVE_TILE_TOKEN}+.`;
-        if (!liveTokens.length) {
-          collectionMessage.textContent = `No token IDs at #${MIN_LIVE_TILE_TOKEN} or above were found for this feed.`;
-        }
-      };
-
-      const buildListedCollection = () => {
-        const options = Array.from(glbSelect.options).filter((option) => option.value);
-        const tokens = options.map((option) => ({
-          tokenId: Number(option.dataset.token || tokenIdInput.value || 226),
-          label: option.textContent.trim(),
-          glb: option.value
-        }));
-        renderTokenButtons(tokens, 'Local listed GLB collection.');
-        collectionMessage.textContent = `Loaded ${tokens.length} listed collectible items.`;
-      };
-
-      const buildNumericCollection = () => {
-        const start = Math.max(MIN_LIVE_TILE_TOKEN, Number(rangeStartInput.value || MIN_LIVE_TILE_TOKEN));
-        const end = Math.max(start, Number(rangeEndInput.value || start));
-        const cappedEnd = Math.min(end, start + 999);
-        const tokens = [];
-        for (let tokenId = start; tokenId <= cappedEnd; tokenId += 1) {
-          tokens.push({ tokenId, label: `Polygon NFT #${tokenId}`, glb: '' });
-        }
-        renderTokenButtons(tokens, `Numeric token range #${start}–#${cappedEnd}.`);
-        collectionMessage.textContent = `Built ${tokens.length} numbered token buttons.`;
-      };
-
-      const loadJpgManifestCollection = async () => {
-        jpgManifestBtn.disabled = true;
-        jpgManifestBtn.textContent = 'Loading…';
-        collectionMessage.textContent = 'Loading JPG metadata manifest…';
-        try {
-          if (!jpgMetadataCache) {
-            const res = await fetch('/nft-source/metadata.json', { cache: 'force-cache' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            jpgMetadataCache = await res.json();
-          }
-          const entries = Object.entries(jpgMetadataCache || {});
-          const tokens = entries
-            .map(([jpgName, meta]) => {
-              const tokenId = parseTokenFromFilename(jpgName);
-              if (!Number.isFinite(tokenId)) return null;
-              return {
-                tokenId,
-                label: meta?.name || `Polygon NFT #${tokenId}`,
-                glb: deriveGlbUrlFromJpg(jpgName)
-              };
-            })
-            .filter(Boolean)
-            .sort((a, b) => a.tokenId - b.tokenId);
-          if (!tokens.length) {
-            collectionMessage.textContent = 'No numbered JPG entries found in metadata manifest.';
-            return;
-          }
-          renderTokenButtons(tokens, `JPG metadata manifest (${tokens.length} mapped GLBs).`);
-          rangeStartInput.value = String(Math.max(MIN_LIVE_TILE_TOKEN, tokens[0].tokenId));
-          rangeEndInput.value = String(tokens[tokens.length - 1].tokenId);
-          collectionMessage.textContent = `Loaded ${tokens.length} NFTs from JPG metadata with GLB path mapping.`;
-        } catch (err) {
-          collectionMessage.textContent = `Could not load metadata.json (${err?.message || 'unknown error'}).`;
-        } finally {
-          jpgManifestBtn.disabled = false;
-          jpgManifestBtn.textContent = 'Load JPG metadata';
-        }
-      };
-
-      const fetchPolygonCollection = async () => {
-        const contract = (collectionContractInput.value || '').trim();
-        if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
-          collectionMessage.textContent = 'Enter a valid Polygon contract address first.';
-          return;
-        }
-
-        populatePolygonBtn.disabled = true;
-        populatePolygonBtn.textContent = 'Loading…';
-        collectionMessage.textContent = 'Fetching token IDs from Polygon collection index…';
-
-        try {
-          const tokenMap = new Map();
-          let cursor = '';
-          const maxPages = 30;
-          for (let page = 0; page < maxPages; page += 1) {
-            const url = new URL(`https://api.opensea.io/api/v2/chain/polygon/contract/${contract}/nfts`);
-            url.searchParams.set('limit', '200');
-            if (cursor) url.searchParams.set('next', cursor);
-            const res = await fetch(url.toString(), { headers: { accept: 'application/json' } });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const list = Array.isArray(data.nfts) ? data.nfts : [];
-            list.forEach((item) => {
-              const rawId = item.identifier ?? item.token_id ?? item.tokenId;
-              const tokenId = Number(rawId);
-              if (!Number.isFinite(tokenId)) return;
-              tokenMap.set(tokenId, {
-                tokenId,
-                label: item.name || `Polygon NFT #${tokenId}`,
-                glb: ''
-              });
-            });
-            cursor = data.next || '';
-            if (!cursor) break;
-          }
-
-          if (!tokenMap.size) {
-            collectionMessage.textContent = 'No token IDs returned from indexer. Try numeric range mode.';
-            return;
-          }
-
-          const tokens = Array.from(tokenMap.values()).filter((token) => token.tokenId >= MIN_LIVE_TILE_TOKEN).sort((a, b) => a.tokenId - b.tokenId);
-          if (!tokens.length) {
-            collectionMessage.textContent = `Polygon index returned tokens, but none were #${MIN_LIVE_TILE_TOKEN} or above.`;
-            return;
-          }
-          renderTokenButtons(tokens, `Polygon collection index (${tokens.length} discovered IDs).`);
-          const first = tokens[0].tokenId;
-          const last = tokens[tokens.length - 1].tokenId;
-          rangeStartInput.value = String(first);
-          rangeEndInput.value = String(last);
-          collectionMessage.textContent = `Loaded ${tokens.length} Polygon token IDs (#${first} to #${last}).`;
-        } catch (err) {
-          collectionMessage.textContent = `Polygon fetch unavailable (${err?.message || 'unknown error'}). Use numeric range or listed GLBs.`;
-        } finally {
-          populatePolygonBtn.disabled = false;
-          populatePolygonBtn.textContent = 'Populate from Polygon';
-        }
-      };
-
-      glbSelect.addEventListener('change', () => {
-        if (glbSelect.value) glbUrlInput.value = glbSelect.value;
-        const selected = glbSelect.selectedOptions[0];
-        if (selected?.dataset?.token) tokenIdInput.value = selected.dataset.token;
-        if (selected?.textContent?.trim()) collectibleName.value = selected.textContent.trim();
-        syncPathFromToken();
-        updateMintEmbedConfig();
-      });
-
-      tokenIdInput.addEventListener('input', () => {
-        syncPathFromToken();
-        updateMintEmbedConfig();
-      });
-      glbBasePathInput.addEventListener('change', syncPathFromToken);
-      autoPathFromTokenInput.addEventListener('change', syncPathFromToken);
-      collectionContractInput.addEventListener('change', updateMintEmbedConfig);
-      loadModelBtn.addEventListener('click', loadCollectible);
-
-      openMintEmbedBtn.addEventListener('click', () => {
-        openTerminal();
-        mintTerminalFrame.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-
-      toggleTerminalBtn.addEventListener('click', () => {
-        terminalVisible = !terminalVisible;
-        mintTerminalFrame.classList.toggle('live', terminalVisible);
-        terminalPlaceholder.style.display = terminalVisible ? 'none' : 'block';
-        toggleTerminalBtn.textContent = terminalVisible ? 'Hide terminal' : 'Show terminal';
-        if (terminalVisible) updateMintEmbedConfig();
-      });
-
-      populatePolygonBtn.addEventListener('click', fetchPolygonCollection);
-      showListedOnlyBtn.addEventListener('click', buildListedCollection);
-      jpgManifestBtn.addEventListener('click', loadJpgManifestCollection);
-      buildRangeBtn.addEventListener('click', buildNumericCollection);
-      simulateUnlockBtn.addEventListener('click', () => setMintUnlocked(!mintUnlocked));
-
-      viewer.addEventListener('load', () => { viewerStatus.textContent = 'Collectible ready in 3D viewer.'; });
-      viewer.addEventListener('error', () => { viewerStatus.textContent = 'Model failed to load. Check GLB or USDZ path.'; });
-      viewer.addEventListener('ar-status', (event) => {
-        const status = event?.detail?.status;
-        if (status === 'failed') viewerStatus.textContent = 'AR launch failed in this browser/device combination.';
-        if (status === 'session-started') viewerStatus.textContent = 'AR session started.';
-        if (status === 'not-presenting') viewerStatus.textContent = 'Returned from AR view.';
-      });
-
-      launchArBtn.addEventListener('click', async () => {
-        if (!viewer.getAttribute('src')) {
-          viewerStatus.textContent = 'Load a collectible before opening AR.';
-          return;
-        }
-        try { await viewer.activateAR(); }
-        catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS + a supported mobile browser.'; }
-      });
-
-      spinToggleBtn.addEventListener('click', () => {
-        autoRotateOn = !autoRotateOn;
-        if (autoRotateOn) viewer.setAttribute('auto-rotate', ''); else viewer.removeAttribute('auto-rotate');
-        spinToggleBtn.textContent = autoRotateOn ? 'Toggle auto-rotate' : 'Enable auto-rotate';
-      });
-
-      resetCameraBtn.addEventListener('click', () => {
-        viewer.cameraOrbit = '0deg 75deg auto';
-        viewer.fieldOfView = 'auto';
-        viewer.jumpCameraToGoal();
-        viewerStatus.textContent = 'Camera reset.';
-      });
-
-      collectibleNotes.addEventListener('input', () => {
-        if (!collectibleNotes.value.trim()) return;
-        mintMessage.textContent = 'Collectible notes updated. Connect this field to metadata and unlock logic.';
-      });
-
-      setMintUnlocked(false);
-      syncPathFromToken();
-      updateMintEmbedConfig();
-      buildNumericCollection();
+      const collectibles=[
+        {id:'jan18',tokenId:'214',name:'2026-01-18',collection:'CHAINeS Genesis Models',description:'A CHAINeS 3D collectible prepared for interactive WebXR inspection and Polygon minting.',rarity:'Genesis GLB',type:'GLB model',src:'/2026-01-18.glb',poster:'/static/logo.svg',cameraOrbit:'0deg 74deg 105%',cameraTarget:'0m 0.85m 0m',fieldOfView:'30deg'},
+        {id:'jan19',tokenId:'222',name:'2026-01-19',collection:'CHAINeS Genesis Models',description:'A second CHAINeS model showcase piece with spacious framing, soft lighting, and AR-ready controls.',rarity:'Genesis GLB',type:'GLB model',src:'/2026-01-19.glb',poster:'/static/logo.svg',cameraOrbit:'18deg 72deg 110%',cameraTarget:'0m 0.8m 0m',fieldOfView:'32deg'},
+        {id:'dark-doge',tokenId:'224',name:'Dark Musky Doge',collection:'CHAINeS Character Series',description:'A character collectible staged on a glow pedestal for close 3D rotation and supported mobile AR launch.',rarity:'Character GLB',type:'GLB model',src:'/Dark%20Musky%20Doge.glb',poster:'/cryo.png',cameraOrbit:'-12deg 72deg 115%',cameraTarget:'0m 0.9m 0m',fieldOfView:'31deg'}
+      ];
+      let selected=collectibles[0], terminalVisible=false, mintUnlocked=false, lastFocus=null;
+      const normalizeAssetUrl=(value)=>{const raw=(value||'').trim();if(!raw)return'';const clean=raw.replace(/^\.\//,'/');try{if(/^https?:\/\//i.test(clean)){const url=new URL(clean);url.pathname=encodeURI(decodeURI(url.pathname));return url.toString();}}catch{}return clean.startsWith('/')?encodeURI(decodeURI(clean)):encodeURI('/'+decodeURI(clean));};
+      const hasModel=(item)=>/\.(glb|gltf)([?#].*)?$/i.test(item?.src||'');
+      const arSupported=(item)=>hasModel(item)&&item.assetOk!==false;
+      const validateAsset=async(item)=>{if(!hasModel(item)){item.assetOk=false;return false;}try{const res=await fetch(normalizeAssetUrl(item.src),{method:'HEAD',cache:'force-cache'});item.assetOk=res.ok;return res.ok;}catch{item.assetOk=false;return false;}};
+      const applyViewerFraming=(viewer,item)=>{viewer.setAttribute('camera-orbit',item.cameraOrbit||'0deg 75deg 110%');viewer.setAttribute('camera-target',item.cameraTarget||'0m 0.8m 0m');viewer.setAttribute('field-of-view',item.fieldOfView||'32deg');};
+      const setMintUnlocked=(state)=>{mintUnlocked=state;mintState.textContent=state?'Unlocked':'Locked';mintState.classList.toggle('ready',state);mintMessage.textContent=state?'Mint access unlocked. Continue with wallet verification and utility controls.':'Choose a collectible tile or model to prepare the mint terminal and expanded viewer.';};
+      const updateMintEmbedConfig=()=>{const tokenId=(tokenIdInput.value||selected.tokenId||'214').trim();const contract=(collectionContractInput.value||'').trim();const current=new URL(mintTerminalFrame.src);if(/^0x[a-fA-F0-9]{40}$/.test(contract))current.searchParams.set('contract',contract);current.searchParams.set('tokenId',tokenId);mintTerminalFrame.src=current.toString();};
+      const openTerminal=()=>{terminalVisible=true;mintTerminalFrame.classList.add('live');terminalPlaceholder.style.display='none';toggleTerminalBtn.textContent='Hide terminal';updateMintEmbedConfig();};
+      const selectCollectible=(item,{focusForm=false}={})=>{selected=item;tokenIdInput.value=item.tokenId||'';collectibleName.value=item.name;glbUrlInput.value=normalizeAssetUrl(item.src);usdzUrlInput.value=item.usdz?normalizeAssetUrl(item.usdz):'';collectibleNotes.value=item.description||'';glbSelect.value=item.id;updateMintEmbedConfig();mintMessage.textContent=`${item.name} is selected for 3D viewing and mint setup.`;if(focusForm)glbSelect.focus();};
+      const setTileStatus=(card,message,state='loading')=>{const text=card.querySelector('[data-status-text]'),dot=card.querySelector('.status-dot');if(text)text.textContent=message;if(dot){dot.classList.toggle('ready',state==='ready');dot.classList.toggle('error',state==='error');}};
+      const retryTile=async(item,card)=>{const viewer=card.querySelector('model-viewer');const poster=card.querySelector('.model-poster');setTileStatus(card,'Checking model asset…');poster?.classList.remove('hidden');viewer.removeAttribute('src');const ok=await validateAsset(item);card.querySelector('[data-ar]').disabled=!arSupported(item);card.querySelector('[data-ar]').textContent=arSupported(item)?'View in AR':'AR unavailable';if(!ok){setTileStatus(card,'Model asset unavailable. Poster shown.','error');return;}setTileStatus(card,'Retrying model…');requestAnimationFrame(()=>viewer.setAttribute('src',normalizeAssetUrl(item.src)));};
+      const createCard=(item)=>{const card=document.createElement('article');card.className='collectible-card';card.dataset.collectibleId=item.id;card.innerHTML=`<div class="model-stage"><div class="model-poster"><img src="${item.poster||'/static/logo.svg'}" alt="Fallback poster for ${item.name}" loading="lazy"><span>Loading ${item.name}…</span></div><model-viewer alt="${item.name} 3D collectible preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" shadow-intensity="1" environment-image="neutral" interaction-prompt="auto" loading="lazy" reveal="interaction" tone-mapping="aces"></model-viewer><div class="model-status"><span><span class="status-dot" aria-hidden="true"></span> <span data-status-text>Waiting to load</span></span><button class="btn" type="button" data-retry style="padding:.4rem .65rem;min-height:0">Retry</button></div></div><div class="card-body"><div class="card-title"><div><p class="meta">${item.collection}</p><h3>${item.name}</h3></div><span class="rarity">${item.rarity}</span></div><p class="description">${item.description}</p><div class="card-actions"><button class="btn primary" type="button" data-open>View in 3D</button><button class="btn" type="button" data-ar ${arSupported(item)?'':'disabled'}>${arSupported(item)?'View in AR':'AR unavailable'}</button><button class="btn secondary expand" type="button" data-expand>Fullscreen / expanded view</button></div></div>`;
+        const viewer=card.querySelector('model-viewer'), poster=card.querySelector('.model-poster');applyViewerFraming(viewer,item);if(item.usdz)viewer.setAttribute('ios-src',normalizeAssetUrl(item.usdz));viewer.addEventListener('load',()=>{poster?.classList.add('hidden');setTileStatus(card,'Ready to inspect','ready');});viewer.addEventListener('error',()=>{poster?.classList.remove('hidden');setTileStatus(card,'Model failed. Poster shown.','error');});viewer.addEventListener('ar-status',(event)=>{if(event?.detail?.status==='failed')setTileStatus(card,'AR unavailable on this device','error');});card.querySelector('[data-retry]').addEventListener('click',()=>retryTile(item,card));card.querySelector('[data-open]').addEventListener('click',(event)=>{selectCollectible(item);openModal(item,event.currentTarget);});card.querySelector('[data-expand]').addEventListener('click',(event)=>{selectCollectible(item);openModal(item,event.currentTarget);});card.querySelector('[data-ar]').addEventListener('click',async()=>{selectCollectible(item);if(!arSupported(item)){setTileStatus(card,'AR asset is missing','error');return;}try{if(!viewer.getAttribute('src'))viewer.setAttribute('src',normalizeAssetUrl(item.src));await viewer.activateAR();}catch{setTileStatus(card,'AR requires HTTPS + supported mobile browser','error');}});
+        const observer=new IntersectionObserver((entries)=>{entries.forEach(entry=>{if(entry.isIntersecting){if(!viewer.getAttribute('src')){setTileStatus(card,'Checking model asset…');validateAsset(item).then((ok)=>{card.querySelector('[data-ar]').disabled=!arSupported(item);card.querySelector('[data-ar]').textContent=arSupported(item)?'View in AR':'AR unavailable';if(ok){setTileStatus(card,'Loading model…');viewer.setAttribute('src',normalizeAssetUrl(item.src));}else{setTileStatus(card,'Model asset unavailable. Poster shown.','error');}});}viewer.setAttribute('auto-rotate','');}else{viewer.removeAttribute('auto-rotate');}});},{rootMargin:'220px 0px',threshold:.08});observer.observe(card);return card;};
+      const openModal=(item,trigger)=>{lastFocus=trigger||document.activeElement;modalTitle.textContent=item.name;modalDescription.textContent=item.description;modalCollection.textContent=item.collection;modalRarity.textContent=item.rarity;modalType.textContent=item.type||'GLB model';modalToken.textContent=item.tokenId?`#${item.tokenId}`:'—';modalStatus.textContent='Loading expanded model…';modalArBtn.disabled=!arSupported(item);modalArBtn.textContent=arSupported(item)?'Launch AR':'AR unavailable';modalArNote.textContent=arSupported(item)?'AR uses WebXR, Android Scene Viewer, or iOS Quick Look when this browser and assets support it.':'This collectible is available in 3D only because an AR-compatible model asset is missing.';modalViewer.removeAttribute('src');modalViewer.removeAttribute('ios-src');modalViewer.setAttribute('alt',`${item.name} expanded 3D preview`);applyViewerFraming(modalViewer,item);if(item.usdz)modalViewer.setAttribute('ios-src',normalizeAssetUrl(item.usdz));modal.classList.add('open');document.body.classList.add('modal-open');closeModalBtn.focus();validateAsset(item).then((ok)=>{modalArBtn.disabled=!arSupported(item);modalArBtn.textContent=arSupported(item)?'Launch AR':'AR unavailable';if(ok){requestAnimationFrame(()=>modalViewer.setAttribute('src',normalizeAssetUrl(item.src)));}else{modalStatus.textContent='Model asset is unavailable at the configured path. The tile poster remains available as fallback.';modalStatus.parentElement?.classList.add('fallback-error');}});};
+      const closeModal=()=>{modal.classList.remove('open');document.body.classList.remove('modal-open');modalViewer.pause?.();modalViewer.removeAttribute('src');if(lastFocus&&typeof lastFocus.focus==='function')lastFocus.focus();};
+      modalViewer.addEventListener('load',()=>{modalStatus.textContent='Ready for full 3D rotation and zoom.';modalStatus.parentElement?.classList.remove('fallback-error');});modalViewer.addEventListener('error',()=>{modalStatus.textContent='Model failed to load. Use Retry or continue with the fallback poster in the tile.';modalStatus.parentElement?.classList.add('fallback-error');});modalViewer.addEventListener('ar-status',(event)=>{const status=event?.detail?.status;if(status==='failed')modalStatus.textContent='AR launch failed here. Try HTTPS on Android Chrome or iPhone Safari.';if(status==='session-started')modalStatus.textContent='AR session started.';if(status==='not-presenting')modalStatus.textContent='Returned from AR view.';});
+      modalArBtn.addEventListener('click',async()=>{try{await modalViewer.activateAR();}catch{modalStatus.textContent='AR could not launch. Use HTTPS and a supported mobile browser.';}});modalRetryBtn.addEventListener('click',()=>{if(!selected)return;modalStatus.textContent='Retrying expanded model…';modalViewer.removeAttribute('src');requestAnimationFrame(()=>modalViewer.setAttribute('src',normalizeAssetUrl(selected.src)));});closeModalBtn.addEventListener('click',closeModal);modal.addEventListener('click',(event)=>{if(event.target===modal)closeModal();});document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&modal.classList.contains('open'))closeModal();});
+      collectibles.forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent=item.name;glbSelect.appendChild(option);gallery.appendChild(createCard(item));});glbSelect.addEventListener('change',()=>{const item=collectibles.find(entry=>entry.id===glbSelect.value);if(item)selectCollectible(item);});loadModelBtn.addEventListener('click',()=>{const customSrc=normalizeAssetUrl(glbUrlInput.value);const item=collectibles.find(entry=>entry.id===glbSelect.value)||selected;if(customSrc&&customSrc!==normalizeAssetUrl(item.src)){selected={...item,id:'custom',name:collectibleName.value.trim()||'Custom CHAINeS Collectible',src:customSrc,usdz:normalizeAssetUrl(usdzUrlInput.value),description:collectibleNotes.value.trim()||item.description,tokenId:tokenIdInput.value.trim(),rarity:'Custom GLB',type:'GLB model'};}openModal(selected,loadModelBtn);});openMintEmbedBtn.addEventListener('click',()=>{openTerminal();mintTerminalFrame.scrollIntoView({behavior:'smooth',block:'start'});});toggleTerminalBtn.addEventListener('click',()=>{terminalVisible=!terminalVisible;mintTerminalFrame.classList.toggle('live',terminalVisible);terminalPlaceholder.style.display=terminalVisible?'none':'block';toggleTerminalBtn.textContent=terminalVisible?'Hide terminal':'Show terminal';if(terminalVisible)updateMintEmbedConfig();});simulateUnlockBtn.addEventListener('click',()=>setMintUnlocked(!mintUnlocked));collectionContractInput.addEventListener('change',updateMintEmbedConfig);tokenIdInput.addEventListener('input',updateMintEmbedConfig);collectibleName.addEventListener('input',()=>{selected={...selected,name:collectibleName.value.trim()||selected.name};});setMintUnlocked(false);selectCollectible(collectibles[0]);
     })();
   </script>
-
   <footer class="site-copyright">© <span id="copyright-year"></span> CHAINeS. All rights reserved.</footer>
-  <script>document.getElementById("copyright-year")?.append(String(new Date().getFullYear()));</script>
+  <script>document.getElementById('copyright-year')?.append(String(new Date().getFullYear()));</script>
 </body>
 </html>
