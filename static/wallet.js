@@ -13,7 +13,6 @@
     polygon: '0x89'
   };
   const SOLANA_RPC_ENDPOINT = 'https://api.mainnet-beta.solana.com';
-  const PASSWORD_OVERRIDE_SECRET = 'batman12';
 
   const state = {
     overlay: null,
@@ -925,15 +924,7 @@
 
   async function connectAndValidate(){
     if(state.accessGranted) return;
-    const overridePassword = (state.passwordOverrideInput?.value || '').trim();
-    if(overridePassword === PASSWORD_OVERRIDE_SECRET){
-      setStatus('Password override accepted. Access unlocked.', 'success');
-      onAccessGranted({ key: 'password-override', name: 'Password override' });
-      if(state.passwordOverrideInput){
-        state.passwordOverrideInput.value = '';
-      }
-      return;
-    }
+    // Wallet access requires token validation; client-side password overrides are disabled.
     if(!state.config || !state.config.valid){
       setStatus(state.config ? state.config.error : 'Access validation is not configured.', 'error');
       return;

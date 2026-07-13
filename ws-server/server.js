@@ -1,5 +1,6 @@
 // server.js
 import http from "http";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -27,6 +28,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
+if (!process.env.DB_PATH) {
+  console.warn("[storage] DB_PATH is not set; using repo-local app.db. Set DB_PATH to mounted persistent storage in production.");
+}
 const db = new Database(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
@@ -147,6 +151,33 @@ db.exec(`
     listing_json TEXT,
     boosted_at INTEGER
   );
+  CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    revoked_at DATETIME,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
+  CREATE TABLE IF NOT EXISTS user_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    namespace TEXT NOT NULL,
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    data_json TEXT NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, namespace),
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
+  CREATE TABLE IF NOT EXISTS user_rewards (
+    user_id INTEGER PRIMARY KEY,
+    points INTEGER NOT NULL DEFAULT 0,
+    data_json TEXT NOT NULL DEFAULT '{}',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
@@ -194,6 +225,23 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const SESSION_COOKIE = "chaines_session";
+const SESSION_DAYS = Number(process.env.SESSION_DAYS || 7);
+const SESSION_REFRESH_MS = 10 * 60 * 1000;
+const rateBuckets = new Map();
+function parseCookies(header = "") { return Object.fromEntries(String(header).split(";").map(v => v.trim()).filter(Boolean).map(v => { const i=v.indexOf("="); return [decodeURIComponent(i>=0?v.slice(0,i):v), decodeURIComponent(i>=0?v.slice(i+1):"")]; })); }
+function hashToken(token) { return crypto.createHash("sha256").update(String(token)).digest("hex"); }
+function rateLimit(name, max = 12, windowMs = 60_000) { return (req, res, next) => { const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "local"; const key = `${name}:${ip}`; const now = Date.now(); const bucket = (rateBuckets.get(key) || []).filter(t => now - t < windowMs); if (bucket.length >= max) return res.status(429).json({ error: "Too many requests" }); bucket.push(now); rateBuckets.set(key, bucket); next(); }; }
+function sessionCookie(value = "", expires) { return [`${SESSION_COOKIE}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "SameSite=Lax", process.env.NODE_ENV === "production" ? "Secure" : "", expires ? `Expires=${expires.toUTCString()}` : ""].filter(Boolean).join("; "); }
+function createSession(res, userId) { const token = crypto.randomBytes(32).toString("base64url"); const now = new Date(); const expires = new Date(now.getTime() + SESSION_DAYS * 86400_000); db.prepare("INSERT INTO sessions (user_id, token_hash, created_at, last_seen_at, expires_at) VALUES (?, ?, ?, ?, ?)").run(userId, hashToken(token), now.toISOString(), now.toISOString(), expires.toISOString()); res.setHeader("Set-Cookie", sessionCookie(token, expires)); return { token, expires }; }
+function loadSession(req) { const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE]; if (!token) return null; const row = db.prepare(`SELECT s.*, u.username, u.profile_pic, u.description FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL`).get(hashToken(token)); if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null; const last = new Date(row.last_seen_at).getTime() || 0; if (Date.now() - last > SESSION_REFRESH_MS) db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), row.id); return { id: row.id, user: { id: row.user_id, username: row.username, profilePic: row.profile_pic || null, verified: true, description: row.description || null }, expiresAt: row.expires_at, tokenHash: row.token_hash }; }
+function attachSession(req, _res, next) { req.session = loadSession(req); next(); }
+function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
+function publicSession(req) { return req.session ? { user: req.session.user, expiresAt: req.session.expiresAt } : null; }
+function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
+function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
+
+app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
 app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
 
@@ -270,8 +318,8 @@ function sanitizeUsername(name = "") {
 }
 
 const ADMIN_ACCOUNT = Object.freeze({
-  username: "admin",
-  password: "giraff",
+  username: sanitizeUsername(process.env.ADMIN_USERNAME || "admin"),
+  password: process.env.ADMIN_PASSWORD || "",
 });
 const DEFAULT_RECEIPT_EMAIL = (process.env.DELIVERY_RECEIPT_EMAIL || "chadslondonrentals@gmail.com").trim();
 const RESEND_API_KEY = (process.env.RESEND_API_KEY || "").trim();
@@ -299,7 +347,10 @@ function ensureUserProfile(username = "") {
 
 function ensureAdminAccount() {
   const username = sanitizeUsername(ADMIN_ACCOUNT.username);
-  if (!username) return;
+  if (!username || !ADMIN_ACCOUNT.password) {
+    console.warn("[admin] ADMIN_PASSWORD is not set; delivery admin bootstrap skipped.");
+    return;
+  }
 
   const hash = bcrypt.hashSync(ADMIN_ACCOUNT.password, 10);
   const dbUser = db
@@ -325,7 +376,6 @@ function ensureAdminAccount() {
   const mem = profiles[username] || {};
   profiles[username] = {
     ...mem,
-    password: hash,
     profilePic: mem.profilePic ?? dbUser?.profile_pic ?? null,
     description:
       mem.description ??
@@ -868,13 +918,15 @@ app.post("/notification-settings/:username", (req, res) => {
   res.json(settings);
 });
 
-app.post("/register", upload.single("profile"), async (req, res) => {
+app.post("/register", rateLimit("register", 5), upload.single("profile"), async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
-  if (profiles[username]) {
+  const cleanUsername = sanitizeUsername(username);
+  const existingUser = db.prepare("SELECT 1 FROM users WHERE username=?").get(cleanUsername);
+  if (!cleanUsername || existingUser) {
     res.status(400).json({ error: "User exists" });
     return;
   }
@@ -882,18 +934,19 @@ app.post("/register", upload.single("profile"), async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
-    db.prepare(
+    const info = db.prepare(
       "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
-    ).run(username, hash, pic);
-    profiles[username] = { password: hash, profilePic: pic, description: null };
+    ).run(cleanUsername, hash, pic);
+    profiles[cleanUsername] = { profilePic: pic, description: null };
     saveProfiles();
-    res.json({ success: true });
+    const session = createSession(res, Number(info.lastInsertRowid));
+    res.json({ success: true, session: { user: { id: Number(info.lastInsertRowid), username: cleanUsername, profilePic: pic, verified: true }, expiresAt: session.expires.toISOString() } });
   } catch (e) {
     res.status(400).json({ error: "User exists" });
   }
 });
 
-app.post("/login", async (req, res) => {
+app.post("/login", rateLimit("login", 8), async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
@@ -903,10 +956,10 @@ app.post("/login", async (req, res) => {
     ensureAdminAccount();
   }
   const dbUser = db
-    .prepare("SELECT username, password, profile_pic FROM users WHERE username=?")
-    .get(username);
-  const memUser = profiles[username];
-  const hash = dbUser?.password || memUser?.password;
+    .prepare("SELECT id, username, password, profile_pic FROM users WHERE username=?")
+    .get(sanitizeUsername(username));
+  const memUser = profiles[sanitizeUsername(username)];
+  const hash = dbUser?.password;
   if (!hash) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -917,17 +970,60 @@ app.post("/login", async (req, res) => {
     return;
   }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
-  if (!dbUser) {
-    try {
-      db.prepare("INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)").run(username, hash, profilePic);
-    } catch {}
-  }
-  profiles[username] = { ...(memUser || {}), password: hash, profilePic };
+  profiles[dbUser.username] = { ...(memUser || {}), profilePic };
   saveProfiles();
-  res.json({ success: true, username, profilePic });
+  const session = createSession(res, dbUser.id);
+  res.json({ success: true, username: dbUser.username, profilePic, session: { user: { id: dbUser.id, username: dbUser.username, profilePic, verified: true }, expiresAt: session.expires.toISOString() } });
 });
 
-app.post("/delivery-orders", (req, res) => {
+
+app.get("/api/session", (req, res) => {
+  const session = publicSession(req);
+  if (!session) return res.status(401).json({ error: "No valid session" });
+  res.json(session);
+});
+app.post("/api/session/refresh", rateLimit("session-refresh", 20), requireSession, (req, res) => {
+  const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
+  db.prepare("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?").run(new Date().toISOString(), expires.toISOString(), req.session.id);
+  res.setHeader("Set-Cookie", sessionCookie(parseCookies(req.headers.cookie || "")[SESSION_COOKIE], expires));
+  res.json({ user: req.session.user, expiresAt: expires.toISOString() });
+});
+app.post("/logout", (req, res) => {
+  if (req.session) db.prepare("UPDATE sessions SET revoked_at=? WHERE id=?").run(new Date().toISOString(), req.session.id);
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+  res.json({ success: true });
+});
+app.get("/api/memory", requireSession, (req, res) => {
+  const rows = db.prepare("SELECT namespace, schema_version, data_json, updated_at FROM user_memory WHERE user_id=?").all(req.session.user.id);
+  res.json({ namespaces: Object.fromEntries(rows.map(r => [r.namespace, { schemaVersion: r.schema_version, updatedAt: r.updated_at, data: JSON.parse(r.data_json || '{}') }])) });
+});
+app.get("/api/memory/:namespace", requireSession, (req, res) => {
+  const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
+  const row = db.prepare("SELECT schema_version, data_json, updated_at FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
+  if (!row) return res.status(404).json({ error: "Not found" });
+  res.json({ namespace: ns, schemaVersion: row.schema_version, updatedAt: row.updated_at, data: JSON.parse(row.data_json || '{}') });
+});
+app.put("/api/memory/:namespace", requireSession, (req, res) => {
+  const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
+  let json; try { json = safeMemoryPayload(req.body?.data ?? req.body ?? {}); } catch(e) { return res.status(413).json({ error: e.message }); }
+  const ver = Math.max(1, Number(req.body?.schemaVersion || 1));
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET schema_version=excluded.schema_version, data_json=excluded.data_json, updated_at=excluded.updated_at").run(req.session.user.id, ns, ver, json, now);
+  res.json({ namespace: ns, schemaVersion: ver, updatedAt: now, data: JSON.parse(json) });
+});
+app.patch("/api/memory/:namespace", requireSession, (req, res) => {
+  const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
+  const row = db.prepare("SELECT data_json, schema_version FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
+  const base = row ? JSON.parse(row.data_json || '{}') : {};
+  const next = { ...base, ...(req.body?.data ?? req.body ?? {}) };
+  let json; try { json = safeMemoryPayload(next); } catch(e) { return res.status(413).json({ error: e.message }); }
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET data_json=excluded.data_json, updated_at=excluded.updated_at").run(req.session.user.id, ns, row?.schema_version || 1, json, now);
+  res.json({ namespace: ns, schemaVersion: row?.schema_version || 1, updatedAt: now, data: next });
+});
+app.delete("/api/memory/:namespace", requireSession, (req, res) => { const ns=req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" }); db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns); res.json({ success: true }); });
+
+app.post("/delivery-orders", requireSession, (req, res) => {
   ensureAdminAccount();
   const adminUsername = ADMIN_ACCOUNT.username;
   const payload = req.body && typeof req.body === "object" ? req.body : {};
@@ -1077,7 +1173,8 @@ app.get("/profile/:username", (req, res) => {
   });
 });
 
-app.post("/profile/:username", upload.single("profile"), (req, res) => {
+app.post("/profile/:username", requireSession, upload.single("profile"), (req, res) => {
+  if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot edit another profile" });
   const { description } = req.body || {};
   let pic = null;
   if (req.file) pic = "/static/profiles/" + req.file.filename;
@@ -1100,7 +1197,6 @@ app.post("/profile/:username", upload.single("profile"), (req, res) => {
     ...mem,
     description: description || null,
     profilePic: pic,
-    password: mem.password,
   };
   saveProfiles();
   res.json({ success: true, profilePic: pic });
