@@ -2749,8 +2749,28 @@
         }
       }
 
+      function normalizeLiveSignal(message = {}){
+        return {
+          ...message,
+          fromParticipantId: message.fromParticipantId || message.from || message.senderId || message.id,
+          toParticipantId: message.toParticipantId || message.targetId || message.to,
+          roomId: message.roomId || message.hostId || message.room
+        };
+      }
+
+      function logLiveSignal(signal = {}){
+        console.debug("[live-signal]", {
+          type: signal.type,
+          roomId: signal.roomId,
+          from: signal.fromParticipantId,
+          to: signal.toParticipantId,
+          legacyId: signal.id
+        });
+      }
+
       function secureLiveSend(payload){
         if(!secureLive.socket || secureLive.socket.readyState !== WebSocket.OPEN) return;
+        logLiveSignal(payload);
         try{ secureLive.socket.send(JSON.stringify(payload)); }catch(_err){ /* no-op */ }
       }
 
@@ -2865,7 +2885,12 @@
         `;
         const video = row.querySelector("video");
         if(video){
+          video.autoplay = true;
+          video.playsInline = true;
+          video.setAttribute("playsinline", "");
+          video.setAttribute("webkit-playsinline", "");
           video.srcObject = stream || null;
+          if(stream) video.play?.().catch(()=>{});
         }
         row.classList.toggle("is-focused", id === secureLive.selectedId);
         if(compact) return row;
@@ -3218,11 +3243,15 @@
             syncSecureLiveActiveUsers(msg.count);
             return;
           }
-          if(msg.type === "offer" && msg.id && msg.sdp){
-            const peer = secureLivePeerById(msg.id);
-            const offerCollision = peer.makingOffer || peer.pc.signalingState !== 'stable';
-            peer.ignoreOffer = !peer.polite && offerCollision;
-            if(peer.ignoreOffer) return;
+          if(["offer", "answer", "candidate"].includes(msg.type)) msg = normalizeLiveSignal(msg);
+          if(["offer", "answer", "candidate"].includes(msg.type)) logLiveSignal(msg);
+          if(msg.type === "offer" && (msg.fromParticipantId || msg.id) && msg.sdp){
+            const remoteId = msg.fromParticipantId || msg.id;
+            const peer = secureLivePeerById(remoteId);
+            if(peer.pc.signalingState !== 'stable'){
+              try{ await peer.pc.setLocalDescription({ type: 'rollback' }); }catch(_err){}
+            }
+            peer.ignoreOffer = false;
             await peer.pc.setRemoteDescription(msg.sdp);
             if(peer.pendingCandidates.length){ const pending = peer.pendingCandidates.splice(0); for(const candidate of pending){ try{ await peer.pc.addIceCandidate(candidate); }catch(_err){} } }
             if(secureLive.localStream){
@@ -3234,16 +3263,18 @@
             }
             const answer = await peer.pc.createAnswer();
             await peer.pc.setLocalDescription(answer);
-            secureLiveSend({ type: "answer", id: msg.id, fromParticipantId: secureLive.selfId, toParticipantId: msg.id, connectionGeneration: peer.generation, sdp: peer.pc.localDescription });
+            secureLiveSend({ type: "answer", id: remoteId, fromParticipantId: secureLive.selfId, toParticipantId: remoteId, connectionGeneration: peer.generation, sdp: peer.pc.localDescription });
             return;
           }
-          if(msg.type === "answer" && msg.id && msg.sdp){
-            const peer = secureLive.peers.get(msg.id);
+          if(msg.type === "answer" && (msg.fromParticipantId || msg.id) && msg.sdp){
+            const remoteId = msg.fromParticipantId || msg.id;
+            const peer = secureLive.peers.get(remoteId);
             if(peer) await peer.pc.setRemoteDescription(msg.sdp);
             return;
           }
-          if(msg.type === "candidate" && msg.id && msg.candidate){
-            const peer = secureLive.peers.get(msg.id) || secureLivePeerById(msg.id);
+          if(msg.type === "candidate" && (msg.fromParticipantId || msg.id) && msg.candidate){
+            const remoteId = msg.fromParticipantId || msg.id;
+            const peer = secureLive.peers.get(remoteId) || secureLivePeerById(remoteId);
             if(!peer.pc.remoteDescription){ peer.pendingCandidates.push(msg.candidate); return; }
             try{ await peer.pc.addIceCandidate(msg.candidate); }catch(_err){ if(!peer.ignoreOffer) console.warn('secure live ICE candidate failed', _err); }
           }

@@ -1547,6 +1547,24 @@ const guestApprovedByHost = new Map(); // hostId -> approved guestId
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
 const broadcastRooms = new Map(); // roomId -> authoritative room/stage state
+
+function normalizeLiveSignal(message = {}){
+  return {
+    ...message,
+    fromParticipantId: message.fromParticipantId || message.from || message.senderId || message.id,
+    toParticipantId: message.toParticipantId || message.targetId || message.to,
+    roomId: message.roomId || message.hostId || message.room
+  };
+}
+function logLiveSignal(signal = {}){
+  console.debug('[live-signal]', {
+    type: signal.type,
+    roomId: signal.roomId,
+    from: signal.fromParticipantId,
+    to: signal.toParticipantId,
+    legacyId: signal.id
+  });
+}
 function ensureBroadcastRoom(roomId, hostId = roomId){
   if(!broadcastRooms.has(roomId)){
     broadcastRooms.set(roomId, { roomId, hostId, stageMembers: new Map(), audienceMembers: new Map(), stageRequests: new Map(), connectionGeneration: 0 });
@@ -1886,18 +1904,22 @@ wss.on("connection", (ws) => {
         return;
       }
       case "watcher": {
-        const host = broadcasters.get(msg.id);
+        const signal = normalizeLiveSignal(msg);
+        const roomId = signal.roomId || signal.toParticipantId || signal.id;
+        const hostId = signal.toParticipantId || signal.id || roomId;
+        logLiveSignal({ ...signal, type: 'watcher', fromParticipantId: ws.id, toParticipantId: hostId, roomId });
+        const host = broadcasters.get(hostId);
         if (host && host.readyState === 1) {
-          const room = ensureBroadcastRoom(msg.id, msg.id);
+          const room = ensureBroadcastRoom(roomId, hostId);
           room.audienceMembers.set(ws.id, { id: ws.id, user: ws.username || '', role: 'audience', live: true });
           ws.send(JSON.stringify(serializeBroadcastRoom(room)));
-          host.send(JSON.stringify({ type: "watcher", id: ws.id, roomId: msg.id, fromParticipantId: ws.id, toParticipantId: msg.id, connectionGeneration: room.connectionGeneration }));
-          if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
-          listeners.get(msg.id).add(ws.id);
+          host.send(JSON.stringify({ type: "watcher", id: ws.id, roomId, fromParticipantId: ws.id, toParticipantId: hostId, connectionGeneration: room.connectionGeneration }));
+          if(!listeners.has(roomId)) listeners.set(roomId, new Set());
+          listeners.get(roomId).add(ws.id);
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
-          watching.get(ws.id).add(msg.id);
-          sendListenerCount(msg.id);
-          const history = loadHistory(msg.id);
+          watching.get(ws.id).add(roomId);
+          sendListenerCount(roomId);
+          const history = loadHistory(roomId);
           if(history.length) ws.send(JSON.stringify({ type: "history", messages: history }));
         }
         return;
@@ -2117,14 +2139,17 @@ wss.on("connection", (ws) => {
       case "answer":
       case "candidate":
       case "bye": {
-        const dest = clients.get(msg.toParticipantId || msg.id);
+        const signal = normalizeLiveSignal(msg);
+        const destinationId = signal.toParticipantId || signal.id || signal.targetId;
+        const dest = clients.get(destinationId);
         if (dest && dest.readyState === 1) {
-          const roomId = msg.roomId || guestHosts.get(ws.id) || guestHosts.get(msg.id) || msg.id || ws.id;
+          const roomId = signal.roomId || guestHosts.get(ws.id) || guestHosts.get(destinationId) || destinationId || ws.id;
           const room = broadcastRooms.get(roomId);
           if(room && ![room.hostId, ...room.stageMembers.keys(), ...room.audienceMembers.keys(), ...(listeners.get(roomId) || [])].includes(ws.id)) return;
-          const payload = { type: msg.type, id: ws.id, roomId, fromParticipantId: ws.id, toParticipantId: dest.id, connectionGeneration: msg.connectionGeneration || room?.connectionGeneration || 0 };
-          if (msg.sdp) payload.sdp = msg.sdp;
-          if (msg.candidate) payload.candidate = msg.candidate;
+          const payload = { ...msg, type: msg.type, id: ws.id, roomId, fromParticipantId: ws.id, toParticipantId: destinationId };
+          if(room && msg.connectionGeneration) payload.connectionGeneration = msg.connectionGeneration;
+          else if(room) payload.connectionGeneration = room.connectionGeneration;
+          logLiveSignal(payload);
           dest.send(JSON.stringify(payload));
         }
         return;
