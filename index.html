@@ -2246,7 +2246,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="composer-actions">
           <button class="send" id="attach" type="button" aria-label="Attach file"><img src="static/attach.svg" alt="Attach" /></button>
           <button class="send" id="send" type="submit" aria-label="Send message"><img src="static/send.svg" alt="Send" /></button>
-          <button class="send" id="live-x-space-btn" type="button" aria-label="Post Live X Space" title="Live X Space">🎙️</button>
           <button class="send" id="command-btn" type="button" aria-label="Show emoji keyboard"><img src="static/whitehat.svg" alt="Emoji keyboard" /></button>
           <button class="send" id="wallet-btn" type="button" aria-label="Connect wallet"><img src="static/wallet.svg" alt="Wallet" /></button>
         </div>
@@ -2260,7 +2259,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <label class="input" for="broadcast-text">
           <input id="broadcast-text" name="broadcast-text" placeholder="Broadcast message…" />
         </label>
-        <button class="send" id="broadcast-space-btn" type="button" aria-label="Embed an X Space">🎙️</button>
         <button class="send" id="broadcast-send" type="submit" aria-label="Send broadcast message"><img src="static/send.svg" alt="Send" /></button>
       </form>
       <span class="legal footer-copyright">© <span id="year"></span> CHAINeS. All rights reserved.</span>
@@ -2426,7 +2424,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const attachBtn = el('#attach');
     const fileInput = el('#file');
     const sendBtn = el('#send');
-    const liveXSpaceBtn = el('#live-x-space-btn');
     const cmdListBtn = el('#cmd-list');
     const cmdBtn = el('#command-btn');
     const composerActionBoard = el('#composer-action-board');
@@ -2968,7 +2965,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const screenBtn = el('#screen-btn');
     const broadcastComposer = el('#broadcast-composer');
     const broadcastInput = el('#broadcast-text');
-    const broadcastSpaceBtn = el('#broadcast-space-btn');
     const headerBar = el('header');
     const footerBar = el('footer');
     const thumbChooser = el('#thumb-chooser');
@@ -6746,34 +6742,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       postMessage({ text: msgText, broadcast: true });
       broadcastInput.value = '';
     });
-    function postLiveXSpace({ broadcast=false } = {}){
-      const typed = prompt('Paste a live X Space/Broadcast URL (x.com/i/spaces/... or x.com/i/broadcasts/...)');
-      const normalizedSpaceUrl = normalizeXSpaceUrl(typed || '');
-      if(!normalizedSpaceUrl){
-        alert('Please paste a valid X Space or Broadcast link.');
-        return;
-      }
-      const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
-      postMessage({
-        text: `🎙️ Live X: ${normalizedSpaceUrl}\nTap Tune In to listen/watch.${signature}`,
-        broadcast,
-        xSpaceUrl: normalizedSpaceUrl,
-        actions: [{
-          command: 'live-x-space',
-          emoji: actionCommands['live-x-space']?.emoji || '🎙️',
-          svg: actionCommands['live-x-space']?.svg || '',
-          text: actionCommands['live-x-space']?.text || 'shares a live X Space',
-          colors: actionCommands['live-x-space']?.colors || ['#7de6ff','#4facfe']
-        }]
-      });
-    }
-    if(liveXSpaceBtn){
-      liveXSpaceBtn.addEventListener('click', () => postLiveXSpace({ broadcast: false }));
-    }
-    if(broadcastSpaceBtn){
-      broadcastSpaceBtn.addEventListener('click', () => postLiveXSpace({ broadcast: true }));
-    }
-
     if(cmdListBtn){
       cmdListBtn.addEventListener('click', () => {
         toggleEmojiKeyboard();
