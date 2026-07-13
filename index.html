@@ -3569,16 +3569,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       return normalizeCaptionLang(lang).split('-')[0].toLowerCase();
     }
 
+    function captionLanguageOptions(){
+      return CAPTION_LANGUAGES.map(item => Array.isArray(item) ? { code:item[0], label:item[1] } : item);
+    }
+
     function setupCaptionLanguagePicker(){
       if(!captionLanguageSelect) return;
       captionLanguageSelect.innerHTML = '';
-      CAPTION_LANGUAGES.forEach(([code, label]) => {
+      captionLanguageOptions().forEach(({ code, label }) => {
         const option = document.createElement('option');
         option.value = code;
         option.textContent = label;
         captionLanguageSelect.appendChild(option);
       });
-      if(!CAPTION_LANGUAGES.some(([code]) => code === captionLanguage)) captionLanguage = 'en-US';
+      if(!captionLanguageOptions().some(({ code }) => code === captionLanguage)) captionLanguage = 'en-US';
       captionLanguageSelect.value = captionLanguage;
       document.documentElement.lang = captionLangBase(captionLanguage);
       captionLanguageSelect.addEventListener('change', () => {
@@ -3590,13 +3594,25 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
 
-    function updateLiveCaptionTrackLanguages(){
-      const lang = captionLangBase(captionLanguage);
-      document.querySelectorAll('video').forEach(video => {
-        Array.from(video.textTracks || []).forEach(track => {
-          if(track.label === 'Live') track.language = lang;
-        });
+    function setCaptionTrackMode(track, mode){
+      try{ track.mode = mode; }catch{}
+    }
+
+    function activateCaptionTracksForVideo(video, preferredLang = captionLanguage){
+      if(!video) return;
+      const target = captionLangBase(preferredLang);
+      Array.from(video.textTracks || []).forEach(track => {
+        if(track.label === 'Live'){
+          try{ track.language = target; }catch{}
+          setCaptionTrackMode(track, 'showing');
+          return;
+        }
+        setCaptionTrackMode(track, captionLangBase(track.language) === target ? 'showing' : 'disabled');
       });
+    }
+
+    function updateLiveCaptionTrackLanguages(){
+      document.querySelectorAll('video').forEach(video => activateCaptionTracksForVideo(video));
     }
 
     function ensureCaptionOverlayForMedia(mediaEl){
@@ -3623,18 +3639,37 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       overlay._captionTimer = setTimeout(() => overlay.classList.remove('active'), 7000);
     }
 
+    async function detectCaptionLanguage(text){
+      const clean = String(text || '').trim();
+      if(!clean) return 'auto';
+      try{
+        const detectorFactory = self.LanguageDetector || self.languageDetector;
+        if(detectorFactory?.create){
+          const detector = await detectorFactory.create();
+          const results = await detector.detect(clean);
+          const best = Array.isArray(results) ? results[0] : null;
+          return best?.detectedLanguage || best?.language || 'auto';
+        }
+      }catch{}
+      return 'auto';
+    }
+
     async function translateCaptionText(text, sourceLang = 'auto', targetLang = captionLanguage){
       const clean = String(text || '').trim();
       if(!clean) return '';
-      const source = sourceLang === 'auto' ? 'auto' : captionLangBase(sourceLang);
+      let source = sourceLang === 'auto' ? 'auto' : captionLangBase(sourceLang);
       const target = captionLangBase(targetLang);
+      if(source === 'auto') source = captionLangBase(await detectCaptionLanguage(clean));
       if(source === target) return clean;
-      if('translation' in self && typeof self.translation?.createTranslator === 'function'){
-        try{
-          const translator = await self.translation.createTranslator({ sourceLanguage: source === 'auto' ? 'en' : source, targetLanguage: target });
+      const translatorOptions = { sourceLanguage: source === 'auto' ? 'en' : source, targetLanguage: target };
+      try{
+        const translatorFactory = self.Translator || self.translation;
+        const createTranslator = translatorFactory?.create || translatorFactory?.createTranslator;
+        if(typeof createTranslator === 'function'){
+          const translator = await createTranslator.call(translatorFactory, translatorOptions);
           return (await translator.translate(clean)) || clean;
-        }catch{}
-      }
+        }
+      }catch{}
       try{
         const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent((source === 'auto' ? 'en' : source) + '|' + target)}`;
         const res = await fetch(url);
@@ -6962,9 +6997,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
               speechRec = new SpeechRecognition();
               speechRec.lang = normalizeCaptionLang(captionLanguage);
               speechRec.continuous = true;
-              speechRec.interimResults = false;
+              speechRec.interimResults = true;
               speechRec.addEventListener('result', async e => {
-                const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
+                const transcript = Array.from(e.results).slice(e.resultIndex).map(r => r[0].transcript).join('').trim();
                 if(transcript && captionTrack){
                   const translated = await translateCaptionText(transcript, speechRec.lang, captionLanguage);
                   addLiveCaptionCue(mediaEl, translated, captionLanguage);
@@ -8225,7 +8260,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(!s || !s.vid) return;
         const targetLang = captionLanguage;
         const sourceText = c.renderedText && captionLangBase(c.targetLang) === captionLangBase(targetLang) ? c.renderedText : c.text;
-        const rendered = await translateCaptionText(sourceText, c.targetLang || c.sourceLang || 'auto', targetLang);
+        const rendered = await translateCaptionText(sourceText, c.renderedText ? c.targetLang : (c.sourceLang || 'auto'), targetLang);
         addLiveCaptionCue(s.vid, rendered, targetLang);
         s.captionTrack = Array.from(s.vid.textTracks || []).find(t => t.label === 'Live') || s.captionTrack;
       }
@@ -8261,27 +8296,33 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function attachCaptions(vid){
       if(!vid) return;
       ensureCaptionOverlayForMedia(vid);
-      const tracks = [
-        { src: 'static/captions/en.vtt', srclang: 'en', label: 'English', def: true },
-        { src: 'static/captions/pt-en.vtt', srclang: 'pt', label: 'Portuguese/English' },
-        { src: 'static/captions/ko.vtt', srclang: 'ko', label: 'Korean' },
-        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic/English' },
-        { src: 'static/captions/en.vtt', srclang: 'es', label: 'Spanish (auto live)' },
-        { src: 'static/captions/en.vtt', srclang: 'fr', label: 'French (auto live)' },
-        { src: 'static/captions/en.vtt', srclang: 'de', label: 'German (auto live)' },
-        { src: 'static/captions/en.vtt', srclang: 'ja', label: 'Japanese (auto live)' },
-        { src: 'static/captions/en.vtt', srclang: 'zh', label: 'Chinese (auto live)' },
-        { src: 'static/captions/en.vtt', srclang: 'hi', label: 'Hindi (auto live)' }
-      ];
+      const existing = Array.from(vid.querySelectorAll('track[data-chaines-caption="true"]'));
+      if(existing.length){
+        activateCaptionTracksForVideo(vid);
+        return;
+      }
+      const sourceMap = new Map([
+        ['en', 'static/captions/en.vtt'],
+        ['pt', 'static/captions/pt-en.vtt'],
+        ['ko', 'static/captions/ko.vtt'],
+        ['ar', 'static/captions/ar-en.vtt']
+      ]);
+      const tracks = captionLanguageOptions().map(({ code, label }) => {
+        const base = captionLangBase(code);
+        return { src: sourceMap.get(base) || sourceMap.get('en'), srclang: base, label: `${label} captions`, def: base === captionLangBase(captionLanguage) };
+      });
       tracks.forEach(t => {
         const track = document.createElement('track');
         track.kind = 'captions';
         track.src = t.src;
         track.srclang = t.srclang;
         track.label = t.label;
+        track.dataset.chainesCaption = 'true';
         if(t.def) track.default = true;
         vid.appendChild(track);
+        track.addEventListener('load', () => activateCaptionTracksForVideo(vid));
       });
+      activateCaptionTracksForVideo(vid);
     }
 
     function extractXSpaceId(value=''){
