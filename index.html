@@ -1027,6 +1027,31 @@
       background-color: var(--caption-bg);
     }
 
+    .video { position: relative; }
+    .cc-overlay {
+      position:absolute;
+      left:50%;
+      bottom:14px;
+      transform:translateX(-50%);
+      z-index:5;
+      width:min(92%, 760px);
+      max-height:42%;
+      overflow:auto;
+      display:none;
+      pointer-events:none;
+      text-align:center;
+      font-family:var(--caption-font);
+      color:var(--caption-color);
+      background:var(--caption-bg);
+      border-radius:12px;
+      padding:8px 12px;
+      font-weight:700;
+      line-height:1.35;
+      white-space:pre-wrap;
+      box-shadow:0 8px 22px rgba(0,0,0,.35);
+    }
+    .cc-overlay.active { display:block; }
+
     .post-actions { margin-top:10px; display:flex; flex-wrap:nowrap; gap:8px; align-items:center; justify-content:flex-start; padding:8px; border-radius:12px; border:1px solid var(--lining); background: color-mix(in oklab, var(--panel), transparent 18%); }
     .reaction-btn {
       border:1px solid var(--lining);
@@ -2130,6 +2155,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           </select>
         </label>
         <div class="audio-feed-controls" id="audio-feed-controls" hidden></div>
+        <label class="audio-input-picker" id="caption-language-picker" title="Closed caption language">
+          <span>CC</span>
+          <select id="caption-language-select" aria-label="Closed caption language"></select>
+        </label>
         <button class="chip" id="screen-btn" type="button" title="Share screen">
           <img src="static/screen.svg" alt="Share screen" />
         </button>
@@ -3532,6 +3561,108 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     }
 
+    function normalizeCaptionLang(lang = captionLanguage){
+      return String(lang || 'en-US').trim() || 'en-US';
+    }
+
+    function captionLangBase(lang = captionLanguage){
+      return normalizeCaptionLang(lang).split('-')[0].toLowerCase();
+    }
+
+    function setupCaptionLanguagePicker(){
+      if(!captionLanguageSelect) return;
+      captionLanguageSelect.innerHTML = '';
+      CAPTION_LANGUAGES.forEach(([code, label]) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = label;
+        captionLanguageSelect.appendChild(option);
+      });
+      if(!CAPTION_LANGUAGES.some(([code]) => code === captionLanguage)) captionLanguage = 'en-US';
+      captionLanguageSelect.value = captionLanguage;
+      document.documentElement.lang = captionLangBase(captionLanguage);
+      captionLanguageSelect.addEventListener('change', () => {
+        captionLanguage = captionLanguageSelect.value || 'en-US';
+        localStorage.setItem('captionLanguage', captionLanguage);
+        document.documentElement.lang = captionLangBase(captionLanguage);
+        updateLiveCaptionTrackLanguages();
+        restartSpeechRecognitionForCaptionLanguage();
+      });
+    }
+
+    function updateLiveCaptionTrackLanguages(){
+      const lang = captionLangBase(captionLanguage);
+      document.querySelectorAll('video').forEach(video => {
+        Array.from(video.textTracks || []).forEach(track => {
+          if(track.label === 'Live') track.language = lang;
+        });
+      });
+    }
+
+    function ensureCaptionOverlayForMedia(mediaEl){
+      if(!mediaEl) return null;
+      const parent = mediaEl.parentElement;
+      if(!parent || !parent.classList.contains('video')) return null;
+      let overlay = parent.querySelector(`.cc-overlay[data-caption-owner="${CSS.escape(mediaEl.dataset.streamOwner || mediaEl.dataset.guest || 'local')}"]`);
+      if(!overlay){
+        overlay = document.createElement('div');
+        overlay.className = 'cc-overlay';
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.dataset.captionOwner = mediaEl.dataset.streamOwner || mediaEl.dataset.guest || 'local';
+        parent.appendChild(overlay);
+      }
+      return overlay;
+    }
+
+    function showCaptionOverlay(mediaEl, text){
+      const overlay = ensureCaptionOverlayForMedia(mediaEl);
+      if(!overlay || !text) return;
+      overlay.textContent = text;
+      overlay.classList.add('active');
+      clearTimeout(overlay._captionTimer);
+      overlay._captionTimer = setTimeout(() => overlay.classList.remove('active'), 7000);
+    }
+
+    async function translateCaptionText(text, sourceLang = 'auto', targetLang = captionLanguage){
+      const clean = String(text || '').trim();
+      if(!clean) return '';
+      const source = sourceLang === 'auto' ? 'auto' : captionLangBase(sourceLang);
+      const target = captionLangBase(targetLang);
+      if(source === target) return clean;
+      if('translation' in self && typeof self.translation?.createTranslator === 'function'){
+        try{
+          const translator = await self.translation.createTranslator({ sourceLanguage: source === 'auto' ? 'en' : source, targetLanguage: target });
+          return (await translator.translate(clean)) || clean;
+        }catch{}
+      }
+      try{
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent((source === 'auto' ? 'en' : source) + '|' + target)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data?.responseData?.translatedText || clean;
+      }catch{}
+      return clean;
+    }
+
+    function addLiveCaptionCue(mediaEl, text, lang = captionLanguage){
+      if(!mediaEl || !text) return;
+      const Cue = window.VTTCue || window.TextTrackCue;
+      let track = Array.from(mediaEl.textTracks || []).find(t => t.label === 'Live');
+      if(!track){
+        track = mediaEl.addTextTrack('captions', 'Live', captionLangBase(lang));
+        track.mode = 'showing';
+      }
+      track.mode = 'showing';
+      try{ track.addCue(new Cue(mediaEl.currentTime || 0, (mediaEl.currentTime || 0) + 7, text)); }catch{}
+      showCaptionOverlay(mediaEl, text);
+    }
+
+    function restartSpeechRecognitionForCaptionLanguage(){
+      if(!speechRec || !broadcasting) return;
+      try{ speechRec.stop(); }catch{}
+      try{ speechRec.lang = normalizeCaptionLang(captionLanguage); speechRec.start(); }catch{}
+    }
+
     function ensureParticipantVideoElement(id, trackId = ''){
       const participant = streams[id];
       if(!participant || !participant.video) return null;
@@ -3559,7 +3690,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         participant.video.appendChild(video);
         attachRenderRecoveryListeners(video);
         attachCaptions(video);
-        const liveTrack = video.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+        const liveTrack = video.addTextTrack('captions', 'Live', captionLangBase(captionLanguage));
         liveTrack.mode = 'showing';
         if(!participant.captionTrack) participant.captionTrack = liveTrack;
       }
@@ -4537,6 +4668,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let broadcastVideo = null;
     let captionTrack = null;
     let speechRec = null;
+    let captionLanguage = localStorage.getItem('captionLanguage') || (navigator.language || document.documentElement.lang || 'en-US');
+    const captionLanguageSelect = document.getElementById('caption-language-select');
+    const CAPTION_LANGUAGES = [
+      ['en-US','English'],['es-ES','Spanish'],['fr-FR','French'],['de-DE','German'],['it-IT','Italian'],['pt-BR','Portuguese'],['ar-SA','Arabic'],['zh-CN','Chinese (Simplified)'],['zh-TW','Chinese (Traditional)'],['ja-JP','Japanese'],['ko-KR','Korean'],['hi-IN','Hindi'],['bn-BD','Bengali'],['ru-RU','Russian'],['uk-UA','Ukrainian'],['tr-TR','Turkish'],['vi-VN','Vietnamese'],['th-TH','Thai'],['id-ID','Indonesian'],['ms-MY','Malay'],['fil-PH','Filipino'],['sw-KE','Swahili'],['nl-NL','Dutch'],['pl-PL','Polish'],['ro-RO','Romanian'],['el-GR','Greek'],['he-IL','Hebrew'],['fa-IR','Persian'],['ur-PK','Urdu'],['ta-IN','Tamil'],['te-IN','Telugu'],['mr-IN','Marathi'],['gu-IN','Gujarati'],['pa-IN','Punjabi'],['kn-IN','Kannada'],['ml-IN','Malayalam']
+    ];
     let usingFrontCamera = true;
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -6847,21 +6983,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           mediaEl.controls = true;
           if(!audioOnly){
             attachCaptions(mediaEl);
-            captionTrack = mediaEl.addTextTrack('captions', 'Live', (document.documentElement.lang||'en').slice(0,2));
+            captionTrack = mediaEl.addTextTrack('captions', 'Live', captionLangBase(captionLanguage));
             captionTrack.mode = 'showing';
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechRecognition){
               speechRec = new SpeechRecognition();
-              speechRec.lang = document.documentElement.lang || 'en-US';
+              speechRec.lang = normalizeCaptionLang(captionLanguage);
               speechRec.continuous = true;
               speechRec.interimResults = false;
-              speechRec.addEventListener('result', e => {
+              speechRec.addEventListener('result', async e => {
                 const transcript = Array.from(e.results).map(r => r[0].transcript).join('').trim();
                 if(transcript && captionTrack){
-                  const Cue = window.VTTCue || window.TextTrackCue;
-                  try{ captionTrack.addCue(new Cue(mediaEl.currentTime, mediaEl.currentTime+5, transcript)); }
-                  catch(err){ console.error('cue error', err); }
-                  try{ sendSignal({ type: 'caption', text: transcript }); }catch{}
+                  const translated = await translateCaptionText(transcript, speechRec.lang, captionLanguage);
+                  addLiveCaptionCue(mediaEl, translated, captionLanguage);
+                  try{ sendSignal({ type: 'caption', text: transcript, renderedText: translated, sourceLang: speechRec.lang, targetLang: captionLanguage }); }catch{}
                 }
               });
               speechRec.addEventListener('error', err => console.error('speech error', err));
@@ -8113,11 +8248,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(btn) btn.textContent = `❤️ ${l.count}`;
       }
 
-      function handleCaption(c){
+      async function handleCaption(c){
         const s = streams[c.id];
-        if(!s || !s.captionTrack || !s.vid) return;
-        const Cue = window.VTTCue || window.TextTrackCue;
-        try{ s.captionTrack.addCue(new Cue(s.vid.currentTime, s.vid.currentTime+5, c.text)); }catch{}
+        if(!s || !s.vid) return;
+        const targetLang = captionLanguage;
+        const sourceText = c.renderedText && captionLangBase(c.targetLang) === captionLangBase(targetLang) ? c.renderedText : c.text;
+        const rendered = await translateCaptionText(sourceText, c.targetLang || c.sourceLang || 'auto', targetLang);
+        addLiveCaptionCue(s.vid, rendered, targetLang);
+        s.captionTrack = Array.from(s.vid.textTracks || []).find(t => t.label === 'Live') || s.captionTrack;
       }
 
       function showPopup(message, actions){
@@ -8150,11 +8288,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     function attachCaptions(vid){
       if(!vid) return;
+      ensureCaptionOverlayForMedia(vid);
       const tracks = [
         { src: 'static/captions/en.vtt', srclang: 'en', label: 'English', def: true },
         { src: 'static/captions/pt-en.vtt', srclang: 'pt', label: 'Portuguese/English' },
         { src: 'static/captions/ko.vtt', srclang: 'ko', label: 'Korean' },
-        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic/English' }
+        { src: 'static/captions/ar-en.vtt', srclang: 'ar', label: 'Arabic/English' },
+        { src: 'static/captions/en.vtt', srclang: 'es', label: 'Spanish (auto live)' },
+        { src: 'static/captions/en.vtt', srclang: 'fr', label: 'French (auto live)' },
+        { src: 'static/captions/en.vtt', srclang: 'de', label: 'German (auto live)' },
+        { src: 'static/captions/en.vtt', srclang: 'ja', label: 'Japanese (auto live)' },
+        { src: 'static/captions/en.vtt', srclang: 'zh', label: 'Chinese (auto live)' },
+        { src: 'static/captions/en.vtt', srclang: 'hi', label: 'Hindi (auto live)' }
       ];
       tracks.forEach(t => {
         const track = document.createElement('track');
@@ -8512,6 +8657,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     // Boot
+    setupCaptionLanguagePicker();
     requireAuth();
   })();
   </script>
