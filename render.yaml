@@ -23,7 +23,7 @@ services:
     previews:
       generation: automatic
 
-  # Node WebSocket fanout
+  # Node API/WebSocket service and durable SQLite data
   - type: web
     name: chaines-chat-ws
     runtime: node
@@ -33,3 +33,10 @@ services:
     buildCommand: npm ci
     startCommand: node server.js
     healthCheckPath: /healthz
+    envVars:
+      - key: DB_PATH
+        value: /var/data/chaines.db
+    disk:
+      name: chaines-data
+      mountPath: /var/data
+      sizeGB: 5
