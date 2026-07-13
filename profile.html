@@ -8,15 +8,15 @@
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="/profile.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="User Profile | CHAINeS" />
+  <meta property="og:title" content="Profile | CHAINeS" />
   <meta property="og:description" content="View creator profiles, posts, and social activity inside the CHAINeS community profile experience." />
   <meta property="og:url" content="/profile.html" />
   <meta property="og:image" content="/static/logo.svg" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="User Profile | CHAINeS" />
+  <meta name="twitter:title" content="Profile | CHAINeS" />
   <meta name="twitter:description" content="View creator profiles, posts, and social activity inside the CHAINeS community profile experience." />
   <meta name="twitter:image" content="/static/logo.svg" />
-<title>User Profile</title>
+<title>Profile | CHAINeS</title>
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/static/logo.svg" />
 <style>
@@ -40,9 +40,14 @@
   --lining:#ffd700;
   --shadow:0 0 20px rgba(255,215,0,.4);
 }
-body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.45 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
-.profile-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:color-mix(in oklab, var(--panel), transparent 25%);padding:10px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
-.profile-header img{width:64px;height:64px;border-radius:50%;object-fit:cover;}
+body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.55 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
+.profile{max-width:1120px;margin:0 auto;}
+.profile-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:color-mix(in oklab, var(--panel), transparent 25%);padding:14px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.profile-header img{width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--lining);}
+.profile-title{display:flex;flex-direction:column;gap:4px;min-width:180px;}
+.profile-title h1{margin:0;font-size:28px;line-height:1.1;}
+.profile-subtitle{margin:0;color:var(--muted);font-size:13px;}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;}
 .follow-btn{padding:8px 12px;border-radius:12px;border:0;font-weight:700;cursor:pointer;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#05130e;box-shadow:var(--shadow);}
 .posts{list-style:none;padding:0;margin:0;}
 .post{margin-bottom:12px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
@@ -56,15 +61,19 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .reply-list{margin-top:8px;padding-top:8px;border-top:1px solid var(--lining);}
 .reply-item{font-size:13px;margin:4px 0;}
 .hidden{display:none!important;}
-.section-title{margin:10px 0 8px;}
+.section-title{margin:0 0 8px;}
+.section-card{margin:14px 0;padding:14px;border:1px solid var(--lining);border-radius:14px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
+.section-card__header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.section-card__header h2,.section-card__header h3{margin:0;}
+.section-help{margin:4px 0 0;color:var(--muted);font-size:13px;}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0;}
 .stat-card{padding:10px;border:1px solid var(--lining);border-radius:12px;background:color-mix(in oklab, var(--panel), transparent 25%);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .stat-label{font-size:12px;color:var(--muted);}
 .stat-value{font-size:18px;font-weight:700;}
-.relation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+.relation-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;}
 .relation-list{list-style:none;margin:0;padding:0;}
 .relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
-.dating-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+.dating-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;}
 .verified-badge{
   display:inline-flex;
   align-items:center;
@@ -262,26 +271,39 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 <div class="profile">
   <div class="profile-header">
     <img id="p-avatar" alt="avatar" />
-    <h2 id="p-name"></h2>
+    <div class="profile-title">
+      <h1 id="p-name"></h1>
+      <p id="p-context" class="profile-subtitle">Community profile</p>
+    </div>
     <span id="p-verified" class="verified-badge" hidden aria-label="Validated account"></span>
     <div id="p-entry-validation" class="entry-validation" hidden></div>
-    <button id="follow-btn" class="follow-btn"></button>
-    <button id="message-btn" class="follow-btn" hidden>Message</button>
+    <div class="profile-actions">
+      <button id="follow-btn" class="follow-btn"></button>
+      <button id="message-btn" class="follow-btn" hidden>Message</button>
+    </div>
   </div>
   <div id="edit-section" hidden>
     <input type="file" id="p-pic" accept="image/*" />
     <textarea id="p-desc-input" placeholder="Add a description..."></textarea>
     <button id="save-desc" class="follow-btn" type="button">Save</button>
   </div>
-  <p id="p-desc"></p>
+  <section class="section-card" aria-labelledby="about-heading">
+    <div class="section-card__header">
+      <div>
+        <h2 id="about-heading">About</h2>
+        <p class="section-help">Profile description and account validation details.</p>
+      </div>
+    </div>
+    <p id="p-desc"></p>
+  </section>
   <section id="entry-wallets-section" class="wallet-section">
-    <h3 class="wallet-section__title">Platform Entry Wallets</h3>
-    <p class="wallet-section__meta">Wallets used to enter the platform. Tap a tag to open the chain explorer.</p>
+    <h3 class="wallet-section__title">Entry wallets</h3>
+    <p class="wallet-section__meta">Wallet addresses associated with profile access or validation. Explorer links open in a new tab.</p>
     <div id="entry-wallets-list" class="wallet-tag-list"></div>
   </section>
   <section id="airdrop-wallet-section" class="wallet-section" hidden>
-    <h3 class="wallet-section__title">Airdrop Wallet Placeholder</h3>
-    <p class="wallet-section__meta">Set a preferred wallet address for airdrops by connecting a wallet.</p>
+    <h3 class="wallet-section__title">Airdrop wallet</h3>
+    <p class="wallet-section__meta">Connect a wallet to save a preferred address for future airdrops.</p>
     <div id="airdrop-wallet-list" class="wallet-tag-list"></div>
     <div class="wallet-connect-row">
       <select id="wallet-chain-select" class="wallet-select" aria-label="Wallet network">
@@ -296,7 +318,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   <div id="follow-info" style="margin:8px 0;color:var(--muted);"></div>
   <div id="stats-grid" class="stats-grid"></div>
   <section class="rewards-section">
-    <h3>👻 Ghost Coin Rewards</h3>
+    <h3>Reward points</h3>
     <p id="profile-rewards-total" class="rewards-total">Total: <b>0</b> points</p>
     <p id="profile-rewards-rank" class="rewards-rank">Rank: unranked</p>
     <p id="profile-rewards-tier" class="rewards-tier">Tier: Starter</p>
@@ -304,14 +326,21 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       <div class="rewards-progress-track"><span id="profile-rewards-progress-fill" class="rewards-progress-fill"></span></div>
       <p id="profile-rewards-progress-meta" class="rewards-progress-meta">0 / 20 points to Rising</p>
     </div>
-    <h4 style="margin:12px 0 8px;">Reward action breakdown</h4>
+    <h4 style="margin:12px 0 8px;">Points by action</h4>
     <ul id="profile-rewards-breakdown" class="rewards-breakdown"></ul>
-    <h4 style="margin:12px 0 8px;">Recent rewards log</h4>
+    <h4 style="margin:12px 0 8px;">Recent point activity</h4>
     <ul id="profile-rewards-log" class="rewards-log"></ul>
-    <h4 style="margin:12px 0 8px;">Leaderboard (top + around you)</h4>
+    <h4 style="margin:12px 0 8px;">Leaderboard</h4>
     <ul id="profile-rewards-board" class="rewards-board"></ul>
   </section>
-  <div class="relation-grid">
+  <section class="section-card" aria-labelledby="connections-heading">
+    <div class="section-card__header">
+      <div>
+        <h2 id="connections-heading">Connections</h2>
+        <p class="section-help">Followers and accounts this profile follows.</p>
+      </div>
+    </div>
+    <div class="relation-grid">
     <div>
       <h3 class="section-title">Followers</h3>
       <ul id="followers-list" class="relation-list"></ul>
@@ -320,18 +349,28 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       <h3 class="section-title">Following</h3>
       <ul id="following-list" class="relation-list"></ul>
     </div>
-  </div>
-  <div class="dating-grid">
+    </div>
+  </section>
+  <section class="section-card" aria-labelledby="dating-heading">
+    <div class="section-card__header">
+      <div>
+        <h2 id="dating-heading">Dating activity</h2>
+        <p class="section-help">Dating likes and matches visible for this profile.</p>
+      </div>
+    </div>
+    <div class="dating-grid">
     <div>
-      <h3 class="section-title">Dating Likes</h3>
+      <h3 class="section-title">Dating likes</h3>
       <ul id="dating-liked-list" class="relation-list"></ul>
     </div>
     <div>
-      <h3 class="section-title">Dating Matches</h3>
+      <h3 class="section-title">Dating matches</h3>
       <ul id="dating-matched-list" class="relation-list"></ul>
     </div>
-  </div>
+    </div>
+  </section>
 
+  <section class="section-card" aria-labelledby="feed-heading">
   <div class="tab-row" id="feed-tabs">
     <button class="tab-btn active" data-tab="posts" type="button">Posts</button>
     <button class="tab-btn" data-tab="replies" type="button">Replies</button>
@@ -339,19 +378,21 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <button class="tab-btn" data-tab="videos" type="button">Videos</button>
   </div>
 
-  <h3 class="section-title">Profile Feed</h3>
+  <h2 id="feed-heading" class="section-title">Activity feed</h2>
+  <p class="section-help">Posts, replies, images, and videos shared by this profile.</p>
   <ul id="p-feed" class="posts"></ul>
+  </section>
   <section id="delivery-window" class="delivery-window" hidden>
-    <h3 class="section-title" style="margin-top:0;">Delivery Window</h3>
-    <p class="delivery-window__meta">Receipt feed for your delivery orders and support shortcuts.</p>
+    <h3 class="section-title" style="margin-top:0;">Delivery window</h3>
+    <p class="delivery-window__meta">Receipts for your delivery orders and a shortcut to contact support.</p>
     <div class="delivery-window__actions">
       <button id="delivery-help-btn" class="follow-btn" type="button">Help (Message Admin)</button>
     </div>
     <div id="delivery-receipts"></div>
   </section>
   <section id="calendar-panel" class="calendar-panel" hidden>
-    <h3 class="section-title" style="margin-top:0;">Availability Calendar</h3>
-    <p class="calendar-muted">Set hourly availability windows and booking fees. People can book contiguous one-hour blocks based on your availability.</p>
+    <h3 class="section-title" style="margin-top:0;">Availability calendar</h3>
+    <p class="calendar-muted">Set hourly availability and booking fees. Visitors can book open, contiguous one-hour blocks.</p>
 
     <div id="calendar-owner-controls" hidden>
       <div class="calendar-grid">
@@ -396,12 +437,19 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   </section>
 
   <div id="settings-section" hidden>
-    <h3>Notification Settings</h3>
+    <h3>Notification settings</h3>
     <label><input type="checkbox" id="push-toggle" /> Enable push notifications</label><br />
     <label><input type="checkbox" id="live-toggle" /> Notify when followed users go live</label>
   </div>
-  <h3>Notifications</h3>
-  <ul id="p-notifs" class="posts"></ul>
+  <section class="section-card" aria-labelledby="notifications-heading">
+    <div class="section-card__header">
+      <div>
+        <h2 id="notifications-heading">Notifications</h2>
+        <p class="section-help">Recent account, social, marketplace, delivery, and calendar updates.</p>
+      </div>
+    </div>
+    <ul id="p-notifs" class="posts"></ul>
+  </section>
 </div>
 <script>
 (() => {
@@ -411,6 +459,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   let currentUser = fallbackUser;
   const avatar = document.getElementById('p-avatar');
   const nameEl = document.getElementById('p-name');
+  const contextEl = document.getElementById('p-context');
   const verifiedEl = document.getElementById('p-verified');
   const entryValidationEl = document.getElementById('p-entry-validation');
   const descEl = document.getElementById('p-desc');
@@ -1675,7 +1724,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       ['Replies', stats.replies ?? data?.replies?.length ?? 0],
       ['Followers', stats.followers ?? data?.followers?.length ?? 0],
       ['Following', stats.following ?? data?.following?.length ?? 0],
-      ['Ghost Coin', rewardPoints],
+      ['Reward Points', rewardPoints],
       ['Likes Received', stats.likesReceived ?? 0],
       ['Messages', stats.directMessages ?? 0],
       ['Dating Likes', stats.datingLikesSent ?? data?.dating?.likedUsers?.length ?? 0],
@@ -1780,7 +1829,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     hydrateCalendarReminders();
     if(!currentUser){
       nameEl.textContent = '@unknown';
-      descEl.textContent = 'Select a user profile to view full details.';
+      descEl.textContent = 'Select a user profile to view details.';
+      if(contextEl) contextEl.textContent = 'No profile selected';
       entryValidationEl.hidden = true;
       feedEl.innerHTML = '';
       calendarPanel.hidden = true;
@@ -1793,6 +1843,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     if(!res.ok){
       const err = await res.json().catch(() => ({}));
       nameEl.textContent = '@' + currentUser;
+      if(contextEl) contextEl.textContent = 'Profile unavailable';
       descEl.textContent = err.error || 'Profile could not be loaded.';
       renderEntryValidation(currentUser);
       profileData = normalizeProfileData({ username: currentUser });
@@ -1811,6 +1862,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const data = normalizeProfileData(await res.json());
     profileData = data;
     nameEl.textContent = '@' + data.username;
+    if(contextEl) contextEl.textContent = storeUser === data.username ? 'Your CHAINeS profile' : 'CHAINeS community profile';
     const verifiedRecord = verifiedUsers()[data.username];
     verifiedEl.hidden = !verifiedRecord;
     if(verifiedRecord){
@@ -1869,10 +1921,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       renderCalendar(currentUser, false);
     } else {
       followBtn.style.display = '';
-      followBtn.textContent = 'This is your profile';
+      followBtn.textContent = 'Your profile';
       followBtn.disabled = true;
       messageBtn.hidden = false;
-      messageBtn.textContent = 'Cannot message yourself';
+      messageBtn.textContent = 'Messaging disabled';
       messageBtn.disabled = true;
       editSection.hidden = false;
       descInput.value = data.description || '';
