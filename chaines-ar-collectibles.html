@@ -86,7 +86,7 @@
     .terminal-head{padding:1rem 1rem 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.7rem}
     .terminal-placeholder{padding:1.2rem 1rem;color:var(--muted)}
     .terminal iframe{width:100%;height:620px;border:0;display:none;background:#000}.terminal iframe.live{display:block}
-    model-viewer{width:100%;height:clamp(520px,68vh,780px);background:transparent;border-radius:16px;border:1px solid var(--line);--poster-color:transparent}.viewer-stage{position:relative;border-radius:22px;background:radial-gradient(ellipse at 50% 82%,rgba(102,221,255,.26),transparent 36%),radial-gradient(circle at 50% 16%,rgba(124,92,255,.12),transparent 35%),rgba(3,9,15,.64);overflow:hidden}.viewer-stage:after{content:"";position:absolute;left:20%;right:20%;bottom:2rem;height:48px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.42),transparent 70%);filter:blur(8px);pointer-events:none}.viewer-stage model-viewer{position:relative;z-index:1}.collection-navigator{display:flex;align-items:center;justify-content:center;gap:.65rem;flex-wrap:wrap;margin:.9rem 0}.collection-field{display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03)}.collection-field label{margin:0}.collection-field input{width:5.25rem;text-align:center;padding:.6rem .45rem}.ar-button{position:absolute;right:1rem;bottom:1rem;z-index:3;border:0;border-radius:999px;padding:.85rem 1.1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;font-weight:900;box-shadow:0 14px 30px rgba(55,168,255,.32)}.status-grid{display:grid;gap:.65rem}.status-grid .read{margin-top:0}.debug-path{word-break:break-all;font-size:.8rem}.thumb-badge{font-weight:900;color:white}.no-assets{border:1px solid rgba(255,190,107,.35);background:rgba(255,190,107,.08);border-radius:14px;padding:.8rem;margin-top:.8rem;color:var(--warn)}
+    .nft-image-preview{position:absolute;inset:1rem;width:calc(100% - 2rem);height:calc(100% - 2rem);object-fit:contain;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.28);z-index:2}.nft-image-preview[hidden]{display:none}model-viewer{width:100%;height:clamp(520px,68vh,780px);background:transparent;border-radius:16px;border:1px solid var(--line);--poster-color:transparent}.viewer-stage{position:relative;border-radius:22px;background:radial-gradient(ellipse at 50% 82%,rgba(102,221,255,.26),transparent 36%),radial-gradient(circle at 50% 16%,rgba(124,92,255,.12),transparent 35%),rgba(3,9,15,.64);overflow:hidden}.viewer-stage:after{content:"";position:absolute;left:20%;right:20%;bottom:2rem;height:48px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.42),transparent 70%);filter:blur(8px);pointer-events:none}.viewer-stage model-viewer{position:relative;z-index:1}.collection-navigator{display:flex;align-items:center;justify-content:center;gap:.65rem;flex-wrap:wrap;margin:.9rem 0}.collection-field{display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03)}.collection-field label{margin:0}.collection-field input{width:5.25rem;text-align:center;padding:.6rem .45rem}.ar-button{position:absolute;right:1rem;bottom:1rem;z-index:3;border:0;border-radius:999px;padding:.85rem 1.1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;font-weight:900;box-shadow:0 14px 30px rgba(55,168,255,.32)}.status-grid{display:grid;gap:.65rem}.status-grid .read{margin-top:0}.debug-path{word-break:break-all;font-size:.8rem}.thumb-badge{font-weight:900;color:white}.no-assets{border:1px solid rgba(255,190,107,.35);background:rgba(255,190,107,.08);border-radius:14px;padding:.8rem;margin-top:.8rem;color:var(--warn)}
     .read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem;margin-top:.7rem}
     .read strong{color:white}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
@@ -131,6 +131,7 @@
           </div>
 
           <div class="viewer-stage" id="swipeNavArea" aria-label="Swipe left or right to switch NFTs">
+            <img id="nftImagePreview" class="nft-image-preview" alt="Selected CHAINeS NFT image" hidden />
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
               <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
             </model-viewer>
@@ -178,6 +179,7 @@
     (() => {
       const $ = (id) => document.getElementById(id);
       const viewer = $('primary-collectible-viewer');
+      const nftImagePreview = $('nftImagePreview');
       const collectionNumberInput = $('collection-number');
       const collectionTotal = $('collection-total');
       const previousBtn = $('previousCollectibleBtn');
@@ -195,6 +197,10 @@
       const SWIPE_THRESHOLD = 55;
       const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
       const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
+      const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+      const IPFS_GATEWAYS = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
+      const MODEL_EXTENSIONS = /\.(glb|gltf)(?:[?#].*)?$/i;
+      const IMAGE_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i;
       const DEFAULT_CAMERA = {cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'};
       const featuredCollectibles = new Map([
         [214, {name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'}],
@@ -205,14 +211,31 @@
       let activeCollectionIndex = 0;
       let terminalVisible = false;
       const absolute = (path) => new URL(path, window.location.origin).href;
+      const ipfsToHttp = (uri, gateway=IPFS_GATEWAY) => {
+        if (!uri) return '';
+        const value = String(uri).trim();
+        if (value.startsWith('ipfs://ipfs/')) return `${gateway}${value.slice('ipfs://ipfs/'.length)}`;
+        if (value.startsWith('ipfs://')) return `${gateway}${value.slice('ipfs://'.length)}`;
+        return value;
+      };
+      const tokenHexId = (tokenId) => BigInt(tokenId).toString(16).padStart(64, '0');
+      const tokenMetadataUris = (rawUri, tokenId) => {
+        if (!rawUri) return [];
+        const normalized = String(rawUri).replaceAll('{id}', tokenHexId(tokenId));
+        if (!normalized.startsWith('ipfs://')) return [normalized];
+        return IPFS_GATEWAYS.map((gateway) => ipfsToHttp(normalized, gateway));
+      };
+      const isModelFile = (url) => MODEL_EXTENSIONS.test(url.split('?')[0]);
+      const isImageFile = (url) => IMAGE_EXTENSIONS.test(url.split('?')[0]);
       function updateMintEmbedConfig(collectible){
         const url = new URL(mintTerminalFrame.src);
         url.searchParams.set('tokenId', String(collectible.tokenId));
         mintTerminalFrame.src = url.toString();
       }
       function buildSceneViewerIntent(collectible){
-        const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}`);
-        const query = new URLSearchParams({file:absolute(collectible.modelUrl),mode:'ar_preferred',title:collectible.name,link:fallbackUrl,resizable:'true'});
+        const arFile = collectible.arModelUrl || collectible.modelUrl;
+        const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}&tokenId=${collectible.tokenId}`);
+        const query = new URLSearchParams({file:absolute(arFile),mode:'ar_preferred',title:`NFT #${collectible.number} · ${collectible.name}`,link:fallbackUrl,resizable:'true'});
         return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
       }
       function updateURL(collectible, options={}){
@@ -231,16 +254,26 @@
         });
       }
       async function loadContractCollectibles(){
+        viewerStatus.textContent = 'Loading contract NFTs…';
+        const [{createThirdwebClient, getContract, readContract}, {polygon}] = await Promise.all([
+          import('https://esm.sh/thirdweb@5'),
+          import('https://esm.sh/thirdweb@5/chains')
+        ]);
         try {
-          viewerStatus.textContent = 'Loading contract NFTs…';
-          const [{createThirdwebClient, getContract, readContract}, {polygon}] = await Promise.all([
-            import('https://esm.sh/thirdweb@5'),
-            import('https://esm.sh/thirdweb@5/chains')
-          ]);
           const client = createThirdwebClient({clientId:THIRDWEB_CLIENT_ID});
           const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
           const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
           normalizeCollectibles(Number(nextTokenId));
+          const uriReads = collectibles.map(async (collectible) => {
+            try {
+              const rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
+              return {...collectible, rawUri};
+            } catch (err) {
+              console.warn(`Unable to read metadata URI for token ${collectible.tokenId}.`, err);
+              return collectible;
+            }
+          });
+          collectibles = await Promise.all(uriReads);
         } catch (err) {
           console.warn('Unable to load the complete contract NFT list; using featured fallback.', err);
           viewerStatus.textContent = 'Using featured NFT fallback; contract list could not load.';
@@ -257,27 +290,62 @@
         collectionTotal.textContent = `of ${collectibles.length}`;
         previousBtn.disabled = activeCollectionIndex <= 0;
         nextBtn.disabled = activeCollectionIndex >= collectibles.length - 1;
-        activeCollectibleTitle.textContent = collectible.name;
-        viewerModelName.textContent = `NFT #${collectible.number} · Token ID ${collectible.tokenId} · ${collectible.name}`;
-        activeModelPath.textContent = collectible.modelUrl || `Contract token ${collectible.tokenId}`;
+        activeCollectibleTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
+        viewerModelName.textContent = `NFT #${collectible.number} of ${collectibles.length} · Token ID ${collectible.tokenId} · ${collectible.name}`;
+        activeModelPath.textContent = collectible.arModelUrl || collectible.modelUrl || collectible.metadataUrl || `Contract token ${collectible.tokenId}`;
         viewer.setAttribute('poster', collectible.posterUrl);
         viewer.setAttribute('alt', collectible.modelUrl ? `Interactive AR preview of ${collectible.name}` : `Contract NFT ${collectible.tokenId} selected in the mint terminal`);
         viewer.setAttribute('camera-orbit', collectible.cameraOrbit);
         viewer.setAttribute('camera-target', collectible.cameraTarget);
         viewer.setAttribute('field-of-view', collectible.fieldOfView);
-        if (collectible.modelUrl) {
-          viewerStatus.textContent = 'Loading NFT…';
-          viewer.setAttribute('src', collectible.modelUrl);
+        const arFile = collectible.arModelUrl || collectible.modelUrl;
+        const imageFile = !arFile && collectible.posterUrl && collectible.posterUrl !== '/static/logo.svg' ? collectible.posterUrl : '';
+        nftImagePreview.hidden = !imageFile;
+        if (imageFile) nftImagePreview.src = imageFile;
+        if (arFile) {
+          viewerStatus.textContent = collectible.arModelUrl ? 'Loading IPFS NFT AR file…' : 'Loading NFT…';
+          viewer.setAttribute('src', arFile);
           googleArBtn.disabled = false;
           launchArBtn.disabled = false;
         } else {
           viewer.removeAttribute('src');
-          viewerStatus.textContent = 'Contract NFT selected. Use the mint terminal to view this token.';
+          viewerStatus.textContent = imageFile ? 'IPFS NFT image displayed. AR launch needs a GLB/GLTF model in token metadata.' : (collectible.rawUri ? 'Preparing NFT metadata from IPFS…' : 'Contract NFT selected. Use the mint terminal to view this token.');
           googleArBtn.disabled = true;
           launchArBtn.disabled = true;
         }
+        if (!options.skipMetadata) hydrateCollectibleMetadata(collectible);
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
+      }
+      async function hydrateCollectibleMetadata(collectible){
+        if (!collectible.rawUri || collectible.metadataLoaded || collectible.metadataLoading) return;
+        collectible.metadataLoading = true;
+        const selectedTokenId = collectible.tokenId;
+        const metadataUrls = tokenMetadataUris(collectible.rawUri, collectible.tokenId);
+        for (const metadataUrl of metadataUrls) {
+          try {
+            const response = await fetch(metadataUrl, {cache:'force-cache'});
+            if (!response.ok) continue;
+            const metadata = await response.json();
+            const animationUrl = ipfsToHttp(metadata.animation_url || metadata.animationUrl || metadata.model_url || metadata.modelUrl || '');
+            const imageUrl = ipfsToHttp(metadata.image || metadata.image_url || metadata.imageUrl || '');
+            collectible.metadataLoaded = true;
+            collectible.metadataUrl = metadataUrl;
+            collectible.name = metadata.name || collectible.name;
+            collectible.posterUrl = imageUrl || collectible.posterUrl;
+            if (isModelFile(animationUrl)) collectible.arModelUrl = animationUrl;
+            if (!collectible.arModelUrl && isModelFile(imageUrl)) collectible.arModelUrl = imageUrl;
+            if (!collectible.arModelUrl && isImageFile(imageUrl)) collectible.posterUrl = imageUrl;
+            if (collectibles[activeCollectionIndex]?.tokenId === selectedTokenId) {
+              selectCollectibleByNumber(collectible.number, {skipUrl:true, skipMetadata:true});
+              viewerStatus.textContent = collectible.arModelUrl ? 'IPFS NFT AR file connected.' : 'IPFS NFT image connected. This token metadata does not include a GLB/GLTF AR model.';
+            }
+            break;
+          } catch (err) {
+            console.warn(`Unable to load IPFS metadata for token ${collectible.tokenId} from ${metadataUrl}.`, err);
+          }
+        }
+        collectible.metadataLoading = false;
       }
       function openTerminal(){
         terminalVisible = true;
@@ -314,7 +382,12 @@
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) selectCollectibleByNumber(activeCollectionIndex + (dx < 0 ? 2 : 0), {push:true}); }, {passive:true});
       window.addEventListener('popstate', () => selectCollectibleByNumber(initialNumber(), {skipUrl:true}));
-      loadContractCollectibles().finally(() => selectCollectibleByNumber(initialNumber(), {skipUrl: new URLSearchParams(location.search).has('collection') || new URLSearchParams(location.search).has('tokenId')}));
+      loadContractCollectibles()
+        .catch((err) => {
+          console.warn('Unable to load contract modules; using featured fallback.', err);
+          viewerStatus.textContent = 'Using featured NFT fallback; contract modules could not load.';
+        })
+        .finally(() => selectCollectibleByNumber(initialNumber(), {skipUrl: new URLSearchParams(location.search).has('collection') || new URLSearchParams(location.search).has('tokenId')}));
     })();
   </script>
 
