@@ -1603,6 +1603,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       .toolbar-additional-desktop {
         display: flex;
+        flex-wrap: nowrap;
+        overflow: visible;
         order: 3;
       }
       #toolbar-overflow-toggle {
@@ -1656,6 +1658,21 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         overflow: hidden;
         text-overflow: ellipsis;
       }
+    }
+
+    @media (min-width: 901px) and (max-width: 1080px) {
+      header { gap: 6px; padding-inline: 8px; }
+      .toolbar { gap: 6px; padding: 5px; }
+      .toolbar-primary,
+      .toolbar-additional-desktop { gap: 6px; }
+      .toolbar-primary .chip.action-chip,
+      .toolbar-additional-desktop .chip {
+        width: 34px;
+        height: 34px;
+        min-height: 34px;
+        flex-basis: 34px;
+      }
+      #toolbar-overflow-toggle { width: 38px; height: 34px; }
     }
 
     @media (max-width: 900px) {
@@ -1826,6 +1843,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       .mobile-only-chip {
         display:inline-flex;
+      }
+      #streams-fit-btn,
+      #theme-toggle,
+      #video-toggle,
+      #market-mode-toggle {
+        display:none !important;
+      }
+      .toolbar-overflow-list li:has(> #streams-fit-btn),
+      .toolbar-overflow-list li:has(> #theme-toggle),
+      .toolbar-overflow-list li:has(> #video-toggle),
+      .toolbar-overflow-list li:has(> #market-mode-toggle) {
+        display:none !important;
       }
       .desktop-only-chip {
         display:none !important;
@@ -2134,8 +2163,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
-                <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
-                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
@@ -3005,9 +3032,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
+    const mobileExcludedAdditionalButtonIds = new Set(['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']);
+    const additionalButtonIds = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'chaines-ar-btn'];
+    const additionalButtons = additionalButtonIds
       .map(id => el(`#${id}`))
       .filter(Boolean);
+    const mobileExcludedAdditionalParking = document.createDocumentFragment();
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4118,9 +4148,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function syncAdditionalButtonsLayout(){
       if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
       const useDesktopHeader = desktopToolbarMedia.matches;
+      const useMobileMenu = mobileToolbarMedia.matches;
       additionalButtons.forEach((btn) => {
         if(useDesktopHeader){
           if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
+        } else if(useMobileMenu && mobileExcludedAdditionalButtonIds.has(btn.id)){
+          mobileExcludedAdditionalParking.appendChild(btn);
         } else {
           const existingListItem = btn.closest('li');
           if(existingListItem && existingListItem.parentElement === additionalList) return;
