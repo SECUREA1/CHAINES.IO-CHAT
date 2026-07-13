@@ -3638,7 +3638,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         participant.liveState.textContent = hasLiveVideo ? 'Live now' : (participant.cameraDisabled ? 'Camera off' : 'Audio live');
       }
       const video = syncParticipantVideoElements(participantId, stream);
-      if(video) participant.vid = video;
+      if(video){ participant.vid = video; videoElementsByParticipant.set(participantId, video); }
       console.log('Participant:', participantId, meta.reason || 'stream-update');
       console.log('Stream:', participant.stream);
       console.log('Video tracks:', participant.stream?.getVideoTracks());
@@ -3652,7 +3652,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const ownerId = participantId;
       peerConnection._remoteParticipantId = ownerId;
       const participant = streams[ownerId];
-      const remoteStream = participant?.stream || peerConnection._remoteStream || new MediaStream();
+      const remoteStream = remoteStreamsByParticipant.get(ownerId) || participant?.stream || peerConnection._remoteStream || new MediaStream();
+      remoteStreamsByParticipant.set(ownerId, remoteStream);
       peerConnection._remoteStream = remoteStream;
       const tracks = event.streams && event.streams.length
         ? event.streams.flatMap(stream => stream.getTracks())
@@ -3739,7 +3740,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         return;
       }
       if(selectedAudioFeedId && !streams[selectedAudioFeedId]) selectedAudioFeedId = null;
-      if(!selectedAudioFeedId && feedIds.length) selectedAudioFeedId = feedIds[0];
+      // Default is mixed room audio; selecting a chip enables optional Solo mode.
+      if(selectedAudioFeedId && !feedIds.includes(selectedAudioFeedId)) selectedAudioFeedId = null;
       audioFeedControls.innerHTML = '';
       const splitBtn = document.createElement('button');
       splitBtn.type = 'button';
@@ -3748,14 +3750,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       splitBtn.title = 'Split all live feeds into individual tiles';
       splitBtn.addEventListener('click', separateAllLiveFeeds);
       audioFeedControls.appendChild(splitBtn);
+      const unlockBtn = document.createElement('button');
+      unlockBtn.type = 'button';
+      unlockBtn.className = 'chip';
+      unlockBtn.textContent = 'Enable Room Audio';
+      unlockBtn.title = 'Unlock mixed room audio if the browser blocked autoplay';
+      unlockBtn.addEventListener('click', unlockAudio);
+      audioFeedControls.appendChild(unlockBtn);
+      if(selectedAudioFeedId){ const mixBtn = document.createElement('button'); mixBtn.type = 'button'; mixBtn.className = 'chip'; mixBtn.textContent = 'Mixed Audio'; mixBtn.addEventListener('click', () => { selectedAudioFeedId = null; renderAudioFeedControls(); }); audioFeedControls.appendChild(mixBtn); }
       feedIds.forEach(id => {
         const btn = document.createElement('button');
         const stream = streams[id];
         const name = stream?.container?.querySelector('.title')?.textContent?.split('(')[0]?.trim() || `@${id}`;
         btn.type = 'button';
         btn.className = 'chip';
-        btn.textContent = `Audio ${name}`;
-        btn.title = `Listen to ${name}`;
+        btn.textContent = `Solo ${name}`;
+        btn.title = `Solo ${name}; mixed room audio is the default`;
         btn.classList.toggle('active', selectedAudioFeedId === id);
         btn.addEventListener('click', () => chooseAudioFeed(id));
         audioFeedControls.appendChild(btn);
@@ -4491,7 +4501,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     // --- WebRTC state ---
       const peerConnections = {};
+      const peerStates = {};
       const pendingIceCandidatesByPeer = {};
+      const broadcastRooms = new Map();
+      const remoteStreamsByParticipant = new Map();
+      const videoElementsByParticipant = new Map();
+      const handledStageRequestIds = new Set();
+      function createRoomState(roomId, hostId){
+        return { roomId, hostId, localRole: 'audience', stageMembers: new Map(), audienceMembers: new Map(), stageRequests: new Map(), peerConnections: new Map(), remoteStreams: new Map(), connectionGeneration: 0 };
+      }
+      function getRoomIdForPeer(remoteParticipantId){ return currentHost || pendingJoinHost || pendingMicHost || clientId || remoteParticipantId; }
+      function liveLog(message, details = {}){
+        if(!location.search.includes('liveDebug=1') && localStorage.getItem('liveDebug') !== '1') return;
+        console.debug('[live]', message, details);
+      }
       const rtcConfig = {
         iceServers: [
           { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -4548,7 +4571,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       addCameraBtn.title = canUseNow ? 'Go live on all detected cameras' : 'Add camera to broadcast';
     }
 
-    function closePeerConnection(id){
+    function closePeerConnection(id, reason = 'explicit-close'){
       const pc = peerConnections[id];
       if(!pc) return;
       try {
@@ -4557,7 +4580,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(pc._videoStatsTimer) window.clearInterval(pc._videoStatsTimer);
         pc.close();
       } catch {}
+      liveLog('close-peer', { id, reason });
       delete peerConnections[id];
+      delete peerStates[id];
       delete pendingIceCandidatesByPeer[id];
     }
 
@@ -4570,11 +4595,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         try {
           if(sender) await sender.replaceTrack(videoTrack);
           else pc.addTrack(videoTrack, stream);
-          if(pc.signalingState === 'stable'){
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            sendSignal({ type:'offer', id, sdp: pc.localDescription });
-          }
+          await negotiatePeer(id, { reason: 'publish-video-track' });
         } catch(error){
           console.warn('Unable to publish video track to peer', id, error);
         }
@@ -4631,37 +4652,74 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }, 5000);
     }
 
-    function createPeerConnection(id){
-      closePeerConnection(id);
+    function createConfiguredPeerConnection(roomId, id){
       const pc = new RTCPeerConnection(rtcConfig);
       peerConnections[id] = pc;
-      startPeerVideoStatsMonitor(id, pc);
-      pc.onconnectionstatechange = () => {
-        console.log(id, 'connection:', pc.connectionState);
-        if(pc.connectionState === 'connected'){
-          const participantId = guestMap[id] || id;
-          if(streams[participantId]?.stream){
-            updateParticipantStream(participantId, streams[participantId].stream);
-          }
-        }
-        if(['failed', 'closed'].includes(pc.connectionState)){
-          closePeerConnection(id);
-          const participantId = guestMap[id] || id;
-          const stream = streams[participantId];
-          if(stream && !stream.self && (stream.started || stream.liveActive)){
-            stream.started = false;
-            stream.stream = null;
-            stream.connectionState = 'standby';
-            window.setTimeout(() => activateLiveFeedFromPresence(participantId), 500);
-          }
-        }
-      };
-      pc.oniceconnectionstatechange = () => {
-        console.log(id, 'ICE:', pc.iceConnectionState);
-      };
+      const state = peerStates[id] || { pc, polite: String(clientId || '') > String(id || ''), makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false, negotiationQueue: Promise.resolve(), generation: Date.now(), roomId, remoteParticipantId: id };
+      state.pc = pc; state.roomId = roomId; state.remoteParticipantId = id;
+      peerStates[id] = state;
       pc._pendingCandidates = pendingIceCandidatesByPeer[id] || [];
       pendingIceCandidatesByPeer[id] = pc._pendingCandidates;
+      startPeerVideoStatsMonitor(id, pc);
+      pc.ontrack = ev => {
+        liveLog('remote-track', { roomId, remoteParticipantId: id, kind: ev.track?.kind, trackId: ev.track?.id });
+        collectRemoteTrack(pc, guestMap[id] || id, ev);
+        applySelectedAudioFeed();
+      };
+      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, candidate: e.candidate }); };
+      pc.onnegotiationneeded = () => negotiatePeer(id, { reason: 'negotiationneeded' });
+      pc.onsignalingstatechange = () => liveLog('signaling', { id, signalingState: pc.signalingState });
+      pc.onconnectionstatechange = () => {
+        liveLog('connection', { id, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
+        if(pc.connectionState === 'connected'){
+          const participantId = guestMap[id] || id;
+          if(streams[participantId]?.stream) updateParticipantStream(participantId, streams[participantId].stream);
+        }
+        if(pc.connectionState === 'failed') attemptPeerRecovery(id);
+      };
+      pc.oniceconnectionstatechange = () => {
+        liveLog('ice', { id, iceConnectionState: pc.iceConnectionState });
+        if(['disconnected','failed'].includes(pc.iceConnectionState)) attemptPeerRecovery(id);
+      };
       return pc;
+    }
+
+    function createPeerConnection(id){
+      return ensurePeerConnection(getRoomIdForPeer(id), id);
+    }
+
+    function ensurePeerConnection(roomId, remoteParticipantId){
+      const existing = peerConnections[remoteParticipantId];
+      if(existing && existing.connectionState !== 'closed' && existing.connectionState !== 'failed') return existing;
+      return createConfiguredPeerConnection(roomId, remoteParticipantId);
+    }
+
+    async function negotiatePeer(id, options = {}){
+      const state = peerStates[id];
+      const pc = peerConnections[id];
+      if(!state || !pc || pc.signalingState === 'closed') return;
+      state.negotiationQueue = (state.negotiationQueue || Promise.resolve()).then(async () => {
+        if(state.makingOffer || pc.signalingState !== 'stable') return;
+        try{
+          state.makingOffer = true;
+          await pc.setLocalDescription(await pc.createOffer(options.iceRestart ? { iceRestart: true } : undefined));
+          sendSignal({ type:'offer', id, roomId: state.roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, sdp: pc.localDescription });
+          liveLog('offer-sent', { id, reason: options.reason, generation: state.generation, senders: pc.getSenders().length, receivers: pc.getReceivers().length });
+        } finally { state.makingOffer = false; }
+      }).catch(error => console.warn('WebRTC negotiation failed', id, error));
+      return state.negotiationQueue;
+    }
+
+    async function attemptPeerRecovery(id){
+      const state = peerStates[id];
+      const pc = peerConnections[id];
+      if(!state || !pc || state.recovering) return;
+      state.recovering = true;
+      window.setTimeout(() => { state.recovering = false; }, 10000);
+      try{
+        if(typeof pc.restartIce === 'function') pc.restartIce();
+        await negotiatePeer(id, { reason: 'ice-restart', iceRestart: true });
+      }catch(error){ console.warn('Peer recovery failed', id, error); }
     }
 
     function showOverlayMessage({ user, text, profilePic }){
@@ -5142,8 +5200,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
               e.stopPropagation();
               currentHost = id;
               pendingMicHost = id;
-              sendSignal({ type: 'mic-request', id, user: store.user });
-              systemNote('Mic request sent');
+              const requestId = `stage-${clientId || 'anon'}-${Date.now()}`;
+              sendSignal({ type: 'stage-request', id, roomId: id, requestId, requestedRole: 'speaker', media: { audio: true, video: false }, user: store.user });
+              sendSignal({ type: 'mic-request', id, user: store.user, requestId });
+              systemNote('Ask to Speak request sent');
             });
             li.appendChild(micBtn);
           }
@@ -5153,11 +5213,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(!liveIds.has(id)){
             if(!streamPresence[id]) streamPresence[id] = Date.now();
             const missingFor = Date.now() - streamPresence[id];
-            if(missingFor > 6000){
-              if(streams[id].started && !streams[id].self){
-                endWatching(id);
-              }
-              closePeerConnection(id);
+            if(missingFor > 10000){
+              streams[id].connectionState = 'reconnecting';
+              if(streams[id].liveState) streams[id].liveState.textContent = 'Reconnecting…';
+              if(peerConnections[id]) attemptPeerRecovery(id);
+            }
+            if(missingFor > 45000){
+              if(streams[id].started && !streams[id].self) endWatching(id);
+              closePeerConnection(id, 'presence-timeout');
               streams[id].container.remove();
               delete streams[id];
               delete streamPresence[id];
@@ -5213,7 +5276,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         const div = document.createElement('div');
         div.className = 'stream';
-        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Request to join with mic"><img src="static/mic.svg" alt="Request mic" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
+        div.innerHTML = `<div class="stream-live-badge"><span class="dot"></span><span class="stream-live-state">Standby</span></div><div class="title">@${name} (<span class="listener-count">0</span>)</div><img class="thumb" alt="thumbnail" /><div class="video"></div><div class="join-btns"><button class="cam-btn chip" type="button" title="Start a new broadcast"><img src="static/go-live.svg" alt="Start separate broadcast" /></button><button class="mic-btn chip" type="button" title="Ask to Speak"><img src="static/mic.svg" alt="Ask to Speak" /></button></div><button class="tune-btn chip" type="button">Tune In</button><ul class="stream-feed"></ul>`;
         const videoBox = div.querySelector('.video');
         const thumbEl = div.querySelector('.thumb');
         thumbEl.setAttribute('hidden','');
@@ -5230,7 +5293,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             systemNote('Started a separate broadcast feed.');
           });
           micBtn.addEventListener('click', () => {
-            sendSignal({ type: 'mic-request', id, user: store.user });
+            const requestId = `stage-${clientId || 'anon'}-${Date.now()}`;
+            pendingMicHost = id; currentHost = id;
+            sendSignal({ type: 'stage-request', id, roomId: id, requestId, requestedRole: 'speaker', media: { audio: true, video: false }, user: store.user });
+            sendSignal({ type: 'mic-request', id, user: store.user, requestId });
+            systemNote('Ask to Speak request sent');
           });
           camBtn.hidden = true;
           micBtn.hidden = true;
@@ -5496,7 +5563,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(data && data.type === 'join-request') handleJoinRequest(data.id, data.user);
           if(data && data.type === 'join-approved') handleJoinApproved();
           if(data && data.type === 'join-denied') handleJoinDenied();
-          if(data && data.type === 'mic-request') handleMicRequest(data.id, data.user);
+          if(data && data.type === 'stage-request') handleStageRequest(data);
+          if(data && data.type === 'room-state') handleRoomState(data);
+          if(data && data.type === 'mic-request') handleMicRequest(data.id, data.user, data.requestId);
           if(data && data.type === 'mic-approved') handleMicApproved();
           if(data && data.type === 'mic-denied') handleMicDenied();
           if(data && data.type === 'invite') handleInvite(data);
@@ -7116,58 +7185,45 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       function handleWatcher(id){
         if(!localStream) return;
-        const pc = createPeerConnection(id);
-      localStream.getTracks().forEach(track => {
-        const alreadyAdded = pc.getSenders().some(sender => sender.track?.id === track.id);
-        if(!alreadyAdded) pc.addTrack(track, localStream);
-      });
-      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, candidate: e.candidate }); };
-      pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => {
-        sendSignal({ type:'offer', id, sdp: pc.localDescription });
-      });
+        const pc = ensurePeerConnection(getRoomIdForPeer(id), id);
+        localStream.getTracks().forEach(track => {
+          const alreadyAdded = pc.getSenders().some(sender => sender.track?.id === track.id);
+          if(!alreadyAdded) pc.addTrack(track, localStream);
+        });
+        negotiatePeer(id, { reason: 'watcher' });
     }
-      function handleOffer(msg){
-        let pc = peerConnections[msg.id];
-        if(!pc){
-          pc = createPeerConnection(msg.id);
-          pc.ontrack = ev => {
-            const remoteStream = collectRemoteTrack(pc, msg.id, ev);
-            const targetId = guestMap[msg.id] || msg.id;
-            if(targetId !== msg.id && streams[targetId]){
-              setStreamLiveState(targetId, 'Live now', true);
-            }
-            // Remote media stays attached to the owning participant tile; guests
-            // are not duplicated into the host tile or a primary player.
-            if(broadcasting && !joinApproved){
-              for(const id in peerConnections){
-                if(id === msg.id) continue;
-                try{
-                  const pc2 = peerConnections[id];
-                  const alreadyAdded = pc2.getSenders().some(sender => sender.track?.id === ev.track?.id);
-                  if(ev.track && !alreadyAdded) pc2.addTrack(ev.track, remoteStream);
-                  pc2.createOffer().then(o => pc2.setLocalDescription(o)).then(() => {
-                    sendSignal({ type:'offer', id, sdp: pc2.localDescription });
-                  });
-                }catch{}
-              }
-            }
-            pc._videos = Array.from((streams[msg.id]?.video || document).querySelectorAll?.('video') || []);
-            console.log('Connection state:', pc.connectionState);
-            console.log('ICE state:', pc.iceConnectionState);
-            applySelectedAudioFeed();
-          };
-          pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id: msg.id, candidate: e.candidate }); };
+      async function handleOffer(msg){
+        const id = msg.id;
+        const pc = ensurePeerConnection(msg.roomId || getRoomIdForPeer(id), id);
+        const state = peerStates[id];
+        if(msg.connectionGeneration && state.generation && msg.connectionGeneration < state.generation){
+          liveLog('stale-offer-ignored', { id, signalGeneration: msg.connectionGeneration, generation: state.generation });
+          return;
         }
-        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-          .then(() => flushPendingCandidates(pc))
-          .then(() => pc.createAnswer())
-          .then(ans => pc.setLocalDescription(ans))
-          .then(() => { sendSignal({ type:'answer', id: msg.id, sdp: pc.localDescription }); });
+        const offerCollision = msg.sdp?.type === 'offer' && (state.makingOffer || pc.signalingState !== 'stable');
+        state.ignoreOffer = !state.polite && offerCollision;
+        if(state.ignoreOffer){ liveLog('offer-collision-ignored', { id }); return; }
+        try{
+          state.isSettingRemoteAnswerPending = msg.sdp?.type === 'answer';
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          state.isSettingRemoteAnswerPending = false;
+          flushPendingCandidates(pc);
+          localStream?.getTracks?.().forEach(track => {
+            const alreadyAdded = pc.getSenders().some(sender => sender.track?.id === track.id);
+            if(!alreadyAdded) pc.addTrack(track, localStream);
+          });
+          await pc.setLocalDescription(await pc.createAnswer());
+          sendSignal({ type:'answer', id, roomId: state.roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, sdp: pc.localDescription });
+        }catch(error){ console.warn('Failed to handle offer', id, error); }
       }
 
-    function handleAnswer(msg){
+    async function handleAnswer(msg){
       const pc = peerConnections[msg.id];
-      if(pc) pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => flushPendingCandidates(pc));
+      const state = peerStates[msg.id];
+      if(!pc || !state) return;
+      if(msg.connectionGeneration && msg.connectionGeneration < state.generation){ liveLog('stale-answer-ignored', { id: msg.id }); return; }
+      try { await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); flushPendingCandidates(pc); }
+      catch(error){ console.warn('Failed to handle answer', msg.id, error); }
     }
 
     function flushPendingCandidates(pc){
@@ -7184,6 +7240,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function handleCandidate(msg){
       const pc = peerConnections[msg.id];
       if(!msg.candidate) return;
+      const state = peerStates[msg.id];
+      if(msg.connectionGeneration && state?.generation && msg.connectionGeneration < state.generation){ liveLog('stale-candidate-ignored', { id: msg.id }); return; }
       const candidate = new RTCIceCandidate(msg.candidate);
       if(!pc){
         if(!pendingIceCandidatesByPeer[msg.id]) pendingIceCandidatesByPeer[msg.id] = [];
@@ -7203,7 +7261,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const pc = peerConnections[msg.id];
         if(pc){
           if(pc._videos) pc._videos.forEach(v => v.remove());
-          closePeerConnection(msg.id);
+          closePeerConnection(msg.id, 'remote-bye');
         }
         const stageAud = videoContainer.querySelector(`audio[data-guest="${msg.id}"]`);
         if(stageAud) stageAud.remove();
@@ -7224,7 +7282,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           setStreamLiveState(host, 'Live now', true);
           if(streams[msg.id]){
             streams[msg.id].started = false;
-            streams[msg.id].video.innerHTML = '';
+            if(!streams[msg.id].stream) streams[msg.id].video.innerHTML = '';
             streams[msg.id].container.classList.remove('open');
             const t = streams[msg.id].container.querySelector('.tune-btn');
             if(t) t.textContent = 'Tune In';
@@ -7238,7 +7296,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           updateVideoLayout();
           if(streams[msg.id]){
             streams[msg.id].started = false;
-            streams[msg.id].video.innerHTML = '';
+            if(!streams[msg.id].stream) streams[msg.id].video.innerHTML = '';
             streams[msg.id].container.classList.remove('open');
             const t = streams[msg.id].container.querySelector('.tune-btn');
             if(t) t.textContent = 'Tune In';
@@ -7295,22 +7353,47 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       alert('Join request denied or busy.');
     }
 
-    function handleMicRequest(id, user){
+    function handleStageRequest(data){
       if(!broadcasting) return;
+      handleMicRequest(data.id, data.user, data.requestId);
+    }
+
+    function handleRoomState(data){
+      if(!data?.roomId) return;
+      let room = broadcastRooms.get(data.roomId);
+      if(!room){ room = createRoomState(data.roomId, data.hostId); broadcastRooms.set(data.roomId, room); }
+      room.hostId = data.hostId || room.hostId;
+      room.connectionGeneration = data.connectionGeneration || room.connectionGeneration;
+      room.stageMembers = new Map((data.stageMembers || []).map(member => [member.id, member]));
+      room.audienceMembers = new Map((data.audienceMembers || []).map(member => [member.id, member]));
+      room.stageRequests = new Map((data.stageRequests || []).map(request => [request.requestId, request]));
+      for(const member of room.stageMembers.values()){
+        if(member.id && !streams[member.id]) ensureStreamThumb(member.id, member.user || member.id, member.id === clientId);
+        if(streams[member.id]){
+          streams[member.id].role = member.role;
+          streams[member.id].cameraDisabled = member.media?.video === false;
+          if(streams[member.id].liveState && member.live && !streams[member.id].stream) streams[member.id].liveState.textContent = member.media?.video === false ? 'Audio live' : 'Connecting…';
+        }
+      }
+      renderAudioFeedControls();
+    }
+
+    function handleMicRequest(id, user, requestId){
+      if(!broadcasting) return;
+      if(requestId && handledStageRequestIds.has(requestId)) return;
+      if(requestId) handledStageRequestIds.add(requestId);
       showPopup(`@${user || 'user'} wants to speak.`, [
-        { label: 'Accept', onClick: () => { sendSignal({ type: 'approve-mic', id }); hidePopup(); } },
-        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id }); hidePopup(); } }
+        { label: 'Approve Speaker', onClick: () => { sendSignal({ type: 'approve-mic', id, requestId }); hidePopup(); } },
+        { label: 'Deny', onClick: () => { sendSignal({ type: 'deny-mic', id, requestId }); hidePopup(); } }
       ]);
     }
 
     function handleMicApproved(){
       micApproved = true;
-      const stream = streams[pendingMicHost];
-      const hostVid = stream && stream.video.querySelector('video');
-      if(hostVid){
-        videoContainer.appendChild(hostVid);
-      }
-      updateVideoLayout();
+      const hostId = pendingMicHost;
+      const stream = streams[hostId];
+      if(stream) setStreamLiveState(hostId, 'Live now', true);
+      updateVideoLayout(stream?.video);
       startBroadcast(null, true);
       setTimeout(resumeAllLiveVideos, 0);
       // Clear pending mic host to ensure the broadcast persists
