@@ -126,3 +126,15 @@ REST endpoints provided by the chat server:
 - `POST /api/nft-dropper/mint` – Accepts `{ fileDataUrl, fileName, fileType,
   metadata }`, writes the file and metadata into `NFT_DROPPER_SOURCE_DIR`, and
   echoes dropper status for the client UI.
+
+## Secure sessions and CHAINeS Memory Bank
+
+CHAINeS now uses a server-backed authenticated session and a per-user Memory Bank.
+
+- Authentication endpoints: `POST /register`, `POST /login`, `GET /api/session`, `POST /api/session/refresh`, and `POST /logout`.
+- Session identifiers are cryptographically random. Only a SHA-256 hash is stored in SQLite; the original identifier is sent in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` is enabled when `NODE_ENV=production`).
+- User-scoped memory endpoints: `GET /api/memory`, `GET/PUT/PATCH/DELETE /api/memory/:namespace`.
+- Client pages load `/static/session-client.js`, `/static/memory-bank.js`, and `/static/memory-autosave.js` to resolve the active server session before restoring drafts or preferences.
+- Browser storage is a versioned cache under `chaines_memory_v2`; it is not authentication proof and must not contain passwords, session tokens, private keys, stream keys, or wallet secrets.
+
+See `docs/memory-bank-audit.md` for the page audit, namespace mapping, legacy-key migration plan, and required environment variables.

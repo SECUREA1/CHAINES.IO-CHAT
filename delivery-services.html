@@ -236,6 +236,10 @@
       padding: 14px 10px 24px;
     }
 </style>
+
+<script src="/static/session-client.js"></script>
+<script src="/static/memory-bank.js"></script>
+<script src="/static/memory-autosave.js"></script>
 </head>
 <body>
   <main class="wrap">
@@ -560,7 +564,7 @@
       const adminConfigKey = 'chaines_delivery_admin_config';
       const receiptEmail = 'chadslondonrentals@gmail.com';
       const adminSupportUsername = 'admin';
-      const adminCredentials = { username: 'admin', password: 'giraff' };
+      const adminCredentials = { username: 'admin', password: '' }; // Admin auth is server/session managed; set ADMIN_PASSWORD on server.
       const optionLibrary = {
         breakfast: [
           { name: 'Greek yogurt parfait', note: 'berries + chia' },
