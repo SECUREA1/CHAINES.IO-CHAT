@@ -1082,6 +1082,9 @@
       outline: none;
     }
     .like-btn { font-weight:700; }
+    .reaction-btn[data-kind="delete"] { order: 9; border-color: color-mix(in oklab, var(--danger), white 18%); color:#fecaca; }
+    .reaction-btn[data-kind="delete"]:hover,
+    .reaction-btn[data-kind="delete"]:focus-visible { background: color-mix(in oklab, var(--danger), transparent 70%); border-color: var(--danger); }
     .reaction-btn[data-kind="repost"] { order: 5; }
     .reaction-btn[data-kind="share"] { order: 6; }
     .comments { margin-top:8px; }
@@ -2164,6 +2167,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
+                <button id="rewards-menu-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open Ghost Coin rewards" aria-label="Open Ghost Coin rewards"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
@@ -5820,9 +5824,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(data && data.type === 'guest-start') handleGuestStart(data);
           if(data && data.type === 'camera-state') handleCameraState(data);
           if(data && data.type === 'delete') {
-            const el = feed.querySelector(`li[data-id="${data.id}"]`);
-            if(el) el.remove();
-            store.removeMsg(data.id);
+            removePostFromFeed(data.id);
           }
           if(data && data.type === 'self-destruct') {
             systemNote(`Your post #${data.messageId} self-destructed`);
@@ -7755,6 +7757,37 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         });
       }
 
+
+      function removePostFromFeed(messageId){
+        if(!messageId) return;
+        const selector = `li[data-id="${CSS.escape(String(messageId))}"]`;
+        feed.querySelectorAll(selector).forEach((item) => item.remove());
+        store.removeMsg(messageId);
+        seen.delete(messageId);
+      }
+
+      async function deletePost(message){
+        if(!message || !message.id || message.user !== store.user) return;
+        const confirmed = confirm('Delete this post from CHAINeS POST? This removes it from the platform for everyone.');
+        if(!confirmed) return;
+        const id = message.id;
+        let sent = false;
+        try {
+          if(socket && socket.readyState === 1){
+            socket.send(JSON.stringify({ type:'delete', id, user: store.user }));
+            sent = true;
+          }
+        } catch {}
+        try {
+          const response = await fetch(`/api/posts/${encodeURIComponent(String(id))}`, { method:'DELETE', credentials:'include' });
+          if(response.ok) sent = true;
+        } catch {}
+        if(!sent){
+          removePostFromFeed(id);
+          systemNote('Post removed from this device. Connect to cloud to remove it for everyone.');
+        }
+      }
+
       function appendMessage(m, skipScroll=false, container=feed){
       const mine = m.user === store.user;
       const li = document.createElement('li');
@@ -8138,6 +8171,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         actions.appendChild(repostBtn);
         actions.appendChild(shareBtn);
 
+        if(mine){
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'reaction-btn';
+          deleteBtn.type = 'button';
+          deleteBtn.dataset.kind = 'delete';
+          deleteBtn.textContent = '🗑️ Delete';
+          deleteBtn.title = 'Delete this post from the platform';
+          deleteBtn.setAttribute('aria-label', 'Delete this post');
+          deleteBtn.addEventListener('click', () => deletePost(m));
+          actions.appendChild(deleteBtn);
+        }
+
         const commentsBox = document.createElement('div');
         commentsBox.className = 'comments';
         const commentsList = document.createElement('div');
@@ -8214,9 +8259,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(m.selfDestruct){
           const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
           setTimeout(() => {
-            const el = feed.querySelector(`li[data-id="${m.id}"]`);
-            if(el) el.remove();
-            store.removeMsg(m.id);
+            removePostFromFeed(m.id);
           }, delay);
         }
         if(!skipScroll) scrollToTop();

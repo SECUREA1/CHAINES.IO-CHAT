@@ -2213,6 +2213,25 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "delete": {
+        const id = Number(msg.id || msg.messageId);
+        const actor = sanitizeUsername(msg.user || ws.username || "");
+        if (!id || !actor) return;
+        const row = db.prepare("SELECT id, user FROM chat_messages WHERE id = ?").get(id);
+        if (!row || row.user !== actor) {
+          ws.send(JSON.stringify({ type: "system", text: "Only the original poster can delete this post." }));
+          return;
+        }
+        db.prepare("DELETE FROM comments WHERE message_id = ?").run(id);
+        db.prepare("DELETE FROM likes WHERE message_id = ?").run(id);
+        db.prepare("DELETE FROM reposts WHERE message_id = ? OR repost_message_id = ?").run(id, id);
+        db.prepare("DELETE FROM chat_messages WHERE id = ?").run(id);
+        const payload = JSON.stringify({ type: "delete", id });
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(payload);
+        }
+        return;
+      }
       case "repost": {
         if (!msg.messageId) return;
         const actor = sanitizeUsername(msg.user || ws.username || "");
