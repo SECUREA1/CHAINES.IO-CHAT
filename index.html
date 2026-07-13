@@ -4595,7 +4595,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         try {
           if(sender) await sender.replaceTrack(videoTrack);
           else pc.addTrack(videoTrack, stream);
-          await negotiatePeer(id, { reason: 'publish-video-track' });
+          if(pc.signalingState === 'stable'){
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendSignal({ type:'offer', id, roomId: pc._roomId || getRoomIdForPeer(id), fromParticipantId: clientId, toParticipantId: id, sdp: pc.localDescription });
+          }
         } catch(error){
           console.warn('Unable to publish video track to peer', id, error);
         }
@@ -4652,74 +4656,106 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }, 5000);
     }
 
-    function createConfiguredPeerConnection(roomId, id){
+    function logLiveSignal(signal = {}){
+      console.debug('[live-signal]', {
+        type: signal.type,
+        roomId: signal.roomId,
+        from: signal.fromParticipantId,
+        to: signal.toParticipantId,
+        legacyId: signal.id
+      });
+    }
+
+    function normalizeLiveSignal(message = {}){
+      return {
+        ...message,
+        fromParticipantId: message.fromParticipantId || message.from || message.senderId || message.id,
+        toParticipantId: message.toParticipantId || message.targetId || message.to,
+        roomId: message.roomId || message.hostId || message.room
+      };
+    }
+
+    function logPeerDiagnostics(remoteParticipantId, roomId, pc){
+      if(!pc) return;
+      console.debug('[live-peer]', {
+        roomId,
+        localParticipantId: clientId,
+        remoteParticipantId,
+        signalingState: pc.signalingState,
+        iceConnectionState: pc.iceConnectionState,
+        connectionState: pc.connectionState,
+        senders: pc.getSenders().map(sender => ({ kind: sender.track?.kind, id: sender.track?.id, state: sender.track?.readyState })),
+        receivers: pc.getReceivers().map(receiver => ({ kind: receiver.track?.kind, id: receiver.track?.id, state: receiver.track?.readyState, muted: receiver.track?.muted }))
+      });
+    }
+
+    function isReusablePeer(pc, remoteParticipantId, roomId){
+      return Boolean(
+        pc &&
+        pc.connectionState !== 'closed' &&
+        pc.connectionState !== 'failed' &&
+        pc._remoteParticipantId === remoteParticipantId &&
+        pc._roomId === roomId &&
+        typeof pc.ontrack === 'function'
+      );
+    }
+
+    function createPeerConnection(id, roomId = getRoomIdForPeer(id)){
+      closePeerConnection(id, 'replace-peer');
       const pc = new RTCPeerConnection(rtcConfig);
       peerConnections[id] = pc;
-      const state = peerStates[id] || { pc, polite: String(clientId || '') > String(id || ''), makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false, negotiationQueue: Promise.resolve(), generation: Date.now(), roomId, remoteParticipantId: id };
-      state.pc = pc; state.roomId = roomId; state.remoteParticipantId = id;
-      peerStates[id] = state;
+      pc._remoteParticipantId = id;
+      pc._roomId = roomId;
       pc._pendingCandidates = pendingIceCandidatesByPeer[id] || [];
       pendingIceCandidatesByPeer[id] = pc._pendingCandidates;
       startPeerVideoStatsMonitor(id, pc);
       pc.ontrack = ev => {
-        liveLog('remote-track', { roomId, remoteParticipantId: id, kind: ev.track?.kind, trackId: ev.track?.id });
-        collectRemoteTrack(pc, guestMap[id] || id, ev);
+        collectRemoteTrack(pc, id, ev);
         applySelectedAudioFeed();
+        logPeerDiagnostics(id, roomId, pc);
       };
-      pc.onicecandidate = e => { if(e.candidate) sendSignal({ type:'candidate', id, roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, candidate: e.candidate }); };
-      pc.onnegotiationneeded = () => negotiatePeer(id, { reason: 'negotiationneeded' });
-      pc.onsignalingstatechange = () => liveLog('signaling', { id, signalingState: pc.signalingState });
+      pc.onicecandidate = e => {
+        if(e.candidate) sendSignal({ type:'candidate', id, roomId, fromParticipantId: clientId, toParticipantId: id, candidate: e.candidate });
+      };
       pc.onconnectionstatechange = () => {
-        liveLog('connection', { id, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
+        console.log(id, 'connection:', pc.connectionState);
+        logPeerDiagnostics(id, roomId, pc);
         if(pc.connectionState === 'connected'){
           const participantId = guestMap[id] || id;
           if(streams[participantId]?.stream) updateParticipantStream(participantId, streams[participantId].stream);
         }
-        if(pc.connectionState === 'failed') attemptPeerRecovery(id);
+        if(['failed', 'closed'].includes(pc.connectionState)){
+          closePeerConnection(id, pc.connectionState);
+          const participantId = guestMap[id] || id;
+          const stream = streams[participantId];
+          if(stream && !stream.self && (stream.started || stream.liveActive)){
+            stream.started = false;
+            stream.stream = null;
+            stream.connectionState = 'standby';
+            window.setTimeout(() => activateLiveFeedFromPresence(participantId), 500);
+          }
+        }
       };
       pc.oniceconnectionstatechange = () => {
-        liveLog('ice', { id, iceConnectionState: pc.iceConnectionState });
-        if(['disconnected','failed'].includes(pc.iceConnectionState)) attemptPeerRecovery(id);
+        console.log(id, 'ICE:', pc.iceConnectionState);
+        logPeerDiagnostics(id, roomId, pc);
       };
       return pc;
     }
 
-    function createPeerConnection(id){
-      return ensurePeerConnection(getRoomIdForPeer(id), id);
-    }
-
     function ensurePeerConnection(roomId, remoteParticipantId){
       const existing = peerConnections[remoteParticipantId];
-      if(existing && existing.connectionState !== 'closed' && existing.connectionState !== 'failed') return existing;
-      return createConfiguredPeerConnection(roomId, remoteParticipantId);
+      if(isReusablePeer(existing, remoteParticipantId, roomId)) return existing;
+      if(existing) closePeerConnection(remoteParticipantId, 'invalid-peer');
+      return createPeerConnection(remoteParticipantId, roomId);
     }
 
-    async function negotiatePeer(id, options = {}){
-      const state = peerStates[id];
-      const pc = peerConnections[id];
-      if(!state || !pc || pc.signalingState === 'closed') return;
-      state.negotiationQueue = (state.negotiationQueue || Promise.resolve()).then(async () => {
-        if(state.makingOffer || pc.signalingState !== 'stable') return;
-        try{
-          state.makingOffer = true;
-          await pc.setLocalDescription(await pc.createOffer(options.iceRestart ? { iceRestart: true } : undefined));
-          sendSignal({ type:'offer', id, roomId: state.roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, sdp: pc.localDescription });
-          liveLog('offer-sent', { id, reason: options.reason, generation: state.generation, senders: pc.getSenders().length, receivers: pc.getReceivers().length });
-        } finally { state.makingOffer = false; }
-      }).catch(error => console.warn('WebRTC negotiation failed', id, error));
-      return state.negotiationQueue;
-    }
-
-    async function attemptPeerRecovery(id){
-      const state = peerStates[id];
-      const pc = peerConnections[id];
-      if(!state || !pc || state.recovering) return;
-      state.recovering = true;
-      window.setTimeout(() => { state.recovering = false; }, 10000);
-      try{
-        if(typeof pc.restartIce === 'function') pc.restartIce();
-        await negotiatePeer(id, { reason: 'ice-restart', iceRestart: true });
-      }catch(error){ console.warn('Peer recovery failed', id, error); }
+    async function createAndSendOffer(id, roomId, pc){
+      if(!pc || pc.signalingState === 'closed') return;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendSignal({ type:'offer', id, roomId, fromParticipantId: clientId, toParticipantId: id, sdp: pc.localDescription });
+      logPeerDiagnostics(id, roomId, pc);
     }
 
     function showOverlayMessage({ user, text, profilePic }){
@@ -5216,7 +5252,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             if(missingFor > 10000){
               streams[id].connectionState = 'reconnecting';
               if(streams[id].liveState) streams[id].liveState.textContent = 'Reconnecting…';
-              if(peerConnections[id]) attemptPeerRecovery(id);
+              if(peerConnections[id]) closePeerConnection(id, 'presence-reconnect');
             }
             if(missingFor > 45000){
               if(streams[id].started && !streams[id].self) endWatching(id);
@@ -5555,7 +5591,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           }
           if(data && data.type === 'id') clientId = data.id;
           if(data && data.type === 'listeners') updateListenerCount(data.id, data.count);
-          if(data && data.type === 'watcher') handleWatcher(data.id);
+          if(data && data.type === 'watcher') handleWatcher(data);
           if(data && data.type === 'offer') handleOffer(data);
           if(data && data.type === 'answer') handleAnswer(data);
           if(data && data.type === 'candidate') handleCandidate(data);
@@ -7166,7 +7202,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(!broadcasting){
           showStream();
         }
-        sendSignal({ type: 'watcher', id });
+        sendSignal({ type: 'watcher', id, roomId: id, fromParticipantId: clientId, toParticipantId: id });
         renderAudioFeedControls();
       }
 
@@ -7179,51 +7215,55 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         } else if(currentHost === id){
           currentHost = [...activeRooms][0];
         }
-        sendSignal({ type: 'unwatcher', id });
+        sendSignal({ type: 'unwatcher', id, roomId: id, fromParticipantId: clientId, toParticipantId: id });
         renderAudioFeedControls();
       }
 
-      function handleWatcher(id){
-        if(!localStream) return;
-        const pc = ensurePeerConnection(getRoomIdForPeer(id), id);
+      async function handleWatcher(raw){
+        const signal = normalizeLiveSignal(typeof raw === 'object' ? raw : { id: raw });
+        logLiveSignal(signal);
+        const viewerId = signal.fromParticipantId || signal.id;
+        const roomId = signal.roomId || clientId;
+        if(!localStream || !viewerId) return;
+        const pc = ensurePeerConnection(roomId, viewerId);
         localStream.getTracks().forEach(track => {
           const alreadyAdded = pc.getSenders().some(sender => sender.track?.id === track.id);
           if(!alreadyAdded) pc.addTrack(track, localStream);
         });
-        negotiatePeer(id, { reason: 'watcher' });
-    }
-      async function handleOffer(msg){
-        const id = msg.id;
-        const pc = ensurePeerConnection(msg.roomId || getRoomIdForPeer(id), id);
-        const state = peerStates[id];
-        if(msg.connectionGeneration && state.generation && msg.connectionGeneration < state.generation){
-          liveLog('stale-offer-ignored', { id, signalGeneration: msg.connectionGeneration, generation: state.generation });
-          return;
-        }
-        const offerCollision = msg.sdp?.type === 'offer' && (state.makingOffer || pc.signalingState !== 'stable');
-        state.ignoreOffer = !state.polite && offerCollision;
-        if(state.ignoreOffer){ liveLog('offer-collision-ignored', { id }); return; }
+        try { await createAndSendOffer(viewerId, roomId, pc); }
+        catch(error){ console.warn('Failed to create watcher offer', viewerId, error); }
+      }
+
+      async function handleOffer(message){
+        const msg = normalizeLiveSignal(message);
+        logLiveSignal(msg);
+        const id = msg.fromParticipantId || msg.id;
+        const roomId = msg.roomId || getRoomIdForPeer(id);
+        if(!id || !msg.sdp) return;
+        const pc = ensurePeerConnection(roomId, id);
         try{
-          state.isSettingRemoteAnswerPending = msg.sdp?.type === 'answer';
           await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-          state.isSettingRemoteAnswerPending = false;
           flushPendingCandidates(pc);
           localStream?.getTracks?.().forEach(track => {
             const alreadyAdded = pc.getSenders().some(sender => sender.track?.id === track.id);
             if(!alreadyAdded) pc.addTrack(track, localStream);
           });
-          await pc.setLocalDescription(await pc.createAnswer());
-          sendSignal({ type:'answer', id, roomId: state.roomId, fromParticipantId: clientId, toParticipantId: id, connectionGeneration: state.generation, sdp: pc.localDescription });
+          const ans = await pc.createAnswer();
+          await pc.setLocalDescription(ans);
+          sendSignal({ type:'answer', id, roomId, fromParticipantId: clientId, toParticipantId: id, sdp: pc.localDescription });
+          logPeerDiagnostics(id, roomId, pc);
         }catch(error){ console.warn('Failed to handle offer', id, error); }
       }
 
-    async function handleAnswer(msg){
-      const pc = peerConnections[msg.id];
-      const state = peerStates[msg.id];
-      if(!pc || !state) return;
-      if(msg.connectionGeneration && msg.connectionGeneration < state.generation){ liveLog('stale-answer-ignored', { id: msg.id }); return; }
-      try { await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); flushPendingCandidates(pc); }
-      catch(error){ console.warn('Failed to handle answer', msg.id, error); }
+    async function handleAnswer(message){
+      const msg = normalizeLiveSignal(message);
+      logLiveSignal(msg);
+      const id = msg.fromParticipantId || msg.id;
+      const pc = peerConnections[id];
+      if(pc && msg.sdp){
+        try { await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); flushPendingCandidates(pc); logPeerDiagnostics(id, pc._roomId || msg.roomId, pc); }
+        catch(error){ console.warn('Failed to handle answer', id, error); }
+      }
     }
 
     function flushPendingCandidates(pc){
@@ -7237,21 +7277,23 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
 
-    function handleCandidate(msg){
-      const pc = peerConnections[msg.id];
-      if(!msg.candidate) return;
-      const state = peerStates[msg.id];
-      if(msg.connectionGeneration && state?.generation && msg.connectionGeneration < state.generation){ liveLog('stale-candidate-ignored', { id: msg.id }); return; }
+    function queueCandidate(remoteParticipantId, candidate){
+      if(!pendingIceCandidatesByPeer[remoteParticipantId]) pendingIceCandidatesByPeer[remoteParticipantId] = [];
+      pendingIceCandidatesByPeer[remoteParticipantId].push(candidate);
+    }
+
+    function handleCandidate(message){
+      const msg = normalizeLiveSignal(message);
+      logLiveSignal(msg);
+      const id = msg.fromParticipantId || msg.id;
+      if(!id || !msg.candidate) return;
+      const pc = peerConnections[id];
       const candidate = new RTCIceCandidate(msg.candidate);
-      if(!pc){
-        if(!pendingIceCandidatesByPeer[msg.id]) pendingIceCandidatesByPeer[msg.id] = [];
-        pendingIceCandidatesByPeer[msg.id].push(candidate);
-        return;
-      }
+      if(!pc){ queueCandidate(id, candidate); return; }
       if(!pc.remoteDescription){
-        if(!pc._pendingCandidates) pc._pendingCandidates = [];
+        if(!pc._pendingCandidates) pc._pendingCandidates = pendingIceCandidatesByPeer[id] || [];
         pc._pendingCandidates.push(candidate);
-        pendingIceCandidatesByPeer[msg.id] = pc._pendingCandidates;
+        pendingIceCandidatesByPeer[id] = pc._pendingCandidates;
         return;
       }
       pc.addIceCandidate(candidate).catch(error => console.warn('Failed to add ICE candidate:', error));
