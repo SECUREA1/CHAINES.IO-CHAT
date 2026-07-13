@@ -174,7 +174,7 @@
     <div class="footer"><strong>CHAINeS</strong><br/>Polygon mint terminal and AR NFT display.</div>
   </main>
 
-  <script>
+  <script type="module">
     (() => {
       const $ = (id) => document.getElementById(id);
       const viewer = $('primary-collectible-viewer');
@@ -193,11 +193,15 @@
       const terminalPlaceholder = $('terminalPlaceholder');
       const toggleTerminalBtn = $('toggleTerminalBtn');
       const SWIPE_THRESHOLD = 55;
-      const collectibles = [
-        {number:1,tokenId:214,name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'},
-        {number:2,tokenId:222,name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'},
-        {number:3,tokenId:224,name:'Doge Core',modelUrl:'/static/models/doge-core.gltf',posterUrl:'/cryo.png',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}
-      ];
+      const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
+      const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
+      const DEFAULT_CAMERA = {cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'};
+      const featuredCollectibles = new Map([
+        [214, {name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'}],
+        [222, {name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}],
+        [224, {name:'Doge Core',modelUrl:'/static/models/doge-core.gltf',posterUrl:'/cryo.png',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}]
+      ]);
+      let collectibles = Array.from(featuredCollectibles.entries()).sort((a,b)=>b[0]-a[0]).map(([tokenId, data], index) => ({number:index+1, tokenId, ...DEFAULT_CAMERA, ...data}));
       let activeCollectionIndex = 0;
       let terminalVisible = false;
       const absolute = (path) => new URL(path, window.location.origin).href;
@@ -215,7 +219,32 @@
         if(options.skipUrl) return;
         const url = new URL(window.location.href);
         url.searchParams.set('collection', String(collectible.number));
+        url.searchParams.set('tokenId', String(collectible.tokenId));
         history[options.push?'pushState':'replaceState']({collection:collectible.number},'',url);
+      }
+      function normalizeCollectibles(latestTokenId){
+        const lastCreatedTokenId = Math.max(0, Number(latestTokenId) - 1);
+        collectibles = Array.from({length:lastCreatedTokenId + 1}, (_, index) => {
+          const tokenId = lastCreatedTokenId - index;
+          const featured = featuredCollectibles.get(tokenId) || {};
+          return {number:index+1, tokenId, name:featured.name || `Token ID ${tokenId}`, modelUrl:featured.modelUrl || '', posterUrl:featured.posterUrl || '/static/logo.svg', ...DEFAULT_CAMERA, ...featured};
+        });
+      }
+      async function loadContractCollectibles(){
+        try {
+          viewerStatus.textContent = 'Loading contract NFTs…';
+          const [{createThirdwebClient, getContract, readContract}, {polygon}] = await Promise.all([
+            import('https://esm.sh/thirdweb@5'),
+            import('https://esm.sh/thirdweb@5/chains')
+          ]);
+          const client = createThirdwebClient({clientId:THIRDWEB_CLIENT_ID});
+          const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
+          const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
+          normalizeCollectibles(Number(nextTokenId));
+        } catch (err) {
+          console.warn('Unable to load the complete contract NFT list; using featured fallback.', err);
+          viewerStatus.textContent = 'Using featured NFT fallback; contract list could not load.';
+        }
       }
       function selectCollectibleByNumber(number, options={}){
         const requested = Number.parseInt(number, 10);
@@ -230,16 +259,23 @@
         nextBtn.disabled = activeCollectionIndex >= collectibles.length - 1;
         activeCollectibleTitle.textContent = collectible.name;
         viewerModelName.textContent = `NFT #${collectible.number} · Token ID ${collectible.tokenId} · ${collectible.name}`;
-        activeModelPath.textContent = collectible.modelUrl;
-        viewerStatus.textContent = 'Loading NFT…';
-        viewer.setAttribute('src', collectible.modelUrl);
+        activeModelPath.textContent = collectible.modelUrl || `Contract token ${collectible.tokenId}`;
         viewer.setAttribute('poster', collectible.posterUrl);
-        viewer.setAttribute('alt', `Interactive AR preview of ${collectible.name}`);
+        viewer.setAttribute('alt', collectible.modelUrl ? `Interactive AR preview of ${collectible.name}` : `Contract NFT ${collectible.tokenId} selected in the mint terminal`);
         viewer.setAttribute('camera-orbit', collectible.cameraOrbit);
         viewer.setAttribute('camera-target', collectible.cameraTarget);
         viewer.setAttribute('field-of-view', collectible.fieldOfView);
-        googleArBtn.disabled = false;
-        launchArBtn.disabled = false;
+        if (collectible.modelUrl) {
+          viewerStatus.textContent = 'Loading NFT…';
+          viewer.setAttribute('src', collectible.modelUrl);
+          googleArBtn.disabled = false;
+          launchArBtn.disabled = false;
+        } else {
+          viewer.removeAttribute('src');
+          viewerStatus.textContent = 'Contract NFT selected. Use the mint terminal to view this token.';
+          googleArBtn.disabled = true;
+          launchArBtn.disabled = true;
+        }
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
       }
@@ -251,7 +287,13 @@
         updateMintEmbedConfig(collectibles[activeCollectionIndex]);
       }
       function initialNumber(){
-        const urlNumber = Number.parseInt(new URLSearchParams(location.search).get('collection'), 10);
+        const params = new URLSearchParams(location.search);
+        const urlTokenId = Number.parseInt(params.get('tokenId'), 10);
+        if (Number.isFinite(urlTokenId)) {
+          const tokenIndex = collectibles.findIndex((collectible) => collectible.tokenId === urlTokenId);
+          if (tokenIndex >= 0) return tokenIndex + 1;
+        }
+        const urlNumber = Number.parseInt(params.get('collection'), 10);
         return Number.isFinite(urlNumber) ? urlNumber : 1;
       }
       viewer.addEventListener('progress', e => {
@@ -271,8 +313,8 @@
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) selectCollectibleByNumber(activeCollectionIndex + (dx < 0 ? 2 : 0), {push:true}); }, {passive:true});
-      window.addEventListener('popstate', () => selectCollectibleByNumber(new URLSearchParams(location.search).get('collection') || 1, {skipUrl:true}));
-      selectCollectibleByNumber(initialNumber(), {skipUrl: new URLSearchParams(location.search).has('collection')});
+      window.addEventListener('popstate', () => selectCollectibleByNumber(initialNumber(), {skipUrl:true}));
+      loadContractCollectibles().finally(() => selectCollectibleByNumber(initialNumber(), {skipUrl: new URLSearchParams(location.search).has('collection') || new URLSearchParams(location.search).has('tokenId')}));
     })();
   </script>
 
