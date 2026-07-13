@@ -1546,6 +1546,23 @@ const watching = new Map();  // watcherId -> Set of hostIds
 const guestApprovedByHost = new Map(); // hostId -> approved guestId
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
+const broadcastRooms = new Map(); // roomId -> authoritative room/stage state
+function ensureBroadcastRoom(roomId, hostId = roomId){
+  if(!broadcastRooms.has(roomId)){
+    broadcastRooms.set(roomId, { roomId, hostId, stageMembers: new Map(), audienceMembers: new Map(), stageRequests: new Map(), connectionGeneration: 0 });
+  }
+  return broadcastRooms.get(roomId);
+}
+function serializeBroadcastRoom(room){
+  return { type: 'room-state', roomId: room.roomId, hostId: room.hostId, stageMembers: Array.from(room.stageMembers.values()), audienceMembers: Array.from(room.audienceMembers.values()), stageRequests: Array.from(room.stageRequests.values()), connectionGeneration: room.connectionGeneration };
+}
+function sendRoomState(roomId){
+  const room = broadcastRooms.get(roomId);
+  if(!room) return;
+  const payload = JSON.stringify(serializeBroadcastRoom(room));
+  const targets = new Set([room.hostId, ...room.stageMembers.keys(), ...room.audienceMembers.keys(), ...(listeners.get(roomId) || [])]);
+  for(const id of targets){ const client = clients.get(id); if(client && client.readyState === 1) client.send(payload); }
+}
 const secureLiveParticipants = new Map(); // ws.id -> { id, user }
 const secureLivePresence = new Map(); // ws.id -> lastSeenMs
 const SECURE_LIVE_ACTIVE_WINDOW_MS = 35000;
@@ -1679,6 +1696,9 @@ wss.on("connection", (ws) => {
     switch (msg?.type) {
       case "broadcaster":
         broadcasters.set(ws.id, ws);
+        const ownRoom = ensureBroadcastRoom(ws.id, ws.id);
+        ownRoom.stageMembers.set(ws.id, { id: ws.id, user: ws.username || '', role: 'host', media: { audio: true, video: true }, muted: false, live: true });
+        sendRoomState(ws.id);
         broadcastUsers();
         const followers = db
           .prepare("SELECT follower FROM follows WHERE following = ?")
@@ -1713,6 +1733,10 @@ wss.on("connection", (ws) => {
       case "mic-broadcaster":
         broadcasters.set(ws.id, ws);
         micGuests.add(ws.id);
+        const micRoomId = guestHosts.get(ws.id) || ws.id;
+        const micRoom = ensureBroadcastRoom(micRoomId, micRoomId);
+        micRoom.stageMembers.set(ws.id, { id: ws.id, user: ws.username || '', role: 'speaker', media: { audio: true, video: false }, muted: false, live: true });
+        sendRoomState(micRoomId);
         broadcastUsers();
         return;
       case "end-broadcast":
@@ -1765,11 +1789,24 @@ wss.on("connection", (ws) => {
         }
         return;
       }
+      case "stage-request": {
+        const roomId = msg.roomId || msg.id;
+        const room = ensureBroadcastRoom(roomId, roomId);
+        const requestId = String(msg.requestId || `${ws.id}-${Date.now()}`);
+        if(!room.stageRequests.has(requestId)){
+          const request = { requestId, id: ws.id, user: ws.username || msg.user || '', requestedRole: msg.requestedRole || 'speaker', media: msg.media || { audio: true, video: false }, state: 'pending', ts: Date.now() };
+          room.stageRequests.set(requestId, request);
+          const host = clients.get(room.hostId);
+          if(host && host.readyState === 1) host.send(JSON.stringify({ type: 'stage-request', roomId, ...request }));
+          sendRoomState(roomId);
+        }
+        return;
+      }
       case "mic-request": {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
           host.send(
-            JSON.stringify({ type: "mic-request", id: ws.id, user: ws.username })
+            JSON.stringify({ type: "mic-request", id: ws.id, user: ws.username, requestId: msg.requestId || null, roomId: msg.roomId || msg.id })
           );
           db
             .prepare(
@@ -1817,14 +1854,24 @@ wss.on("connection", (ws) => {
         if (guest && broadcasters.has(ws.id)) {
           guestApprovedByHost.set(ws.id, msg.id);
           guestHosts.set(msg.id, ws.id);
-          guest.send(JSON.stringify({ type: "join-approved" }));
+          const room = ensureBroadcastRoom(ws.id, ws.id);
+          room.stageMembers.set(msg.id, { id: msg.id, user: guest.username || '', role: 'guest', media: { audio: true, video: true }, muted: false, live: false });
+          room.connectionGeneration += 1;
+          sendRoomState(ws.id);
+          guest.send(JSON.stringify({ type: "join-approved", roomId: ws.id, fromParticipantId: ws.id, toParticipantId: msg.id, connectionGeneration: room.connectionGeneration }));
         }
         return;
       }
       case "approve-mic": {
         const guest = clients.get(msg.id);
         if (guest && broadcasters.has(ws.id)) {
-          guest.send(JSON.stringify({ type: "mic-approved" }));
+          const room = ensureBroadcastRoom(ws.id, ws.id);
+          const request = Array.from(room.stageRequests.values()).find(item => item.id === msg.id && item.state === 'pending');
+          if(request) request.state = 'approved';
+          room.stageMembers.set(msg.id, { id: msg.id, user: guest.username || '', role: 'speaker', media: { audio: true, video: false }, muted: false, live: false });
+          room.connectionGeneration += 1;
+          sendRoomState(ws.id);
+          guest.send(JSON.stringify({ type: "mic-approved", roomId: ws.id, fromParticipantId: ws.id, toParticipantId: msg.id, requestId: msg.requestId || request?.requestId || null, connectionGeneration: room.connectionGeneration }));
         }
         return;
       }
@@ -1841,7 +1888,10 @@ wss.on("connection", (ws) => {
       case "watcher": {
         const host = broadcasters.get(msg.id);
         if (host && host.readyState === 1) {
-          host.send(JSON.stringify({ type: "watcher", id: ws.id }));
+          const room = ensureBroadcastRoom(msg.id, msg.id);
+          room.audienceMembers.set(ws.id, { id: ws.id, user: ws.username || '', role: 'audience', live: true });
+          ws.send(JSON.stringify(serializeBroadcastRoom(room)));
+          host.send(JSON.stringify({ type: "watcher", id: ws.id, roomId: msg.id, fromParticipantId: ws.id, toParticipantId: msg.id, connectionGeneration: room.connectionGeneration }));
           if(!listeners.has(msg.id)) listeners.set(msg.id, new Set());
           listeners.get(msg.id).add(ws.id);
           if(!watching.has(ws.id)) watching.set(ws.id, new Set());
@@ -2067,9 +2117,12 @@ wss.on("connection", (ws) => {
       case "answer":
       case "candidate":
       case "bye": {
-        const dest = clients.get(msg.id);
+        const dest = clients.get(msg.toParticipantId || msg.id);
         if (dest && dest.readyState === 1) {
-          const payload = { type: msg.type, id: ws.id };
+          const roomId = msg.roomId || guestHosts.get(ws.id) || guestHosts.get(msg.id) || msg.id || ws.id;
+          const room = broadcastRooms.get(roomId);
+          if(room && ![room.hostId, ...room.stageMembers.keys(), ...room.audienceMembers.keys(), ...(listeners.get(roomId) || [])].includes(ws.id)) return;
+          const payload = { type: msg.type, id: ws.id, roomId, fromParticipantId: ws.id, toParticipantId: dest.id, connectionGeneration: msg.connectionGeneration || room?.connectionGeneration || 0 };
           if (msg.sdp) payload.sdp = msg.sdp;
           if (msg.candidate) payload.candidate = msg.candidate;
           dest.send(JSON.stringify(payload));
