@@ -113,20 +113,20 @@
   <main class="shell" id="top">
     <section class="hero">
       <div class="panel">
-        <span class="badge">Fully branded AR experience</span>
-        <h1>CHAINeS Polygon collectible command center.</h1>
-        <p>One screen to preview, mint, browse token IDs, and launch AR for CHAINeS collectibles backed by Polygon NFTs.</p>
-        <div class="hero-actions" style="margin-top:.8rem"><a class="btn primary" href="#mint">Open mint console</a><a class="btn secondary" href="#viewer">Load AR player</a></div>
+        <span class="badge">Clean AR showcase</span>
+        <h1>CHAINeS AR collectibles.</h1>
+        <p>Pick a collectible, preview the working 3D model, and launch AR from the same clean player.</p>
+        <div class="hero-actions" style="margin-top:.8rem"><a class="btn primary" href="#viewer">Open AR player</a><a class="btn secondary" href="#mint">Mint selected token</a></div>
         <div class="hero-stats">
-          <div class="stat"><strong>Polygon-native</strong><span>Token ID sync from your live collection</span></div>
-          <div class="stat"><strong>3D + AR</strong><span>GLB preview with WebXR / Quick Look launch</span></div>
-          <div class="stat"><strong>Mint & Play</strong><span>Mint embed and viewer integrated in one flow</span></div>
+          <div class="stat"><strong>Local glTF assets</strong><span>Models load from this site, not missing external files</span></div>
+          <div class="stat"><strong>3D + AR</strong><span>Inline preview with WebXR / Scene Viewer / Quick Look hooks</span></div>
+          <div class="stat"><strong>No clutter</strong><span>Only controls needed to view, share, and mint</span></div>
         </div>
       </div>
       <aside class="panel">
-        <span class="badge">Collection coverage</span>
-        <h3 style="margin:.55rem 0 .55rem">Display every numbered NFT the app can populate from your Polygon collection.</h3>
-        <p>Use <strong>Populate from Polygon</strong> to pull token IDs from the contract, then click any token to sync mint + viewer inputs instantly.</p>
+        <span class="badge">Ready to display</span>
+        <h3 style="margin:.55rem 0 .55rem">The collectible player now starts with valid local text glTF models.</h3>
+        <p>Use Previous, Next, or the token rail to switch models. If AR is supported on the device, the same model opens in AR.</p>
       </aside>
     </section>
 
@@ -139,11 +139,9 @@
             <div class="grid">
               <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
               <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="226" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a GLB collectible</option><option value="/2026-01-18.glb" data-token="214">2026-01-18.glb</option><option value="/2026-01-19.glb" data-token="222">2026-01-19.glb</option><option value="/Dark%20Musky%20Doge.glb" data-token="224">Dark Musky Doge.glb</option></select></div>
+              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a glTF collectible</option><option value="/static/models/chaines-crystal.gltf" data-token="214">CHAINeS Crystal</option><option value="/static/models/polygon-vault.gltf" data-token="222">Polygon Vault</option><option value="/static/models/doge-core.gltf" data-token="224">Doge Core</option></select></div>
               <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
-              <div><label for="glbBasePathInput">GLB base path</label><input id="glbBasePathInput" type="text" value="/nft-source/glb" placeholder="/nft-source/glb" /></div>
-              <div style="display:flex;align-items:end"><label style="display:flex;gap:.45rem;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text)"><input id="autoPathFromTokenInput" type="checkbox" checked style="width:auto"/>Auto-build GLB path from token number</label></div>
-              <div class="full"><label for="glbUrlInput">GLB model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .glb URL or choose from list" /></div>
+              <div class="full"><label for="glbUrlInput">glTF model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .gltf URL or choose from list" /></div>
               <div class="full"><label for="usdzUrlInput">Optional iOS USDZ URL</label><input id="usdzUrlInput" type="text" placeholder="Optional .usdz for Quick Look" /></div>
               <div class="full"><label for="collectibleNotes">Collectible utility notes</label><textarea id="collectibleNotes" placeholder="Token-gated controls, scenes, downloadable perks, etc."></textarea></div>
             </div>
@@ -152,17 +150,7 @@
           </div>
 
           <div class="card" style="margin-top:.9rem">
-            <div class="mint-head"><div><span class="badge">Collection browser</span><h2 style="margin-top:.45rem">Token list from Polygon + local GLB list</h2></div></div>
-            <div class="collection-toolbar">
-              <button class="btn" id="populatePolygonBtn" type="button">Populate from Polygon</button>
-              <button class="btn" id="showListedOnlyBtn" type="button">Show listed GLBs</button>
-              <button class="btn" id="jpgManifestBtn" type="button">Load JPG metadata</button>
-              <button class="btn secondary" id="buildRangeBtn" type="button">Build numeric range</button>
-            </div>
-            <div class="grid" style="margin-top:.7rem">
-              <div><label for="rangeStartInput">Start token</label><input id="rangeStartInput" type="number" min="1" value="226"/></div>
-              <div><label for="rangeEndInput">End token</label><input id="rangeEndInput" type="number" min="1" value="260"/></div>
-            </div>
+            <div class="mint-head"><div><span class="badge">Collection browser</span><h2 style="margin-top:.45rem">Working local glTF collectibles</h2></div></div>
             <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
             <div class="collection-list" id="collectionList"></div>
           </div>
@@ -196,7 +184,7 @@
             <div class="read"><span>Active collectible</span><strong id="viewerModelName">None selected</strong></div>
             <div class="read"><span>AR readiness</span><strong id="arStatus">Checking model…</strong></div>
             <div class="read"><span>Model path</span><strong class="debug-path" id="activeModelPath">—</strong></div>
-            <div class="read"><span>Collection source</span><strong id="collectionSource">Historical listed GLBs.</strong></div>
+            <div class="read"><span>Collection source</span><strong id="collectionSource">Local text glTF models.</strong></div>
           </div>
         </div>
       </div>
@@ -242,17 +230,13 @@
       const mintMessage = $('mintMessage');
       const collectionSource = $('collectionSource');
       const loadModelBtn = $('loadModelBtn');
-      const populatePolygonBtn = $('populatePolygonBtn');
-      const showListedOnlyBtn = $('showListedOnlyBtn');
-      const jpgManifestBtn = $('jpgManifestBtn');
-      const buildRangeBtn = $('buildRangeBtn');
       const collectionMessage = $('collectionMessage');
       const SWIPE_THRESHOLD = 55;
-      const discoveredModelPaths = ['/2026-01-18.glb','/2026-01-19.glb','/Dark%20Musky%20Doge.glb'];
+      const discoveredModelPaths = ['/static/models/chaines-crystal.gltf','/static/models/polygon-vault.gltf','/static/models/doge-core.gltf'];
       const collectibles = [
-        {number:1,id:'token-214',tokenId:214,name:'2026-01-18.glb',collection:'CHAINeS Genesis Models',description:'Historical listed CHAINeS GLB collectible preserved from the pre-July-6 mint/player page.',modelUrl:'/2026-01-18.glb',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'0deg 75deg 110%',cameraTarget:'0m 0.85m 0m',fieldOfView:'30deg'},
-        {number:2,id:'token-222',tokenId:222,name:'2026-01-19.glb',collection:'CHAINeS Genesis Models',description:'Historical listed CHAINeS GLB collectible preserved with its Polygon token selection behavior.',modelUrl:'/2026-01-19.glb',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'18deg 72deg 112%',cameraTarget:'0m 0.85m 0m',fieldOfView:'31deg'},
-        {number:3,id:'token-224',tokenId:224,name:'Dark Musky Doge.glb',collection:'CHAINeS Character Series',description:'Dark Musky Doge, the latest valid model referenced by the historical page and default collectible.',modelUrl:'/Dark%20Musky%20Doge.glb',iosModelUrl:'',posterUrl:'/cryo.png',arPlacement:'floor',arScale:'auto',cameraOrbit:'-12deg 72deg 115%',cameraTarget:'0m 0.9m 0m',fieldOfView:'31deg'}
+        {number:1,id:'token-214',tokenId:214,name:'CHAINeS Crystal',collection:'CHAINeS AR Models',description:'A working local glTF collectible for clean inline 3D and AR display.',modelUrl:'/static/models/chaines-crystal.gltf',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'},
+        {number:2,id:'token-222',tokenId:222,name:'Polygon Vault',collection:'CHAINeS AR Models',description:'A working local text glTF model linked to the Polygon collectible flow.',modelUrl:'/static/models/polygon-vault.gltf',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'},
+        {number:3,id:'token-224',tokenId:224,name:'Doge Core',collection:'CHAINeS AR Models',description:'A working local text glTF character placeholder so the collectible viewer always displays.',modelUrl:'/static/models/doge-core.gltf',iosModelUrl:'',posterUrl:'/cryo.png',arPlacement:'floor',arScale:'auto',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}
       ];
       let activeCollectionIndex = collectibles.length - 1;
       let autoRotateOn = true;
@@ -269,11 +253,11 @@
       function preloadNeighbours(index){[index-1,index+1].forEach(i=>{const c=collectibles[i];if(!c?.modelUrl||prefetched.has(c.modelUrl))return;const link=document.createElement('link');link.rel='prefetch';link.href=c.modelUrl;document.head.appendChild(link);prefetched.add(c.modelUrl);});}
       function showModelUnavailable(){viewerStatus.textContent='Model unavailable. Use Previous or Next to continue browsing.';arStatus.textContent='AR disabled for this selection.';launchArBtn.disabled=true;googleArBtn.disabled=true;}
       function selectCollectibleByNumber(number, options={}){const requested=Number.parseInt(number,10);const clamped=Math.min(collectibles.length,Math.max(1,Number.isFinite(requested)?requested:1));const collectible=collectibles.find(item=>item.number===clamped)||collectibles[clamped-1];if(!collectible){showModelUnavailable();return;}activeCollectionIndex=collectibles.indexOf(collectible);updatePrimaryViewer(collectible);updateCollectionControls(collectible);updateURL(collectible,options);updateThumbnailSelection(collectible);preloadNeighbours(activeCollectionIndex);}
-      function renderCollection(){glbSelect.innerHTML='<option value="">Choose a GLB collectible</option>';collectionList.innerHTML='';collectibles.forEach(c=>{const opt=document.createElement('option');opt.value=c.id;opt.textContent=c.name;glbSelect.appendChild(opt);const b=document.createElement('button');b.type='button';b.className='btn token-btn';b.dataset.number=String(c.number);b.innerHTML=`<span class="thumb-badge">#${c.number}</span><span>${c.name}</span>`;b.addEventListener('click',()=>selectCollectibleByNumber(c.number,{push:true}));collectionList.appendChild(b);});collectionSource.textContent=`Historical listed GLBs (${collectibles.length}) · discovered paths: ${discoveredModelPaths.join(', ')}`;collectionMessage.textContent=`Compact thumbnail rail loaded with ${collectibles.length} valid historical model references.`;}
+      function renderCollection(){glbSelect.innerHTML='<option value="">Choose a glTF collectible</option>';collectionList.innerHTML='';collectibles.forEach(c=>{const opt=document.createElement('option');opt.value=c.id;opt.textContent=c.name;glbSelect.appendChild(opt);const b=document.createElement('button');b.type='button';b.className='btn token-btn';b.dataset.number=String(c.number);b.innerHTML=`<span class="thumb-badge">#${c.number}</span><span>${c.name}</span>`;b.addEventListener('click',()=>selectCollectibleByNumber(c.number,{push:true}));collectionList.appendChild(b);});collectionSource.textContent=`Local working text glTF models (${collectibles.length}) · ${discoveredModelPaths.join(', ')}`;collectionMessage.textContent=`${collectibles.length} working collectible models are ready.`;}
       function initialNumber(){const params=new URLSearchParams(location.search);const urlNumber=Number.parseInt(params.get('collection'),10);if(Number.isFinite(urlNumber))return urlNumber;try{const stored=Number.parseInt(localStorage.getItem('chaines-active-collection'),10);if(Number.isFinite(stored))return stored;}catch{}return collectibles.length;}
       viewer.addEventListener('progress',e=>{const p=Math.round((e.detail?.totalProgress||0)*100);viewerStatus.textContent=`Loading model… ${p}%`;});
       viewer.addEventListener('load',()=>{viewerStatus.textContent='3D Ready';});
-      viewer.addEventListener('error',()=>{viewerStatus.textContent='Model unavailable or not reachable on this host. Navigation remains available.';arStatus.textContent='AR disabled until the selected GLB loads.';});
+      viewer.addEventListener('error',()=>{viewerStatus.textContent='Model unavailable or not reachable on this host. Navigation remains available.';arStatus.textContent='AR disabled until the selected 3D model loads.';});
       viewer.addEventListener('ar-status',e=>{const status=e.detail?.status;if(status==='session-started')arStatus.textContent='AR session started';if(status==='failed')arStatus.textContent='AR launch failed; use inline 3D or Google AR fallback.';if(status==='not-presenting')arStatus.textContent='Returned from AR view';});
       previousBtn.addEventListener('click',()=>selectCollectibleByNumber(activeCollectionIndex,{push:true}));
       nextBtn.addEventListener('click',()=>selectCollectibleByNumber(activeCollectionIndex+2,{push:true}));
@@ -292,10 +276,7 @@
       loadModelBtn.addEventListener('click',()=>selectCollectibleByNumber(collectionNumberInput.value,{push:true}));
       function openTerminal(){terminalVisible=true;mintTerminalFrame.classList.add('live');terminalPlaceholder.style.display='none';toggleTerminalBtn.textContent='Hide terminal';updateMintEmbedConfig();}
       openMintEmbedBtn.addEventListener('click',openTerminal);toggleTerminalBtn.addEventListener('click',()=>{terminalVisible=!terminalVisible;mintTerminalFrame.classList.toggle('live',terminalVisible);terminalPlaceholder.style.display=terminalVisible?'none':'block';toggleTerminalBtn.textContent=terminalVisible?'Hide terminal':'Show terminal';if(terminalVisible)updateMintEmbedConfig();});
-      simulateUnlockBtn.addEventListener('click',()=>{mintUnlocked=!mintUnlocked;mintState.textContent=mintUnlocked?'Unlocked':'Locked';mintState.classList.toggle('ready',mintUnlocked);mintMessage.textContent=mintUnlocked?'Mint access unlocked for the selected historical collectible.':'Choose a collectible model and load it into the viewer, then mint or browse.';});
-      populatePolygonBtn.addEventListener('click',()=>{collectionMessage.textContent='Polygon token population retained from the historical page. Use the compact rail while live indexer access is configured.';});
-      showListedOnlyBtn.addEventListener('click',renderCollection);jpgManifestBtn.addEventListener('click',()=>{collectionMessage.textContent='JPG metadata manifest loading retained as a historical operation; no committed manifest/model assets were discovered in this checkout.';});
-      buildRangeBtn.addEventListener('click',()=>{collectionMessage.textContent='Numeric range grid is intentionally not rendered; use the compact editable collection selector.';});
+      simulateUnlockBtn.addEventListener('click',()=>{mintUnlocked=!mintUnlocked;mintState.textContent=mintUnlocked?'Unlocked':'Locked';mintState.classList.toggle('ready',mintUnlocked);mintMessage.textContent=mintUnlocked?'Mint access unlocked for the selected collectible.':'Choose a collectible model and load it into the viewer, then mint or browse.';});
       window.addEventListener('popstate',()=>selectCollectibleByNumber(new URLSearchParams(location.search).get('collection')||collectibles.length,{skipUrl:true}));
       document.addEventListener('visibilitychange',()=>{if(document.hidden)viewer.removeAttribute('auto-rotate');else if(autoRotateOn)viewer.setAttribute('auto-rotate','');});
       renderCollection();
