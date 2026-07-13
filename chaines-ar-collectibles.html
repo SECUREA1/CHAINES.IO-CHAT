@@ -111,86 +111,67 @@
   </header>
 
   <main class="shell" id="top">
-    <section class="hero">
-      <div class="panel">
-        <span class="badge">Clean AR showcase</span>
-        <h1>CHAINeS AR collectibles.</h1>
-        <p>Pick a collectible, preview the working 3D model, and launch AR from the same clean player.</p>
-        <div class="hero-actions" style="margin-top:.8rem"><a class="btn primary" href="#viewer">Open AR player</a><a class="btn secondary" href="#mint">Mint selected token</a></div>
-        <div class="hero-stats">
-          <div class="stat"><strong>Local glTF assets</strong><span>Models load from this site, not missing external files</span></div>
-          <div class="stat"><strong>3D + AR</strong><span>Inline preview with WebXR / Scene Viewer / Quick Look hooks</span></div>
-          <div class="stat"><strong>No clutter</strong><span>Only controls needed to view, share, and mint</span></div>
-        </div>
-      </div>
-      <aside class="panel">
-        <span class="badge">Ready to display</span>
-        <h3 style="margin:.55rem 0 .55rem">The collectible player now starts with valid local text glTF models.</h3>
-        <p>Use Previous, Next, or the token rail to switch models. If AR is supported on the device, the same model opens in AR.</p>
-      </aside>
-    </section>
-
-    <section class="section panel" id="mint">
-      <div class="section-head"><div><span class="badge">Mint console</span><h2>CHAINeS collectible mint + unlock panel</h2></div><p>Contract-aware configuration for branded Polygon drops.</p></div>
-      <div class="mint-layout">
+    <section class="section panel" id="collector">
+      <div class="section-head">
         <div>
-          <div class="card">
-            <div class="mint-head"><div><span class="badge">Mint setup</span><h2 style="margin-top:.45rem">Prepare collectible + contract</h2></div><div class="status-pill" id="mintState">Locked</div></div>
-            <div class="grid">
-              <div><label for="collectionContractInput">Polygon contract</label><input id="collectionContractInput" type="text" value="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" /></div>
-              <div><label for="tokenIdInput">Collectible token ID</label><input id="tokenIdInput" type="text" value="226" /></div>
-              <div><label for="glbSelect">Select collectible model</label><select id="glbSelect"><option value="">Choose a glTF collectible</option><option value="/static/models/chaines-crystal.gltf" data-token="214">CHAINeS Crystal</option><option value="/static/models/polygon-vault.gltf" data-token="222">Polygon Vault</option><option value="/static/models/doge-core.gltf" data-token="224">Doge Core</option></select></div>
-              <div><label for="collectibleName">Collectible label</label><input id="collectibleName" type="text" value="CHAINeS Digital Collectible" /></div>
-              <div class="full"><label for="glbUrlInput">glTF model URL</label><input id="glbUrlInput" type="text" placeholder="Paste a .gltf URL or choose from list" /></div>
-              <div class="full"><label for="usdzUrlInput">Optional iOS USDZ URL</label><input id="usdzUrlInput" type="text" placeholder="Optional .usdz for Quick Look" /></div>
-              <div class="full"><label for="collectibleNotes">Collectible utility notes</label><textarea id="collectibleNotes" placeholder="Token-gated controls, scenes, downloadable perks, etc."></textarea></div>
-            </div>
-            <div class="row"><button class="btn primary" id="loadModelBtn" type="button">Load in 3D viewer</button><button class="btn" id="openMintEmbedBtn" type="button">Open mint terminal</button><button class="btn secondary" id="simulateUnlockBtn" type="button">Simulate unlock</button></div>
-            <p class="note" id="mintMessage">Choose a collectible model and load it into the viewer, then populate token IDs from Polygon.</p>
-          </div>
-
-          <div class="card" style="margin-top:.9rem">
-            <div class="mint-head"><div><span class="badge">Collection browser</span><h2 style="margin-top:.45rem">Working local glTF collectibles</h2></div></div>
-            <p class="note" id="collectionMessage">Click any token to sync mint embed + viewer inputs.</p>
-            <div class="collection-list" id="collectionList"></div>
-          </div>
-
-          <div class="terminal">
-            <div class="terminal-head"><div><span class="badge">Mint embed</span><h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3></div><button class="btn" id="toggleTerminalBtn" type="button">Show terminal</button></div>
-            <div class="terminal-placeholder" id="terminalPlaceholder">Terminal hidden by default. Open it to mint the selected token ID on Polygon.</div>
-            <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=226&theme=dark&primaryColor=blue"></iframe>
-          </div>
+          <span class="badge">Collector page</span>
+          <h1>CHAINeS NFT display.</h1>
         </div>
+        <p>Open the mint terminal, switch the displayed NFT number, and launch the active file in AR.</p>
+      </div>
 
+      <div class="collectible-layout">
         <div class="card" id="viewer">
-          <div class="mint-head"><div><span class="badge">AR player</span><h2 style="margin-top:.45rem" id="activeCollectibleTitle">3D collectible viewer</h2></div><button class="btn primary" id="launchArBtn" type="button">Place in AR</button></div>
-          <div class="viewer-stage" id="swipeNavArea" aria-label="Swipe left or right to browse collectibles">
-            <model-viewer id="primary-collectible-viewer" alt="CHAINeS collectible preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
-              <button slot="ar-button" class="ar-button" type="button">Place in AR</button>
+          <div class="mint-head">
+            <div>
+              <span class="badge">AR display</span>
+              <h2 style="margin-top:.45rem" id="activeCollectibleTitle">CHAINeS collectible</h2>
+            </div>
+            <button class="btn primary" id="launchArBtn" type="button">Place NFT in AR</button>
+          </div>
+
+          <div class="viewer-stage" id="swipeNavArea" aria-label="Swipe left or right to switch NFTs">
+            <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
+              <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
             </model-viewer>
           </div>
+
           <div class="collection-navigator" id="collectionNavigator">
-            <button class="btn" id="previousCollectibleBtn" type="button">Previous</button>
+            <button class="btn" id="previousCollectibleBtn" type="button">Previous NFT</button>
             <div class="collection-field">
-              <label for="collection-number">Collection</label>
-              <input id="collection-number" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Select collection number">
+              <label for="collection-number">NFT #</label>
+              <input id="collection-number" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Select NFT number">
               <span id="collection-total">of 1</span>
             </div>
-            <button class="btn" id="nextCollectibleBtn" type="button">Next</button>
+            <button class="btn" id="nextCollectibleBtn" type="button">Next NFT</button>
           </div>
-          <div class="row"><button class="btn secondary" id="googleArBtn" type="button">Open in Google AR</button><button class="btn" id="spinToggleBtn" type="button">Pause auto-rotate</button><button class="btn" id="resetCameraBtn" type="button">Reset camera</button><button class="btn" id="copyShareBtn" type="button">Copy selected URL</button><button class="btn" id="retryModelBtn" type="button">Retry model</button></div>
+
+          <div class="row">
+            <button class="btn secondary" id="googleArBtn" type="button">Open Google AR</button>
+          </div>
+
           <div class="status-grid" style="margin-top:.8rem">
-            <div class="read"><span>Viewer status</span><strong id="viewerStatus">Loading collectible…</strong></div>
-            <div class="read"><span>Active collectible</span><strong id="viewerModelName">None selected</strong></div>
-            <div class="read"><span>AR readiness</span><strong id="arStatus">Checking model…</strong></div>
-            <div class="read"><span>Model path</span><strong class="debug-path" id="activeModelPath">—</strong></div>
-            <div class="read"><span>Collection source</span><strong id="collectionSource">Local text glTF models.</strong></div>
+            <div class="read"><span>Displayed NFT</span><strong id="viewerModelName">None selected</strong></div>
+            <div class="read"><span>AR file</span><strong class="debug-path" id="activeModelPath">—</strong></div>
+            <div class="read"><span>Status</span><strong id="viewerStatus">Loading NFT…</strong></div>
           </div>
+        </div>
+
+        <div class="terminal" id="mint">
+          <div class="terminal-head">
+            <div>
+              <span class="badge">Mint terminal</span>
+              <h3 style="margin:.45rem 0 0">CHAINeS mint terminal</h3>
+            </div>
+            <button class="btn primary" id="toggleTerminalBtn" type="button">Open terminal</button>
+          </div>
+          <div class="terminal-placeholder" id="terminalPlaceholder">Open the terminal to mint the selected Polygon NFT.</div>
+          <iframe id="mintTerminalFrame" title="CHAINeS mint terminal" loading="lazy" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
         </div>
       </div>
     </section>
 
-    <div class="footer"><strong>CHAINeS</strong><br/>AR digital collectibles, controllable NFTs, and Polygon mint-to-view experiences.</div>
+    <div class="footer"><strong>CHAINeS</strong><br/>Polygon mint terminal and AR NFT display.</div>
   </main>
 
   <script>
@@ -201,85 +182,96 @@
       const collectionTotal = $('collection-total');
       const previousBtn = $('previousCollectibleBtn');
       const nextBtn = $('nextCollectibleBtn');
-      const collectionList = $('collectionList');
       const viewerStatus = $('viewerStatus');
       const viewerModelName = $('viewerModelName');
-      const arStatus = $('arStatus');
       const activeModelPath = $('activeModelPath');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
       const googleArBtn = $('googleArBtn');
-      const spinToggleBtn = $('spinToggleBtn');
-      const resetCameraBtn = $('resetCameraBtn');
-      const copyShareBtn = $('copyShareBtn');
-      const retryModelBtn = $('retryModelBtn');
       const swipeNavArea = $('swipeNavArea');
-      const glbSelect = $('glbSelect');
-      const tokenIdInput = $('tokenIdInput');
-      const glbUrlInput = $('glbUrlInput');
-      const usdzUrlInput = $('usdzUrlInput');
-      const collectibleName = $('collectibleName');
-      const collectibleNotes = $('collectibleNotes');
-      const collectionContractInput = $('collectionContractInput');
       const mintTerminalFrame = $('mintTerminalFrame');
       const terminalPlaceholder = $('terminalPlaceholder');
       const toggleTerminalBtn = $('toggleTerminalBtn');
-      const openMintEmbedBtn = $('openMintEmbedBtn');
-      const simulateUnlockBtn = $('simulateUnlockBtn');
-      const mintState = $('mintState');
-      const mintMessage = $('mintMessage');
-      const collectionSource = $('collectionSource');
-      const loadModelBtn = $('loadModelBtn');
-      const collectionMessage = $('collectionMessage');
       const SWIPE_THRESHOLD = 55;
-      const discoveredModelPaths = ['/static/models/chaines-crystal.gltf','/static/models/polygon-vault.gltf','/static/models/doge-core.gltf'];
       const collectibles = [
-        {number:1,id:'token-214',tokenId:214,name:'CHAINeS Crystal',collection:'CHAINeS AR Models',description:'A working local glTF collectible for clean inline 3D and AR display.',modelUrl:'/static/models/chaines-crystal.gltf',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'},
-        {number:2,id:'token-222',tokenId:222,name:'Polygon Vault',collection:'CHAINeS AR Models',description:'A working local text glTF model linked to the Polygon collectible flow.',modelUrl:'/static/models/polygon-vault.gltf',iosModelUrl:'',posterUrl:'/static/logo.svg',arPlacement:'floor',arScale:'auto',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'},
-        {number:3,id:'token-224',tokenId:224,name:'Doge Core',collection:'CHAINeS AR Models',description:'A working local text glTF character placeholder so the collectible viewer always displays.',modelUrl:'/static/models/doge-core.gltf',iosModelUrl:'',posterUrl:'/cryo.png',arPlacement:'floor',arScale:'auto',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}
+        {number:1,tokenId:214,name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'},
+        {number:2,tokenId:222,name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'},
+        {number:3,tokenId:224,name:'Doge Core',modelUrl:'/static/models/doge-core.gltf',posterUrl:'/cryo.png',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}
       ];
-      let activeCollectionIndex = collectibles.length - 1;
-      let autoRotateOn = true;
+      let activeCollectionIndex = 0;
       let terminalVisible = false;
-      let mintUnlocked = false;
-      const prefetched = new Set();
       const absolute = (path) => new URL(path, window.location.origin).href;
-      function updateMintEmbedConfig(){try{const token=String(collectibles[activeCollectionIndex]?.tokenId||tokenIdInput.value||'226');const url=new URL(mintTerminalFrame.src);const contract=(collectionContractInput.value||'').trim();if(/^0x[a-fA-F0-9]{40}$/.test(contract))url.searchParams.set('contract',contract);url.searchParams.set('tokenId',token);mintTerminalFrame.src=url.toString();}catch{}}
-      function buildSceneViewerIntent(collectible){const modelUrl=absolute(collectible.modelUrl);const fallbackUrl=absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}`);const query=new URLSearchParams({file:modelUrl,mode:'ar_preferred',title:collectible.name,link:fallbackUrl,resizable:'true'});return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;}
-      function updateURL(collectible, options={}){if(options.skipUrl)return;const url=new URL(window.location.href);url.searchParams.set('collection', String(collectible.number));history[options.push?'pushState':'replaceState']({collection:collectible.number},'',url);try{localStorage.setItem('chaines-active-collection',String(collectible.number));}catch{}}
-      function updateCollectionControls(c){collectionNumberInput.min='1';collectionNumberInput.max=String(collectibles.length);collectionNumberInput.value=String(c.number);collectionTotal.textContent=`of ${collectibles.length}`;previousBtn.disabled=activeCollectionIndex<=0;nextBtn.disabled=activeCollectionIndex>=collectibles.length-1;viewerModelName.textContent=`Collection #${c.number}: ${c.name}`;activeCollectibleTitle.textContent=c.name;activeModelPath.textContent=c.modelUrl;tokenIdInput.value=String(c.tokenId||c.number);glbUrlInput.value=c.modelUrl;usdzUrlInput.value=c.iosModelUrl||'';collectibleName.value=c.name;collectibleNotes.value=c.description;glbSelect.value=c.id;}
-      function updateThumbnailSelection(c){collectionList.querySelectorAll('.token-btn').forEach(btn=>{const on=Number(btn.dataset.number)===c.number;btn.setAttribute('aria-current',String(on));if(on)btn.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});});}
-      function updatePrimaryViewer(c){viewerStatus.textContent='Loading model…';arStatus.textContent=c.iosModelUrl?'AR Ready · Google Scene Viewer Ready · Quick Look Ready':'AR Ready · Google Scene Viewer Ready · iOS inline 3D fallback';viewer.setAttribute('src', c.modelUrl);if(c.iosModelUrl)viewer.setAttribute('ios-src',c.iosModelUrl);else viewer.removeAttribute('ios-src');viewer.setAttribute('poster',c.posterUrl||'/static/logo.svg');viewer.setAttribute('alt',`Interactive 3D preview of ${c.name}`);viewer.setAttribute('camera-orbit',c.cameraOrbit);viewer.setAttribute('camera-target',c.cameraTarget);viewer.setAttribute('field-of-view',c.fieldOfView);viewer.setAttribute('ar-placement',c.arPlacement);viewer.setAttribute('ar-scale',c.arScale);googleArBtn.disabled=!c.modelUrl;launchArBtn.disabled=!c.modelUrl;updateMintEmbedConfig();}
-      function preloadNeighbours(index){[index-1,index+1].forEach(i=>{const c=collectibles[i];if(!c?.modelUrl||prefetched.has(c.modelUrl))return;const link=document.createElement('link');link.rel='prefetch';link.href=c.modelUrl;document.head.appendChild(link);prefetched.add(c.modelUrl);});}
-      function showModelUnavailable(){viewerStatus.textContent='Model unavailable. Use Previous or Next to continue browsing.';arStatus.textContent='AR disabled for this selection.';launchArBtn.disabled=true;googleArBtn.disabled=true;}
-      function selectCollectibleByNumber(number, options={}){const requested=Number.parseInt(number,10);const clamped=Math.min(collectibles.length,Math.max(1,Number.isFinite(requested)?requested:1));const collectible=collectibles.find(item=>item.number===clamped)||collectibles[clamped-1];if(!collectible){showModelUnavailable();return;}activeCollectionIndex=collectibles.indexOf(collectible);updatePrimaryViewer(collectible);updateCollectionControls(collectible);updateURL(collectible,options);updateThumbnailSelection(collectible);preloadNeighbours(activeCollectionIndex);}
-      function renderCollection(){glbSelect.innerHTML='<option value="">Choose a glTF collectible</option>';collectionList.innerHTML='';collectibles.forEach(c=>{const opt=document.createElement('option');opt.value=c.id;opt.textContent=c.name;glbSelect.appendChild(opt);const b=document.createElement('button');b.type='button';b.className='btn token-btn';b.dataset.number=String(c.number);b.innerHTML=`<span class="thumb-badge">#${c.number}</span><span>${c.name}</span>`;b.addEventListener('click',()=>selectCollectibleByNumber(c.number,{push:true}));collectionList.appendChild(b);});collectionSource.textContent=`Local working text glTF models (${collectibles.length}) · ${discoveredModelPaths.join(', ')}`;collectionMessage.textContent=`${collectibles.length} working collectible models are ready.`;}
-      function initialNumber(){const params=new URLSearchParams(location.search);const urlNumber=Number.parseInt(params.get('collection'),10);if(Number.isFinite(urlNumber))return urlNumber;try{const stored=Number.parseInt(localStorage.getItem('chaines-active-collection'),10);if(Number.isFinite(stored))return stored;}catch{}return collectibles.length;}
-      viewer.addEventListener('progress',e=>{const p=Math.round((e.detail?.totalProgress||0)*100);viewerStatus.textContent=`Loading model… ${p}%`;});
-      viewer.addEventListener('load',()=>{viewerStatus.textContent='3D Ready';});
-      viewer.addEventListener('error',()=>{viewerStatus.textContent='Model unavailable or not reachable on this host. Navigation remains available.';arStatus.textContent='AR disabled until the selected 3D model loads.';});
-      viewer.addEventListener('ar-status',e=>{const status=e.detail?.status;if(status==='session-started')arStatus.textContent='AR session started';if(status==='failed')arStatus.textContent='AR launch failed; use inline 3D or Google AR fallback.';if(status==='not-presenting')arStatus.textContent='Returned from AR view';});
-      previousBtn.addEventListener('click',()=>selectCollectibleByNumber(activeCollectionIndex,{push:true}));
-      nextBtn.addEventListener('click',()=>selectCollectibleByNumber(activeCollectionIndex+2,{push:true}));
-      collectionNumberInput.addEventListener('keydown',e=>{if(e.key==='Enter')selectCollectibleByNumber(collectionNumberInput.value,{push:true});if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();selectCollectibleByNumber(activeCollectionIndex,{push:true});}if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();selectCollectibleByNumber(activeCollectionIndex+2,{push:true});}});
-      collectionNumberInput.addEventListener('blur',()=>selectCollectibleByNumber(collectionNumberInput.value,{push:true}));
-      document.addEventListener('keydown',e=>{if(document.activeElement===collectionNumberInput)return;if(e.key==='ArrowLeft')selectCollectibleByNumber(activeCollectionIndex,{push:true});if(e.key==='ArrowRight')selectCollectibleByNumber(activeCollectionIndex+2,{push:true});});
-      let sx=0, sy=0; swipeNavArea.addEventListener('touchstart',e=>{const t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;},{passive:true});swipeNavArea.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)>SWIPE_THRESHOLD&&Math.abs(dx)>Math.abs(dy)*1.4){selectCollectibleByNumber(activeCollectionIndex+(dx<0?2:0),{push:true});}},{passive:true});
-      swipeNavArea.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)&&Math.abs(e.deltaX)>20){e.preventDefault();selectCollectibleByNumber(activeCollectionIndex+(e.deltaX>0?2:0),{push:true});}},{passive:false});
-      launchArBtn.addEventListener('click',async()=>{try{await viewer.activateAR();}catch{arStatus.textContent='AR could not launch here. Use HTTPS and a supported mobile browser.';}});
-      googleArBtn.addEventListener('click',()=>{const c=collectibles[activeCollectionIndex];if(!c?.modelUrl)return;location.href=buildSceneViewerIntent(c);});
-      spinToggleBtn.addEventListener('click',()=>{autoRotateOn=!autoRotateOn;if(autoRotateOn){viewer.setAttribute('auto-rotate','');spinToggleBtn.textContent='Pause auto-rotate';}else{viewer.removeAttribute('auto-rotate');spinToggleBtn.textContent='Resume auto-rotate';}});
-      resetCameraBtn.addEventListener('click',()=>{const c=collectibles[activeCollectionIndex];viewer.cameraOrbit=c.cameraOrbit;viewer.cameraTarget=c.cameraTarget;viewer.fieldOfView=c.fieldOfView;viewer.jumpCameraToGoal?.();viewerStatus.textContent='Camera reset.';});
-      copyShareBtn.addEventListener('click',async()=>{const url=new URL(location.href);url.searchParams.set('collection',String(collectibles[activeCollectionIndex].number));try{await navigator.clipboard.writeText(url.href);viewerStatus.textContent='Share URL copied.';}catch{prompt('Copy selected collectible URL',url.href);}});
-      retryModelBtn.addEventListener('click',()=>selectCollectibleByNumber(collectibles[activeCollectionIndex].number,{skipUrl:true}));
-      glbSelect.addEventListener('change',()=>{const c=collectibles.find(x=>x.id===glbSelect.value);if(c)selectCollectibleByNumber(c.number,{push:true});});
-      loadModelBtn.addEventListener('click',()=>selectCollectibleByNumber(collectionNumberInput.value,{push:true}));
-      function openTerminal(){terminalVisible=true;mintTerminalFrame.classList.add('live');terminalPlaceholder.style.display='none';toggleTerminalBtn.textContent='Hide terminal';updateMintEmbedConfig();}
-      openMintEmbedBtn.addEventListener('click',openTerminal);toggleTerminalBtn.addEventListener('click',()=>{terminalVisible=!terminalVisible;mintTerminalFrame.classList.toggle('live',terminalVisible);terminalPlaceholder.style.display=terminalVisible?'none':'block';toggleTerminalBtn.textContent=terminalVisible?'Hide terminal':'Show terminal';if(terminalVisible)updateMintEmbedConfig();});
-      simulateUnlockBtn.addEventListener('click',()=>{mintUnlocked=!mintUnlocked;mintState.textContent=mintUnlocked?'Unlocked':'Locked';mintState.classList.toggle('ready',mintUnlocked);mintMessage.textContent=mintUnlocked?'Mint access unlocked for the selected collectible.':'Choose a collectible model and load it into the viewer, then mint or browse.';});
-      window.addEventListener('popstate',()=>selectCollectibleByNumber(new URLSearchParams(location.search).get('collection')||collectibles.length,{skipUrl:true}));
-      document.addEventListener('visibilitychange',()=>{if(document.hidden)viewer.removeAttribute('auto-rotate');else if(autoRotateOn)viewer.setAttribute('auto-rotate','');});
-      renderCollection();
+      function updateMintEmbedConfig(collectible){
+        const url = new URL(mintTerminalFrame.src);
+        url.searchParams.set('tokenId', String(collectible.tokenId));
+        mintTerminalFrame.src = url.toString();
+      }
+      function buildSceneViewerIntent(collectible){
+        const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}`);
+        const query = new URLSearchParams({file:absolute(collectible.modelUrl),mode:'ar_preferred',title:collectible.name,link:fallbackUrl,resizable:'true'});
+        return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+      }
+      function updateURL(collectible, options={}){
+        if(options.skipUrl) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set('collection', String(collectible.number));
+        history[options.push?'pushState':'replaceState']({collection:collectible.number},'',url);
+      }
+      function selectCollectibleByNumber(number, options={}){
+        const requested = Number.parseInt(number, 10);
+        const clamped = Math.min(collectibles.length, Math.max(1, Number.isFinite(requested) ? requested : 1));
+        const collectible = collectibles[clamped - 1];
+        activeCollectionIndex = clamped - 1;
+        collectionNumberInput.min = '1';
+        collectionNumberInput.max = String(collectibles.length);
+        collectionNumberInput.value = String(collectible.number);
+        collectionTotal.textContent = `of ${collectibles.length}`;
+        previousBtn.disabled = activeCollectionIndex <= 0;
+        nextBtn.disabled = activeCollectionIndex >= collectibles.length - 1;
+        activeCollectibleTitle.textContent = collectible.name;
+        viewerModelName.textContent = `NFT #${collectible.number} · Token ID ${collectible.tokenId} · ${collectible.name}`;
+        activeModelPath.textContent = collectible.modelUrl;
+        viewerStatus.textContent = 'Loading NFT…';
+        viewer.setAttribute('src', collectible.modelUrl);
+        viewer.setAttribute('poster', collectible.posterUrl);
+        viewer.setAttribute('alt', `Interactive AR preview of ${collectible.name}`);
+        viewer.setAttribute('camera-orbit', collectible.cameraOrbit);
+        viewer.setAttribute('camera-target', collectible.cameraTarget);
+        viewer.setAttribute('field-of-view', collectible.fieldOfView);
+        googleArBtn.disabled = false;
+        launchArBtn.disabled = false;
+        updateMintEmbedConfig(collectible);
+        updateURL(collectible, options);
+      }
+      function openTerminal(){
+        terminalVisible = true;
+        mintTerminalFrame.classList.add('live');
+        terminalPlaceholder.style.display = 'none';
+        toggleTerminalBtn.textContent = 'Hide terminal';
+        updateMintEmbedConfig(collectibles[activeCollectionIndex]);
+      }
+      function initialNumber(){
+        const urlNumber = Number.parseInt(new URLSearchParams(location.search).get('collection'), 10);
+        return Number.isFinite(urlNumber) ? urlNumber : 1;
+      }
+      viewer.addEventListener('progress', e => {
+        const p = Math.round((e.detail?.totalProgress || 0) * 100);
+        viewerStatus.textContent = `Loading NFT… ${p}%`;
+      });
+      viewer.addEventListener('load', () => { viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
+      viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
+      previousBtn.addEventListener('click', () => selectCollectibleByNumber(activeCollectionIndex, {push:true}));
+      nextBtn.addEventListener('click', () => selectCollectibleByNumber(activeCollectionIndex + 2, {push:true}));
+      collectionNumberInput.addEventListener('input', () => selectCollectibleByNumber(collectionNumberInput.value, {push:true}));
+      launchArBtn.addEventListener('click', async () => { try { await viewer.activateAR(); } catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; } });
+      googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
+      toggleTerminalBtn.addEventListener('click', () => {
+        terminalVisible ? (terminalVisible = false, mintTerminalFrame.classList.remove('live'), terminalPlaceholder.style.display = 'block', toggleTerminalBtn.textContent = 'Open terminal') : openTerminal();
+      });
+      let sx = 0, sy = 0;
+      swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
+      swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) selectCollectibleByNumber(activeCollectionIndex + (dx < 0 ? 2 : 0), {push:true}); }, {passive:true});
+      window.addEventListener('popstate', () => selectCollectibleByNumber(new URLSearchParams(location.search).get('collection') || 1, {skipUrl:true}));
       selectCollectibleByNumber(initialNumber(), {skipUrl: new URLSearchParams(location.search).has('collection')});
     })();
   </script>
