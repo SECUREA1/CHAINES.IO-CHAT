@@ -4260,32 +4260,71 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     // --- Basic state ---
-    const MESSAGE_SOURCE_KEY = 'chaines_messages';
     const MARKETPLACE_LISTINGS_ENDPOINT = '/api/marketplace/listings';
-    function loadPersistentMessages(){
+    const FEED_HISTORY_ENDPOINT = '/api/feeds/global';
+    function parsePostMetadata(raw){
+      if(!raw) return {};
+      if(typeof raw === 'object') return raw;
       try {
-        const parsed = JSON.parse(localStorage.getItem(MESSAGE_SOURCE_KEY) || '[]');
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
       } catch {
-        return [];
+        return {};
       }
     }
-    function savePersistentMessages(items){
-      try {
-        const safeItems = Array.isArray(items) ? items : [];
-        localStorage.setItem(MESSAGE_SOURCE_KEY, JSON.stringify(safeItems));
-      } catch {}
+    function postRecordToMessage(post = {}){
+      const meta = parsePostMetadata(post.metadata || post.metadata_json || post.metadataJson);
+      const created = post.createdAt || post.created_at;
+      return {
+        ...meta,
+        id: String(post.id || meta.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        type: 'chat',
+        user: String(post.username || meta.user || 'anon'),
+        userId: post.userId || post.user_id || meta.userId || null,
+        text: String(post.body || meta.text || ''),
+        ts: created ? Date.parse(created) || Number(meta.ts) || Date.now() : Number(meta.ts) || Date.now(),
+        likes: Number(post.likeCount ?? meta.likes ?? 0),
+        comments: Array.isArray(post.comments) ? post.comments : (Array.isArray(meta.comments) ? meta.comments : [])
+      };
     }
-    function upsertPersistentMessage(item){
-      if(!item || !item.id) return;
-      const items = loadPersistentMessages();
-      const idx = items.findIndex((entry) => String(entry?.id || '') === String(item.id));
-      if(idx >= 0){
-        items[idx] = { ...items[idx], ...item };
-      } else {
-        items.push(item);
-      }
-      savePersistentMessages(items);
+    async function loadPersistentMessages(){
+      const res = await fetch(`${FEED_HISTORY_ENDPOINT}?limit=50`, { credentials: 'include' });
+      if(!res.ok) throw new Error('Could not load CHAINeS feed history.');
+      const data = await res.json().catch(() => ({}));
+      return (Array.isArray(data.items) ? data.items : []).map(postRecordToMessage);
+    }
+    async function savePersistentMessages(){
+      // Feed persistence is server-backed through /api/posts and /api/feeds/global.
+    }
+    async function upsertPersistentMessage(){
+      // No browser feed cache: SQLite/API is the source of truth.
+    }
+    async function createPersistentPost(message){
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          body: message?.text || '',
+          metadata: {
+            image: message?.image || '',
+            file: message?.file || '',
+            fileName: message?.fileName || message?.name || '',
+            fileType: message?.fileType || '',
+            name: message?.name || message?.fileName || '',
+            isAction: Boolean(message?.isAction),
+            broadcast: Boolean(message?.broadcast),
+            video: message?.video || '',
+            xSpaceUrl: message?.xSpaceUrl || '',
+            category: message?.category || '',
+            listing: message?.listing || null,
+            actions: Array.isArray(message?.actions) ? message.actions : []
+          }
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.error || 'Could not save post to CHAINeS Memory.');
+      return postRecordToMessage({ ...(data.post || {}), username: data.user?.username, metadata: data.post?.metadata_json });
     }
 
     const store = {
@@ -4359,20 +4398,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           localStorage.setItem('chaines_verified_users', JSON.stringify(safe));
         } catch {}
       },
-      pushMsg(m) {
-        const items = loadPersistentMessages();
-        items.push(m);
-        savePersistentMessages(items);
+      pushMsg() {
+        // No-op: homepage feed messages are persisted by /api/posts.
       },
       removeMsg(id){
-        const items = loadPersistentMessages().filter(x => x.id !== id);
-        savePersistentMessages(items);
+        fetch(`/api/posts/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
       },
       loadMsgs() {
         return loadPersistentMessages();
       },
       clearMsgs() {
-        try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
+        feed.innerHTML = '';
       }
     };
 
@@ -4443,7 +4479,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         items.forEach((item) => {
           const msg = toChatMessageFromMarketplace(item);
           if(!msg.id || seen.has(msg.id)) return;
-          upsertPersistentMessage(msg);
           receive(msg, true);
         });
         applyFeedFilters();
@@ -5796,8 +5831,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             if(msgs.some(m => m.room)){
               msgs.forEach(m => receive(m));
             } else {
-              feed.innerHTML = '';
-              msgs.forEach(m => receive(m));
+              renderHistory();
             }
           }
           if(data && data.type === 'id') clientId = data.id;
@@ -6718,7 +6752,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       if(raw){
         // Commands
-        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; selectedComposerActions = []; renderComposerActionBoard(); systemNote('Cleared local chat history.'); return; }
+        if(raw === '/clear'){ store.clearMsgs(); input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; selectedComposerActions = []; renderComposerActionBoard(); systemNote('Cleared the current feed view. Server-backed history remains in CHAINeS Memory.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
@@ -6891,15 +6925,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       msg.listing = normalizedListing;
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
 
-      // Push to UI + storage immediately
+      // Push live rooms through the WebSocket server. Persist normal feed posts through CHAINeS Memory.
+      if(room){
         receive(msg, true);
-        if(!room) store.pushMsg(msg);
+        try { bc && bc.postMessage(msg); } catch {}
+        sendCloudMessage(msg);
+        return msg;
+      }
 
-      // Broadcast locally
-      try { bc && bc.postMessage(msg); } catch {}
-
-      // Send to server if available
-      sendCloudMessage(msg);
+      createPersistentPost(msg)
+        .then((saved) => {
+          receive(saved, true);
+          try { bc && bc.postMessage(saved); } catch {}
+        })
+        .catch((err) => {
+          systemNote(err?.message || 'Sign in to save posts to CHAINeS Memory.');
+        });
       return msg;
       }
 
@@ -7697,7 +7738,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         seen.add(m.id);
         const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal;
         if(shouldSuppressGlobalFeed){
-          store.pushMsg(m);
           return;
         }
         if(m.room){
@@ -7705,14 +7745,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          if(!isLocal) store.pushMsg(m);
+          // Server-backed feed history is loaded from /api/feeds/global, not browser storage.
         }
       }
 
-      function renderHistory(){
+      async function renderHistory(){
       feed.innerHTML = '';
-      const items = store.loadMsgs();
-      items.slice().reverse().forEach(m => appendMessage(m, true));
+      try {
+        const items = await store.loadMsgs();
+        seen.clear();
+        items.slice().reverse().forEach(m => receive(m, true));
+      } catch(err) {
+        systemNote(err?.message || 'Unable to load CHAINeS feed history.');
+      }
       applyFeedFilters();
       scrollToTop();
     }
@@ -8039,8 +8084,23 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         likeBtn.type = 'button';
         likeBtn.textContent = `❤️ ${m.likes || 0}`;
         likeBtn.title = 'Like this post';
-        likeBtn.addEventListener('click', () => {
-          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
+        likeBtn.addEventListener('click', async () => {
+          try {
+            const res = await fetch(`/api/posts/${encodeURIComponent(m.id)}/reactions`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'like' })
+            });
+            if(!res.ok){
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data.error || 'Could not save like.');
+            }
+            const current = Number((likeBtn.textContent.match(/\d+/) || ['0'])[0]);
+            likeBtn.textContent = `❤️ ${current + 1}`;
+          } catch {
+            systemNote('Sign in to like posts with CHAINeS Memory.');
+          }
         });
         actions.appendChild(likeBtn);
 
@@ -8055,8 +8115,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           reactBtn.type = 'button';
           reactBtn.textContent = r.emoji;
           reactBtn.title = `React with ${r.emoji}`;
-          reactBtn.addEventListener('click', () => {
-            try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: `${r.emoji}`, user: store.user })); } catch {}
+          reactBtn.addEventListener('click', async () => {
+            try {
+              const res = await fetch(`/api/posts/${encodeURIComponent(m.id)}/comments`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: `${r.emoji}` })
+              });
+              const data = await res.json().catch(() => ({}));
+              if(!res.ok) throw new Error(data.error || 'Could not save reaction.');
+              handleComment({ id: data.id || `${m.id}-${Date.now()}`, messageId: m.id, user: data.user || store.user, text: `${r.emoji}` });
+            } catch {
+              systemNote('Sign in to react with CHAINeS Memory.');
+            }
           });
           actions.appendChild(reactBtn);
         });
@@ -8176,19 +8248,24 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           ev.preventDefault();
           const txt = commentInput.value.trim();
           if(!txt && !pendingCommentFile) return;
-          try {
-            if(socket && socket.readyState === 1){
-              socket.send(JSON.stringify({
-                type:'comment',
-                messageId: m.id,
-                text: txt,
-                user: store.user,
-                file: pendingCommentFile?.dataUrl || null,
-                fileName: pendingCommentFile?.name || null,
-                fileType: pendingCommentFile?.type || null
-              }));
-            }
-          } catch {}
+          const commentFile = pendingCommentFile;
+          fetch(`/api/posts/${encodeURIComponent(m.id)}/comments`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: txt,
+              file: commentFile?.dataUrl || null,
+              fileName: commentFile?.name || null,
+              fileType: commentFile?.type || null
+            })
+          })
+            .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+              if(!ok) throw new Error(data.error || 'Could not save comment.');
+              handleComment({ id: data.id || `${m.id}-${Date.now()}`, messageId: m.id, user: store.user, text: txt, file: commentFile?.dataUrl || null, fileName: commentFile?.name || null, fileType: commentFile?.type || null });
+            })
+            .catch((err) => systemNote(err?.message || 'Sign in to comment with CHAINeS Memory.'));
           commentInput.value = '';
           commentInput.placeholder = 'Add comment...';
           pendingCommentFile = null;
