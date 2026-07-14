@@ -27,16 +27,38 @@ const NFT_DROPPER_API_URL = (process.env.NFT_DROPPER_API_URL || "").trim();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
-const dbDir = path.dirname(DB_PATH);
+function ensureWritableDir(preferredDir, fallbackDir, label) {
+  const candidates = [preferredDir, fallbackDir].filter(Boolean);
+  let lastError = null;
+
+  for (const dir of candidates) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[storage] ${label} directory ${dir} is not writable: ${error.code || error.message}`);
+    }
+  }
+
+  throw lastError || new Error(`No writable ${label} directory is available`);
+}
+
+const defaultDataDir = process.env.NODE_ENV === "production" ? "/var/data" : ROOT;
+const fallbackDataDir = path.join(ROOT, ".data");
+const requestedDbPath = process.env.DB_PATH || path.join(defaultDataDir, "chaines.db");
+const dbDir = ensureWritableDir(path.dirname(requestedDbPath), fallbackDataDir, "database");
+const DB_PATH = path.join(dbDir, path.basename(requestedDbPath));
 if (!process.env.DB_PATH) {
-  console.warn("[storage] DB_PATH is not set; using repo-local app.db. Set DB_PATH to mounted persistent storage in production.");
+  console.warn(`[storage] DB_PATH is not set; using ${DB_PATH}. Set DB_PATH to mounted persistent storage in production.`);
+}
+if (DB_PATH !== requestedDbPath) {
+  console.warn(`[storage] Falling back from SQLite database path ${requestedDbPath} to ${DB_PATH}.`);
 }
 if (process.env.NODE_ENV === "production" && !path.resolve(DB_PATH).startsWith("/var/data/")) {
   console.warn(`[storage] WARNING: production DB_PATH (${DB_PATH}) is not inside /var/data; data may be ephemeral on Render.`);
 }
-fs.mkdirSync(dbDir, { recursive: true });
-fs.accessSync(dbDir, fs.constants.W_OK);
 console.log(`[storage] SQLite database path: ${DB_PATH}`);
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
@@ -275,9 +297,12 @@ let profiles = loadProfiles();
 const app = express();
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
-const uploadRoot = process.env.UPLOAD_DIR || (process.env.NODE_ENV === "production" ? path.join("/var/data", "uploads") : path.join(ROOT, "static", "profiles"));
-const profileDir = path.join(uploadRoot, "profiles");
-fs.mkdirSync(profileDir, { recursive: true });
+const requestedUploadRoot = process.env.UPLOAD_DIR || (process.env.NODE_ENV === "production" ? path.join(dbDir, "uploads") : path.join(ROOT, "static", "profiles"));
+const uploadRoot = ensureWritableDir(requestedUploadRoot, path.join(fallbackDataDir, "uploads"), "upload");
+if (uploadRoot !== requestedUploadRoot) {
+  console.warn(`[storage] Falling back from upload directory ${requestedUploadRoot} to ${uploadRoot}.`);
+}
+const profileDir = ensureWritableDir(path.join(uploadRoot, "profiles"), path.join(fallbackDataDir, "uploads", "profiles"), "profile upload");
 const storage = multer.diskStorage({
   destination: profileDir,
   filename: (req, file, cb) => {
@@ -288,7 +313,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 function profileUploadUrl(file) {
   if (!file) return null;
-  return uploadRoot === path.join(ROOT, "static", "profiles")
+  return profileDir === path.join(ROOT, "static", "profiles")
     ? "/static/profiles/" + file.filename
     : "/uploads/" + file.filename;
 }
@@ -353,7 +378,7 @@ function postRowById(id) {
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
-app.use("/uploads", express.static(path.join(uploadRoot, "profiles")));
+app.use("/uploads", express.static(profileDir));
 app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
