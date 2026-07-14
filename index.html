@@ -4228,59 +4228,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     // --- Basic state ---
     const MESSAGE_SOURCE_KEY = 'chaines_messages';
-    let serverFeedCache = [];
     const MARKETPLACE_LISTINGS_ENDPOINT = '/api/marketplace/listings';
-    function messageFromApiPost(post = {}){
-      return {
-        id: `post:${post.id}`,
-        serverPostId: post.id,
-        clientMutationId: post.clientMutationId || '',
-        type: 'chat',
-        user: post.username || '',
-        profilePic: post.profilePic || '',
-        text: post.body || post.text || post.message || '',
-        ts: post.createdAt ? Date.parse(post.createdAt) : (Number(post.ts) || Date.now()),
-        likes: Number(post.likeCount || post.likes || 0),
-        comments: Array.isArray(post.comments) ? post.comments.map((comment) => ({
-          id: comment.id,
-          user: comment.username || comment.user || '',
-          text: comment.text || '',
-          ts: comment.createdAt ? Date.parse(comment.createdAt) : (Number(comment.ts) || Date.now())
-        })) : [],
-        file: post.file || post.metadata?.file || post.image || post.metadata?.image || '',
-        fileName: post.fileName || post.metadata?.fileName || post.metadata?.file_name || '',
-        fileType: post.fileType || post.metadata?.fileType || post.metadata?.file_type || '',
-        image: post.image || post.metadata?.image || '',
-        video: post.video || post.metadata?.video || '',
-        actions: Array.isArray(post.actions) ? post.actions : (Array.isArray(post.metadata?.actions) ? post.metadata.actions : []),
-        xSpaceUrl: post.xSpaceUrl || post.metadata?.xSpaceUrl || '',
-        category: post.category || post.metadata?.category || 'social',
-        listing: post.listing || post.metadata?.listing || null,
-        marketplaceMedia: post.marketplaceMedia || post.metadata?.marketplaceMedia || post.metadata?.media || [],
-        repostOf: post.repostOf || post.metadata?.repostOf || null,
-        repostNote: post.repostNote || post.metadata?.repostNote || '',
-        repostOriginalUser: post.repostOriginalUser || post.metadata?.repostOriginalUser || '',
-        rewardHighlight: post.rewardHighlight || post.metadata?.rewardHighlight || null,
-        rewardPinnedUntil: post.rewardPinnedUntil || post.metadata?.rewardPinnedUntil || null
-      };
-    }
-    async function refreshServerFeed(){
+    function loadPersistentMessages(){
       try {
-        const res = await fetch('/api/feeds/global', { credentials: 'include' });
-        if(!res.ok) throw new Error(`feed ${res.status}`);
-        const data = await res.json();
-        serverFeedCache = Array.isArray(data.posts) ? data.posts.map(messageFromApiPost) : [];
-        return serverFeedCache;
-      } catch(err) {
-        console.warn('[feed] server feed unavailable; keeping current rendered feed', err);
-        return serverFeedCache;
+        const parsed = JSON.parse(localStorage.getItem(MESSAGE_SOURCE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
       }
     }
-    function loadPersistentMessages(){
-      return serverFeedCache.slice();
-    }
     function savePersistentMessages(items){
-      serverFeedCache = Array.isArray(items) ? items : serverFeedCache;
+      try {
+        const safeItems = Array.isArray(items) ? items : [];
+        localStorage.setItem(MESSAGE_SOURCE_KEY, JSON.stringify(safeItems));
+      } catch {}
     }
     function upsertPersistentMessage(item){
       if(!item || !item.id) return;
@@ -4378,7 +4339,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         return loadPersistentMessages();
       },
       clearMsgs() {
-        serverFeedCache = [];
+        try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
       }
     };
 
@@ -6778,6 +6739,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         syncMarketplacePost(postedMessage);
       }
       if(store?.user){
+        awardRewards(store.user, 'post', 2, 'Posted to cloud feed');
         if(hasListingData){
           awardRewards(store.user, 'listing', 3, `Marketplace ${listing.category || 'general'} listing`);
           if(listing.category === 'services' || listing.category === 'meal-delivery'){
@@ -6858,32 +6820,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       fileInput.value = '';
     });
 
-      async function confirmPostWithServer(localMsg){
-        if(!localMsg || localMsg.room || localMsg.serverPostId) return;
-        const metadata = { category: localMsg.category, listing: localMsg.listing, actions: localMsg.actions, file: localMsg.file, fileName: localMsg.fileName, fileType: localMsg.fileType, image: localMsg.image, video: localMsg.video, xSpaceUrl: localMsg.xSpaceUrl, repostOf: localMsg.repostOf, repostNote: localMsg.repostNote, repostOriginalUser: localMsg.repostOriginalUser, rewardHighlight: localMsg.rewardHighlight, rewardPinnedUntil: localMsg.rewardPinnedUntil, marketplaceMedia: localMsg.marketplaceMedia };
-        const clientMutationId = localMsg.clientMutationId || `post-${localMsg.id}`;
-        try {
-          const res = await fetch('/api/posts', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ body: localMsg.text, metadata, clientMutationId })
-          });
-          if(!res.ok) throw new Error(`post ${res.status}`);
-          const data = await res.json();
-          const confirmed = messageFromApiPost(data.post || {});
-          upsertPersistentMessage(confirmed);
-          if(data.rewards) renderRewards();
-          await refreshServerFeed();
-        } catch(err) {
-          console.warn('[feed] post queued locally until the server accepts it', err);
-          try {
-            const queue = JSON.parse(localStorage.getItem('chaines_post_retry_queue_v1') || '[]');
-            queue.push({ ...localMsg, clientMutationId, queuedAt: Date.now(), error: err?.message || 'network' });
-            localStorage.setItem('chaines_post_retry_queue_v1', JSON.stringify(queue.slice(-25)));
-          } catch {}
-        }
-      }
       function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room, listing, actions=[], xSpaceUrl='' }){
       if(broadcast){
         room = joinApproved && pendingJoinHost ? pendingJoinHost : clientId;
@@ -6930,8 +6866,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       try { bc && bc.postMessage(msg); } catch {}
 
       // Send to server if available
-      if(room) sendCloudMessage(msg);
-      else confirmPostWithServer(msg);
+      sendCloudMessage(msg);
       return msg;
       }
 
@@ -7741,8 +7676,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
       }
 
-      async function renderHistory(){
-      await refreshServerFeed();
+      function renderHistory(){
       feed.innerHTML = '';
       const items = store.loadMsgs();
       items.slice().reverse().forEach(m => appendMessage(m, true));
