@@ -3290,6 +3290,7 @@
       /***********************
        * Boot UI
        ***********************/
+      initPrimaryNavState();
       initMobileTabs();
       initMobileLogTabs();
       buildCameraCards();
@@ -3322,6 +3323,18 @@
         hardResetCameras("page unload");
       });
 
+
+      /***********************
+       * Primary navigation state
+       ***********************/
+      function initPrimaryNavState(){
+        const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
+        document.querySelectorAll(".nav a").forEach((link)=>{
+          const linkPath = new URL(link.getAttribute("href"), window.location.origin).pathname.replace(/\/$/, "") || "/";
+          link.classList.toggle("active", linkPath === currentPath);
+        });
+      }
+
       /***********************
        * Mobile tabs
        ***********************/
@@ -3329,6 +3342,19 @@
         const tabButtons = Array.from(document.querySelectorAll("[data-tab-button]"));
         const panes = Array.from(document.querySelectorAll(".tab-pane"));
         if(tabButtons.length === 0 || panes.length === 0) return;
+
+        const pageTabMap = {
+          "/home": "controls",
+          "/home.html": "controls",
+          "/dashboard": "logs",
+          "/dashboard.html": "logs",
+          "/multi_camera": "camera",
+          "/multi_camera.html": "camera",
+          "/start": "controls",
+          "/start.html": "controls",
+          "/secure": "controls",
+          "/secure.html": "controls"
+        };
 
         const setActiveTab = (tabName)=>{
           tabButtons.forEach(btn => {
@@ -3347,7 +3373,7 @@
           });
         });
 
-        setActiveTab("controls");
+        setActiveTab(pageTabMap[window.location.pathname] || "controls");
       }
 
       function initMobileLogTabs(){
