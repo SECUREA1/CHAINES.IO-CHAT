@@ -360,21 +360,51 @@ function normalizeComment(row = {}) {
   return { id: row.id, postId: row.post_id, userId: row.user_id, username: row.user || row.username_snapshot, text: row.text || "", metadata: parseJsonField(row.metadata_json, {}), createdAt: row.timestamp || row.created_at };
 }
 function normalizePost(row = {}, includeComments = true) {
+  const metadata = parseJsonField(row.metadata_json, {});
   const comments = includeComments ? db.prepare("SELECT * FROM comments WHERE post_id=? ORDER BY id").all(row.id).map(normalizeComment) : [];
-  const likeCount = db.prepare("SELECT COUNT(*) AS n FROM reactions WHERE source_type='post' AND source_id=? AND reaction_type='like'").get(row.id)?.n || 0;
+  const reactions = db
+    .prepare("SELECT reaction_type, COUNT(*) AS count FROM reactions WHERE source_type='post' AND source_id=? GROUP BY reaction_type ORDER BY reaction_type")
+    .all(row.id)
+    .map((reaction) => ({ type: reaction.reaction_type, count: reaction.count }));
+  const likeCount = reactions.find((reaction) => reaction.type === "like")?.count || 0;
+  const media = {
+    image: metadata.image || null,
+    file: metadata.file || null,
+    fileName: metadata.fileName || metadata.file_name || null,
+    fileType: metadata.fileType || metadata.file_type || null,
+  };
   return {
     id: row.id,
     userId: row.user_id,
     username: row.username_snapshot || row.username,
     profilePic: row.profile_pic || null,
     body: row.body || "",
-    metadata: parseJsonField(row.metadata_json, {}),
+    text: row.body || "",
+    message: row.body || "",
+    ts: row.created_at ? Date.parse(row.created_at) : null,
+    metadata,
+    comments,
+    reactions,
+    likeCount,
+    clientMutationId: row.client_mutation_id || null,
+    media,
+    image: media.image,
+    file: media.file,
+    fileName: media.fileName,
+    file_name: media.fileName,
+    fileType: media.fileType,
+    file_type: media.fileType,
+    category: metadata.category || null,
+    listing: metadata.listing || null,
+    marketplace: metadata.marketplace || metadata.listing || null,
+    repost: metadata.repost || null,
+    repostOf: metadata.repostOf || metadata.repost_of || null,
+    quotePost: metadata.quotePost || metadata.quote || null,
+    rewards: metadata.rewards || null,
+    ownerId: row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at || null,
-    likeCount,
-    comments,
-    clientMutationId: row.client_mutation_id || null,
   };
 }
 function postRowById(id) {
@@ -1368,7 +1398,7 @@ app.get("/profile/:username", (req, res) => {
   const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
-      "SELECT username, profile_pic, description FROM users WHERE username=?"
+      "SELECT id, username, profile_pic, description FROM users WHERE username=?"
     )
     .get(req.params.username);
   const memUser = profiles[req.params.username] || {};
@@ -1379,9 +1409,14 @@ app.get("/profile/:username", (req, res) => {
   const posts = dbUser
     ? db
         .prepare(
-          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
+          `SELECT p.*, u.profile_pic
+           FROM posts p
+           JOIN users u ON u.id=p.user_id
+           WHERE p.user_id=? AND p.deleted_at IS NULL
+           ORDER BY p.id DESC`
         )
-        .all(req.params.username)
+        .all(dbUser.id)
+        .map((post) => normalizePost(post))
     : [];
   const followers = dbUser
     ? db

@@ -83,6 +83,13 @@ test('profiles posts reactions rewards and memory persist across sessions and re
   assert.equal(r.status, 200);
   r = await json(await fetch(srv.base+'/profile/alice2', { headers:{ cookie:bobCookie } }));
   assert.equal(r.body.description, 'Permanent profile');
+  assert.equal(r.body.posts[0].id, postId);
+  assert.equal(r.body.posts[0].body, 'Persistent hello');
+  assert.equal(r.body.posts[0].text, 'Persistent hello');
+  assert.equal(r.body.posts[0].profilePic, '/static/profiles/alice.png');
+  assert.equal(r.body.posts[0].comments[0].text, 'Durable comment');
+  assert.equal(r.body.posts[0].likeCount, 1);
+  assert.equal(r.body.stats.posts, 1);
   r = await json(await fetch(srv.base+'/api/memory/preferences', { headers:{ cookie:bobCookie } }));
   assert.equal(r.status, 404);
   srv.child.kill(); await wait(500);
@@ -97,6 +104,10 @@ test('profiles posts reactions rewards and memory persist across sessions and re
   assert.equal(post.likeCount, 1);
   assert.equal(post.comments[0].text, 'Durable comment');
   assert.equal(post.profilePic, '/static/profiles/alice.png');
+  r = await json(await fetch(srv.base+'/profile/alice2', { headers:{ cookie:cookie2 } }));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.posts.find(p=>p.id===postId).body, 'Persistent hello');
+  assert.equal(r.body.stats.posts, 1);
   r = await json(await fetch(srv.base+'/api/rewards/account', { headers:{ cookie:cookie2 } }));
   assert.equal(r.body.account.points, 13);
   r = await json(await fetch(srv.base+'/api/memory/preferences', { headers:{ cookie:cookie2 } }));
