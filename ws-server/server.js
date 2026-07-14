@@ -171,20 +171,13 @@ db.exec(`
     UNIQUE(user_id, namespace),
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
-  CREATE TABLE IF NOT EXISTS profiles (user_id INTEGER PRIMARY KEY, display_name TEXT, bio TEXT, avatar_url TEXT, banner_url TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, body TEXT, metadata_json TEXT NOT NULL DEFAULT '{}', visibility TEXT DEFAULT 'public', moderation_state TEXT DEFAULT 'visible', deleted_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS reactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, source_type TEXT NOT NULL, source_id TEXT NOT NULL, reaction_type TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, source_type, source_id, reaction_type), FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS feed_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, source_type TEXT NOT NULL, source_id TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, visibility TEXT DEFAULT 'public', moderation_state TEXT DEFAULT 'visible', UNIQUE(source_type, source_id), FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS rewards_accounts (user_id INTEGER PRIMARY KEY, available_points INTEGER NOT NULL DEFAULT 0, lifetime_points_earned INTEGER NOT NULL DEFAULT 0, lifetime_points_spent INTEGER NOT NULL DEFAULT 0, tier TEXT DEFAULT 'Starter', rank INTEGER, flags_json TEXT NOT NULL DEFAULT '{}', updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS rewards_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, action_type TEXT NOT NULL, source_type TEXT, source_id TEXT, idempotency_key TEXT NOT NULL UNIQUE, points INTEGER NOT NULL, balance_after INTEGER NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS reward_effects (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, effect_type TEXT NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}', active_until DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
-  CREATE TABLE IF NOT EXISTS marketplace_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action_type TEXT, listing_id TEXT, metadata_json TEXT DEFAULT '{}', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
-  CREATE TABLE IF NOT EXISTS live_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, status TEXT, started_at DATETIME DEFAULT CURRENT_TIMESTAMP, ended_at DATETIME);
-  CREATE TABLE IF NOT EXISTS live_participants (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER, user_id INTEGER, joined_at DATETIME DEFAULT CURRENT_TIMESTAMP, left_at DATETIME);
-  CREATE TABLE IF NOT EXISTS saved_items (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, source_type TEXT, source_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, source_type, source_id));
-  CREATE TABLE IF NOT EXISTS user_preferences (user_id INTEGER PRIMARY KEY, preferences_json TEXT NOT NULL DEFAULT '{}', updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
-  CREATE TABLE IF NOT EXISTS audit_events (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action_type TEXT NOT NULL, source_type TEXT, source_id TEXT, metadata_json TEXT DEFAULT '{}', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
-  CREATE TABLE IF NOT EXISTS user_rewards (user_id INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, data_json TEXT NOT NULL DEFAULT '{}', updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));
+  CREATE TABLE IF NOT EXISTS user_rewards (
+    user_id INTEGER PRIMARY KEY,
+    points INTEGER NOT NULL DEFAULT 0,
+    data_json TEXT NOT NULL DEFAULT '{}',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
   `);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
@@ -192,7 +185,6 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN category TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
-try { db.exec("ALTER TABLE posts ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
@@ -213,9 +205,7 @@ function loadProfiles() {
 
 function saveProfiles() {
   fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
-  const tmp = `${PROFILE_MEMORY_PATH}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(profiles, null, 2));
-  fs.renameSync(tmp, PROFILE_MEMORY_PATH);
+  fs.writeFileSync(PROFILE_MEMORY_PATH, JSON.stringify(profiles, null, 2));
 }
 
 let profiles = loadProfiles();
@@ -247,20 +237,9 @@ function createSession(res, userId) { const token = crypto.randomBytes(32).toStr
 function loadSession(req) { const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE]; if (!token) return null; const row = db.prepare(`SELECT s.*, u.username, u.profile_pic, u.description FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL`).get(hashToken(token)); if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null; const last = new Date(row.last_seen_at).getTime() || 0; if (Date.now() - last > SESSION_REFRESH_MS) db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), row.id); return { id: row.id, user: { id: row.user_id, username: row.username, profilePic: row.profile_pic || null, verified: true, description: row.description || null }, expiresAt: row.expires_at, tokenHash: row.token_hash }; }
 function attachSession(req, _res, next) { req.session = loadSession(req); next(); }
 function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
-function publicSession(req) { return req.session ? { user: formatUser(req.session.user.id) || req.session.user, expiresAt: req.session.expiresAt } : null; }
+function publicSession(req) { return req.session ? { user: req.session.user, expiresAt: req.session.expiresAt } : null; }
 function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
-function parseStoredJson(raw = '{}', fallback = {}) {
-  try { return JSON.parse(raw || '{}'); } catch { return fallback; }
-}
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
-function upsertMemory(userId, namespace, schemaVersion, data) {
-  if (!validNamespace(namespace)) throw Object.assign(new Error("Invalid namespace"), { status: 400 });
-  const json = safeMemoryPayload(data);
-  const ver = Math.max(1, Number(schemaVersion || 1));
-  const now = new Date().toISOString();
-  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET schema_version=excluded.schema_version, data_json=excluded.data_json, updated_at=excluded.updated_at").run(userId, namespace, ver, json, now);
-  return { namespace, schemaVersion: ver, updatedAt: now, data: JSON.parse(json) };
-}
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
@@ -345,51 +324,6 @@ const ADMIN_ACCOUNT = Object.freeze({
 const DEFAULT_RECEIPT_EMAIL = (process.env.DELIVERY_RECEIPT_EMAIL || "chadslondonrentals@gmail.com").trim();
 const RESEND_API_KEY = (process.env.RESEND_API_KEY || "").trim();
 const RECEIPT_FROM_EMAIL = (process.env.RECEIPT_FROM_EMAIL || "CHAINeS Delivery <onboarding@resend.dev>").trim();
-
-
-function resolvePlatformUser(req, res) {
-  if (req.session?.user?.id) return req.session.user;
-  const q = sanitizeUsername(req.query?.user || req.body?.user || req.headers['x-chaines-user'] || 'guest');
-  const username = q || 'guest';
-  const userId = ensureUserRecord(username, username.startsWith('guest') ? 'guest' : 'guest');
-  createSession(res, userId);
-  return formatUser(userId);
-}
-function ensureUserRecord(username = 'guest', accountType = 'guest') {
-  const clean = sanitizeUsername(username) || 'guest';
-  let row = db.prepare('SELECT id FROM users WHERE username=?').get(clean);
-  if (!row) row = { id: Number(db.prepare('INSERT INTO users (username, password, profile_pic, description) VALUES (?, NULL, NULL, NULL)').run(clean).lastInsertRowid) };
-  db.prepare('INSERT OR IGNORE INTO profiles (user_id, display_name, bio, avatar_url) VALUES (?, ?, NULL, NULL)').run(row.id, clean);
-  db.prepare('INSERT OR IGNORE INTO rewards_accounts (user_id) VALUES (?)').run(row.id);
-  db.prepare('INSERT OR IGNORE INTO user_preferences (user_id) VALUES (?)').run(row.id);
-  return row.id;
-}
-function formatUser(userId) {
-  const row = db.prepare(`SELECT u.id, u.username, u.profile_pic, u.description, p.display_name, p.bio, p.avatar_url, p.banner_url, p.updated_at, up.preferences_json FROM users u LEFT JOIN profiles p ON p.user_id=u.id LEFT JOIN user_preferences up ON up.user_id=u.id WHERE u.id=?`).get(userId);
-  if (!row) return null;
-  let preferences={}; try{preferences=JSON.parse(row.preferences_json||'{}')}catch{}
-  return { id: row.id, username: row.username, displayName: row.display_name || row.username, avatarUrl: row.avatar_url || row.profile_pic || null, accountType: row.password ? 'authenticated' : 'guest', createdAt: null, updatedAt: row.updated_at || null, profile: { bio: row.bio || row.description || '', bannerUrl: row.banner_url || null }, preferences, permissions: { canPost: true, canRedeem: true } };
-}
-const REWARD_POINTS = { post_created:2, reply:2, follow:2, like:1, listing:3, marketplace_like:1, marketplace_comment:2, marketplace_contact:2, stream_minute:1, wallet_connected:1, broadcast_start:2 };
-function tierFor(points){ return points>=250?'Legend':points>=120?'Elite':points>=60?'Pro':points>=20?'Rising':'Starter'; }
-function rewardAccount(userId){ db.prepare('INSERT OR IGNORE INTO rewards_accounts (user_id) VALUES (?)').run(userId); return db.prepare('SELECT * FROM rewards_accounts WHERE user_id=?').get(userId); }
-function applyReward(userId, actionType, sourceType, sourceId, metadata={}) {
-  const pts = Number(REWARD_POINTS[actionType] || metadata.points || 0);
-  const key = String(metadata.idempotencyKey || `${actionType}:${userId}:${sourceId || sourceType || Date.now()}`).slice(0,180);
-  return db.transaction(() => {
-    let acct = rewardAccount(userId);
-    const existing = db.prepare('SELECT * FROM rewards_transactions WHERE idempotency_key=?').get(key);
-    if (existing) return { account: acct, transaction: existing, duplicate: true };
-    const next = Math.max(0, acct.available_points + pts);
-    const earned = acct.lifetime_points_earned + Math.max(0, pts);
-    const spent = acct.lifetime_points_spent + Math.max(0, -pts);
-    db.prepare('UPDATE rewards_accounts SET available_points=?, lifetime_points_earned=?, lifetime_points_spent=?, tier=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?').run(next, earned, spent, tierFor(earned), userId);
-    const info = db.prepare('INSERT INTO rewards_transactions (user_id, action_type, source_type, source_id, idempotency_key, points, balance_after, metadata_json) VALUES (?,?,?,?,?,?,?,?)').run(userId, actionType, sourceType||'', String(sourceId||''), key, pts, next, JSON.stringify(metadata||{}));
-    db.prepare('INSERT INTO audit_events (user_id, action_type, source_type, source_id, metadata_json) VALUES (?,?,?,?,?)').run(userId, 'reward:'+actionType, sourceType||'', String(sourceId||''), JSON.stringify({points:pts,key}));
-    return { account: rewardAccount(userId), transaction: db.prepare('SELECT * FROM rewards_transactions WHERE id=?').get(info.lastInsertRowid), duplicate: false };
-  })();
-}
-function publicRewardAccount(userId){ const a=rewardAccount(userId); return { userId:a.user_id, availablePoints:a.available_points, lifetimePointsEarned:a.lifetime_points_earned, lifetimePointsSpent:a.lifetime_points_spent, tier:a.tier, rank:a.rank, flags: JSON.parse(a.flags_json||'{}'), updatedAt:a.updated_at }; }
 
 function ensureUserProfile(username = "") {
   const clean = sanitizeUsername(username);
@@ -1044,8 +978,7 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
 
 
 app.get("/api/session", (req, res) => {
-  let session = publicSession(req);
-  if (!session && (req.query.user || req.query.guest)) { const user = resolvePlatformUser(req, res); session = { user, expiresAt: new Date(Date.now() + SESSION_DAYS * 86400_000).toISOString() }; }
+  const session = publicSession(req);
   if (!session) return res.status(401).json({ error: "No valid session" });
   res.json(session);
 });
@@ -1062,22 +995,26 @@ app.post("/logout", (req, res) => {
 });
 app.get("/api/memory", requireSession, (req, res) => {
   const rows = db.prepare("SELECT namespace, schema_version, data_json, updated_at FROM user_memory WHERE user_id=?").all(req.session.user.id);
-  res.json({ namespaces: Object.fromEntries(rows.map(r => [r.namespace, { schemaVersion: r.schema_version, updatedAt: r.updated_at, data: parseStoredJson(r.data_json) }])) });
+  res.json({ namespaces: Object.fromEntries(rows.map(r => [r.namespace, { schemaVersion: r.schema_version, updatedAt: r.updated_at, data: JSON.parse(r.data_json || '{}') }])) });
 });
 app.get("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
   const row = db.prepare("SELECT schema_version, data_json, updated_at FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
   if (!row) return res.status(404).json({ error: "Not found" });
-  res.json({ namespace: ns, schemaVersion: row.schema_version, updatedAt: row.updated_at, data: parseStoredJson(row.data_json) });
+  res.json({ namespace: ns, schemaVersion: row.schema_version, updatedAt: row.updated_at, data: JSON.parse(row.data_json || '{}') });
 });
 app.put("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
-  try { res.json(upsertMemory(req.session.user.id, ns, req.body?.schemaVersion || 1, req.body?.data ?? req.body ?? {})); } catch(e) { res.status(e.status || 413).json({ error: e.message }); }
+  let json; try { json = safeMemoryPayload(req.body?.data ?? req.body ?? {}); } catch(e) { return res.status(413).json({ error: e.message }); }
+  const ver = Math.max(1, Number(req.body?.schemaVersion || 1));
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET schema_version=excluded.schema_version, data_json=excluded.data_json, updated_at=excluded.updated_at").run(req.session.user.id, ns, ver, json, now);
+  res.json({ namespace: ns, schemaVersion: ver, updatedAt: now, data: JSON.parse(json) });
 });
 app.patch("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
   const row = db.prepare("SELECT data_json, schema_version FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
-  const base = row ? parseStoredJson(row.data_json) : {};
+  const base = row ? JSON.parse(row.data_json || '{}') : {};
   const next = { ...base, ...(req.body?.data ?? req.body ?? {}) };
   let json; try { json = safeMemoryPayload(next); } catch(e) { return res.status(413).json({ error: e.message }); }
   const now = new Date().toISOString();
@@ -1085,82 +1022,6 @@ app.patch("/api/memory/:namespace", requireSession, (req, res) => {
   res.json({ namespace: ns, schemaVersion: row?.schema_version || 1, updatedAt: now, data: next });
 });
 app.delete("/api/memory/:namespace", requireSession, (req, res) => { const ns=req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" }); db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns); res.json({ success: true }); });
-
-app.post("/api/memory/sync", requireSession, (req, res) => {
-  const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 100) : [];
-  const remove = Array.isArray(req.body?.remove) ? req.body.remove.slice(0, 100) : [];
-  try {
-    const out = db.transaction(() => {
-      const saved = items.map((item) => upsertMemory(req.session.user.id, String(item?.namespace || ''), item?.schemaVersion || 1, item?.data ?? {}));
-      const deleted = [];
-      for (const ns of remove) {
-        if (!validNamespace(ns)) throw Object.assign(new Error("Invalid namespace"), { status: 400 });
-        db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns);
-        deleted.push(ns);
-      }
-      return { saved, deleted };
-    })();
-    res.json({ success: true, ...out });
-  } catch (e) {
-    res.status(e.status || 413).json({ error: e.message });
-  }
-});
-
-
-app.get('/api/users/:id', (req, res) => {
-  const id = /^\d+$/.test(req.params.id) ? Number(req.params.id) : ensureUserRecord(req.params.id);
-  const user = formatUser(id); if (!user) return res.status(404).json({ error: 'Not found' });
-  res.json({ user, rewards: publicRewardAccount(id) });
-});
-app.patch('/api/users/:id/profile', requireSession, (req, res) => {
-  if (Number(req.params.id) !== Number(req.session.user.id)) return res.status(403).json({ error: 'Cannot edit another profile' });
-  const displayName = String(req.body?.displayName || '').slice(0,80); const bio = String(req.body?.bio || '').slice(0,1000); const avatarUrl = String(req.body?.avatarUrl || '').slice(0,500); const bannerUrl = String(req.body?.bannerUrl || '').slice(0,500);
-  db.prepare('INSERT INTO profiles (user_id, display_name, bio, avatar_url, banner_url, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, bio=excluded.bio, avatar_url=excluded.avatar_url, banner_url=excluded.banner_url, updated_at=CURRENT_TIMESTAMP').run(req.session.user.id, displayName || req.session.user.username, bio, avatarUrl || null, bannerUrl || null);
-  db.prepare('INSERT INTO audit_events (user_id, action_type, source_type, source_id) VALUES (?, ?, ?, ?)').run(req.session.user.id, 'profile_update', 'user', String(req.session.user.id));
-  res.json({ user: formatUser(req.session.user.id) });
-});
-function enrichPosts(rows) {
-  const ids = rows.map((r) => String(r.id));
-  if (!ids.length) return rows;
-  const placeholders = ids.map(() => '?').join(',');
-  const comments = db.prepare(`SELECT id, message_id, user, text, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM comments WHERE message_id IN (${placeholders}) ORDER BY id`).all(...ids);
-  const likes = db.prepare(`SELECT source_id, COUNT(*) as c FROM reactions WHERE source_type='post' AND source_id IN (${placeholders}) GROUP BY source_id`).all(...ids);
-  const commentsByPost = new Map();
-  for (const c of comments) {
-    const key = String(c.message_id);
-    if (!commentsByPost.has(key)) commentsByPost.set(key, []);
-    commentsByPost.get(key).push({ id: c.id, messageId: c.message_id, user: c.user, text: c.text, file: c.file, fileName: c.file_name, fileType: c.file_type, ts: c.ts });
-  }
-  const likesByPost = new Map(likes.map((l) => [String(l.source_id), Number(l.c || 0)]));
-  return rows.map((r) => ({ ...r, likeCount: likesByPost.get(String(r.id)) || 0, comments: commentsByPost.get(String(r.id)) || [] }));
-}
-app.get('/api/posts', (req, res) => {
-  const limit = Math.min(50, Math.max(1, Number(req.query.limit || 20))); const cursor = Number(req.query.cursor || 0);
-  const rows = db.prepare(`SELECT p.*, p.user_id as userId, p.created_at as createdAt, u.username FROM posts p JOIN users u ON u.id=p.user_id WHERE p.deleted_at IS NULL AND p.moderation_state='visible' AND (?=0 OR p.id < ?) ORDER BY p.id DESC LIMIT ?`).all(cursor, cursor, limit + 1);
-  res.json({ items: enrichPosts(rows.slice(0, limit)), nextCursor: rows.length > limit ? rows[limit-1].id : null });
-});
-app.post('/api/posts', requireSession, (req, res) => {
-  const body = String(req.body?.body || req.body?.text || '').trim().slice(0,5000); if (!body) return res.status(400).json({ error:'Post body required' });
-  const metadata = req.body?.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {};
-  const metadataJson = JSON.stringify(metadata).slice(0, 1000000);
-  const out = db.transaction(() => { const info = db.prepare('INSERT INTO posts (user_id, body, metadata_json) VALUES (?,?,?)').run(req.session.user.id, body, metadataJson); db.prepare('INSERT INTO feed_entries (user_id, source_type, source_id) VALUES (?, ?, ?)').run(req.session.user.id, 'post', String(info.lastInsertRowid)); db.prepare('INSERT INTO audit_events (user_id, action_type, source_type, source_id) VALUES (?, ?, ?, ?)').run(req.session.user.id, 'post_created', 'post', String(info.lastInsertRowid)); const reward = applyReward(req.session.user.id, 'post_created', 'post', String(info.lastInsertRowid), { idempotencyKey:`post_created:${req.session.user.id}:${info.lastInsertRowid}` }); return { post: db.prepare('SELECT *, user_id as userId, created_at as createdAt FROM posts WHERE id=?').get(info.lastInsertRowid), reward }; })();
-  res.status(201).json({ ...out, user: formatUser(req.session.user.id), rewards: publicRewardAccount(req.session.user.id) });
-});
-app.get('/api/posts/:id', (req,res)=>{ const row=db.prepare('SELECT * FROM posts WHERE id=? AND deleted_at IS NULL').get(req.params.id); if(!row) return res.status(404).json({error:'Not found'}); res.json({post:row}); });
-app.patch('/api/posts/:id', requireSession, (req,res)=>{ const row=db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id); if(!row) return res.status(404).json({error:'Not found'}); if(row.user_id!==req.session.user.id) return res.status(403).json({error:'Not owner'}); db.prepare('UPDATE posts SET body=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(String(req.body?.body||'').slice(0,5000), req.params.id); res.json({post:db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id)}); });
-app.delete('/api/posts/:id', requireSession, (req,res)=>{ const row=db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id); if(!row) return res.status(404).json({error:'Not found'}); if(row.user_id!==req.session.user.id) return res.status(403).json({error:'Not owner'}); db.prepare('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(req.params.id); res.json({success:true}); });
-app.post('/api/posts/:id/comments', requireSession, (req,res)=>{ const text=String(req.body?.text||'').trim().slice(0,1000); const file=String(req.body?.file||'').slice(0,1000000); const fileName=String(req.body?.fileName||'').slice(0,255); const fileType=String(req.body?.fileType||'').slice(0,120); if(!text && !file) return res.status(400).json({error:'Comment required'}); const info=db.prepare('INSERT INTO comments (message_id, user, text, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?)').run(req.params.id, req.session.user.username, text, file || null, fileName || null, fileType || null); applyReward(req.session.user.id,'reply','post',req.params.id,{idempotencyKey:`reply:${req.session.user.id}:${info.lastInsertRowid}`}); res.status(201).json({id:info.lastInsertRowid, messageId:req.params.id, user:req.session.user.username, text, file:file||null, fileName:fileName||null, fileType:fileType||null, rewards:publicRewardAccount(req.session.user.id)}); });
-app.post('/api/posts/:id/reactions', requireSession, (req,res)=>{ const type=String(req.body?.type||'like').slice(0,24); db.prepare('INSERT OR IGNORE INTO reactions (user_id, source_type, source_id, reaction_type) VALUES (?, ?, ?, ?)').run(req.session.user.id,'post',String(req.params.id),type); applyReward(req.session.user.id,'like','post',req.params.id,{idempotencyKey:`like:${req.session.user.id}:${req.params.id}:${type}`}); res.json({reacted:true, rewards:publicRewardAccount(req.session.user.id)}); });
-app.delete('/api/posts/:id/reactions', requireSession, (req,res)=>{ db.prepare('DELETE FROM reactions WHERE user_id=? AND source_type=? AND source_id=?').run(req.session.user.id,'post',String(req.params.id)); res.json({reacted:false}); });
-app.post('/api/users/:id/follow', requireSession, (req,res)=>{ const target=formatUser(Number(req.params.id)); if(!target) return res.status(404).json({error:'Not found'}); db.prepare('INSERT OR IGNORE INTO follows (follower, following) VALUES (?,?)').run(req.session.user.username,target.username); applyReward(req.session.user.id,'follow','user',String(target.id),{idempotencyKey:`follow:${req.session.user.id}:${target.id}`}); res.json({following:true, rewards:publicRewardAccount(req.session.user.id)}); });
-app.delete('/api/users/:id/follow', requireSession, (req,res)=>{ const target=formatUser(Number(req.params.id)); if(target) db.prepare('DELETE FROM follows WHERE follower=? AND following=?').run(req.session.user.username,target.username); res.json({following:false}); });
-app.get(['/api/feeds/global','/api/feeds/following','/api/feeds/profile/:userId'], (req,res)=>{ const limit=Math.min(50,Math.max(1,Number(req.query.limit||20))); const cursor=Number(req.query.cursor||0); let where="p.deleted_at IS NULL AND p.moderation_state='visible'"; const args=[]; if(req.params.userId){where+=' AND p.user_id=?'; args.push(Number(req.params.userId));} if(cursor){where+=' AND p.id < ?'; args.push(cursor);} const rows=db.prepare(`SELECT p.id, p.user_id as userId, p.body, p.metadata_json, p.created_at as createdAt, u.username FROM posts p JOIN users u ON u.id=p.user_id WHERE ${where} ORDER BY p.id DESC LIMIT ?`).all(...args, limit+1); res.json({items:enrichPosts(rows.slice(0,limit)), nextCursor: rows.length>limit ? rows[limit-1].id : null}); });
-app.get('/api/rewards/account', (req,res)=>{ const u=resolvePlatformUser(req,res); res.json({account:publicRewardAccount(u.id), user:formatUser(u.id)}); });
-app.get('/api/rewards/history', (req,res)=>{ const u=resolvePlatformUser(req,res); const limit=Math.min(100,Math.max(1,Number(req.query.limit||20))); const cursor=Number(req.query.cursor||0); const rows=db.prepare('SELECT * FROM rewards_transactions WHERE user_id=? AND (?=0 OR id < ?) ORDER BY id DESC LIMIT ?').all(u.id,cursor,cursor,limit+1); res.json({items:rows.slice(0,limit), nextCursor:rows.length>limit?rows[limit-1].id:null}); });
-app.post('/api/rewards/actions', requireSession, (req,res)=>{ const r=applyReward(req.session.user.id, String(req.body?.actionType||''), String(req.body?.sourceType||''), String(req.body?.sourceId||''), req.body?.metadata||{}); res.json({ ...r, account: publicRewardAccount(req.session.user.id) }); });
-app.post('/api/rewards/redeem', requireSession, (req,res)=>{ const action=String(req.body?.actionType||'').slice(0,40); const costs={highlight:10,boost:20,priority:30,pin:40,banner:50}; const cost=costs[action]; if(!cost) return res.status(400).json({error:'Invalid redemption'}); try { const out=db.transaction(()=>{ const a=rewardAccount(req.session.user.id); if(a.available_points<cost) throw new Error('Not enough points'); const next=a.available_points-cost; db.prepare('UPDATE rewards_accounts SET available_points=?, lifetime_points_spent=lifetime_points_spent+?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?').run(next,cost,req.session.user.id); const info=db.prepare('INSERT INTO rewards_transactions (user_id, action_type, source_type, source_id, idempotency_key, points, balance_after, metadata_json) VALUES (?,?,?,?,?,?,?,?)').run(req.session.user.id, action, 'reward_effect', action, `redeem:${req.session.user.id}:${action}:${Date.now()}`, -cost, next, '{}'); db.prepare('INSERT INTO reward_effects (user_id, effect_type) VALUES (?,?)').run(req.session.user.id, action); return {transactionId:info.lastInsertRowid, account:publicRewardAccount(req.session.user.id)}; })(); res.json(out); } catch(e){ res.status(400).json({error:e.message}); } });
-app.get('/api/rewards/leaderboard', (req,res)=>{ const rows=db.prepare(`SELECT ra.*, u.username FROM rewards_accounts ra JOIN users u ON u.id=ra.user_id ORDER BY ra.lifetime_points_earned DESC, lower(u.username) ASC LIMIT 100`).all(); res.json({items:rows.map((r,i)=>({rank:i+1,userId:r.user_id,username:r.username,points:r.available_points,lifetimePointsEarned:r.lifetime_points_earned,tier:r.tier}))}); });
-app.post('/api/rewards/migrate-legacy', requireSession, (req,res)=>{ const key=`legacy:${req.session.user.id}:chaines_rewards_v1`; const exists=db.prepare('SELECT 1 FROM audit_events WHERE action_type=? AND user_id=?').get(key,req.session.user.id); if(exists) return res.json({imported:false, alreadyComplete:true}); const legacy=req.body?.legacy; const hist=legacy&&typeof legacy==='object'&&Array.isArray(legacy.history)?legacy.history.slice(0,1000):[]; let count=0; for(const e of hist){ const pts=Number(e.points||0); const action=String(e.action||'legacy').slice(0,64); if(Number.isFinite(pts)&&pts>0){ applyReward(req.session.user.id, action, 'legacy', String(e.ts||count), {idempotencyKey:`legacy:${req.session.user.id}:${action}:${e.ts||count}`, legacy:true}); count++; } } db.prepare('INSERT INTO audit_events (user_id, action_type, source_type, source_id) VALUES (?,?,?,?)').run(req.session.user.id,key,'legacy','chaines_rewards_v1'); res.json({imported:true,count,account:publicRewardAccount(req.session.user.id)}); });
 
 app.post("/delivery-orders", requireSession, (req, res) => {
   ensureAdminAccount();
@@ -2257,25 +2118,6 @@ wss.on("connection", (ws) => {
         const payload = { type: "like", messageId: msg.messageId, count };
         for (const client of wss.clients) {
           if (client.readyState === 1) client.send(JSON.stringify(payload));
-        }
-        return;
-      }
-      case "delete": {
-        const id = Number(msg.id || msg.messageId);
-        const actor = sanitizeUsername(msg.user || ws.username || "");
-        if (!id || !actor) return;
-        const row = db.prepare("SELECT id, user FROM chat_messages WHERE id = ?").get(id);
-        if (!row || row.user !== actor) {
-          ws.send(JSON.stringify({ type: "system", text: "Only the original poster can delete this post." }));
-          return;
-        }
-        db.prepare("DELETE FROM comments WHERE message_id = ?").run(id);
-        db.prepare("DELETE FROM likes WHERE message_id = ?").run(id);
-        db.prepare("DELETE FROM reposts WHERE message_id = ? OR repost_message_id = ?").run(id, id);
-        db.prepare("DELETE FROM chat_messages WHERE id = ?").run(id);
-        const payload = JSON.stringify({ type: "delete", id });
-        for (const client of wss.clients) {
-          if (client.readyState === 1) client.send(payload);
         }
         return;
       }

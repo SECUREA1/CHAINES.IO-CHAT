@@ -52,7 +52,6 @@
 <script src="/static/session-client.js"></script>
 <script src="/static/memory-bank.js"></script>
 <script src="/static/memory-autosave.js"></script>
-<script src="/static/chaines-memory.js"></script>
 </head>
 <body>
   <main class="wrap">
@@ -144,7 +143,7 @@
 
     <section class="card">
       <h2>Redeem rewards (effects applied immediately)</h2>
-      <p>Redeeming deducts points on the server and writes a durable reward transaction to your shared CHAINeS account.</p>
+      <p>Redeeming deducts points and writes a record to your rewards history in local storage.</p>
       <div id="shop" class="shop"></div>
       <h3 style="margin:12px 0 8px;">Active reward effects</h3>
       <ul id="active-effects" class="history"></ul>
@@ -171,18 +170,18 @@
     <section class="card">
       <h2>Leaderboard + profile logic (detailed)</h2>
       <ul class="logic-list">
-        <li><strong>Source of truth:</strong> every user resolves to one server-backed CHAINeS identity with durable reward account, transaction, and effect records.</li>
+        <li><strong>Source of truth:</strong> every user is stored in <code>chaines_rewards_v1</code> with <code>points</code>, <code>history</code>, and optional <code>flags</code>.</li>
         <li><strong>Scoring:</strong> earn actions add positive points; redemptions write negative point entries and reduce available balance instantly.</li>
         <li><strong>Eligibility:</strong> leaderboard includes every non-empty username with a valid rewards object.</li>
         <li><strong>Tie-break:</strong> if two users have equal points, names are ordered alphabetically for stable ranking.</li>
-        <li><strong>Profile integration:</strong> profile page reads the same server records, shows rank, tier progress, recent events, and top leaderboard entries.</li>
-        <li><strong>History pagination:</strong> complete reward history stays in the database and the interface requests recent pages as needed.</li>
+        <li><strong>Profile integration:</strong> profile page reads the same rewards store, shows rank, tier progress, recent events, and top leaderboard entries.</li>
+        <li><strong>History cap:</strong> rewards history is trimmed to the most recent 120 records to keep storage responsive.</li>
       </ul>
     </section>
   </main>
 
   <script>
-    const REWARDS_STORAGE_KEY = 'chaines_rewards_v1'; // legacy migration key only; server is source of truth
+    const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
     const REWARD_RULES = Object.freeze([
       { action: 'post', points: 2, label: 'Post in feed', effect: 'Build your balance from social activity.' },
       { action: 'reply', points: 2, label: 'Reply to a post', effect: 'Conversation growth bonus.' },
@@ -217,52 +216,65 @@
       { min: 250, name: 'Legend', effect: 'Maximum prestige tier and strongest visibility profile.', perk: 'Top visibility weighting, premium placements favored.', redemptionDiscount: 0.2 }
     ]);
 
-    let serverRewardsStore = {};
-    async function migrateLegacyRewardsOnce(){
-      try{
-        const raw = window.localStorage ? localStorage.getItem(REWARDS_STORAGE_KEY) : null;
-        if(!raw) return;
-        const parsed = JSON.parse(raw);
-        if(parsed && typeof parsed === 'object') await CHAINeSMemory.rewards.migrateLegacy(parsed[userFromPage()] || parsed);
-        localStorage.removeItem(REWARDS_STORAGE_KEY);
-      }catch(err){ console.warn('Legacy rewards migration skipped:', err.message); }
+    function loadRewardsStore(){
+      try{ const parsed = JSON.parse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}'); return parsed && typeof parsed === 'object' ? parsed : {}; }
+      catch{ return {}; }
     }
-    function loadRewardsStore(){ return serverRewardsStore; }
-    function saveRewardsStore(){ throw new Error('Rewards are server-backed; browser storage writes are disabled.'); }
+    function saveRewardsStore(store){
+      localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(store || {}));
+    }
     function userFromPage(){
       const params = new URLSearchParams(window.location.search);
-      return String(params.get('user') || '').trim() || 'guest';
+      const fromQuery = String(params.get('user') || '').trim();
+      const fromStorage = String(localStorage.getItem('chaines_username') || '').trim();
+      return fromQuery || fromStorage || 'guest';
     }
     function rewardsForUser(username, createIfMissing=false){
       const user = String(username || '').trim();
       if(!user) return null;
-      if(!serverRewardsStore[user] && createIfMissing) serverRewardsStore[user] = { points: 0, history: [], flags: {} };
-      return serverRewardsStore[user] || null;
+      const store = loadRewardsStore();
+      if(!store[user] && createIfMissing){
+        store[user] = { points: 0, history: [], flags: {} };
+        saveRewardsStore(store);
+      }
+      return store[user] || null;
     }
-    async function awardRewards(username, action, points, detail=''){
-      if(Number(points) >= 0) return false;
-      const res = await CHAINeSMemory.rewards.redeem({ actionType: action, detail });
-      await refreshRewardsState();
-      return !!res.account;
+    function awardRewards(username, action, points, detail=''){
+      const user = String(username || '').trim();
+      if(!user || !action || !Number.isFinite(points) || points === 0) return false;
+      const store = loadRewardsStore();
+      const current = store[user] || { points: 0, history: [], flags: {} };
+      const next = Number(current.points || 0) + Number(points || 0);
+      if(next < 0) return false;
+      current.points = next;
+      current.history = Array.isArray(current.history) ? current.history : [];
+      current.history.unshift({ action, points, detail: String(detail || ''), ts: Date.now() });
+      current.history = current.history.slice(0, 120);
+      store[user] = current;
+      saveRewardsStore(store);
+      return true;
     }
-    function patchRewardFlags(){ /* reward effects are activated by the server redemption transaction */ }
-    function activateSpendEffect(){ /* server-managed */ }
-    async function refreshRewardsState(){
-      const [accountData, historyData, leaderboardData] = await Promise.all([
-        CHAINeSMemory.rewards.account(),
-        CHAINeSMemory.rewards.history({ limit: 50 }),
-        CHAINeSMemory.rewards.leaderboard()
-      ]);
-      const username = accountData.user.username;
-      state.user = username;
-      serverRewardsStore = Object.fromEntries((leaderboardData.items || []).map((entry) => [entry.username, { points: entry.points, history: [], flags: {}, tier: entry.tier }]));
-      serverRewardsStore[username] = {
-        points: accountData.account.availablePoints,
-        history: (historyData.items || []).map((entry) => ({ action: entry.action_type, points: entry.points, detail: entry.source_type || '', ts: Date.parse(entry.created_at) || Date.now() })),
-        flags: accountData.account.flags || {},
-        tier: accountData.account.tier
-      };
+    function patchRewardFlags(username, updater){
+      const user = String(username || '').trim();
+      if(!user || typeof updater !== 'function') return;
+      const store = loadRewardsStore();
+      const current = store[user] || { points: 0, history: [], flags: {} };
+      current.flags = current.flags || {};
+      current.flags = updater({ ...current.flags }) || current.flags;
+      store[user] = current;
+      saveRewardsStore(store);
     }
+    function activateSpendEffect(username, action){
+      patchRewardFlags(username, (flags) => {
+        if(action === 'highlight') flags.highlightNextPost = Math.max(0, Number(flags.highlightNextPost || 0)) + 1;
+        if(action === 'boost') flags.marketBoostCredits = Math.max(0, Number(flags.marketBoostCredits || 0)) + 1;
+        if(action === 'pin') flags.listingPinCredits = Math.max(0, Number(flags.listingPinCredits || 0)) + 1;
+        if(action === 'priority') flags.profileSpotlightUntil = Date.now() + (24 * 60 * 60 * 1000);
+        if(action === 'banner') flags.profileBannerFeaturedUntil = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        return flags;
+      });
+    }
+
     const state = { user: userFromPage() };
 
     const els = {
@@ -372,16 +384,12 @@
         btn.textContent = 'Redeem';
         btn.disabled = pts < effectiveCost;
         btn.title = pts < effectiveCost ? 'Not enough points' : 'Redeem now';
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          try {
-            const ok = await awardRewards(state.user, option.action, -effectiveCost, `${option.label} redeemed (${effectiveCost} pts)`);
-            els.status.innerHTML = ok
-              ? `Program status: <span class="ok">Redeemed ${option.label}</span>. Server transaction applied.`
-              : `Program status: <span class="warn">Unable to redeem</span> ${option.label}.`;
-          } catch(err) {
-            els.status.innerHTML = `Program status: <span class="warn">Save error:</span> ${err.message}`;
-          }
+        btn.addEventListener('click', () => {
+          const ok = awardRewards(state.user, option.action, -effectiveCost, `${option.label} redeemed (${effectiveCost} pts)`);
+          if(ok) activateSpendEffect(state.user, option.action);
+          els.status.innerHTML = ok
+            ? `Program status: <span class="ok">Redeemed ${option.label}</span>. Tier price ${effectiveCost} pts applied.`
+            : `Program status: <span class="warn">Not enough points</span> for ${option.label}.`;
           render();
         });
         item.append(left, btn);
@@ -469,16 +477,7 @@
       }
     }
 
-    (async function initRewards(){
-      els.status.innerHTML = 'Program status: loading server rewards…';
-      try {
-        await migrateLegacyRewardsOnce();
-        await refreshRewardsState();
-        render();
-      } catch(err) {
-        els.status.innerHTML = `Program status: <span class="warn">Connection error:</span> ${err.message}`;
-      }
-    })();
+    render();
   </script>
 </body>
 </html>
