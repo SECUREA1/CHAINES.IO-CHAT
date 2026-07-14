@@ -461,6 +461,9 @@ app.get(["/", "/index.html"], (req, res) =>
 app.get(["/secure", "/secure.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "secure.html"))
 );
+app.get(["/home", "/home.html", "/dashboard", "/dashboard.html", "/multi_camera", "/multi_camera.html", "/start", "/start.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "secure.html"))
+);
 app.get(["/marketplace", "/marketplace.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "marketplace.html"))
 );
