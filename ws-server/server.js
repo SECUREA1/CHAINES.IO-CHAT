@@ -28,10 +28,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, "app.db");
+const dbDir = path.dirname(DB_PATH);
 if (!process.env.DB_PATH) {
   console.warn("[storage] DB_PATH is not set; using repo-local app.db. Set DB_PATH to mounted persistent storage in production.");
 }
+if (process.env.NODE_ENV === "production" && !path.resolve(DB_PATH).startsWith("/var/data/")) {
+  console.warn(`[storage] WARNING: production DB_PATH (${DB_PATH}) is not inside /var/data; data may be ephemeral on Render.`);
+}
+fs.mkdirSync(dbDir, { recursive: true });
+fs.accessSync(dbDir, fs.constants.W_OK);
+console.log(`[storage] SQLite database path: ${DB_PATH}`);
 const db = new Database(DB_PATH);
+db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,8 +59,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id INTEGER,
+    post_id INTEGER,
+    user_id INTEGER,
     user TEXT,
     text TEXT,
+    metadata_json TEXT DEFAULT '{}',
     file TEXT,
     file_name TEXT,
     file_type TEXT,
@@ -63,6 +75,45 @@ db.exec(`
     user TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(message_id, user)
+  );
+  CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    username_snapshot TEXT NOT NULL,
+    body TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    client_mutation_id TEXT,
+    deleted_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, client_mutation_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    source_id INTEGER NOT NULL,
+    reaction_type TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, source_type, source_id, reaction_type),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS feed_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS rewards_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
   CREATE TABLE IF NOT EXISTS reposts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +230,13 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
   `);
+db.exec(`
+  CREATE INDEX IF NOT EXISTS posts_created_idx ON posts(created_at DESC);
+  CREATE INDEX IF NOT EXISTS comments_post_idx ON comments(post_id, timestamp);
+  CREATE INDEX IF NOT EXISTS reactions_source_idx ON reactions(source_type, source_id);
+  CREATE INDEX IF NOT EXISTS feed_entries_created_idx ON feed_entries(created_at DESC);
+  CREATE INDEX IF NOT EXISTS rewards_transactions_user_idx ON rewards_transactions(user_id, created_at DESC);
+`);
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN room TEXT"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN verified INTEGER DEFAULT 0"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN category TEXT"); } catch {}
@@ -189,6 +247,9 @@ try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN post_id INTEGER"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN user_id INTEGER"); } catch {}
+try { db.exec("ALTER TABLE comments ADD COLUMN metadata_json TEXT DEFAULT '{}'"); } catch {}
 try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
@@ -214,7 +275,8 @@ let profiles = loadProfiles();
 const app = express();
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
-const profileDir = path.join(ROOT, "static", "profiles");
+const uploadRoot = process.env.UPLOAD_DIR || (process.env.NODE_ENV === "production" ? path.join("/var/data", "uploads") : path.join(ROOT, "static", "profiles"));
+const profileDir = path.join(uploadRoot, "profiles");
 fs.mkdirSync(profileDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: profileDir,
@@ -224,6 +286,12 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+function profileUploadUrl(file) {
+  if (!file) return null;
+  return uploadRoot === path.join(ROOT, "static", "profiles")
+    ? "/static/profiles/" + file.filename
+    : "/uploads/" + file.filename;
+}
 
 const SESSION_COOKIE = "chaines_session";
 const SESSION_DAYS = Number(process.env.SESSION_DAYS || 7);
@@ -240,9 +308,52 @@ function requireSession(req, res, next) { if (!req.session) return res.status(40
 function publicSession(req) { return req.session ? { user: req.session.user, expiresAt: req.session.expiresAt } : null; }
 function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
+function parseJsonField(value, fallback = {}) { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } }
+function rewardAccount(userId) {
+  db.prepare("INSERT OR IGNORE INTO user_rewards (user_id, points, data_json) VALUES (?, 0, '{}')").run(userId);
+  const row = db.prepare("SELECT points, data_json, updated_at FROM user_rewards WHERE user_id=?").get(userId);
+  const data = parseJsonField(row?.data_json, {});
+  const history = db.prepare("SELECT action, points, idempotency_key, metadata_json, created_at FROM rewards_transactions WHERE user_id=? ORDER BY id DESC LIMIT 120").all(userId);
+  return { points: Number(row?.points || 0), updatedAt: row?.updated_at || null, flags: data.flags || {}, history: history.map(h => ({ action: h.action, points: h.points, idempotencyKey: h.idempotency_key, metadata: parseJsonField(h.metadata_json, {}), createdAt: h.created_at })) };
+}
+function awardReward(userId, action, points, key, metadata = {}) {
+  try {
+    db.prepare("INSERT INTO rewards_transactions (user_id, action, points, idempotency_key, metadata_json) VALUES (?, ?, ?, ?, ?)").run(userId, action, points, key, JSON.stringify(metadata || {}));
+    db.prepare("INSERT INTO user_rewards (user_id, points, data_json, updated_at) VALUES (?, ?, '{}', CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET points=points+excluded.points, updated_at=CURRENT_TIMESTAMP").run(userId, points);
+  } catch (e) {
+    if (!String(e.message || "").includes("UNIQUE")) throw e;
+    db.prepare("INSERT OR IGNORE INTO user_rewards (user_id, points, data_json) VALUES (?, 0, '{}')").run(userId);
+  }
+  return rewardAccount(userId);
+}
+function normalizeComment(row = {}) {
+  return { id: row.id, postId: row.post_id, userId: row.user_id, username: row.user || row.username_snapshot, text: row.text || "", metadata: parseJsonField(row.metadata_json, {}), createdAt: row.timestamp || row.created_at };
+}
+function normalizePost(row = {}, includeComments = true) {
+  const comments = includeComments ? db.prepare("SELECT * FROM comments WHERE post_id=? ORDER BY id").all(row.id).map(normalizeComment) : [];
+  const likeCount = db.prepare("SELECT COUNT(*) AS n FROM reactions WHERE source_type='post' AND source_id=? AND reaction_type='like'").get(row.id)?.n || 0;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    username: row.username_snapshot || row.username,
+    profilePic: row.profile_pic || null,
+    body: row.body || "",
+    metadata: parseJsonField(row.metadata_json, {}),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at || null,
+    likeCount,
+    comments,
+    clientMutationId: row.client_mutation_id || null,
+  };
+}
+function postRowById(id) {
+  return db.prepare(`SELECT p.*, u.profile_pic FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=?`).get(id);
+}
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
+app.use("/uploads", express.static(path.join(uploadRoot, "profiles")));
 app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
@@ -933,7 +1044,7 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
   try {
     const hash = await bcrypt.hash(password, 10);
     let pic = null;
-    if (req.file) pic = "/static/profiles/" + req.file.filename;
+    if (req.file) pic = profileUploadUrl(req.file);
     const info = db.prepare(
       "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
     ).run(cleanUsername, hash, pic);
@@ -982,6 +1093,21 @@ app.get("/api/session", (req, res) => {
   if (!session) return res.status(401).json({ error: "No valid session" });
   res.json(session);
 });
+app.get("/api/users/me/profile", requireSession, (req, res) => {
+  const row = db.prepare("SELECT id, username, profile_pic, description FROM users WHERE id=?").get(req.session.user.id);
+  res.json({ profile: { userId: row.id, username: row.username, displayName: row.username, profilePic: row.profile_pic || null, description: row.description || "", bio: row.description || "" } });
+});
+app.put("/api/users/me/profile", requireSession, upload.single("profile"), (req, res) => {
+  const description = String(req.body?.description ?? req.body?.bio ?? "").slice(0, 2000);
+  let pic = req.body?.profilePic ? String(req.body.profilePic).slice(0, 4096) : null;
+  if (req.file) pic = profileUploadUrl(req.file);
+  const current = db.prepare("SELECT profile_pic FROM users WHERE id=?").get(req.session.user.id);
+  db.prepare("UPDATE users SET description=?, profile_pic=? WHERE id=?").run(description || null, pic || current?.profile_pic || null, req.session.user.id);
+  const row = db.prepare("SELECT id, username, profile_pic, description FROM users WHERE id=?").get(req.session.user.id);
+  const profile = { userId: row.id, username: row.username, displayName: row.username, profilePic: row.profile_pic || null, description: row.description || "", bio: row.description || "" };
+  broadcastJson({ type: "profile:updated", profile });
+  res.json({ profile });
+});
 app.post("/api/session/refresh", rateLimit("session-refresh", 20), requireSession, (req, res) => {
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
   db.prepare("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?").run(new Date().toISOString(), expires.toISOString(), req.session.id);
@@ -1022,6 +1148,110 @@ app.patch("/api/memory/:namespace", requireSession, (req, res) => {
   res.json({ namespace: ns, schemaVersion: row?.schema_version || 1, updatedAt: now, data: next });
 });
 app.delete("/api/memory/:namespace", requireSession, (req, res) => { const ns=req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" }); db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns); res.json({ success: true }); });
+
+app.get("/api/rewards/account", requireSession, (req, res) => {
+  res.json({ account: rewardAccount(req.session.user.id) });
+});
+
+app.get("/api/feeds/global", (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit || 50)));
+  const before = Number(req.query.before || 0);
+  const rows = db.prepare(`
+    SELECT p.*, u.profile_pic
+    FROM posts p
+    JOIN users u ON u.id=p.user_id
+    ${before ? "WHERE p.id < ? AND p.deleted_at IS NULL" : "WHERE p.deleted_at IS NULL"}
+    ORDER BY p.id DESC
+    LIMIT ?
+  `).all(...(before ? [before, limit] : [limit]));
+  res.json({ posts: rows.map(r => normalizePost(r)), nextBefore: rows.length ? rows[rows.length - 1].id : null });
+});
+
+app.post("/api/posts", requireSession, (req, res) => {
+  const body = String(req.body?.body ?? req.body?.message ?? req.body?.text ?? "").trim();
+  const clientMutationId = String(req.body?.clientMutationId || crypto.randomUUID()).slice(0, 128);
+  if (!body) return res.status(400).json({ error: "Post body required" });
+  if (body.length > 5000) return res.status(400).json({ error: "Post body too long" });
+  const metadataJson = safeMemoryPayload(req.body?.metadata || {});
+  const tx = db.transaction(() => {
+    let postId;
+    const existing = db.prepare("SELECT id FROM posts WHERE user_id=? AND client_mutation_id=?").get(req.session.user.id, clientMutationId);
+    if (existing) {
+      postId = existing.id;
+    } else {
+      const info = db.prepare("INSERT INTO posts (user_id, username_snapshot, body, metadata_json, client_mutation_id) VALUES (?, ?, ?, ?, ?)").run(req.session.user.id, req.session.user.username, body, metadataJson, clientMutationId);
+      postId = Number(info.lastInsertRowid);
+      db.prepare("INSERT OR IGNORE INTO feed_entries (post_id) VALUES (?)").run(postId);
+    }
+    const account = awardReward(req.session.user.id, "post_created", 10, `post_created:${req.session.user.id}:${postId}`, { postId });
+    return { post: normalizePost(postRowById(postId)), rewards: account };
+  });
+  const payload = tx();
+  broadcastJson({ type: "feed:post-created", post: payload.post, rewards: payload.rewards });
+  res.status(201).json(payload);
+});
+
+app.patch("/api/posts/:id", requireSession, (req, res) => {
+  const row = postRowById(req.params.id);
+  if (!row || row.deleted_at) return res.status(404).json({ error: "Post not found" });
+  if (row.user_id !== req.session.user.id) return res.status(403).json({ error: "Cannot edit another user's post" });
+  const body = String(req.body?.body ?? "").trim();
+  if (!body) return res.status(400).json({ error: "Post body required" });
+  db.prepare("UPDATE posts SET body=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(body, row.id);
+  const post = normalizePost(postRowById(row.id));
+  broadcastJson({ type: "feed:post-updated", post });
+  res.json({ post });
+});
+
+app.delete("/api/posts/:id", requireSession, (req, res) => {
+  const row = postRowById(req.params.id);
+  if (!row || row.deleted_at) return res.status(404).json({ error: "Post not found" });
+  if (row.user_id !== req.session.user.id) return res.status(403).json({ error: "Cannot delete another user's post" });
+  db.prepare("UPDATE posts SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
+  broadcastJson({ type: "feed:post-deleted", postId: row.id });
+  res.json({ success: true, postId: row.id });
+});
+
+app.post("/api/posts/:id/comments", requireSession, (req, res) => {
+  const post = postRowById(req.params.id);
+  if (!post || post.deleted_at) return res.status(404).json({ error: "Post not found" });
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Comment text required" });
+  const metadataJson = safeMemoryPayload(req.body?.metadata || {});
+  const tx = db.transaction(() => {
+    const info = db.prepare("INSERT INTO comments (post_id, user_id, user, text, metadata_json) VALUES (?, ?, ?, ?, ?)").run(post.id, req.session.user.id, req.session.user.username, text, metadataJson);
+    const comment = normalizeComment(db.prepare("SELECT * FROM comments WHERE id=?").get(Number(info.lastInsertRowid)));
+    const rewards = awardReward(req.session.user.id, "comment_created", 2, `comment_created:${req.session.user.id}:${comment.id}`, { postId: post.id, commentId: comment.id });
+    return { comment, post: normalizePost(postRowById(post.id)), rewards };
+  });
+  const payload = tx();
+  broadcastJson({ type: "feed:comment-created", comment: payload.comment, post: payload.post });
+  res.status(201).json(payload);
+});
+
+app.post("/api/posts/:id/reactions", requireSession, (req, res) => {
+  const post = postRowById(req.params.id);
+  if (!post || post.deleted_at) return res.status(404).json({ error: "Post not found" });
+  const reactionType = String(req.body?.reactionType || "like").replace(/[^a-z0-9_-]/gi, "").slice(0, 24) || "like";
+  const tx = db.transaction(() => {
+    db.prepare("INSERT OR IGNORE INTO reactions (user_id, source_type, source_id, reaction_type) VALUES (?, 'post', ?, ?)").run(req.session.user.id, post.id, reactionType);
+    const rewards = awardReward(req.session.user.id, "reaction", 1, `reaction:${req.session.user.id}:${post.id}:${reactionType}`, { postId: post.id, reactionType });
+    return { post: normalizePost(postRowById(post.id)), rewards };
+  });
+  const payload = tx();
+  broadcastJson({ type: "feed:reaction-updated", post: payload.post });
+  res.json(payload);
+});
+
+app.delete("/api/posts/:id/reactions", requireSession, (req, res) => {
+  const post = postRowById(req.params.id);
+  if (!post || post.deleted_at) return res.status(404).json({ error: "Post not found" });
+  const reactionType = String(req.body?.reactionType || req.query.reactionType || "like").replace(/[^a-z0-9_-]/gi, "").slice(0, 24) || "like";
+  db.prepare("DELETE FROM reactions WHERE user_id=? AND source_type='post' AND source_id=? AND reaction_type=?").run(req.session.user.id, post.id, reactionType);
+  const normalized = normalizePost(postRowById(post.id));
+  broadcastJson({ type: "feed:reaction-updated", post: normalized });
+  res.json({ post: normalized, rewards: rewardAccount(req.session.user.id) });
+});
 
 app.post("/delivery-orders", requireSession, (req, res) => {
   ensureAdminAccount();
@@ -1177,7 +1407,7 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
   if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot edit another profile" });
   const { description } = req.body || {};
   let pic = null;
-  if (req.file) pic = "/static/profiles/" + req.file.filename;
+  if (req.file) pic = profileUploadUrl(req.file);
   if (pic) {
     db.prepare(
       "UPDATE users SET description=?, profile_pic=? WHERE username=?"
@@ -1643,6 +1873,15 @@ const guestApprovedByHost = new Map(); // hostId -> approved guestId
 const guestHosts = new Map(); // guestId -> hostId
 const micGuests = new Set(); // audio-only broadcasters
 const broadcastRooms = new Map(); // roomId -> authoritative room/stage state
+
+function broadcastJson(payload = {}) {
+  const encoded = JSON.stringify(payload);
+  for (const client of wss.clients) {
+    if (client.readyState === 1) {
+      try { client.send(encoded); } catch {}
+    }
+  }
+}
 
 function normalizeLiveSignal(message = {}){
   return {
