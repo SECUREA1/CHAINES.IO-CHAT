@@ -365,6 +365,7 @@ function normalizeComment(row = {}) {
   return { id: row.id, postId: row.post_id, userId: row.user_id, username: row.user || row.username_snapshot, text: row.text || "", metadata: parseJsonField(row.metadata_json, {}), createdAt: row.timestamp || row.created_at };
 }
 function normalizePost(row = {}, includeComments = true) {
+  const metadata = parseJsonField(row.metadata_json, {});
   const comments = includeComments ? db.prepare("SELECT * FROM comments WHERE post_id=? ORDER BY id").all(row.id).map(normalizeComment) : [];
   const reactions = db.prepare("SELECT reaction_type AS reactionType, COUNT(*) AS count FROM reactions WHERE source_type='post' AND source_id=? GROUP BY reaction_type").all(row.id);
   const likeCount = reactions.find((r) => r.reactionType === "like")?.count || 0;
