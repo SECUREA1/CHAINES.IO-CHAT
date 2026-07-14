@@ -4303,6 +4303,59 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     async function upsertPersistentMessage(){
       // No browser feed cache: SQLite/API is the source of truth.
     }
+    function loadPendingPosts(){
+      try {
+        const parsed = JSON.parse(localStorage.getItem(PENDING_POSTS_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+    function savePendingPosts(posts){
+      try {
+        const safePosts = Array.isArray(posts) ? posts.filter(Boolean).slice(-25) : [];
+        if(safePosts.length) localStorage.setItem(PENDING_POSTS_KEY, JSON.stringify(safePosts));
+        else localStorage.removeItem(PENDING_POSTS_KEY);
+      } catch {}
+    }
+    function queuePendingPost(message){
+      if(!message || message.room) return;
+      const tempId = String(message.tempId || message.id || `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      const pending = { ...message, id: tempId, tempId, pending: true, pendingSince: message.pendingSince || Date.now() };
+      const posts = loadPendingPosts().filter((item) => String(item.tempId || item.id) !== tempId);
+      posts.push(pending);
+      savePendingPosts(posts);
+    }
+    function removePendingPost(tempId){
+      if(!tempId) return;
+      savePendingPosts(loadPendingPosts().filter((item) => String(item.tempId || item.id) !== String(tempId)));
+    }
+    async function retryPendingPosts(){
+      if(pendingPostRetryInFlight) return;
+      const posts = loadPendingPosts();
+      if(!posts.length) return;
+      pendingPostRetryInFlight = true;
+      try {
+        for(const pending of posts){
+          const tempId = String(pending.tempId || pending.id || '');
+          if(tempId && savingPendingPostIds.has(tempId)) continue;
+          if(tempId) savingPendingPostIds.add(tempId);
+          try {
+            const saved = await createPersistentPost(pending);
+            removeOptimisticPost(tempId);
+            removePendingPost(tempId);
+            receive(saved, true);
+            try { bc && bc.postMessage(saved); } catch {}
+          } catch {
+            // Keep the post in the durable retry queue until CHAINeS Memory confirms it.
+          } finally {
+            if(tempId) savingPendingPostIds.delete(tempId);
+          }
+        }
+      } finally {
+        pendingPostRetryInFlight = false;
+      }
+    }
     async function createPersistentPost(message){
       const res = await fetch('/api/posts', {
         method: 'POST',
@@ -4739,6 +4792,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const pendingCloudMessages = [];
     const pendingSignals = [];
+    const PENDING_POSTS_KEY = 'chaines_pending_posts';
+    const savingPendingPostIds = new Set();
+    let pendingPostRetryInFlight = false;
     let wsReconnectTimer = null;
     let wsReconnectDelay = 1000;
     const seen = new Set();
@@ -5810,6 +5866,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         wsReconnectDelay = 1000;
         sendJoin();
         flushPendingCloudMessages();
+        retryPendingPosts();
         restoreLiveSignalingState();
       });
       socket.addEventListener('close', () => {
@@ -6935,13 +6992,24 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         return msg;
       }
 
+      msg.id = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      msg.tempId = msg.id;
+      msg.pending = true;
+      receive(msg, true);
+      queuePendingPost(msg);
+      savingPendingPostIds.add(msg.tempId);
       createPersistentPost(msg)
         .then((saved) => {
+          removeOptimisticPost(msg.tempId);
+          removePendingPost(msg.tempId);
           receive(saved, true);
           try { bc && bc.postMessage(saved); } catch {}
         })
         .catch((err) => {
-          systemNote(err?.message || 'Sign in to save posts to CHAINeS Memory.');
+          systemNote(`${err?.message || 'Sign in to save posts to CHAINeS Memory.'} Your post is queued and will retry after reconnect.`);
+        })
+        .finally(() => {
+          savingPendingPostIds.delete(msg.tempId);
         });
       return msg;
       }
@@ -7753,16 +7821,25 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       async function renderHistory(){
       feed.innerHTML = '';
+      seen.clear();
       try {
         const items = await store.loadMsgs();
-        seen.clear();
         items.slice().reverse().forEach(m => receive(m, true));
       } catch(err) {
         systemNote(err?.message || 'Unable to load CHAINeS feed history.');
       }
+      loadPendingPosts().slice().reverse().forEach(m => receive({ ...m, pending: true }, true));
+      retryPendingPosts();
       applyFeedFilters();
       scrollToTop();
     }
+
+      function removeOptimisticPost(messageId){
+        if(!messageId) return;
+        const selector = `li[data-id="${CSS.escape(String(messageId))}"]`;
+        feed.querySelectorAll(selector).forEach((item) => item.remove());
+        seen.delete(messageId);
+      }
 
       function resolveAttachment(payload = {}){
       const src = [
@@ -7836,7 +7913,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       function appendMessage(m, skipScroll=false, container=feed){
       const mine = m.user === store.user;
       const li = document.createElement('li');
-      li.className = 'msg' + (mine ? ' mine' : '');
+      li.className = 'msg' + (mine ? ' mine' : '') + (m.pending ? ' pending' : '');
       const hasRewardHighlight = !!m.rewardHighlight;
       const hasRewardPin = Number(m.rewardPinnedUntil || 0) > Date.now();
       if(hasRewardHighlight) li.classList.add('reward-highlight');
@@ -7898,6 +7975,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const time = document.createElement('span');
       time.textContent = fmtTime(m.ts);
       meta.appendChild(time);
+      if(m.pending){
+        const pending = document.createElement('span');
+        pending.className = 'pending-status';
+        pending.textContent = 'Queued';
+        pending.title = 'Waiting for CHAINeS Memory to confirm this post';
+        meta.appendChild(pending);
+      }
       const listing = normalizeListing(m.listing || { category: m.category });
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
 
