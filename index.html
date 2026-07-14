@@ -1082,9 +1082,6 @@
       outline: none;
     }
     .like-btn { font-weight:700; }
-    .reaction-btn[data-kind="delete"] { order: 9; border-color: color-mix(in oklab, var(--danger), white 18%); color:#fecaca; }
-    .reaction-btn[data-kind="delete"]:hover,
-    .reaction-btn[data-kind="delete"]:focus-visible { background: color-mix(in oklab, var(--danger), transparent 70%); border-color: var(--danger); }
     .reaction-btn[data-kind="repost"] { order: 5; }
     .reaction-btn[data-kind="share"] { order: 6; }
     .comments { margin-top:8px; }
@@ -1606,8 +1603,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       .toolbar-additional-desktop {
         display: flex;
-        flex-wrap: nowrap;
-        overflow: visible;
         order: 3;
       }
       #toolbar-overflow-toggle {
@@ -1661,21 +1656,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         overflow: hidden;
         text-overflow: ellipsis;
       }
-    }
-
-    @media (min-width: 901px) and (max-width: 1080px) {
-      header { gap: 6px; padding-inline: 8px; }
-      .toolbar { gap: 6px; padding: 5px; }
-      .toolbar-primary,
-      .toolbar-additional-desktop { gap: 6px; }
-      .toolbar-primary .chip.action-chip,
-      .toolbar-additional-desktop .chip {
-        width: 34px;
-        height: 34px;
-        min-height: 34px;
-        flex-basis: 34px;
-      }
-      #toolbar-overflow-toggle { width: 38px; height: 34px; }
     }
 
     @media (max-width: 900px) {
@@ -1846,18 +1826,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       .mobile-only-chip {
         display:inline-flex;
-      }
-      #streams-fit-btn,
-      #theme-toggle,
-      #video-toggle,
-      #market-mode-toggle {
-        display:none !important;
-      }
-      .toolbar-overflow-list li:has(> #streams-fit-btn),
-      .toolbar-overflow-list li:has(> #theme-toggle),
-      .toolbar-overflow-list li:has(> #video-toggle),
-      .toolbar-overflow-list li:has(> #market-mode-toggle) {
-        display:none !important;
       }
       .desktop-only-chip {
         display:none !important;
@@ -2166,8 +2134,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
+                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
-                <button id="rewards-menu-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open Ghost Coin rewards" aria-label="Open Ghost Coin rewards"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
@@ -3036,12 +3005,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const mobileExcludedAdditionalButtonIds = new Set(['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle']);
-    const additionalButtonIds = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'chaines-ar-btn'];
-    const additionalButtons = additionalButtonIds
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
       .map(id => el(`#${id}`))
       .filter(Boolean);
-    const mobileExcludedAdditionalParking = document.createDocumentFragment();
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4187,12 +4153,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function syncAdditionalButtonsLayout(){
       if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
       const useDesktopHeader = desktopToolbarMedia.matches;
-      const useMobileMenu = mobileToolbarMedia.matches;
       additionalButtons.forEach((btn) => {
         if(useDesktopHeader){
           if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
-        } else if(useMobileMenu && mobileExcludedAdditionalButtonIds.has(btn.id)){
-          mobileExcludedAdditionalParking.appendChild(btn);
         } else {
           const existingListItem = btn.closest('li');
           if(existingListItem && existingListItem.parentElement === additionalList) return;
@@ -4264,124 +4227,32 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     // --- Basic state ---
+    const MESSAGE_SOURCE_KEY = 'chaines_messages';
     const MARKETPLACE_LISTINGS_ENDPOINT = '/api/marketplace/listings';
-    const FEED_HISTORY_ENDPOINT = '/api/feeds/global';
-    function parsePostMetadata(raw){
-      if(!raw) return {};
-      if(typeof raw === 'object') return raw;
+    function loadPersistentMessages(){
       try {
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    }
-    function postRecordToMessage(post = {}){
-      const meta = parsePostMetadata(post.metadata || post.metadata_json || post.metadataJson);
-      const created = post.createdAt || post.created_at;
-      return {
-        ...meta,
-        id: String(post.id || meta.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
-        type: 'chat',
-        user: String(post.username || meta.user || 'anon'),
-        userId: post.userId || post.user_id || meta.userId || null,
-        text: String(post.body || meta.text || ''),
-        ts: created ? Date.parse(created) || Number(meta.ts) || Date.now() : Number(meta.ts) || Date.now(),
-        likes: Number(post.likeCount ?? meta.likes ?? 0),
-        comments: Array.isArray(post.comments) ? post.comments : (Array.isArray(meta.comments) ? meta.comments : [])
-      };
-    }
-    async function loadPersistentMessages(){
-      const res = await fetch(`${FEED_HISTORY_ENDPOINT}?limit=50`, { credentials: 'include' });
-      if(!res.ok) throw new Error('Could not load CHAINeS feed history.');
-      const data = await res.json().catch(() => ({}));
-      return (Array.isArray(data.items) ? data.items : []).map(postRecordToMessage);
-    }
-    async function savePersistentMessages(){
-      // Feed persistence is server-backed through /api/posts and /api/feeds/global.
-    }
-    async function upsertPersistentMessage(){
-      // No browser feed cache: SQLite/API is the source of truth.
-    }
-    function loadPendingPosts(){
-      try {
-        const parsed = JSON.parse(localStorage.getItem(PENDING_POSTS_KEY) || '[]');
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        const parsed = JSON.parse(localStorage.getItem(MESSAGE_SOURCE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
     }
-    function savePendingPosts(posts){
+    function savePersistentMessages(items){
       try {
-        const safePosts = Array.isArray(posts) ? posts.filter(Boolean).slice(-25) : [];
-        if(safePosts.length) localStorage.setItem(PENDING_POSTS_KEY, JSON.stringify(safePosts));
-        else localStorage.removeItem(PENDING_POSTS_KEY);
+        const safeItems = Array.isArray(items) ? items : [];
+        localStorage.setItem(MESSAGE_SOURCE_KEY, JSON.stringify(safeItems));
       } catch {}
     }
-    function queuePendingPost(message){
-      if(!message || message.room) return;
-      const tempId = String(message.tempId || message.id || `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-      const pending = { ...message, id: tempId, tempId, pending: true, pendingSince: message.pendingSince || Date.now() };
-      const posts = loadPendingPosts().filter((item) => String(item.tempId || item.id) !== tempId);
-      posts.push(pending);
-      savePendingPosts(posts);
-    }
-    function removePendingPost(tempId){
-      if(!tempId) return;
-      savePendingPosts(loadPendingPosts().filter((item) => String(item.tempId || item.id) !== String(tempId)));
-    }
-    async function retryPendingPosts(){
-      if(pendingPostRetryInFlight) return;
-      const posts = loadPendingPosts();
-      if(!posts.length) return;
-      pendingPostRetryInFlight = true;
-      try {
-        for(const pending of posts){
-          const tempId = String(pending.tempId || pending.id || '');
-          if(tempId && savingPendingPostIds.has(tempId)) continue;
-          if(tempId) savingPendingPostIds.add(tempId);
-          try {
-            const saved = await createPersistentPost(pending);
-            removeOptimisticPost(tempId);
-            removePendingPost(tempId);
-            receive(saved, true);
-            try { bc && bc.postMessage(saved); } catch {}
-          } catch {
-            // Keep the post in the durable retry queue until CHAINeS Memory confirms it.
-          } finally {
-            if(tempId) savingPendingPostIds.delete(tempId);
-          }
-        }
-      } finally {
-        pendingPostRetryInFlight = false;
+    function upsertPersistentMessage(item){
+      if(!item || !item.id) return;
+      const items = loadPersistentMessages();
+      const idx = items.findIndex((entry) => String(entry?.id || '') === String(item.id));
+      if(idx >= 0){
+        items[idx] = { ...items[idx], ...item };
+      } else {
+        items.push(item);
       }
-    }
-    async function createPersistentPost(message){
-      const res = await fetch('/api/posts', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          body: message?.text || '',
-          metadata: {
-            image: message?.image || '',
-            file: message?.file || '',
-            fileName: message?.fileName || message?.name || '',
-            fileType: message?.fileType || '',
-            name: message?.name || message?.fileName || '',
-            isAction: Boolean(message?.isAction),
-            broadcast: Boolean(message?.broadcast),
-            video: message?.video || '',
-            xSpaceUrl: message?.xSpaceUrl || '',
-            category: message?.category || '',
-            listing: message?.listing || null,
-            actions: Array.isArray(message?.actions) ? message.actions : []
-          }
-        })
-      });
-      const data = await res.json().catch(() => ({}));
-      if(!res.ok) throw new Error(data.error || 'Could not save post to CHAINeS Memory.');
-      return postRecordToMessage({ ...(data.post || {}), username: data.user?.username, metadata: data.post?.metadata_json });
+      savePersistentMessages(items);
     }
 
     const store = {
@@ -4455,17 +4326,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           localStorage.setItem('chaines_verified_users', JSON.stringify(safe));
         } catch {}
       },
-      pushMsg() {
-        // No-op: homepage feed messages are persisted by /api/posts.
+      pushMsg(m) {
+        const items = loadPersistentMessages();
+        items.push(m);
+        savePersistentMessages(items);
       },
       removeMsg(id){
-        fetch(`/api/posts/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        const items = loadPersistentMessages().filter(x => x.id !== id);
+        savePersistentMessages(items);
       },
       loadMsgs() {
         return loadPersistentMessages();
       },
       clearMsgs() {
-        feed.innerHTML = '';
+        try { localStorage.removeItem(MESSAGE_SOURCE_KEY); } catch {}
       }
     };
 
@@ -4536,6 +4410,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         items.forEach((item) => {
           const msg = toChatMessageFromMarketplace(item);
           if(!msg.id || seen.has(msg.id)) return;
+          upsertPersistentMessage(msg);
           receive(msg, true);
         });
         applyFeedFilters();
@@ -4792,9 +4667,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
     const pendingCloudMessages = [];
     const pendingSignals = [];
-    const PENDING_POSTS_KEY = 'chaines_pending_posts';
-    const savingPendingPostIds = new Set();
-    let pendingPostRetryInFlight = false;
     let wsReconnectTimer = null;
     let wsReconnectDelay = 1000;
     const seen = new Set();
@@ -5866,7 +5738,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         wsReconnectDelay = 1000;
         sendJoin();
         flushPendingCloudMessages();
-        retryPendingPosts();
         restoreLiveSignalingState();
       });
       socket.addEventListener('close', () => {
@@ -5892,7 +5763,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             if(msgs.some(m => m.room)){
               msgs.forEach(m => receive(m));
             } else {
-              renderHistory();
+              feed.innerHTML = '';
+              msgs.forEach(m => receive(m));
             }
           }
           if(data && data.type === 'id') clientId = data.id;
@@ -5915,7 +5787,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(data && data.type === 'guest-start') handleGuestStart(data);
           if(data && data.type === 'camera-state') handleCameraState(data);
           if(data && data.type === 'delete') {
-            removePostFromFeed(data.id);
+            const el = feed.querySelector(`li[data-id="${data.id}"]`);
+            if(el) el.remove();
+            store.removeMsg(data.id);
           }
           if(data && data.type === 'self-destruct') {
             systemNote(`Your post #${data.messageId} self-destructed`);
@@ -6811,7 +6685,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       if(raw){
         // Commands
-        if(raw === '/clear'){ store.clearMsgs(); input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; selectedComposerActions = []; renderComposerActionBoard(); systemNote('Cleared the current feed view. Server-backed history remains in CHAINeS Memory.'); return; }
+        if(raw === '/clear'){ store.clearMsgs(); feed.innerHTML=''; input.value=''; autoResize(input); input.placeholder = defaultPlaceholder; pendingFile=null; selectedComposerActions = []; renderComposerActionBoard(); systemNote('Cleared local chat history.'); return; }
         if(/^\s*\/me\s+/.test(raw)){
           const act = raw.replace(/^\s*\/me\s+/, '');
           postMessage({ text: `*${act}*`, isAction:true });
@@ -6984,33 +6858,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       msg.listing = normalizedListing;
       if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
 
-      // Push live rooms through the WebSocket server. Persist normal feed posts through CHAINeS Memory.
-      if(room){
+      // Push to UI + storage immediately
         receive(msg, true);
-        try { bc && bc.postMessage(msg); } catch {}
-        sendCloudMessage(msg);
-        return msg;
-      }
+        if(!room) store.pushMsg(msg);
 
-      msg.id = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      msg.tempId = msg.id;
-      msg.pending = true;
-      receive(msg, true);
-      queuePendingPost(msg);
-      savingPendingPostIds.add(msg.tempId);
-      createPersistentPost(msg)
-        .then((saved) => {
-          removeOptimisticPost(msg.tempId);
-          removePendingPost(msg.tempId);
-          receive(saved, true);
-          try { bc && bc.postMessage(saved); } catch {}
-        })
-        .catch((err) => {
-          systemNote(`${err?.message || 'Sign in to save posts to CHAINeS Memory.'} Your post is queued and will retry after reconnect.`);
-        })
-        .finally(() => {
-          savingPendingPostIds.delete(msg.tempId);
-        });
+      // Broadcast locally
+      try { bc && bc.postMessage(msg); } catch {}
+
+      // Send to server if available
+      sendCloudMessage(msg);
       return msg;
       }
 
@@ -7808,6 +7664,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         seen.add(m.id);
         const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal;
         if(shouldSuppressGlobalFeed){
+          store.pushMsg(m);
           return;
         }
         if(m.room){
@@ -7815,31 +7672,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(streams[m.room]) appendMessage(m, false, streams[m.room].feed);
         } else {
           appendMessage(m);
-          // Server-backed feed history is loaded from /api/feeds/global, not browser storage.
+          if(!isLocal) store.pushMsg(m);
         }
       }
 
-      async function renderHistory(){
+      function renderHistory(){
       feed.innerHTML = '';
-      seen.clear();
-      try {
-        const items = await store.loadMsgs();
-        items.slice().reverse().forEach(m => receive(m, true));
-      } catch(err) {
-        systemNote(err?.message || 'Unable to load CHAINeS feed history.');
-      }
-      loadPendingPosts().slice().reverse().forEach(m => receive({ ...m, pending: true }, true));
-      retryPendingPosts();
+      const items = store.loadMsgs();
+      items.slice().reverse().forEach(m => appendMessage(m, true));
       applyFeedFilters();
       scrollToTop();
     }
-
-      function removeOptimisticPost(messageId){
-        if(!messageId) return;
-        const selector = `li[data-id="${CSS.escape(String(messageId))}"]`;
-        feed.querySelectorAll(selector).forEach((item) => item.remove());
-        seen.delete(messageId);
-      }
 
       function resolveAttachment(payload = {}){
       const src = [
@@ -7879,41 +7722,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         });
       }
 
-
-      function removePostFromFeed(messageId){
-        if(!messageId) return;
-        const selector = `li[data-id="${CSS.escape(String(messageId))}"]`;
-        feed.querySelectorAll(selector).forEach((item) => item.remove());
-        store.removeMsg(messageId);
-        seen.delete(messageId);
-      }
-
-      async function deletePost(message){
-        if(!message || !message.id || message.user !== store.user) return;
-        const confirmed = confirm('Delete this post from CHAINeS POST? This removes it from the platform for everyone.');
-        if(!confirmed) return;
-        const id = message.id;
-        let sent = false;
-        try {
-          if(socket && socket.readyState === 1){
-            socket.send(JSON.stringify({ type:'delete', id, user: store.user }));
-            sent = true;
-          }
-        } catch {}
-        try {
-          const response = await fetch(`/api/posts/${encodeURIComponent(String(id))}`, { method:'DELETE', credentials:'include' });
-          if(response.ok) sent = true;
-        } catch {}
-        if(!sent){
-          removePostFromFeed(id);
-          systemNote('Post removed from this device. Connect to cloud to remove it for everyone.');
-        }
-      }
-
       function appendMessage(m, skipScroll=false, container=feed){
       const mine = m.user === store.user;
       const li = document.createElement('li');
-      li.className = 'msg' + (mine ? ' mine' : '') + (m.pending ? ' pending' : '');
+      li.className = 'msg' + (mine ? ' mine' : '');
       const hasRewardHighlight = !!m.rewardHighlight;
       const hasRewardPin = Number(m.rewardPinnedUntil || 0) > Date.now();
       if(hasRewardHighlight) li.classList.add('reward-highlight');
@@ -7975,13 +7787,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const time = document.createElement('span');
       time.textContent = fmtTime(m.ts);
       meta.appendChild(time);
-      if(m.pending){
-        const pending = document.createElement('span');
-        pending.className = 'pending-status';
-        pending.textContent = 'Queued';
-        pending.title = 'Waiting for CHAINeS Memory to confirm this post';
-        meta.appendChild(pending);
-      }
       const listing = normalizeListing(m.listing || { category: m.category });
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
 
@@ -8201,23 +8006,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         likeBtn.type = 'button';
         likeBtn.textContent = `❤️ ${m.likes || 0}`;
         likeBtn.title = 'Like this post';
-        likeBtn.addEventListener('click', async () => {
-          try {
-            const res = await fetch(`/api/posts/${encodeURIComponent(m.id)}/reactions`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type: 'like' })
-            });
-            if(!res.ok){
-              const data = await res.json().catch(() => ({}));
-              throw new Error(data.error || 'Could not save like.');
-            }
-            const current = Number((likeBtn.textContent.match(/\d+/) || ['0'])[0]);
-            likeBtn.textContent = `❤️ ${current + 1}`;
-          } catch {
-            systemNote('Sign in to like posts with CHAINeS Memory.');
-          }
+        likeBtn.addEventListener('click', () => {
+          try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'like', messageId: m.id, user: store.user })); } catch {}
         });
         actions.appendChild(likeBtn);
 
@@ -8232,20 +8022,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           reactBtn.type = 'button';
           reactBtn.textContent = r.emoji;
           reactBtn.title = `React with ${r.emoji}`;
-          reactBtn.addEventListener('click', async () => {
-            try {
-              const res = await fetch(`/api/posts/${encodeURIComponent(m.id)}/comments`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: `${r.emoji}` })
-              });
-              const data = await res.json().catch(() => ({}));
-              if(!res.ok) throw new Error(data.error || 'Could not save reaction.');
-              handleComment({ id: data.id || `${m.id}-${Date.now()}`, messageId: m.id, user: data.user || store.user, text: `${r.emoji}` });
-            } catch {
-              systemNote('Sign in to react with CHAINeS Memory.');
-            }
+          reactBtn.addEventListener('click', () => {
+            try { if(socket && socket.readyState === 1) socket.send(JSON.stringify({ type:'comment', messageId: m.id, text: `${r.emoji}`, user: store.user })); } catch {}
           });
           actions.appendChild(reactBtn);
         });
@@ -8327,18 +8105,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         actions.appendChild(repostBtn);
         actions.appendChild(shareBtn);
 
-        if(mine){
-          const deleteBtn = document.createElement('button');
-          deleteBtn.className = 'reaction-btn';
-          deleteBtn.type = 'button';
-          deleteBtn.dataset.kind = 'delete';
-          deleteBtn.textContent = '🗑️ Delete';
-          deleteBtn.title = 'Delete this post from the platform';
-          deleteBtn.setAttribute('aria-label', 'Delete this post');
-          deleteBtn.addEventListener('click', () => deletePost(m));
-          actions.appendChild(deleteBtn);
-        }
-
         const commentsBox = document.createElement('div');
         commentsBox.className = 'comments';
         const commentsList = document.createElement('div');
@@ -8377,24 +8143,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           ev.preventDefault();
           const txt = commentInput.value.trim();
           if(!txt && !pendingCommentFile) return;
-          const commentFile = pendingCommentFile;
-          fetch(`/api/posts/${encodeURIComponent(m.id)}/comments`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: txt,
-              file: commentFile?.dataUrl || null,
-              fileName: commentFile?.name || null,
-              fileType: commentFile?.type || null
-            })
-          })
-            .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-            .then(({ ok, data }) => {
-              if(!ok) throw new Error(data.error || 'Could not save comment.');
-              handleComment({ id: data.id || `${m.id}-${Date.now()}`, messageId: m.id, user: store.user, text: txt, file: commentFile?.dataUrl || null, fileName: commentFile?.name || null, fileType: commentFile?.type || null });
-            })
-            .catch((err) => systemNote(err?.message || 'Sign in to comment with CHAINeS Memory.'));
+          try {
+            if(socket && socket.readyState === 1){
+              socket.send(JSON.stringify({
+                type:'comment',
+                messageId: m.id,
+                text: txt,
+                user: store.user,
+                file: pendingCommentFile?.dataUrl || null,
+                fileName: pendingCommentFile?.name || null,
+                fileType: pendingCommentFile?.type || null
+              }));
+            }
+          } catch {}
           commentInput.value = '';
           commentInput.placeholder = 'Add comment...';
           pendingCommentFile = null;
@@ -8420,7 +8181,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(m.selfDestruct){
           const delay = Math.max(0, m.ts + m.selfDestruct - Date.now());
           setTimeout(() => {
-            removePostFromFeed(m.id);
+            const el = feed.querySelector(`li[data-id="${m.id}"]`);
+            if(el) el.remove();
+            store.removeMsg(m.id);
           }, delay);
         }
         if(!skipScroll) scrollToTop();

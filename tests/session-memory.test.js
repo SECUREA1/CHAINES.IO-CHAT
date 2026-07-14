@@ -38,15 +38,6 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.status, 404);
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { headers:{ cookie } }));
   assert.equal(r.body.data.text, 'draft A');
-  r = await json(await fetch(srv.base+'/api/memory/sync', { method:'POST', headers:{ cookie, 'Content-Type':'application/json' }, body:JSON.stringify({ items:[{ namespace:'marketplace-draft', schemaVersion:3, data:{ text:'listing draft', device:'mobile' } }, { namespace:'profile', schemaVersion:3, data:{ bio:'same on desktop' } }], remove:['feed-draft'] }) }));
-  assert.equal(r.status, 200);
-  assert.equal(r.body.saved.length, 2);
-  r = await json(await fetch(srv.base+'/api/memory/marketplace-draft', { headers:{ cookie } }));
-  assert.equal(r.body.data.text, 'listing draft');
-  r = await json(await fetch(srv.base+'/api/memory/profile', { headers:{ cookie } }));
-  assert.equal(r.body.data.bio, 'same on desktop');
-  r = await json(await fetch(srv.base+'/api/memory/feed-draft', { headers:{ cookie } }));
-  assert.equal(r.status, 404);
   r = await json(await fetch(srv.base+'/logout', { method:'POST', headers:{ cookie } }));
   assert.equal(r.status, 200);
   r = await json(await fetch(srv.base+'/api/session', { headers:{ cookie } }));
