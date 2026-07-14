@@ -4238,17 +4238,30 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         type: 'chat',
         user: post.username || '',
         profilePic: post.profilePic || '',
-        text: post.body || '',
-        ts: post.createdAt ? Date.parse(post.createdAt) : Date.now(),
-        likes: Number(post.likeCount || 0),
+        text: post.body || post.text || post.message || '',
+        ts: post.createdAt ? Date.parse(post.createdAt) : (Number(post.ts) || Date.now()),
+        likes: Number(post.likeCount || post.likes || 0),
         comments: Array.isArray(post.comments) ? post.comments.map((comment) => ({
           id: comment.id,
-          user: comment.username || '',
+          user: comment.username || comment.user || '',
           text: comment.text || '',
-          ts: comment.createdAt ? Date.parse(comment.createdAt) : Date.now()
+          ts: comment.createdAt ? Date.parse(comment.createdAt) : (Number(comment.ts) || Date.now())
         })) : [],
-        category: post.metadata?.category || 'social',
-        listing: post.metadata?.listing || null
+        file: post.file || post.metadata?.file || post.image || post.metadata?.image || '',
+        fileName: post.fileName || post.metadata?.fileName || post.metadata?.file_name || '',
+        fileType: post.fileType || post.metadata?.fileType || post.metadata?.file_type || '',
+        image: post.image || post.metadata?.image || '',
+        video: post.video || post.metadata?.video || '',
+        actions: Array.isArray(post.actions) ? post.actions : (Array.isArray(post.metadata?.actions) ? post.metadata.actions : []),
+        xSpaceUrl: post.xSpaceUrl || post.metadata?.xSpaceUrl || '',
+        category: post.category || post.metadata?.category || 'social',
+        listing: post.listing || post.metadata?.listing || null,
+        marketplaceMedia: post.marketplaceMedia || post.metadata?.marketplaceMedia || post.metadata?.media || [],
+        repostOf: post.repostOf || post.metadata?.repostOf || null,
+        repostNote: post.repostNote || post.metadata?.repostNote || '',
+        repostOriginalUser: post.repostOriginalUser || post.metadata?.repostOriginalUser || '',
+        rewardHighlight: post.rewardHighlight || post.metadata?.rewardHighlight || null,
+        rewardPinnedUntil: post.rewardPinnedUntil || post.metadata?.rewardPinnedUntil || null
       };
     }
     async function refreshServerFeed(){
@@ -6847,7 +6860,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       async function confirmPostWithServer(localMsg){
         if(!localMsg || localMsg.room || localMsg.serverPostId) return;
-        const metadata = { category: localMsg.category, listing: localMsg.listing, actions: localMsg.actions, file: localMsg.file, fileName: localMsg.fileName, fileType: localMsg.fileType, image: localMsg.image };
+        const metadata = { category: localMsg.category, listing: localMsg.listing, actions: localMsg.actions, file: localMsg.file, fileName: localMsg.fileName, fileType: localMsg.fileType, image: localMsg.image, video: localMsg.video, xSpaceUrl: localMsg.xSpaceUrl, repostOf: localMsg.repostOf, repostNote: localMsg.repostNote, repostOriginalUser: localMsg.repostOriginalUser, rewardHighlight: localMsg.rewardHighlight, rewardPinnedUntil: localMsg.rewardPinnedUntil, marketplaceMedia: localMsg.marketplaceMedia };
         const clientMutationId = localMsg.clientMutationId || `post-${localMsg.id}`;
         try {
           const res = await fetch('/api/posts', {

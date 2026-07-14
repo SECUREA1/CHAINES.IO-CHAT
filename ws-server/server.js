@@ -251,6 +251,11 @@ db.exec(`
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
+  CREATE TABLE IF NOT EXISTS system_migrations (
+    name TEXT PRIMARY KEY,
+    version INTEGER NOT NULL,
+    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 db.exec(`
   CREATE INDEX IF NOT EXISTS posts_created_idx ON posts(created_at DESC);
@@ -361,25 +366,96 @@ function normalizeComment(row = {}) {
 }
 function normalizePost(row = {}, includeComments = true) {
   const comments = includeComments ? db.prepare("SELECT * FROM comments WHERE post_id=? ORDER BY id").all(row.id).map(normalizeComment) : [];
-  const likeCount = db.prepare("SELECT COUNT(*) AS n FROM reactions WHERE source_type='post' AND source_id=? AND reaction_type='like'").get(row.id)?.n || 0;
+  const reactions = db.prepare("SELECT reaction_type AS reactionType, COUNT(*) AS count FROM reactions WHERE source_type='post' AND source_id=? GROUP BY reaction_type").all(row.id);
+  const likeCount = reactions.find((r) => r.reactionType === "like")?.count || 0;
+  const metadata = parseJsonField(row.metadata_json, {});
+  const body = row.body || "";
+  const createdMs = row.created_at ? Date.parse(row.created_at) : Date.now();
+  const safeMeta = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
   return {
     id: row.id,
+    serverPostId: row.id,
     userId: row.user_id,
     username: row.username_snapshot || row.username,
+    user: row.username_snapshot || row.username,
     profilePic: row.profile_pic || null,
-    body: row.body || "",
-    metadata: parseJsonField(row.metadata_json, {}),
+    body,
+    text: body,
+    message: body,
+    metadata: safeMeta,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    ts: Number.isFinite(createdMs) ? createdMs : Date.now(),
     deletedAt: row.deleted_at || null,
+    reactions,
     likeCount,
+    likes: likeCount,
     comments,
     clientMutationId: row.client_mutation_id || null,
+    file: safeMeta.file || null,
+    fileName: safeMeta.fileName || safeMeta.file_name || null,
+    fileType: safeMeta.fileType || safeMeta.file_type || null,
+    image: safeMeta.image || null,
+    video: safeMeta.video || null,
+    actions: Array.isArray(safeMeta.actions) ? safeMeta.actions : [],
+    xSpaceUrl: safeMeta.xSpaceUrl || "",
+    category: safeMeta.category || "social",
+    listing: safeMeta.listing || null,
+    marketplaceMedia: Array.isArray(safeMeta.marketplaceMedia) ? safeMeta.marketplaceMedia : (Array.isArray(safeMeta.media) ? safeMeta.media : []),
+    repostOf: safeMeta.repostOf || null,
+    repostNote: safeMeta.repostNote || "",
+    repostOriginalUser: safeMeta.repostOriginalUser || "",
+    rewardHighlight: safeMeta.rewardHighlight || null,
+    rewardPinnedUntil: safeMeta.rewardPinnedUntil || null,
   };
 }
 function postRowById(id) {
   return db.prepare(`SELECT p.*, u.profile_pic FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=?`).get(id);
 }
+
+function migrateLegacyGlobalPosts() {
+  const done = db.prepare("SELECT version FROM system_migrations WHERE name='legacy_global_posts_to_posts'").get();
+  if (done?.version >= 1) return;
+  const rows = db.prepare(`SELECT * FROM chat_messages WHERE (room IS NULL OR room='' OR room='global') AND COALESCE(message,'') <> '' ORDER BY id`).all();
+  const tx = db.transaction(() => {
+    for (const legacy of rows) {
+      const username = ensureUserProfile(legacy.user || "legacy");
+      if (!username) continue;
+      const user = db.prepare("SELECT id FROM users WHERE username=?").get(username);
+      if (!user) continue;
+      const clientMutationId = `legacy-chat:${legacy.id}`;
+      const exists = db.prepare("SELECT id FROM posts WHERE user_id=? AND client_mutation_id=?").get(user.id, clientMutationId);
+      if (exists) continue;
+      const listing = parseJsonField(legacy.listing_data, null);
+      const metadata = {
+        migratedFrom: "chat_messages",
+        legacyMessageId: legacy.id,
+        image: legacy.image || null,
+        file: legacy.file || legacy.image || null,
+        fileName: legacy.file_name || null,
+        fileType: legacy.file_type || null,
+        category: legacy.category || (listing ? "marketplace" : "social"),
+        listing,
+        repostOf: legacy.repost_of || null,
+        repostNote: legacy.repost_note || "",
+      };
+      const info = db.prepare("INSERT INTO posts (user_id, username_snapshot, body, metadata_json, client_mutation_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP))").run(user.id, username, String(legacy.message || ""), JSON.stringify(metadata), clientMutationId, legacy.timestamp, legacy.timestamp);
+      const postId = Number(info.lastInsertRowid);
+      db.prepare("INSERT OR IGNORE INTO feed_entries (post_id, created_at) VALUES (?, COALESCE(?, CURRENT_TIMESTAMP))").run(postId, legacy.timestamp);
+      db.prepare("UPDATE comments SET post_id=? WHERE message_id=? AND post_id IS NULL").run(postId, legacy.id);
+      const likes = db.prepare("SELECT user FROM likes WHERE message_id=?").all(legacy.id);
+      for (const like of likes) {
+        const liker = ensureUserProfile(like.user || "");
+        const likerRow = liker ? db.prepare("SELECT id FROM users WHERE username=?").get(liker) : null;
+        if (likerRow) db.prepare("INSERT OR IGNORE INTO reactions (user_id, source_type, source_id, reaction_type) VALUES (?, 'post', ?, 'like')").run(likerRow.id, postId);
+      }
+    }
+    db.prepare("INSERT INTO system_migrations (name, version) VALUES ('legacy_global_posts_to_posts', 1) ON CONFLICT(name) DO UPDATE SET version=excluded.version, applied_at=CURRENT_TIMESTAMP").run();
+  });
+  tx();
+}
+
+migrateLegacyGlobalPosts();
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
@@ -1365,71 +1441,70 @@ app.get(["/private-chat.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
-  const viewer = req.query.viewer || "";
-  const dbUser = db
-    .prepare(
-      "SELECT username, profile_pic, description FROM users WHERE username=?"
-    )
-    .get(req.params.username);
-  const memUser = profiles[req.params.username] || {};
-  if (!dbUser && !memUser.password) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  const posts = dbUser
-    ? db
-        .prepare(
-          "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
-        )
-        .all(req.params.username)
-    : [];
-  const followers = dbUser
-    ? db
-        .prepare("SELECT follower FROM follows WHERE following=?")
-        .all(req.params.username)
-        .map((r) => r.follower)
-    : [];
-  const following = dbUser
-    ? db
-        .prepare("SELECT following FROM follows WHERE follower=?")
-        .all(req.params.username)
-        .map((r) => r.following)
-    : [];
-  const isFollowing = viewer
-    ? dbUser
-      ? !!db
-          .prepare(
-            "SELECT 1 FROM follows WHERE follower=? AND following=?"
-          )
-          .get(viewer, req.params.username)
-      : false
-    : false;
-  const datingLikes = dbUser
-    ? db
-        .prepare("SELECT liked, matched FROM dating_likes WHERE liker=? ORDER BY id DESC")
-        .all(req.params.username)
-    : [];
+  const username = sanitizeUsername(req.params.username || "");
+  const viewer = sanitizeUsername(req.query.viewer || "");
+  if (!username) return res.status(400).json({ error: "Invalid username" });
+  const dbUser = db.prepare("SELECT id, username, profile_pic, description FROM users WHERE username=?").get(username);
+  const memUser = profiles[username] || {};
+  if (!dbUser && !memUser.password) return res.status(404).json({ error: "Not found" });
+
+  const posts = dbUser ? db.prepare(`
+    SELECT p.*, u.profile_pic
+    FROM posts p
+    JOIN users u ON u.id=p.user_id
+    WHERE p.user_id=? AND p.deleted_at IS NULL
+    ORDER BY p.id DESC
+  `).all(dbUser.id).map((row) => normalizePost(row)) : [];
+
+  const replies = dbUser ? db.prepare(`
+    SELECT c.*, p.body AS post_body, p.username_snapshot AS post_user
+    FROM comments c
+    JOIN posts p ON p.id=c.post_id
+    WHERE c.user_id=? AND p.deleted_at IS NULL
+    ORDER BY c.id DESC
+  `).all(dbUser.id).map((row) => ({
+    ...normalizeComment(row),
+    ts: row.timestamp ? Date.parse(row.timestamp) : Date.now(),
+    postId: row.post_id,
+    post_user: row.post_user,
+    postBody: row.post_body,
+    message_id: row.post_id,
+  })) : [];
+
+  const followers = dbUser ? db.prepare("SELECT follower FROM follows WHERE following=?").all(username).map((r) => r.follower) : [];
+  const following = dbUser ? db.prepare("SELECT following FROM follows WHERE follower=?").all(username).map((r) => r.following) : [];
+  const isFollowing = viewer && dbUser ? !!db.prepare("SELECT 1 FROM follows WHERE follower=? AND following=?").get(viewer, username) : false;
+  const datingLikes = dbUser ? db.prepare("SELECT liked, matched FROM dating_likes WHERE liker=? ORDER BY id DESC").all(username) : [];
   const datingLikedUsers = datingLikes.map((row) => row.liked);
   const datingMatchedUsers = [...new Set(datingLikes.filter((row) => row.matched).map((row) => row.liked))];
+  const likesReceived = dbUser ? db.prepare(`SELECT COUNT(*) AS n FROM reactions r JOIN posts p ON p.id=r.source_id WHERE r.source_type='post' AND r.reaction_type='like' AND p.user_id=? AND p.deleted_at IS NULL`).get(dbUser.id)?.n || 0 : 0;
+  const reactionsReceived = dbUser ? db.prepare(`SELECT COUNT(*) AS n FROM reactions r JOIN posts p ON p.id=r.source_id WHERE r.source_type='post' AND p.user_id=? AND p.deleted_at IS NULL`).get(dbUser.id)?.n || 0 : 0;
+  const rewards = dbUser ? rewardAccount(dbUser.id) : { points: 0 };
   res.json({
-    username: req.params.username,
+    username,
+    userId: dbUser?.id || null,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
     posts,
+    replies,
     followers,
     following,
+    followerCount: followers.length,
+    followingCount: following.length,
     isFollowing,
     stats: {
       posts: posts.length,
+      replies: replies.length,
       followers: followers.length,
       following: following.length,
+      likesReceived,
+      reactionsReceived,
       datingLikesSent: datingLikedUsers.length,
       datingMatches: datingMatchedUsers.length,
+      rewardPoints: rewards.points || 0,
     },
-    dating: {
-      likedUsers: datingLikedUsers,
-      matchedUsers: datingMatchedUsers,
-    },
+    dating: { likedUsers: datingLikedUsers, matchedUsers: datingMatchedUsers },
+    rewards,
   });
 });
 
@@ -1459,7 +1534,9 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
     profilePic: pic,
   };
   saveProfiles();
-  res.json({ success: true, profilePic: pic });
+  const profile = { username: req.params.username, profilePic: pic, description: description || null };
+  broadcastJson({ type: "profile:updated", profile });
+  res.json({ success: true, profilePic: pic, profile });
 });
 
 app.post("/profile/:username/follow", (req, res) => {
