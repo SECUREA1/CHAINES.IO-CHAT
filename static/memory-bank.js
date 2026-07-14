@@ -14,8 +14,8 @@
   function userCache(){ const c=readCache(); c.version=3; c.users=c.users||{}; if(user){ c.lastAuthenticatedUserId=String(user.id); c.users[user.id]=c.users[user.id]||{username:user.username,cachedAt:0,namespaces:{}}; } return c; }
   function saveLocal(){ if(!user) return; const c=userCache(); c.users[user.id]={username:user.username,cachedAt:Date.now(),namespaces}; writeCache(c); }
   function emit(ns){ (subscribers.get(ns)||[]).forEach(fn=>{ try{fn(namespaces[ns]);}catch(e){console.error('[MemoryBank] subscriber failed', e);} }); try{channel?.postMessage({userId:user?.id,namespace:ns,value:namespaces[ns]});}catch{} }
-  async function syncOne(ns){ const value=namespaces[ns] || {}; const res=await fetch(`/api/memory/${encodeURIComponent(ns)}`,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({schemaVersion:value.schemaVersion||3,data:value.data!==undefined?value.data:value})}); if(!res.ok) throw new Error(`memory sync ${ns} ${res.status}`); return res.json(); }
-  function schedule(ns){ if(!user) return; pending.add(ns); saveLocal(); clearTimeout(timer); timer=setTimeout(()=>window.MemoryBank.flush(),450); }
+  async function syncOne(ns){ const value=namespaces[ns] || {}; const payload=JSON.stringify({schemaVersion:value.schemaVersion||3,data:value.data!==undefined?value.data:value}); const res=await fetch(`/api/memory/${encodeURIComponent(ns)}`,{method:'PUT',credentials:'include',keepalive:payload.length<60000,headers:{'Content-Type':'application/json'},body:payload}); if(!res.ok) throw new Error(`memory sync ${ns} ${res.status}`); return res.json(); }
+  function schedule(ns){ if(!user) return; pending.add(ns); saveLocal(); clearTimeout(timer); timer=setTimeout(()=>window.MemoryBank.flush(),25); window.MemoryBank.flush(); }
   function setLegacyValue(key,value){ if(!user || hydratingLegacy || !legacyAllowed(key)) return; const data={...legacyData()}; data[key]=String(value); window.MemoryBank.set(LEGACY_NS,data); }
   function removeLegacyValue(key){ if(!user || hydratingLegacy || !legacyAllowed(key)) return; const data={...legacyData()}; delete data[key]; window.MemoryBank.set(LEGACY_NS,data); }
   function installStorageBridge(){ if(Storage.prototype.__chainesMemoryBridge) return; Object.defineProperty(Storage.prototype,'__chainesMemoryBridge',{value:true}); Storage.prototype.setItem=function(key,value){ const out=nativeSetItem.call(this,key,value); if(this===localStorage) setLegacyValue(key,value); return out; }; Storage.prototype.removeItem=function(key){ const out=nativeRemoveItem.call(this,key); if(this===localStorage) removeLegacyValue(key); return out; }; }
@@ -44,5 +44,6 @@
   };
   window.addEventListener('online',()=>window.MemoryBank.flush());
   window.addEventListener('pagehide',()=>window.MemoryBank.flush());
+  window.addEventListener('beforeunload',()=>window.MemoryBank.flush());
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') window.MemoryBank.flush(); });
 })();

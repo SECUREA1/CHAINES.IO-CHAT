@@ -51,3 +51,27 @@ test('source does not contain removed hardcoded credentials', ()=>{
   assert(!server.includes('giraff'));
   assert(!server.includes('password: hash'));
 });
+
+
+test('marketplace listing sync merges records without clearing other browsers', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  let r = await json(await fetch(srv.base+'/api/marketplace/listings', {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify({ items:[{ id:'mobile-1', user:'mobile', text:'phone post', ts:1000, category:'dating', listing:{ category:'dating', datingBio:'hello from mobile' } }] })
+  }));
+  assert.equal(r.status, 200);
+  r = await json(await fetch(srv.base+'/api/marketplace/listings', {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify({ items:[{ id:'desktop-1', user:'desktop', text:'pc post', ts:2000, category:'meal-delivery', listing:{ category:'meal-delivery', price:'12' } }] })
+  }));
+  assert.equal(r.status, 200);
+  r = await json(await fetch(srv.base+'/api/marketplace/listings'));
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('cache-control'), 'no-store, max-age=0');
+  const ids = r.body.items.map((item)=>item.id).sort();
+  assert.deepEqual(ids, ['desktop-1', 'mobile-1']);
+  assert.equal(r.body.items.find((item)=>item.id === 'mobile-1').category, 'dating');
+  assert.equal(r.body.items.find((item)=>item.id === 'desktop-1').category, 'meal-delivery');
+});

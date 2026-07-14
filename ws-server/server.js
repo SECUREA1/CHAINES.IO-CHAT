@@ -201,7 +201,8 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
 
-const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
+const DATA_DIR = process.env.DATA_DIR || path.dirname(DB_PATH);
+const PROFILE_MEMORY_PATH = process.env.PROFILE_MEMORY_PATH || path.join(DATA_DIR, "profile_memory", "main.json");
 
 function loadProfiles() {
   try {
@@ -222,7 +223,7 @@ let profiles = loadProfiles();
 const app = express();
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
-const profileDir = path.join(ROOT, "static", "profiles");
+const profileDir = process.env.PROFILE_UPLOAD_DIR || path.join(DATA_DIR, "uploads", "profiles");
 fs.mkdirSync(profileDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: profileDir,
@@ -250,6 +251,13 @@ function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
 
 app.use(attachSession);
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/") || req.path.startsWith("/profile/")) {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+  }
+  next();
+});
+app.use("/static/profiles", express.static(profileDir, { etag: true, maxAge: "7d" }));
 app.use("/static", express.static(path.join(ROOT, "static")));
 app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
 
@@ -1606,13 +1614,21 @@ app.put("/api/marketplace/listings", (req, res) => {
   }
   const cleaned = payloadItems.map((item) => normalizeMarketplaceItem(item));
   const writeTxn = db.transaction((items) => {
-    db.prepare("DELETE FROM marketplace_listings").run();
-    const insert = db.prepare(
+    const upsert = db.prepare(
       `INSERT INTO marketplace_listings (id, user, text, ts, likes, comments_json, category, listing_json, boosted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         user=excluded.user,
+         text=excluded.text,
+         ts=MAX(marketplace_listings.ts, excluded.ts),
+         likes=MAX(marketplace_listings.likes, excluded.likes),
+         comments_json=excluded.comments_json,
+         category=excluded.category,
+         listing_json=excluded.listing_json,
+         boosted_at=COALESCE(excluded.boosted_at, marketplace_listings.boosted_at)`
     );
     for (const item of items) {
-      insert.run(
+      upsert.run(
         item.id,
         item.user,
         item.text,
@@ -1643,6 +1659,9 @@ const MARKETPLACE_CATEGORIES = new Set([
   "services",
   "housing",
   "community",
+  "meal-delivery",
+  "dating",
+  "ads",
 ]);
 
 function normalizeListingPayload(payload = {}, fallbackCategory = "general") {
