@@ -798,7 +798,7 @@
       grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
       gap:8px;
     }
-    .secure-live-grid.layout-4{
+    .secure-live-grid.layout-8{
       grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
     }
     .secure-live-grid.layout-1{
@@ -811,12 +811,12 @@
       .secure-live-grid{
         grid-template-columns:repeat(10, minmax(0, 1fr));
       }
-      .secure-live-grid.layout-4{
-        grid-template-columns:repeat(2, minmax(0, 1fr));
+      .secure-live-grid.layout-8{
+        grid-template-columns:repeat(4, minmax(0, 1fr));
       }
     }
     @media (max-width: 640px){
-      .secure-live-grid.layout-4,
+      .secure-live-grid.layout-8,
       .secure-live-grid.layout-2{
         grid-template-columns:1fr;
       }
@@ -1731,14 +1731,14 @@
                 <div class="secure-live-view-toggle" role="group" aria-label="Secure live feed count">
                   <button id="btnSecureLiveLayout1" class="secure-live-view-btn active" type="button" aria-pressed="true">1 Feed</button>
                   <button id="btnSecureLiveLayout2" class="secure-live-view-btn" type="button" aria-pressed="false">2 Feed</button>
-                  <button id="btnSecureLiveLayout4" class="secure-live-view-btn" type="button" aria-pressed="false">4 Feed</button>
+                  <button id="btnSecureLiveLayout8" class="secure-live-view-btn" type="button" aria-pressed="false">8 Feed</button>
                 </div>
                 <div class="secure-live-cycle-controls">
                   <button id="btnSecureLiveNextCamera" class="ghost" type="button">Next Camera</button>
                   <button id="btnSecureLiveRefresh" class="ghost" type="button">Refresh Live Feeds</button>
                   <button id="btnSecureLiveRotate" class="ghost" type="button" aria-pressed="false">Rotate 1s: Off</button>
                 </div>
-                <div class="row"><button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 4-Grid</button></div>
+                <div class="row"><button id="btnSecureLiveReturnGrid" class="ghost" type="button">Return to 8-Grid</button></div>
                 <div id="secureLiveLayoutMeta" class="secure-live-meta">Showing 1 camera tile.</div>
               </div>
               <div id="secureLiveGrid" class="secure-live-grid"></div>
@@ -2700,7 +2700,7 @@
       const secureLiveCamPicker = el("secureLiveCamPicker");
       const btnSecureLiveLayout1 = el("btnSecureLiveLayout1");
       const btnSecureLiveLayout2 = el("btnSecureLiveLayout2");
-      const btnSecureLiveLayout4 = el("btnSecureLiveLayout4");
+      const btnSecureLiveLayout8 = el("btnSecureLiveLayout8");
       const btnSecureLiveNextCamera = el("btnSecureLiveNextCamera");
       const btnSecureLiveRefresh = el("btnSecureLiveRefresh");
       const btnSecureLiveRotate = el("btnSecureLiveRotate");
@@ -2800,7 +2800,9 @@
       function secureLiveVisibleIds(liveIds){
         if(!Array.isArray(liveIds) || !liveIds.length) return [];
         const focus = secureLive.selectedId && liveIds.includes(secureLive.selectedId) ? secureLive.selectedId : liveIds[0];
-        return [focus, ...liveIds.filter((id)=>id !== focus)];
+        const ordered = [focus, ...liveIds.filter((id)=>id !== focus)];
+        const maxVisible = Math.min(8, Math.max(1, Number(secureLive.layoutCount) || 1));
+        return ordered.slice(0, maxVisible);
       }
 
       function secureLiveCycleSelected(liveIds){
@@ -2838,10 +2840,10 @@
           btnSecureLiveLayout2.classList.toggle("active", active);
           btnSecureLiveLayout2.setAttribute("aria-pressed", active ? "true" : "false");
         }
-        if(btnSecureLiveLayout4){
-          const active = secureLive.layoutCount === 4;
-          btnSecureLiveLayout4.classList.toggle("active", active);
-          btnSecureLiveLayout4.setAttribute("aria-pressed", active ? "true" : "false");
+        if(btnSecureLiveLayout8){
+          const active = secureLive.layoutCount === 8;
+          btnSecureLiveLayout8.classList.toggle("active", active);
+          btnSecureLiveLayout8.setAttribute("aria-pressed", active ? "true" : "false");
         }
         if(btnSecureLiveRotate){
           btnSecureLiveRotate.textContent = secureLive.rotateEnabled ? "Rotate 1s: On" : "Rotate 1s: Off";
@@ -2851,13 +2853,13 @@
           btnSecureLiveNextCamera.disabled = liveIds.length <= 1;
         }
         if(btnSecureLiveReturnGrid){
-          btnSecureLiveReturnGrid.hidden = secureLive.layoutCount === 4 || liveIds.length <= 1;
+          btnSecureLiveReturnGrid.hidden = secureLive.layoutCount === 8 || liveIds.length <= 1;
         }
         if(secureLiveLayoutMeta){
           if(!liveIds.length){
             secureLiveLayoutMeta.textContent = "No cameras are live yet.";
           }else{
-            secureLiveLayoutMeta.textContent = `Showing all ${liveIds.length} live camera feeds. Tap any tile to tune in.`;
+            secureLiveLayoutMeta.textContent = `Showing ${shownIds.length} of ${liveIds.length} live camera feed${liveIds.length === 1 ? "" : "s"}. Tap any tile to tune in.`;
           }
         }
       }
@@ -2938,7 +2940,7 @@
         syncSecureLiveActiveUsers(Array.isArray(secureLive.roster) ? secureLive.roster.length : 0);
         const liveIds = secureLiveGetLiveIds();
         secureLiveGrid.innerHTML = "";
-        secureLiveGrid.classList.remove("layout-1", "layout-2", "layout-4");
+        secureLiveGrid.classList.remove("layout-1", "layout-2", "layout-8");
         if(topSecureLiveGrid) topSecureLiveGrid.innerHTML = "";
         if(!liveIds.length){
           secureLiveGrid.innerHTML = `<div class="small">No active live cameras right now. Feeds appear here automatically on login.</div>`;
@@ -2956,7 +2958,7 @@
         if(!shownIds.includes(secureLive.selectedId)){
           secureLive.selectedId = shownIds[0];
         }
-        secureLiveGrid.classList.add(`layout-${Math.min(4, Math.max(1, secureLive.layoutCount))}`);
+        secureLiveGrid.classList.add(`layout-${Math.min(8, Math.max(1, secureLive.layoutCount))}`);
         syncSecureLiveLayoutControls(liveIds, shownIds);
         syncSecureLiveRotateTimer(liveIds);
         for(const id of shownIds){
@@ -4078,9 +4080,9 @@
           secureLiveRenderRows();
         });
       }
-      if(btnSecureLiveLayout4){
-        btnSecureLiveLayout4.addEventListener("click", ()=>{
-          secureLive.layoutCount = 4;
+      if(btnSecureLiveLayout8){
+        btnSecureLiveLayout8.addEventListener("click", ()=>{
+          secureLive.layoutCount = 8;
           secureLiveRenderRows();
         });
       }
@@ -4109,7 +4111,7 @@
       }
       if(btnSecureLiveReturnGrid){
         btnSecureLiveReturnGrid.addEventListener("click", ()=>{
-          secureLive.layoutCount = 4;
+          secureLive.layoutCount = 8;
           secureLiveRenderRows();
         });
       }
