@@ -1595,10 +1595,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     li.appendChild(meta);
 
     const text = document.createElement('div');
-    text.textContent = post.body || post.message || post.text || '';
+    text.textContent = post.message || post.text || '';
     li.appendChild(text);
 
-    const data = post.file || post.image || post.video;
+    const data = post.file || post.image;
     const mime = detectMime(post);
     if(data && mime.startsWith('image/')){
       const img = document.createElement('img');
@@ -1620,19 +1620,18 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     const likeBtn = document.createElement('button');
     likeBtn.className = 'follow-btn';
     likeBtn.type = 'button';
-    likeBtn.textContent = '❤️ ' + (post.likeCount || post.likes || 0);
+    likeBtn.textContent = '❤️ ' + (post.likes || 0);
     likeBtn.addEventListener('click', async () => {
       if(!storeUser){ alert('Log in to like posts.'); return; }
-      const res = await fetch('/api/posts/' + encodeURIComponent(post.serverPostId || post.id) + '/reactions', {
+      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/like', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ reactionType: 'like' })
+        body: JSON.stringify({ user: storeUser })
       });
       const data = await res.json().catch(()=>({}));
       if(res.ok){
-        post.likeCount = data.post?.likeCount ?? data.post?.likes ?? post.likeCount ?? post.likes ?? 0;
-        post.likes = post.likeCount;
-        likeBtn.textContent = '❤️ ' + post.likeCount;
+        post.likes = data.likes || post.likes || 0;
+        likeBtn.textContent = '❤️ ' + post.likes;
         addRewardPoints(storeUser, 'like', 1, `Liked post #${post.id}`);
         if(storeUser === currentUser) renderRewardsPanel(storeUser);
       }
@@ -1654,16 +1653,15 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       if(!storeUser){ alert('Log in to reply.'); return; }
       const textValue = (input.value || '').trim();
       if(!textValue) return;
-      const res = await fetch('/api/posts/' + encodeURIComponent(post.serverPostId || post.id) + '/comments', {
+      const res = await fetch('/messages/' + encodeURIComponent(post.id) + '/reply', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ text: textValue })
+        body: JSON.stringify({ user: storeUser, text: textValue })
       });
       const data = await res.json().catch(()=>({}));
-      if(res.ok && (data.comment || data.reply)){
-        const reply = data.comment || data.reply;
+      if(res.ok && data.reply){
         post.comments = post.comments || [];
-        post.comments.push({ id: reply.id, user: storeUser, text: textValue, ts: reply.ts || Date.now() });
+        post.comments.push({ id: data.reply.id, user: storeUser, text: textValue, ts: data.reply.ts });
         replyList.appendChild(createReplyElement({ user: storeUser, text: textValue }));
         input.value = '';
         addRewardPoints(storeUser, 'reply', 2, `Replied to post #${post.id}`);

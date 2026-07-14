@@ -1,6 +1,31 @@
 services:
+  # Static site for the HTML
   - type: web
-    name: chaines-chat
+    name: chaines-chat-site
+    runtime: static
+    repo: https://github.com/SECUREA1/CHAINES.IO-CHAT.git
+    branch: main
+    buildCommand: ""
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /secure
+        destination: /secure.html
+      - type: rewrite
+        source: /marketplace
+        destination: /marketplace.html
+      - type: rewrite
+        source: /private-chat
+        destination: /private-chat.html
+      - type: rewrite
+        source: /profile
+        destination: /profile.html
+    previews:
+      generation: automatic
+
+  # Node WebSocket fanout
+  - type: web
+    name: chaines-chat-ws
     runtime: node
     repo: https://github.com/SECUREA1/CHAINES.IO-CHAT.git
     rootDir: ws-server
@@ -8,16 +33,3 @@ services:
     buildCommand: npm ci
     startCommand: node server.js
     healthCheckPath: /healthz
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DB_PATH
-        value: /var/data/chaines.db
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-      - key: PROFILE_MEMORY_PATH
-        value: /var/data/profile_memory/main.json
-    disks:
-      - name: chaines-data
-        mountPath: /var/data
-        sizeGB: 1
