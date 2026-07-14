@@ -13,6 +13,10 @@ services:
         value: production
       - key: DB_PATH
         value: /var/data/chaines.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: PROFILE_MEMORY_PATH
+        value: /var/data/profile_memory/main.json
     disks:
       - name: chaines-data
         mountPath: /var/data

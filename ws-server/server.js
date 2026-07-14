@@ -276,7 +276,12 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS ghost_drops_wallet_idx ON ghost_drops(wallet_address)");
 } catch {}
 
-const PROFILE_MEMORY_PATH = path.join(ROOT, "profile_memory", "main.json");
+const requestedProfileMemoryPath = process.env.PROFILE_MEMORY_PATH || path.join(dbDir, "profile_memory", "main.json");
+const profileMemoryDir = ensureWritableDir(path.dirname(requestedProfileMemoryPath), path.join(fallbackDataDir, "profile_memory"), "profile memory");
+const PROFILE_MEMORY_PATH = path.join(profileMemoryDir, path.basename(requestedProfileMemoryPath));
+if (PROFILE_MEMORY_PATH !== requestedProfileMemoryPath) {
+  console.warn(`[storage] Falling back from profile memory path ${requestedProfileMemoryPath} to ${PROFILE_MEMORY_PATH}.`);
+}
 
 function loadProfiles() {
   try {
