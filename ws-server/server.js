@@ -213,7 +213,9 @@ function loadProfiles() {
 
 function saveProfiles() {
   fs.mkdirSync(path.dirname(PROFILE_MEMORY_PATH), { recursive: true });
-  fs.writeFileSync(PROFILE_MEMORY_PATH, JSON.stringify(profiles, null, 2));
+  const tmp = `${PROFILE_MEMORY_PATH}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(profiles, null, 2));
+  fs.renameSync(tmp, PROFILE_MEMORY_PATH);
 }
 
 let profiles = loadProfiles();
@@ -247,7 +249,18 @@ function attachSession(req, _res, next) { req.session = loadSession(req); next()
 function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
 function publicSession(req) { return req.session ? { user: formatUser(req.session.user.id) || req.session.user, expiresAt: req.session.expiresAt } : null; }
 function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
+function parseStoredJson(raw = '{}', fallback = {}) {
+  try { return JSON.parse(raw || '{}'); } catch { return fallback; }
+}
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
+function upsertMemory(userId, namespace, schemaVersion, data) {
+  if (!validNamespace(namespace)) throw Object.assign(new Error("Invalid namespace"), { status: 400 });
+  const json = safeMemoryPayload(data);
+  const ver = Math.max(1, Number(schemaVersion || 1));
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET schema_version=excluded.schema_version, data_json=excluded.data_json, updated_at=excluded.updated_at").run(userId, namespace, ver, json, now);
+  return { namespace, schemaVersion: ver, updatedAt: now, data: JSON.parse(json) };
+}
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
@@ -1049,26 +1062,22 @@ app.post("/logout", (req, res) => {
 });
 app.get("/api/memory", requireSession, (req, res) => {
   const rows = db.prepare("SELECT namespace, schema_version, data_json, updated_at FROM user_memory WHERE user_id=?").all(req.session.user.id);
-  res.json({ namespaces: Object.fromEntries(rows.map(r => [r.namespace, { schemaVersion: r.schema_version, updatedAt: r.updated_at, data: JSON.parse(r.data_json || '{}') }])) });
+  res.json({ namespaces: Object.fromEntries(rows.map(r => [r.namespace, { schemaVersion: r.schema_version, updatedAt: r.updated_at, data: parseStoredJson(r.data_json) }])) });
 });
 app.get("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
   const row = db.prepare("SELECT schema_version, data_json, updated_at FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
   if (!row) return res.status(404).json({ error: "Not found" });
-  res.json({ namespace: ns, schemaVersion: row.schema_version, updatedAt: row.updated_at, data: JSON.parse(row.data_json || '{}') });
+  res.json({ namespace: ns, schemaVersion: row.schema_version, updatedAt: row.updated_at, data: parseStoredJson(row.data_json) });
 });
 app.put("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
-  let json; try { json = safeMemoryPayload(req.body?.data ?? req.body ?? {}); } catch(e) { return res.status(413).json({ error: e.message }); }
-  const ver = Math.max(1, Number(req.body?.schemaVersion || 1));
-  const now = new Date().toISOString();
-  db.prepare("INSERT INTO user_memory (user_id, namespace, schema_version, data_json, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, namespace) DO UPDATE SET schema_version=excluded.schema_version, data_json=excluded.data_json, updated_at=excluded.updated_at").run(req.session.user.id, ns, ver, json, now);
-  res.json({ namespace: ns, schemaVersion: ver, updatedAt: now, data: JSON.parse(json) });
+  try { res.json(upsertMemory(req.session.user.id, ns, req.body?.schemaVersion || 1, req.body?.data ?? req.body ?? {})); } catch(e) { res.status(e.status || 413).json({ error: e.message }); }
 });
 app.patch("/api/memory/:namespace", requireSession, (req, res) => {
   const ns = req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" });
   const row = db.prepare("SELECT data_json, schema_version FROM user_memory WHERE user_id=? AND namespace=?").get(req.session.user.id, ns);
-  const base = row ? JSON.parse(row.data_json || '{}') : {};
+  const base = row ? parseStoredJson(row.data_json) : {};
   const next = { ...base, ...(req.body?.data ?? req.body ?? {}) };
   let json; try { json = safeMemoryPayload(next); } catch(e) { return res.status(413).json({ error: e.message }); }
   const now = new Date().toISOString();
@@ -1076,6 +1085,26 @@ app.patch("/api/memory/:namespace", requireSession, (req, res) => {
   res.json({ namespace: ns, schemaVersion: row?.schema_version || 1, updatedAt: now, data: next });
 });
 app.delete("/api/memory/:namespace", requireSession, (req, res) => { const ns=req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" }); db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns); res.json({ success: true }); });
+
+app.post("/api/memory/sync", requireSession, (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 100) : [];
+  const remove = Array.isArray(req.body?.remove) ? req.body.remove.slice(0, 100) : [];
+  try {
+    const out = db.transaction(() => {
+      const saved = items.map((item) => upsertMemory(req.session.user.id, String(item?.namespace || ''), item?.schemaVersion || 1, item?.data ?? {}));
+      const deleted = [];
+      for (const ns of remove) {
+        if (!validNamespace(ns)) throw Object.assign(new Error("Invalid namespace"), { status: 400 });
+        db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns);
+        deleted.push(ns);
+      }
+      return { saved, deleted };
+    })();
+    res.json({ success: true, ...out });
+  } catch (e) {
+    res.status(e.status || 413).json({ error: e.message });
+  }
+});
 
 
 app.get('/api/users/:id', (req, res) => {
