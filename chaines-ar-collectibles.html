@@ -208,7 +208,11 @@
         [222, {name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}],
         [224, {name:'Doge Core',modelUrl:'/static/models/doge-core.gltf',posterUrl:'/cryo.png',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}]
       ]);
-      let collectibles = Array.from(featuredCollectibles.entries()).sort((a,b)=>a[0]-b[0]).map(([tokenId, data]) => ({number:tokenId, tokenId, ...DEFAULT_CAMERA, ...data}));
+      const createCollectible = (tokenId) => {
+        const featured = featuredCollectibles.get(tokenId) || {};
+        return {number:tokenId, tokenId, name:featured.name || `Token ID ${tokenId}`, modelUrl:featured.modelUrl || '', posterUrl:featured.posterUrl || '/static/logo.svg', ...DEFAULT_CAMERA, ...featured};
+      };
+      let collectibles = Array.from(featuredCollectibles.keys()).sort((a,b)=>a-b).map(createCollectible);
       let activeCollectionIndex = Math.max(0, collectibles.length - 1);
       const absolute = (path) => new URL(path, window.location.origin).href;
       const ipfsToHttp = (uri, gateway=IPFS_GATEWAY) => {
@@ -245,13 +249,9 @@
         url.searchParams.set('tokenId', String(collectible.tokenId));
         history[options.push?'pushState':'replaceState']({collection:collectible.number},'',url);
       }
-      function normalizeCollectibles(latestTokenId){
-        const lastCreatedTokenId = Math.max(1, Number(latestTokenId) - 1);
-        collectibles = Array.from({length:lastCreatedTokenId}, (_, index) => {
-          const tokenId = index + 1;
-          const featured = featuredCollectibles.get(tokenId) || {};
-          return {number:tokenId, tokenId, name:featured.name || `Token ID ${tokenId}`, modelUrl:featured.modelUrl || '', posterUrl:featured.posterUrl || '/static/logo.svg', ...DEFAULT_CAMERA, ...featured};
-        });
+      function normalizeCollectibles(nextTokenIdToMint){
+        const tokenCount = Math.max(1, Number(nextTokenIdToMint));
+        collectibles = Array.from({length:tokenCount}, (_, tokenId) => createCollectible(tokenId));
         activeCollectionIndex = Math.max(0, collectibles.length - 1);
       }
       async function loadContractCollectibles(){
@@ -282,17 +282,18 @@
       }
       function selectCollectibleByNumber(number, options={}){
         const requested = Number.parseInt(number, 10);
-        const fallbackIndex = options.index ?? Math.max(0, collectibles.length - 1);
+        const fallbackIndex = Math.min(collectibles.length - 1, Math.max(0, options.index ?? activeCollectionIndex ?? collectibles.length - 1));
         let nextIndex = collectibles.findIndex((item) => item.number === requested || item.tokenId === requested);
         if (nextIndex < 0) {
-          nextIndex = Math.min(collectibles.length - 1, Math.max(0, Number.isFinite(requested) ? requested - 1 : fallbackIndex));
+          nextIndex = Number.isFinite(requested) ? Math.min(collectibles.length - 1, Math.max(0, requested)) : fallbackIndex;
         }
-        const collectible = collectibles[nextIndex];
+        const collectible = collectibles[nextIndex] || collectibles[fallbackIndex];
+        if (!collectible) return;
         activeCollectionIndex = nextIndex;
-        collectionNumberInput.min = String(collectibles[0]?.number || 1);
-        collectionNumberInput.max = String(collectibles[collectibles.length - 1]?.number || collectibles.length);
+        collectionNumberInput.min = String(collectibles[0]?.number ?? 0);
+        collectionNumberInput.max = String(collectibles[collectibles.length - 1]?.number ?? Math.max(0, collectibles.length - 1));
         collectionNumberInput.value = String(collectible.number);
-        collectionTotal.textContent = `of ${collectibles[collectibles.length - 1]?.number || collectibles.length}`;
+        collectionTotal.textContent = `of ${collectibles[collectibles.length - 1]?.number ?? Math.max(0, collectibles.length - 1)}`;
         previousBtn.disabled = activeCollectionIndex <= 0;
         nextBtn.disabled = activeCollectionIndex >= collectibles.length - 1;
         activeCollectibleTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
@@ -364,7 +365,7 @@
           if (tokenIndex >= 0) return collectibles[tokenIndex].number;
         }
         const urlNumber = Number.parseInt(params.get('collection'), 10);
-        return Number.isFinite(urlNumber) ? urlNumber : (collectibles[collectibles.length - 1]?.number || 1);
+        return Number.isFinite(urlNumber) ? urlNumber : (collectibles[collectibles.length - 1]?.number ?? 0);
       }
       viewer.addEventListener('progress', e => {
         const p = Math.round((e.detail?.totalProgress || 0) * 100);
@@ -374,7 +375,14 @@
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
       nextBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex + 1]?.number, {push:true, index:activeCollectionIndex + 1}));
-      collectionNumberInput.addEventListener('input', () => selectCollectibleByNumber(collectionNumberInput.value, {push:true}));
+      collectionNumberInput.addEventListener('change', () => selectCollectibleByNumber(collectionNumberInput.value, {push:true}));
+      collectionNumberInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          collectionNumberInput.blur();
+          selectCollectibleByNumber(collectionNumberInput.value, {push:true});
+        }
+      });
       launchArBtn.addEventListener('click', async () => { try { await viewer.activateAR(); } catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; } });
       googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
       let sx = 0, sy = 0;
