@@ -1,0 +1,10 @@
+{
+  "name": "CHAINeS House Frame",
+  "model": "/static/models/house/house-frame.glb",
+  "fallback": "/static/models/house/house-frame.gltf",
+  "iosSrc": "",
+  "poster": "/static/logo.svg",
+  "alt": "A 3D structural house frame ready for floor placement",
+  "scale": "1 1 1",
+  "orientation": "0deg 0deg 0deg"
+}
