@@ -2345,6 +2345,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
+        <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
         <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
       </div>
       <div class="fields" style="margin-top:8px">
@@ -2918,6 +2919,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const skipBtn = el('#skip');
     const tokenLoginValidateBtn = el('#token-login-validate');
     const tokenLoginContractSelect = el('#token-login-contract');
     const tokenContractGallery = el('#token-contract-gallery');
@@ -6365,49 +6367,29 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     }
 
-    function showAuthOverlay(){
-      auth.hidden = false;
-      auth.classList.remove('is-hidden');
-      auth.style.display = 'flex';
-      const top = headerBar.offsetHeight;
-      const bottom = footerBar.offsetHeight;
-      auth.style.top = top + 'px';
-      auth.style.bottom = bottom + 'px';
-      auth.scrollTop = 0;
-      const authCard = auth.querySelector('.card');
-      if(authCard) authCard.scrollTop = 0;
-      document.body.classList.add('auth-lock');
-      setTokenLoginStatus('');
-      setTimeout(() => usernameInput && usernameInput.focus(), 50);
-    }
-
-    async function requireAuth(){
-      if(/^guest-/i.test(store.user || '')){
-        store.user = '';
-        store.profilePic = '';
+    function requireAuth(){
+      if (store.user) {
+        enterChat(store.user, store.profilePic, { verified: isUserVerified(store.user) });
+      } else {
+        auth.hidden = false;
+        auth.classList.remove('is-hidden');
+        auth.style.display = 'flex';
+        const top = headerBar.offsetHeight;
+        const bottom = footerBar.offsetHeight;
+        auth.style.top = top + 'px';
+        auth.style.bottom = bottom + 'px';
+        auth.scrollTop = 0;
+        const authCard = auth.querySelector('.card');
+        if(authCard) authCard.scrollTop = 0;
+        document.body.classList.add('auth-lock');
+        setTokenLoginStatus('');
+        setTimeout(() => usernameInput && usernameInput.focus(), 50);
       }
-      try {
-        await window.SessionClient?.initialize?.();
-        const sessionUser = window.SessionClient?.getUser?.();
-        if(sessionUser && sessionUser.username){
-          enterChat(sessionUser.username, sessionUser.profilePic || store.profilePic, { verified: isUserVerified(sessionUser.username) || sessionUser.verified });
-          return;
-        }
-      } catch(e) {
-        console.warn('Session lookup failed; login required.', e);
-      }
-      store.user = '';
-      store.profilePic = '';
-      showAuthOverlay();
     }
 
     function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
-      if(!cleaned){
-        showAuthOverlay();
-        return;
-      }
-      store.user = cleaned;
+      store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
       applyVerificationToProfile(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
@@ -6584,6 +6566,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const data = await res.json().catch(()=>({}));
         alert(data.error || 'Registration failed');
       }
+    });
+
+    skipBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      setUserValidationActiveState(store.user, false);
+      store.profilePic='';
+      sessionStorage.removeItem('chaines_session_validation');
+      enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
     });
 
     tokenLoginValidateBtn?.addEventListener('click', async (e) => {
