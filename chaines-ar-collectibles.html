@@ -19,6 +19,13 @@
   <meta name="twitter:description" content="Unified CHAINeS mint + AR viewer experience for Polygon collectibles." />
   <meta name="twitter:image" content="/static/logo.svg" />
   <title>CHAINeS AR Collectibles — Polygon NFT Player & Minter</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://esm.sh" crossorigin />
+  <link rel="preconnect" href="https://ipfs.io" crossorigin />
+  <link rel="modulepreload" href="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js" />
+  <link rel="preload" href="/static/models/doge-core.gltf" as="fetch" type="model/gltf+json" crossorigin />
+  <link rel="preload" href="/static/models/polygon-vault.gltf" as="fetch" type="model/gltf+json" crossorigin />
+  <link rel="preload" href="/static/models/chaines-crystal.gltf" as="fetch" type="model/gltf+json" crossorigin />
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
   <script type="application/ld+json">
     {
@@ -214,6 +221,23 @@
       };
       let collectibles = Array.from(featuredCollectibles.keys()).sort((a,b)=>a-b).map(createCollectible);
       let activeCollectionIndex = Math.max(0, collectibles.length - 1);
+      const idle = window.requestIdleCallback || ((callback) => window.setTimeout(() => callback({timeRemaining:() => 0}), 1));
+      const preloadUrl = (url, as='fetch') => {
+        if (!url || document.head.querySelector(`link[data-preload-url="${CSS.escape(url)}"]`)) return;
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = url;
+        link.as = as;
+        if (as === 'fetch') { link.crossOrigin = 'anonymous'; link.type = isModelFile(url) ? 'model/gltf+json' : ''; }
+        link.dataset.preloadUrl = url;
+        document.head.appendChild(link);
+      };
+      const warmFeaturedAssets = () => {
+        collectibles.slice().reverse().forEach((collectible) => {
+          preloadUrl(collectible.modelUrl);
+          if (collectible.posterUrl) preloadUrl(collectible.posterUrl, 'image');
+        });
+      };
       const absolute = (path) => new URL(path, window.location.origin).href;
       const ipfsToHttp = (uri, gateway=IPFS_GATEWAY) => {
         if (!uri) return '';
@@ -255,7 +279,7 @@
         activeCollectionIndex = Math.max(0, collectibles.length - 1);
       }
       async function loadContractCollectibles(){
-        viewerStatus.textContent = 'Loading contract NFTs…';
+        viewerStatus.textContent = 'NFT ready while syncing contract list…';
         const [{createThirdwebClient, getContract, readContract}, {polygon}] = await Promise.all([
           import('https://esm.sh/thirdweb@5'),
           import('https://esm.sh/thirdweb@5/chains')
@@ -265,16 +289,28 @@
           const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
           const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
           normalizeCollectibles(Number(nextTokenId));
-          const uriReads = collectibles.map(async (collectible) => {
+          const selectedTokenId = collectibles[activeCollectionIndex]?.tokenId;
+          const priority = collectibles
+            .map((collectible, index) => ({collectible, index, distance: Math.abs((collectible.tokenId ?? index) - (selectedTokenId ?? index))}))
+            .sort((a, b) => a.distance - b.distance || b.collectible.tokenId - a.collectible.tokenId);
+          const hydrateUri = async ({collectible, index}) => {
+            if (collectible.rawUri || collectible.uriLoading) return;
+            collectible.uriLoading = true;
             try {
-              const rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
-              return {...collectible, rawUri};
+              collectible.rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
+              if (collectibles[activeCollectionIndex]?.tokenId === collectible.tokenId) {
+                selectCollectibleByNumber(collectible.number, {skipUrl:true});
+              }
             } catch (err) {
               console.warn(`Unable to read metadata URI for token ${collectible.tokenId}.`, err);
-              return collectible;
+            } finally {
+              collectible.uriLoading = false;
             }
+          };
+          await Promise.all(priority.slice(0, 6).map(hydrateUri));
+          idle(() => {
+            priority.slice(6).reduce((chain, item) => chain.then(() => hydrateUri(item)), Promise.resolve());
           });
-          collectibles = await Promise.all(uriReads);
         } catch (err) {
           console.warn('Unable to load the complete contract NFT list; using featured fallback.', err);
           viewerStatus.textContent = 'Using featured NFT fallback; contract list could not load.';
@@ -310,6 +346,7 @@
         if (imageFile) nftImagePreview.src = imageFile;
         if (arFile) {
           viewerStatus.textContent = collectible.arModelUrl ? 'Loading IPFS NFT AR file…' : 'Loading NFT…';
+          preloadUrl(arFile);
           viewer.setAttribute('src', arFile);
           googleArBtn.disabled = false;
           launchArBtn.disabled = false;
@@ -389,6 +426,8 @@
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) { const nextIndex = activeCollectionIndex + (dx < 0 ? 1 : -1); selectCollectibleByNumber(collectibles[nextIndex]?.number, {push:true, index:nextIndex}); } }, {passive:true});
       window.addEventListener('popstate', () => selectCollectibleByNumber(initialNumber(), {skipUrl:true}));
+      warmFeaturedAssets();
+      selectCollectibleByNumber(initialNumber(), {skipUrl:true});
       loadContractCollectibles()
         .catch((err) => {
           console.warn('Unable to load contract modules; using featured fallback.', err);
