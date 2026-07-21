@@ -185,6 +185,9 @@
     .admin-option-list label { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--muted); }
     .admin-option-list input { width:auto; margin-top:3px; }
     .admin-note { margin:0; font-size:12px; color:var(--muted); }
+    .admin-custom-add { display:grid; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); }
+    .admin-custom-grid { display:grid; grid-template-columns:1fr 1.2fr 1.2fr .7fr auto; gap:8px; }
+    .admin-custom-grid .mini-btn { white-space:nowrap; }
     .daily-lineup { border:1px dashed var(--line); border-radius:10px; padding:10px; font-size:12px; color:var(--muted); }
     .delivery-scope { display:none; }
     .delivery-scope.active { display:grid; }
@@ -227,6 +230,7 @@
       .row, .row3, .partner-grid { grid-template-columns:1fr; }
       .menu-item { grid-template-columns:1fr; }
       .admin-row { grid-template-columns:1fr; }
+      .admin-custom-grid { grid-template-columns:1fr; }
     }
   
     .site-copyright {
@@ -536,6 +540,23 @@
           <p class="section-title">Daily Meal Choices</p>
           <p class="admin-note">Select which options are available for customers today.</p>
           <div id="admin-menu-controls" class="admin-grid"></div>
+          <div class="admin-custom-add">
+            <p class="admin-note">Add custom menu items by category so they appear in today’s selectable list.</p>
+            <div class="admin-custom-grid">
+              <select id="admin-custom-category" aria-label="Custom item category">
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="dessert">Dessert</option>
+                <option value="pringles">Snacks</option>
+                <option value="drinks">Drinks</option>
+              </select>
+              <input id="admin-custom-name" type="text" maxlength="120" placeholder="Item name" />
+              <input id="admin-custom-detail" type="text" maxlength="120" placeholder="Item detail" />
+              <input id="admin-custom-price" type="number" min="0" step="0.25" placeholder="Base $" />
+              <button id="admin-add-custom-item" type="button" class="mini-btn">Add item</button>
+            </div>
+          </div>
           <button id="save-daily-menu" type="button" class="mini-btn">Save Today's Meal Availability</button>
         </section>
         <section class="section-shell">
@@ -757,6 +778,14 @@
           pringles: ['Pringles Original', 'Doritos Nacho Cheese', "Lay's Classic", 'Cheetos Crunchy'],
           drinks: ['Coca-Cola Classic', "Bae's Special Cloud Coffee", 'Vanilla Bean Milkshake', 'Blue Raspberry Slurpy', 'Mango Pineapple Smoothie', 'Iced Caramel Latte']
         },
+        customOptions: {
+          breakfast: [],
+          lunch: [],
+          dinner: [],
+          dessert: [],
+          pringles: [],
+          drinks: []
+        },
         pricing: {
           baseFee: 5.75,
           competitorFee: 6.5,
@@ -819,6 +848,11 @@
       const adminLoginBtn = document.querySelector('#admin-login-btn');
       const saveDailyMenuBtn = document.querySelector('#save-daily-menu');
       const savePricingBtn = document.querySelector('#save-pricing');
+      const adminCustomCategory = document.querySelector('#admin-custom-category');
+      const adminCustomName = document.querySelector('#admin-custom-name');
+      const adminCustomDetail = document.querySelector('#admin-custom-detail');
+      const adminCustomPrice = document.querySelector('#admin-custom-price');
+      const adminAddCustomItemBtn = document.querySelector('#admin-add-custom-item');
       const pricingInputs = {
         baseFee: document.querySelector('#admin-base-fee'),
         competitorFee: document.querySelector('#admin-competitor-fee'),
@@ -1053,6 +1087,14 @@
             pringles: Array.isArray(rawConfig.dailyMenu?.pringles) ? rawConfig.dailyMenu.pringles : fallback.dailyMenu.pringles,
             drinks: Array.isArray(rawConfig.dailyMenu?.drinks) ? rawConfig.dailyMenu.drinks : fallback.dailyMenu.drinks
           },
+          customOptions: {
+            breakfast: Array.isArray(rawConfig.customOptions?.breakfast) ? rawConfig.customOptions.breakfast : [],
+            lunch: Array.isArray(rawConfig.customOptions?.lunch) ? rawConfig.customOptions.lunch : [],
+            dinner: Array.isArray(rawConfig.customOptions?.dinner) ? rawConfig.customOptions.dinner : [],
+            dessert: Array.isArray(rawConfig.customOptions?.dessert) ? rawConfig.customOptions.dessert : [],
+            pringles: Array.isArray(rawConfig.customOptions?.pringles) ? rawConfig.customOptions.pringles : [],
+            drinks: Array.isArray(rawConfig.customOptions?.drinks) ? rawConfig.customOptions.drinks : []
+          },
           pricing: {
             baseFee: Number(rawConfig.pricing?.baseFee || fallback.pricing.baseFee),
             competitorFee: Number(rawConfig.pricing?.competitorFee || fallback.pricing.competitorFee),
@@ -1062,6 +1104,31 @@
             addonFee: Number(rawConfig.pricing?.addonFee || fallback.pricing.addonFee)
           }
         };
+      }
+
+      function normalizeCustomOption(item = {}) {
+        const name = String(item.name || '').trim();
+        if (!name) return null;
+        const note = String(item.note || item.detail || '').trim() || 'Custom admin item';
+        const parsedPrice = Number(item.price);
+        return {
+          name,
+          note,
+          price: Number.isFinite(parsedPrice) ? normalizeCurrency(parsedPrice, 0) : undefined
+        };
+      }
+
+      function applyCustomOptionsToOptionLibrary() {
+        const categories = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'];
+        categories.forEach((category) => {
+          const customItems = (adminConfig.customOptions?.[category] || [])
+            .map(normalizeCustomOption)
+            .filter(Boolean);
+          customItems.forEach((customItem) => {
+            const exists = (optionLibrary[category] || []).some((entry) => entry.name.toLowerCase() === customItem.name.toLowerCase());
+            if (!exists) optionLibrary[category].push(customItem);
+          });
+        });
       }
 
       function getMenuOptionsByName(type, names) {
@@ -1190,6 +1257,42 @@
         updateSummary();
         mountAdminControls();
         setAdminState(true, `Pricing saved. Base fee set to ${toMoney(adminConfig.pricing.baseFee)} for competitive margin coverage.`);
+      }
+
+      function addAdminCustomMenuItem() {
+        if (!isAdminAuthed) return;
+        const category = String(adminCustomCategory.value || '').trim();
+        const name = String(adminCustomName.value || '').trim();
+        const note = String(adminCustomDetail.value || '').trim() || 'Custom admin item';
+        const price = normalizeCurrency(adminCustomPrice.value, NaN);
+        const validCategories = ['breakfast', 'lunch', 'dinner', 'dessert', 'pringles', 'drinks'];
+        if (!validCategories.includes(category) || !name) {
+          setAdminState(true, 'Enter a category and item name before adding.');
+          adminAuthStatus.classList.add('error');
+          return;
+        }
+        const duplicate = optionLibrary[category].some((item) => item.name.toLowerCase() === name.toLowerCase());
+        if (duplicate) {
+          setAdminState(true, `${name} already exists in ${category}.`);
+          adminAuthStatus.classList.add('error');
+          return;
+        }
+        const newItem = { name, note };
+        if (Number.isFinite(price)) newItem.price = price;
+        optionLibrary[category].push(newItem);
+        if (!Array.isArray(adminConfig.customOptions?.[category])) adminConfig.customOptions[category] = [];
+        adminConfig.customOptions[category].push(newItem);
+        if (!adminConfig.dailyMenu[category].includes(name)) adminConfig.dailyMenu[category].push(name);
+        localStorage.setItem(adminConfigKey, JSON.stringify(adminConfig));
+        mountAdminControls();
+        syncQuickMenuFromAdmin();
+        mountQuickMenu();
+        renderDailyLineup();
+        updateSummary();
+        adminCustomName.value = '';
+        adminCustomDetail.value = '';
+        adminCustomPrice.value = '';
+        setAdminState(true, `${name} added to ${category} and included in today's menu options.`);
       }
 
       function loadMarketplaceServices() {
@@ -2091,6 +2194,7 @@
       adminLoginBtn.addEventListener('click', loginAdmin);
       saveDailyMenuBtn.addEventListener('click', saveAdminMenuSetup);
       savePricingBtn.addEventListener('click', savePricingConfig);
+      adminAddCustomItemBtn.addEventListener('click', addAdminCustomMenuItem);
       quickMenuGrid.addEventListener('click', (event) => {
         const button = event.target.closest('[data-quick-group]');
         if (!button) return;
@@ -2115,6 +2219,7 @@
       quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
 
       adminConfig = mergeAdminConfig(adminConfig);
+      applyCustomOptionsToOptionLibrary();
       syncQuickMenuFromAdmin();
       populateStandardizedGroceries();
       loadMarketplaceServices();
