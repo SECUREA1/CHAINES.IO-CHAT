@@ -1,15 +1,19 @@
 {
   "id": "/",
-  "name": "CHAINeS Composer",
+  "name": "CHAINeS Composer | Blue Creator Network",
   "short_name": "CHAINeS",
-  "description": "A branded creator workspace for posts, live moments, marketplace drops, and community conversations.",
+  "description": "The blue CHAINeS creator network for posts, live moments, marketplace drops, and community conversations.",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#07152f",
-  "theme_color": "#07152f",
+  "background_color": "#06265d",
+  "theme_color": "#0756b7",
   "orientation": "any",
-  "categories": ["social", "productivity", "business"],
+  "categories": [
+    "social",
+    "productivity",
+    "business"
+  ],
   "icons": [
     {
       "src": "/static/logo.svg",
@@ -23,13 +27,25 @@
       "name": "Open marketplace",
       "short_name": "Marketplace",
       "url": "/marketplace.html",
-      "icons": [{ "src": "/static/marketplace.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [
+        {
+          "src": "/static/marketplace.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
       "name": "My profile",
       "short_name": "Profile",
       "url": "/profile.html",
-      "icons": [{ "src": "/static/user.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [
+        {
+          "src": "/static/user.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
