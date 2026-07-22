@@ -344,6 +344,7 @@
       height:100%;
       display:block;
       touch-action:none;
+      cursor:crosshair;
     }
     .panel{
       border-radius: var(--radius-xl);
@@ -928,7 +929,7 @@
   <main class="main">
     <div class="stage">
       <div class="viewport" id="viewport">
-        <canvas id="viz"></canvas>
+        <canvas id="viz" tabindex="0" aria-label="Game viewport. Move the pointer to control the active game and click or tap to use its action."></canvas>
 
         <!-- Hidden media elements used for processing -->
         <video id="cam" playsinline muted class="hidden"></video>
@@ -2704,19 +2705,45 @@ class GamesApp{
     if(this._wired) return;
     this._wired = true;
 
-    // Route canvas clicks to the active game.
-    // NOTE: programmatic clicks (from hover-click / pinch-click) don't carry clientX/Y.
-    viz.addEventListener("click", (e)=>{
-      if(state.ui.mode !== "app:games") return;
-
+    const pointForEvent = (e)=>{
       const rect = viz.getBoundingClientRect();
-      const cx = (e.isTrusted ? e.clientX : state.cursor.x) - rect.left;
-      const cy = (e.isTrusted ? e.clientY : state.cursor.y) - rect.top;
+      const clientX = e.isTrusted ? e.clientX : state.cursor.x;
+      const clientY = e.isTrusted ? e.clientY : state.cursor.y;
+      return {
+        x: clamp((clientX - rect.left) / rect.width, 0, 1),
+        y: clamp((clientY - rect.top) / rect.height, 0, 1)
+      };
+    };
 
-      const nx = clamp(cx / rect.width, 0, 1);
-      const ny = clamp(cy / rect.height, 0, 1);
+    // Keep the in-app cursor synchronized with direct browser mouse, pen, and touch input.
+    // Pointer capture lets a touch drag remain connected to the game even when it crosses
+    // the canvas edge, which is especially important in the fullscreen mobile view.
+    viz.addEventListener("pointermove", (e)=>{
+      if(state.ui.mode !== "app:games") return;
+      syncCursorFromPointer(e.clientX, e.clientY);
+    }, { passive:true });
 
-      this.onClick(nx, ny);
+    viz.addEventListener("pointerdown", (e)=>{
+      if(state.ui.mode !== "app:games") return;
+      viz.focus({ preventScroll:true });
+      syncCursorFromPointer(e.clientX, e.clientY);
+      if(e.pointerType !== "mouse"){
+        viz.setPointerCapture?.(e.pointerId);
+        const point = pointForEvent(e);
+        this.onClick(point.x, point.y);
+        // Some mobile browsers also emit a compatibility click after pointerup.
+        // Suppress only that duplicate so every tap is a single game action.
+        this.ignoreClickUntil = performance.now() + 750;
+      }
+    }, { passive:true });
+
+    // Route mouse clicks and virtual cursor clicks to the active game. Programmatic
+    // clicks (from hover-click / pinch-click) do not carry clientX/clientY.
+    viz.addEventListener("click", (e)=>{
+      if(state.ui.mode !== "app:games" || performance.now() < (this.ignoreClickUntil || 0)) return;
+
+      const point = pointForEvent(e);
+      this.onClick(point.x, point.y);
     });
   }
 
