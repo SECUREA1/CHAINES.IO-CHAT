@@ -21,6 +21,11 @@
   <link rel="apple-touch-icon" href="/static/logo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#07152f" />
+  <meta name="application-name" content="CHAINeS Composer" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <script type="module" src="static/wallet.js"></script>
   <style>
@@ -1789,6 +1794,31 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       box-shadow: var(--shadow);
     }
 
+    /* Downloadable app treatment */
+    .brand-lockup { display:grid; gap:1px; min-width:0; }
+    .brand-kicker { color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+    .brand h1 { line-height:1.1; }
+    .install-app-btn {
+      min-height:34px; border:1px solid color-mix(in oklab, var(--gold), transparent 42%);
+      border-radius:999px; padding:7px 11px; cursor:pointer; color:#07152f; font:700 11px/1 'Poppins', sans-serif;
+      letter-spacing:.04em; text-transform:uppercase;
+      background:linear-gradient(120deg, #f8d58d, #fff2c7 45%, #72d8ff); box-shadow:0 8px 20px rgba(0,114,255,.2);
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .install-app-btn:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(0,198,255,.28); }
+    .install-app-btn[hidden] { display:none; }
+    .app-download-card {
+      margin-top:16px; display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center;
+      padding:13px; border:1px solid color-mix(in oklab, var(--accent-2), transparent 40%); border-radius:14px;
+      background:linear-gradient(135deg, color-mix(in oklab, var(--accent), transparent 86%), color-mix(in oklab, var(--gold), transparent 91%));
+    }
+    .app-download-card__mark { width:42px; height:42px; border-radius:12px; box-shadow:var(--shadow); }
+    .app-download-card__copy { min-width:0; }
+    .app-download-card strong, .app-download-card span { display:block; }
+    .app-download-card span { margin-top:2px; color:var(--muted); font-size:11px; }
+    .app-download-card button { grid-column:1 / -1; width:100%; }
+    .app-download-card.is-installed { border-color:color-mix(in oklab, #4ade80, transparent 40%); }
+
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
     .auth.is-hidden { display: none !important; }
@@ -1871,6 +1901,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         font-size:14px;
         line-height:1.2;
       }
+      .brand-kicker { display:none; }
+      .install-app-btn { min-height:32px; padding:7px 9px; font-size:10px; }
       .bar-right {
         flex:0 0 auto;
         width:auto;
@@ -2084,9 +2116,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="bar">
           <div class="brand">
             <div class="logo" aria-hidden="true"></div>
-            <h1>CHAINeS POST</h1>
+            <div class="brand-lockup"><span class="brand-kicker">Creator network</span><h1>CHAINeS POST</h1></div>
           </div>
           <div class="bar-right">
+            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Download app</button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2347,6 +2380,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <button class="btn ghost" id="register" type="button">Register</button>
         <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
         <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+      </div>
+      <div id="app-download-card" class="app-download-card" aria-live="polite">
+        <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
+        <div class="app-download-card__copy">
+          <strong>Take CHAINeS with you</strong>
+          <span>Install the branded app for a focused, full-screen creator workspace.</span>
+        </div>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
       </div>
       <div class="fields" style="margin-top:8px">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -2912,6 +2953,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let dropperStatus = null;
     let dropperStatusError = null;
     const auth = el('#auth');
+    const installAppBtn = el('#install-app-btn');
+    const authInstallAppBtn = el('#auth-install-app-btn');
+    const appDownloadCard = el('#app-download-card');
     const usernameInput = el('#username');
     const passwordInput = el('#password');
     const profileInput = el('#profile');
@@ -6451,6 +6495,43 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           body: JSON.stringify({ username: store.user, subscription: sub })
         });
       } catch{}
+    }
+
+    // Keep the app shell available independently of notification preferences.
+    // The browser only exposes the install prompt after a PWA is registered.
+    let deferredInstallPrompt = null;
+    function setInstallAvailability(available){
+      [installAppBtn, authInstallAppBtn].forEach((button) => {
+        if(button) button.hidden = !available;
+      });
+      if(appDownloadCard){
+        appDownloadCard.classList.toggle('is-installed', !available && window.matchMedia?.('(display-mode: standalone)').matches);
+      }
+    }
+    async function installBrandedApp(){
+      if(!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if(choice.outcome === 'accepted') setInstallAvailability(false);
+      deferredInstallPrompt = null;
+    }
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      setInstallAvailability(true);
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      setInstallAvailability(false);
+      if(appDownloadCard){
+        appDownloadCard.classList.add('is-installed');
+        const copy = appDownloadCard.querySelector('.app-download-card__copy span');
+        if(copy) copy.textContent = 'CHAINeS is installed and ready from your home screen.';
+      }
+    });
+    [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }
 
     function urlBase64ToUint8Array(base64String){
