@@ -19,47 +19,59 @@
   <title>CHAINeS Marketplace</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <style>
-    :root { --bg:#0b1024; --panel:#111a36; --fg:#f7f9ff; --muted:#9fb3d4; --line:#334155; --accent:#153a7a; --gold:#e5b35c; }
+    :root { --bg:#060a18; --panel:#0e1630; --panel-strong:#131f42; --fg:#f7f9ff; --muted:#9cadcc; --line:rgba(147,170,218,.24); --accent:#4778ff; --accent-2:#7c5cff; --gold:#ffd786; --success:#71e9ad; }
     * { box-sizing:border-box; }
-    body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--fg); background: radial-gradient(1200px 800px at 10% -20%, #1d2f65, transparent 55%), var(--bg); overflow-x:hidden; }
-    .wrap { max-width:1200px; width:100%; margin:0 auto; padding:18px; display:grid; gap:12px; }
-    .panel { background:color-mix(in oklab, var(--panel), transparent 15%); border:1px solid var(--line); border-radius:14px; box-shadow:0 0 20px rgba(16,42,92,.35); }
-    header { padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
-    .title { margin:0; font-size:20px; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; font:14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--fg); background:radial-gradient(900px 500px at 5% -15%, rgba(71,120,255,.4), transparent 60%), radial-gradient(700px 500px at 100% 10%, rgba(124,92,255,.2), transparent 60%), var(--bg); overflow-x:hidden; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.28; background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px, transparent 1px); background-size:42px 42px; mask-image:linear-gradient(to bottom,black,transparent 72%); }
+    .wrap { max-width:1280px; width:100%; margin:0 auto; padding:24px 20px; display:grid; gap:16px; position:relative; }
+    .panel { background:linear-gradient(140deg, rgba(19,31,66,.88), rgba(10,17,39,.82)); border:1px solid var(--line); border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.04); backdrop-filter:blur(16px); }
+    header { padding:16px 18px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand-mark { width:42px; height:42px; padding:8px; border-radius:13px; background:linear-gradient(145deg,#4c7fff,#755cff); box-shadow:0 10px 24px rgba(71,120,255,.3); }
+    .eyebrow { margin:0 0 2px; color:#aac2ff; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+    .title { margin:0; font-size:clamp(20px,3vw,25px); letter-spacing:-.035em; }
     .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
-    .top-link { color:var(--gold); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; background:#0d1733; font-weight:600; }
+    .top-link { color:#dce6ff; text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:8px 13px; background:rgba(7,12,29,.72); font-weight:700; font-size:12px; transition:.2s ease; }
     .top-link.icon-link { display:inline-flex; align-items:center; gap:6px; }
     .top-link.icon-link img { width:16px; height:16px; display:block; }
-    .top-link:hover { border-color:var(--gold); }
+    .top-link:hover { border-color:#91b0ff; background:rgba(71,120,255,.16); transform:translateY(-1px); }
     .notif-wrap { position:relative; }
     .notif-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 12px; cursor:pointer; font-weight:700; }
     .notif-dot { color:#ff9cb8; margin-left:6px; font-size:12px; }
     .notif-panel { position:absolute; top:42px; right:0; width:min(340px, 90vw); max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:12px; background:#0d1733; padding:8px; z-index:5; display:grid; gap:6px; }
     .notif-panel[hidden] { display:none !important; }
     .notif-item { border:1px solid var(--line); border-radius:10px; padding:8px; font-size:12px; color:var(--muted); }
-    .tools { padding:12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:8px; }
-    .tools input, .tools select, .tools button { width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); }
-    .tools button { cursor:pointer; background:linear-gradient(180deg, #204388, var(--accent)); font-weight:700; }
-    .meta { padding:0 12px 12px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-    .post-wrap { padding:12px; border-top:1px solid var(--line); display:grid; gap:10px; }
+    .market-heading { padding:22px 22px 6px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+    .market-heading h2 { margin:0; font-size:20px; letter-spacing:-.025em; }
+    .market-heading p { margin:4px 0 0; color:var(--muted); }
+    .live-pill { flex:0 0 auto; display:flex; align-items:center; gap:7px; color:#bdf8d8; background:rgba(55,180,116,.1); border:1px solid rgba(113,233,173,.25); border-radius:999px; padding:7px 10px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    .live-pill::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--success); box-shadow:0 0 0 4px rgba(113,233,173,.12); }
+    .tools { padding:16px 22px 12px; display:grid; grid-template-columns:2fr repeat(4, minmax(130px,1fr)); gap:9px; }
+    .tools input, .tools select, .tools button, .post-grid input, .post-grid select, .post-grid textarea, .post-grid button { min-height:42px; width:100%; border-radius:11px; border:1px solid var(--line); padding:9px 11px; background:rgba(5,10,26,.72); color:var(--fg); font:inherit; transition:border-color .2s, box-shadow .2s, background .2s; }
+    .tools input:focus, .tools select:focus, .post-grid input:focus, .post-grid select:focus, .post-grid textarea:focus, .comment-form input:focus, .contact-form input:focus { outline:0; border-color:#7398ff; box-shadow:0 0 0 3px rgba(71,120,255,.16); }
+    .tools button { cursor:pointer; background:linear-gradient(135deg,#537fff,#6656db); border-color:transparent; font-weight:800; box-shadow:0 8px 18px rgba(58,92,205,.25); }
+    .tools button:hover, .post-grid button:hover { filter:brightness(1.1); transform:translateY(-1px); }
+    .meta { padding:0 22px 16px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    #count { color:#dce6ff; font-weight:800; }
+    .post-wrap { margin:0 12px; padding:18px 10px; border:1px solid rgba(147,170,218,.18); border-radius:16px; background:rgba(4,9,24,.3); display:grid; gap:12px; }
     .post-brand { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
-    .post-title { margin:0; font-size:16px; }
+    .post-title { margin:0; font-size:17px; letter-spacing:-.02em; }
     .post-sub { margin:0; color:var(--muted); font-size:12px; }
     .post-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; }
-    .post-grid input, .post-grid select, .post-grid textarea, .post-grid button {
-      width:100%; border-radius:10px; border:1px solid var(--line); padding:9px 10px; background:#0d1733; color:var(--fg); font:inherit;
-    }
-    .post-grid textarea { min-height:90px; resize:vertical; grid-column:1/-1; }
+    .post-grid textarea { min-height:106px; resize:vertical; grid-column:1/-1; }
     .post-grid .wide { grid-column:1/-1; }
-    .post-grid button { cursor:pointer; background:linear-gradient(180deg, #2c5fbf, #153a7a); font-weight:700; }
+    .post-grid button { cursor:pointer; background:linear-gradient(135deg,#537fff,#6656db); border-color:transparent; font-weight:800; }
     .post-status { min-height:1.2em; color:var(--muted); font-size:12px; }
     .post-status.error { color:#ff8e8e; }
     .post-status.success { color:#92f5b8; }
     .hint { margin:0; color:var(--muted); font-size:12px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; padding:12px; }
-    .card { border:1px solid var(--line); border-radius:12px; padding:10px; background:color-mix(in oklab, var(--panel), transparent 7%); display:grid; gap:8px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; padding:20px 12px 12px; }
+    .card { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:16px; padding:15px; background:linear-gradient(150deg,rgba(20,32,69,.9),rgba(9,15,35,.88)); display:grid; gap:10px; box-shadow:0 12px 30px rgba(0,0,0,.14); transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease; }
+    .card::before { content:""; position:absolute; left:0; right:0; top:0; height:2px; background:linear-gradient(90deg,transparent,#638cff,transparent); opacity:.55; }
+    .card:hover { transform:translateY(-3px); border-color:rgba(124,156,255,.55); box-shadow:0 20px 36px rgba(0,0,0,.24); }
     .chips { display:flex; gap:6px; flex-wrap:wrap; }
-    .chip { font-size:11px; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--gold); }
+    .chip { font-size:10px; border:1px solid rgba(255,215,134,.24); border-radius:999px; padding:3px 8px; color:var(--gold); background:rgba(229,179,92,.07); font-weight:750; letter-spacing:.03em; }
     .user { color:#9ad6ff; font-weight:700; }
     .small { color:var(--muted); font-size:12px; }
     .empty { text-align:center; color:var(--muted); padding:24px; }
@@ -70,16 +82,16 @@
     .dating-block.show { display:grid; }
     .dating-profile { border-top:1px dashed var(--line); padding-top:6px; margin-top:2px; display:grid; gap:4px; }
     .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .like-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .like-btn { border:1px solid var(--line); border-radius:999px; background:rgba(7,12,29,.72); color:var(--fg); padding:7px 10px; cursor:pointer; font-weight:700; }
     .like-btn[aria-pressed="true"] { border-color:#ff7eb6; color:#ff7eb6; }
-    .ghost-btn { border:1px solid var(--line); border-radius:999px; background:#0d1733; color:var(--fg); padding:6px 10px; cursor:pointer; }
+    .ghost-btn { border:1px solid var(--line); border-radius:999px; background:rgba(7,12,29,.72); color:#d9e4ff; padding:7px 10px; cursor:pointer; text-decoration:none; font-weight:700; font-size:12px; }
     .comment-wrap, .contact-compose { border-top:1px dashed var(--line); padding-top:8px; display:grid; gap:6px; }
     .comment-list { display:grid; gap:4px; max-height:120px; overflow:auto; padding-right:4px; }
     .comment-item { font-size:12px; color:var(--muted); }
     .comment-form, .contact-form { display:grid; grid-template-columns:120px 1fr auto; gap:6px; }
     .comment-form input, .contact-form input { width:100%; border-radius:8px; border:1px solid var(--line); padding:6px 8px; background:#0d1733; color:var(--fg); }
     .comment-form button, .contact-form button { border-radius:8px; border:1px solid var(--line); background:#163e80; color:var(--fg); padding:6px 10px; cursor:pointer; }
-    .inbox { padding:10px 12px; border-top:1px solid var(--line); display:grid; gap:6px; }
+    .inbox { margin:12px; padding:14px; border:1px solid rgba(147,170,218,.18); border-radius:14px; background:rgba(4,9,24,.32); display:grid; gap:6px; }
     .inbox-item { font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:8px; padding:6px; }
 
     @media (max-width: 900px) {
@@ -103,6 +115,7 @@
       .post-grid > * { flex:1 1 100%; min-width:0; }
       .grid { grid-template-columns:1fr; padding:10px; }
       .media-grid { grid-template-columns:1fr 1fr; }
+      .market-heading { padding:18px 16px 4px; align-items:flex-start; flex-direction:column; }
     }
   
     .site-copyright {
@@ -120,7 +133,13 @@
 <body>
   <div class="wrap">
     <header class="panel">
-      <h1 class="title">CHAINeS Marketplace Explorer</h1>
+      <div class="brand">
+        <img class="brand-mark" src="/static/marketplace.svg" alt="" aria-hidden="true" />
+        <div>
+          <p class="eyebrow">CHAINeS network</p>
+          <h1 class="title">Marketplace Explorer</h1>
+        </div>
+      </div>
       <div class="top-actions">
         <div class="notif-wrap">
           <button id="notif-bell" class="notif-btn" type="button">🔔 Notifications <span id="notif-dot" class="notif-dot"></span></button>
@@ -135,9 +154,16 @@
       </div>
     </header>
 
-    <section class="panel">
+    <section class="panel" aria-label="Marketplace listings">
+      <div class="market-heading">
+        <div>
+          <h2>Discover something exceptional</h2>
+          <p>A trusted place for local offers, services, and community connections.</p>
+        </div>
+        <span class="live-pill">Live marketplace</span>
+      </div>
       <div class="tools">
-        <input id="search" type="search" placeholder="Search users, listing details, text, location, category..." />
+        <input id="search" type="search" aria-label="Search marketplace" placeholder="Search listings, people, locations…" />
         <select id="category">
           <option value="all">All Categories</option>
           <option value="jobs">Jobs</option>
@@ -168,17 +194,17 @@
           <option value="dislikes">Search in dislikes</option>
           <option value="bio">Search in bio</option>
         </select>
-        <button id="refresh" type="button">Refresh Search Engine</button>
+        <button id="refresh" type="button">Refresh results</button>
       </div>
       <div class="meta">
         <span id="count">0 listings</span>
-        <span>Marketplace posts only. Filter by category and dating profile details.</span>
+        <span>Use filters to find the right offer, service, or connection.</span>
       </div>
       <div class="post-wrap">
         <div class="post-brand">
           <div>
-            <h2 class="post-title">Post to Marketplace</h2>
-            <p class="post-sub">Now supports dating profiles plus image/video uploads for all listing types.</p>
+            <h2 class="post-title">Create a listing</h2>
+            <p class="post-sub">Reach the CHAINeS community with a clear offer, optional media, and direct contact details.</p>
           </div>
         </div>
         <form id="post-form" class="post-grid">
