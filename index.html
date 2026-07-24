@@ -2169,10 +2169,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                     <ul class="toolbar-overflow-list">
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
                       <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
-                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
-                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
-                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
                       <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
@@ -3014,7 +3010,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const wsUrlInput = el('#ws-url');
     const liveChip = el('#live-chip');
     const themeToggle = el('#theme-toggle');
-    const themeToggleIcon = themeToggle.querySelector('img');
+    const themeToggleIcon = themeToggle ? themeToggle.querySelector('img') : null;
     const themeToggleMobile = el('#theme-toggle-mobile');
     const themeToggleMobileIcon = themeToggleMobile ? themeToggleMobile.querySelector('img') : null;
     const userList = el('#user-list');
@@ -4614,29 +4610,35 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       Object.entries(nextPalette.vars).forEach(([name, value]) => {
         root.style.setProperty(name, value);
       });
-      themeToggleIcon.src = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
-      themeToggle.title = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
-      themeToggle.setAttribute('aria-label', `Switch theme (${nextPalette.label})`);
+      const themeIconSrc = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
+      const themeTitle = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
+      const themeAriaLabel = `Switch theme (${nextPalette.label})`;
+      if(themeToggle && themeToggleIcon){
+        themeToggleIcon.src = themeIconSrc;
+        themeToggle.title = themeTitle;
+        themeToggle.setAttribute('aria-label', themeAriaLabel);
+      }
       if(themeToggleMobile && themeToggleMobileIcon){
-        themeToggleMobileIcon.src = themeToggleIcon.src;
-        themeToggleMobile.title = themeToggle.title;
-        themeToggleMobile.setAttribute('aria-label', themeToggle.getAttribute('aria-label') || 'Switch theme');
+        themeToggleMobileIcon.src = themeIconSrc;
+        themeToggleMobile.title = themeTitle;
+        themeToggleMobile.setAttribute('aria-label', themeAriaLabel);
       }
       return nextPalette.key;
     }
     const initialTheme = applyTheme(store.theme || 'light');
     store.theme = initialTheme;
-    themeToggle.addEventListener('click', () => {
+    function cycleTheme(){
       const current = document.documentElement.dataset.theme || initialTheme;
       const currentIndex = Math.max(0, themeKeys.indexOf(current));
       const nextKey = themeKeys[(currentIndex + 1) % themeKeys.length];
       store.theme = nextKey;
       applyTheme(nextKey);
-    });
+    }
+    if(themeToggle){
+      themeToggle.addEventListener('click', cycleTheme);
+    }
     if(themeToggleMobile){
-      themeToggleMobile.addEventListener('click', () => {
-        themeToggle.click();
-      });
+      themeToggleMobile.addEventListener('click', cycleTheme);
     }
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
