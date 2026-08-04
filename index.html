@@ -42,6 +42,7 @@
     }
   </script>
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
   <script type="module" src="static/wallet.js"></script>
   <style>
       :root {
@@ -1175,6 +1176,12 @@
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
     .actions { display:flex; gap:10px; margin-top:12px; }
+    .face-login { margin-top:12px; display:grid; gap:10px; padding:12px; border:1px solid var(--lining); border-radius:14px; background: color-mix(in oklab, var(--panel), transparent 12%); }
+    .face-login__preview { width:100%; max-height:180px; object-fit:cover; border-radius:12px; border:1px solid var(--lining); background:#050a18; transform:scaleX(-1); }
+    .face-login__actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .face-login__status { margin:0; min-height:1.35em; font-size:12px; color:var(--muted); }
+    .face-login__status[data-tone="error"] { color: var(--danger); }
+    .face-login__status[data-tone="success"] { color:#4ade80; }
     .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
     .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
     .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
@@ -2403,6 +2410,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
       </div>
+      <div class="face-login" aria-label="Facial recognition login">
+        <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
+        <div class="face-login__actions">
+          <button class="btn ghost" id="face-start" type="button">Start Face Scan</button>
+          <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
+          <button class="btn ghost" id="face-enroll" type="button" disabled>Enroll Face</button>
+        </div>
+        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Face login is optional until you enroll. Enrolled accounts require a face match after password validation.</p>
+      </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
@@ -2991,6 +3007,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const faceLoginVideo = el('#face-login-video');
+    const faceStartBtn = el('#face-start');
+    const faceCaptureBtn = el('#face-capture');
+    const faceEnrollBtn = el('#face-enroll');
+    const faceLoginStatus = el('#face-login-status');
     const skipBtn = el('#skip');
     const tokenLoginValidateBtn = el('#token-login-validate');
     const tokenLoginContractSelect = el('#token-login-contract');
@@ -6568,6 +6589,46 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }
 
+    const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+    let faceModelsReady = false;
+    let faceStream = null;
+    let pendingFaceDescriptor = null;
+    function setFaceLoginStatus(message, tone=''){
+      if(!faceLoginStatus) return;
+      faceLoginStatus.textContent = message;
+      if(tone) faceLoginStatus.dataset.tone = tone;
+      else delete faceLoginStatus.dataset.tone;
+    }
+    async function loadFaceLoginModels(){
+      if(faceModelsReady) return;
+      if(!window.faceapi) throw new Error('Face recognition library is still loading. Try again in a moment.');
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
+      ]);
+      faceModelsReady = true;
+    }
+    async function startFaceLoginCamera(){
+      await loadFaceLoginModels();
+      if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser.');
+      if(!faceStream) faceStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false });
+      faceLoginVideo.srcObject = faceStream;
+      faceLoginVideo.hidden = false;
+      await faceLoginVideo.play();
+      faceCaptureBtn.disabled = false;
+      setFaceLoginStatus('Camera ready. Center your face and capture.', 'success');
+    }
+    async function captureFaceDescriptor(){
+      await startFaceLoginCamera();
+      const detection = await faceapi.detectSingleFace(faceLoginVideo).withFaceLandmarks().withFaceDescriptor();
+      if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
+      pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
+      faceEnrollBtn.disabled = !store.user;
+      setFaceLoginStatus('Face captured. You can log in or enroll it after signing in.', 'success');
+      return pendingFaceDescriptor;
+    }
+
     function urlBase64ToUint8Array(base64String){
       const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
       const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -6628,7 +6689,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass })
+        body: JSON.stringify({ username: name, password: pass, faceDescriptor: pendingFaceDescriptor })
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
@@ -6643,6 +6704,16 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
+        if(data?.faceRequired && !pendingFaceDescriptor){
+          setFaceLoginStatus('This account requires face validation. Start the face scan, capture your face, then log in again.', 'error');
+          try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+          return;
+        }
+        if(data?.faceRequired){
+          setFaceLoginStatus(data?.error || 'Face validation failed. Capture again and retry.', 'error');
+          pendingFaceDescriptor = null;
+          return;
+        }
         alert(data?.error || 'Login failed');
       }
     }
@@ -6664,6 +6735,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       fd.append('username', name);
       fd.append('password', pass);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
+      if(pendingFaceDescriptor) fd.append('faceDescriptor', JSON.stringify(pendingFaceDescriptor));
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
         if(chain){
@@ -6689,6 +6761,27 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       store.profilePic='';
       sessionStorage.removeItem('chaines_session_validation');
       enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
+    });
+
+    faceStartBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try { await startFaceLoginCamera(); }
+      catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+    });
+    faceCaptureBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try { await captureFaceDescriptor(); }
+      catch(error){ setFaceLoginStatus(error.message || 'Face capture failed.', 'error'); }
+    });
+    faceEnrollBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        const descriptor = pendingFaceDescriptor || await captureFaceDescriptor();
+        const res = await fetch('/api/face/enroll', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ faceDescriptor: descriptor }) });
+        const data = await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(data.error || 'Face enrollment failed.');
+        setFaceLoginStatus('Face enrolled. Future password logins for this account require a matching face.', 'success');
+      } catch(error){ setFaceLoginStatus(error.message || 'Face enrollment failed.', 'error'); }
     });
 
     tokenLoginValidateBtn?.addEventListener('click', async (e) => {

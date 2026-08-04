@@ -77,7 +77,8 @@ db.exec(`
     username TEXT UNIQUE,
     password TEXT,
     profile_pic TEXT,
-    description TEXT
+    description TEXT,
+    face_descriptor TEXT
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -186,6 +187,7 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN listing_data TEXT"); } catch
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch {}
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN face_descriptor TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
@@ -239,6 +241,32 @@ function attachSession(req, _res, next) { req.session = loadSession(req); next()
 function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
 function publicSession(req) { return req.session ? { user: req.session.user, expiresAt: req.session.expiresAt } : null; }
 function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
+
+function normalizeFaceDescriptor(value) {
+  const source = Array.isArray(value) ? value : (typeof value === "string" ? JSON.parse(value) : null);
+  if (!Array.isArray(source) || source.length !== 128) {
+    throw new Error("Face descriptor must contain 128 values");
+  }
+  return source.map((item) => {
+    const number = Number(item);
+    if (!Number.isFinite(number) || Math.abs(number) > 10) {
+      throw new Error("Face descriptor contains invalid values");
+    }
+    return Math.round(number * 1_000_000) / 1_000_000;
+  });
+}
+
+function faceDistance(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum);
+}
+
+const FACE_LOGIN_THRESHOLD = Number(process.env.FACE_LOGIN_THRESHOLD || 0.52);
+
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
 
 app.use(attachSession);
@@ -933,7 +961,7 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", rateLimit("register", 5), upload.single("profile"), async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, faceDescriptor } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -948,9 +976,11 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     const hash = await bcrypt.hash(password, 10);
     let pic = null;
     if (req.file) pic = "/static/profiles/" + req.file.filename;
+    let faceJson = null;
+    if (faceDescriptor) faceJson = JSON.stringify(normalizeFaceDescriptor(faceDescriptor));
     const info = db.prepare(
-      "INSERT INTO users (username, password, profile_pic) VALUES (?,?,?)"
-    ).run(cleanUsername, hash, pic);
+      "INSERT INTO users (username, password, profile_pic, face_descriptor) VALUES (?,?,?,?)"
+    ).run(cleanUsername, hash, pic, faceJson);
     profiles[cleanUsername] = { profilePic: pic, description: null };
     saveProfiles();
     const session = createSession(res, Number(info.lastInsertRowid));
@@ -961,7 +991,7 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
 });
 
 app.post("/login", rateLimit("login", 8), async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, faceDescriptor } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -970,7 +1000,7 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     ensureAdminAccount();
   }
   const dbUser = db
-    .prepare("SELECT id, username, password, profile_pic FROM users WHERE username=?")
+    .prepare("SELECT id, username, password, profile_pic, face_descriptor FROM users WHERE username=?")
     .get(sanitizeUsername(username));
   const memUser = profiles[sanitizeUsername(username)];
   const hash = dbUser?.password;
@@ -983,6 +1013,26 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+  if (dbUser.face_descriptor) {
+    if (!faceDescriptor) {
+      res.status(401).json({ error: "Face validation required", faceRequired: true });
+      return;
+    }
+    let incoming;
+    let enrolled;
+    try {
+      incoming = normalizeFaceDescriptor(faceDescriptor);
+      enrolled = normalizeFaceDescriptor(dbUser.face_descriptor);
+    } catch {
+      res.status(400).json({ error: "Invalid face validation data" });
+      return;
+    }
+    const distance = faceDistance(incoming, enrolled);
+    if (distance > FACE_LOGIN_THRESHOLD) {
+      res.status(401).json({ error: "Face validation failed", faceRequired: true, faceMatched: false });
+      return;
+    }
+  }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
   profiles[dbUser.username] = { ...(memUser || {}), profilePic };
   saveProfiles();
@@ -990,6 +1040,25 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   res.json({ success: true, username: dbUser.username, profilePic, session: { user: { id: dbUser.id, username: dbUser.username, profilePic, verified: true }, expiresAt: session.expires.toISOString() } });
 });
 
+
+app.get("/api/face/status/:username", rateLimit("face-status", 30), (req, res) => {
+  const username = sanitizeUsername(req.params.username || "");
+  if (!username) return res.status(400).json({ error: "Invalid username" });
+  const row = db.prepare("SELECT face_descriptor FROM users WHERE username=?").get(username);
+  res.json({ enrolled: !!row?.face_descriptor });
+});
+
+app.post("/api/face/enroll", rateLimit("face-enroll", 8), requireSession, (req, res) => {
+  const { faceDescriptor } = req.body || {};
+  let descriptor;
+  try {
+    descriptor = normalizeFaceDescriptor(faceDescriptor);
+  } catch {
+    return res.status(400).json({ error: "Invalid face descriptor" });
+  }
+  db.prepare("UPDATE users SET face_descriptor=? WHERE id=?").run(JSON.stringify(descriptor), req.session.user.id);
+  res.json({ success: true, enrolled: true });
+});
 
 app.get("/api/session", (req, res) => {
   const session = publicSession(req);
