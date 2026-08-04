@@ -450,6 +450,51 @@ function buildReceiptText(request = {}) {
   ].join("\n");
 }
 
+
+function buildFaceScanFailureText({ username = "", reason = "", attempts = 0 } = {}) {
+  return [
+    "CHAINeS Face Scan Confirmation",
+    `Created: ${new Date().toISOString()}`,
+    `Username: ${sanitizeUsername(username) || "unknown"}`,
+    `Attempts: ${Number(attempts || 0)}`,
+    `Status: rejected`,
+    `Reason: ${String(reason || "Face validation failed").slice(0, 500)}`,
+    "Next step: user can reopen CHAINeS and complete another live scan.",
+  ].join("\n");
+}
+
+async function sendFaceScanFailureEmail(payload = {}, to = DEFAULT_RECEIPT_EMAIL) {
+  const target = String(to || DEFAULT_RECEIPT_EMAIL).trim() || DEFAULT_RECEIPT_EMAIL;
+  if (!RESEND_API_KEY) {
+    console.warn(`[face-scan] RESEND_API_KEY missing. Failure confirmation queued for ${target}.`);
+    return { success: false, queued: true, reason: "missing_resend_api_key", to: target };
+  }
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RECEIPT_FROM_EMAIL,
+        to: [target],
+        subject: `CHAINeS face scan confirmation: ${sanitizeUsername(payload.username) || "unknown"}`,
+        text: buildFaceScanFailureText(payload),
+      }),
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.error(`[face-scan] Email failed ${response.status}: ${details}`);
+      return { success: false, queued: false, status: response.status, to: target };
+    }
+    return { success: true, to: target };
+  } catch (error) {
+    console.error(`[face-scan] Email error for ${target}:`, error);
+    return { success: false, queued: true, reason: "network_error", to: target };
+  }
+}
+
 async function sendDeliveryReceiptEmail(request = {}, to = DEFAULT_RECEIPT_EMAIL) {
   const target = String(to || DEFAULT_RECEIPT_EMAIL).trim() || DEFAULT_RECEIPT_EMAIL;
   if (!RESEND_API_KEY) {
@@ -1051,6 +1096,16 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   res.json({ success: true, username: dbUser.username, profilePic, session: { user: { id: dbUser.id, username: dbUser.username, profilePic, verified: true }, expiresAt: session.expires.toISOString() } });
 });
 
+
+
+app.post("/api/face/failed-confirmation", rateLimit("face-failed-confirmation", 6), async (req, res) => {
+  const payload = req.body || {};
+  const username = sanitizeUsername(payload.username || "");
+  const attempts = Math.max(0, Math.min(3, Number(payload.attempts || 0)));
+  const reason = String(payload.reason || "Face validation failed after three scans.").slice(0, 500);
+  const result = await sendFaceScanFailureEmail({ username, attempts, reason });
+  res.json({ success: true, email: result });
+});
 
 app.get("/api/face/status/:username", rateLimit("face-status", 30), (req, res) => {
   const username = sanitizeUsername(req.params.username || "");

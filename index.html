@@ -2438,7 +2438,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         </div>
         <div id="face-capture-data" class="face-login__capture">Captured tech: waiting for live camera vectors…</div>
         <div class="face-login__actions">
-          <button class="btn ghost" id="face-start" type="button">Start Face Scan</button>
+          <button class="btn ghost" id="face-start" type="button">Start / Rescan Face</button>
           <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
           <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
         </div>
@@ -6626,6 +6626,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let pendingFaceDescriptor = null;
     let pendingAuthAction = null;
     let pendingAuthValidation = null;
+    let faceScanAttempts = 0;
+    let faceAutoScanInProgress = false;
+    const FACE_SCAN_MAX_ATTEMPTS = 3;
     function revealFaceLogin(message, tone='error'){
       if(faceLoginPanel) faceLoginPanel.hidden = false;
       if(message) setFaceLoginStatus(message, tone);
@@ -6635,6 +6638,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       pendingFaceDescriptor = null;
       pendingAuthAction = null;
       pendingAuthValidation = null;
+      faceScanAttempts = 0;
+      faceAutoScanInProgress = false;
       if(faceCaptureBtn) faceCaptureBtn.disabled = true;
       updateFaceScanHud('reset');
     }
@@ -6673,6 +6678,74 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setFaceScanMeter('geometry', 0); setFaceScanMeter('landmarks', 0); setFaceScanMeter('account', 0);
         if(faceLockBadge) faceLockBadge.textContent = 'LOCKED';
         setFaceCaptureData('Captured tech: waiting for live camera vectors…');
+      }
+    }
+    function playFaceScanSound(tone='scan'){
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if(!AudioContext) return;
+        const ctx = new AudioContext();
+        const master = ctx.createGain();
+        master.gain.value = 0.045;
+        master.connect(ctx.destination);
+        const pattern = tone === 'success' ? [660, 880, 1320] : tone === 'reject' ? [240, 180, 120] : [330, 495, 740];
+        pattern.forEach((freq, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = tone === 'scan' ? 'sawtooth' : 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.09);
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime + index * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.55, ctx.currentTime + index * 0.09 + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + index * 0.09 + 0.16);
+          osc.connect(gain).connect(master);
+          osc.start(ctx.currentTime + index * 0.09);
+          osc.stop(ctx.currentTime + index * 0.09 + 0.18);
+        });
+        setTimeout(() => ctx.close().catch(() => {}), 900);
+      } catch {}
+    }
+    function waitForFaceVideoFrame(){
+      return new Promise((resolve) => {
+        if(faceLoginVideo?.readyState >= 2) return resolve();
+        faceLoginVideo?.addEventListener('loadeddata', resolve, { once:true });
+        setTimeout(resolve, 900);
+      });
+    }
+    async function sendFaceScanFailureConfirmation(reason='Face validation failed after 3 scans.'){
+      const username = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
+      try {
+        await fetch('/api/face/failed-confirmation', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ username, reason, attempts: faceScanAttempts })
+        });
+      } catch {}
+    }
+    async function runAutomaticFaceScan(reason='Touch-free scan starting. Center your face in the pop-up scanner.'){
+      if(faceAutoScanInProgress) return;
+      faceAutoScanInProgress = true;
+      try {
+        revealFaceLogin(reason, 'success');
+        await startFaceLoginCamera();
+        playFaceScanSound('scan');
+        await waitForFaceVideoFrame();
+        await new Promise(resolve => setTimeout(resolve, 700));
+        faceScanAttempts += 1;
+        setFaceLoginStatus(`Scan ${faceScanAttempts}/${FACE_SCAN_MAX_ATTEMPTS}: validating live face vector…`, 'success');
+        await captureFaceDescriptor();
+      } catch(error){
+        playFaceScanSound('reject');
+        const message = error?.message || 'Face capture failed.';
+        if(faceScanAttempts < FACE_SCAN_MAX_ATTEMPTS){
+          setFaceLoginStatus(`${message} Reopening scanner for scan ${faceScanAttempts + 1}/${FACE_SCAN_MAX_ATTEMPTS}…`, 'error');
+          faceAutoScanInProgress = false;
+          setTimeout(() => runAutomaticFaceScan('Scan rejected. Touch-free rescan starting now.'), 900);
+          return;
+        }
+        setFaceLoginStatus(`${message} Three scans failed. Sending confirmation email and waiting for a new scan.`, 'error');
+        await sendFaceScanFailureConfirmation(message);
+      } finally {
+        faceAutoScanInProgress = false;
       }
     }
     async function loadFaceLoginModels(){
@@ -6782,19 +6855,27 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             return;
           }
         }
+        playFaceScanSound('success');
         updateFaceScanHud('validated', pendingFaceDescriptor);
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         if(data?.faceRequired && !pendingFaceDescriptor){
           pendingAuthAction = 'login';
           pendingAuthValidation = validation;
-          revealFaceLogin('Username and password accepted. Complete the required facial scan to finish login.', 'error');
-          try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+          runAutomaticFaceScan('Username and password accepted. Touch-free facial scan is opening now.');
           return;
         }
         if(data?.faceRequired){
+          playFaceScanSound('reject');
           setFaceLoginStatus(data?.error || 'Face validation failed. Capture again and retry.', 'error');
           pendingFaceDescriptor = null;
+          if(faceScanAttempts >= FACE_SCAN_MAX_ATTEMPTS){
+            await sendFaceScanFailureConfirmation(data?.error || 'Face validation failed.');
+            setFaceLoginStatus('Three scans failed. Confirmation email sent; start a new scan to try again.', 'error');
+            faceScanAttempts = 0;
+          } else {
+            setTimeout(() => runAutomaticFaceScan('Face rejected. Touch-free rescan starting now.'), 900);
+          }
           return;
         }
         alert(data?.error || 'Login failed');
@@ -6837,8 +6918,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(data?.faceRequired && !pendingFaceDescriptor){
           pendingAuthAction = 'register';
           pendingAuthValidation = validation;
-          revealFaceLogin('Username and password accepted for sign up. Complete facial mapping to create the account.', 'error');
-          try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+          runAutomaticFaceScan('Username and password accepted for sign up. Touch-free facial scan is opening now.');
           return;
         }
         alert(data.error || 'Registration failed');
@@ -6847,7 +6927,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     faceStartBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
-      try { await startFaceLoginCamera(); }
+      faceScanAttempts = 0;
+      try { await runAutomaticFaceScan('Manual rescan requested. Touch-free scanner opening now.'); }
       catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
     });
     faceCaptureBtn?.addEventListener('click', async (e) => {
