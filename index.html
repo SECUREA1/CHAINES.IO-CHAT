@@ -6788,12 +6788,40 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setTimeout(() => ctx.close().catch(() => {}), 900);
       } catch {}
     }
-    function waitForFaceVideoFrame(){
+    function waitForFaceVideoFrame(timeoutMs = 1800){
       return new Promise((resolve) => {
-        if(faceLoginVideo?.readyState >= 2) return resolve();
-        faceLoginVideo?.addEventListener('loadeddata', resolve, { once:true });
-        setTimeout(resolve, 900);
+        if(!faceLoginVideo) return resolve();
+        const hasFrame = () => faceLoginVideo.readyState >= 2 && (faceLoginVideo.videoWidth || faceLoginVideo.videoHeight);
+        if(hasFrame()) return resolve();
+        let done = false;
+        const finish = () => {
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          ['loadeddata', 'canplay', 'playing', 'resize'].forEach((eventName) => faceLoginVideo.removeEventListener(eventName, finish));
+          resolve();
+        };
+        ['loadeddata', 'canplay', 'playing', 'resize'].forEach((eventName) => faceLoginVideo.addEventListener(eventName, finish, { once:true }));
+        const timer = setTimeout(finish, timeoutMs);
       });
+    }
+    async function requestFaceLoginStream(){
+      const constraintsList = [
+        { video:{ facingMode:{ ideal:'user' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false },
+        { video:{ facingMode:'user' }, audio:false },
+        { video:{ width:{ ideal:640 }, height:{ ideal:480 } }, audio:false },
+        { video:true, audio:false }
+      ];
+      let lastError = null;
+      for(const constraints of constraintsList){
+        try {
+          return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch(error){
+          lastError = error;
+          console.warn('Face login camera getUserMedia failed for constraints', constraints, error?.name || error?.message || error);
+        }
+      }
+      throw lastError || new Error('Unable to initialize the face scanner camera.');
     }
     async function sendFaceScanFailureConfirmation(reason=`Face validation failed after ${FACE_SCAN_MAX_ATTEMPTS} scans.`){
       const username = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
@@ -6845,17 +6873,30 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     async function startFaceLoginCamera(){
       await loadFaceLoginModels();
       if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser.');
-      if(!faceStream) faceStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false });
+      if(!faceStream || !faceStream.getVideoTracks().some((track) => track.readyState === 'live')) faceStream = await requestFaceLoginStream();
+      faceLoginVideo.setAttribute('autoplay', '');
+      faceLoginVideo.setAttribute('muted', '');
+      faceLoginVideo.setAttribute('playsinline', '');
+      faceLoginVideo.muted = true;
+      faceLoginVideo.playsInline = true;
       faceLoginVideo.srcObject = faceStream;
       faceLoginVideo.hidden = false;
-      await faceLoginVideo.play();
+      await faceLoginVideo.play().catch((error) => {
+        throw new Error(error?.message || 'Tap Start / Rescan Face to allow the mobile camera to begin.');
+      });
+      await waitForFaceVideoFrame();
       faceCaptureBtn.disabled = false;
       updateFaceScanHud('ready');
-      revealFaceLogin('Camera ready. Center your face inside the scanner and capture to unlock entry.', 'success');
+      revealFaceLogin('Camera ready. Center your face inside the scanner while CHAINeS auto-scans.', 'success');
     }
     async function captureFaceDescriptor(){
       await startFaceLoginCamera();
-      const detection = await faceapi.detectSingleFace(faceLoginVideo).withFaceLandmarks().withFaceDescriptor();
+      let detection = null;
+      for(let attempt = 0; attempt < 5 && !detection; attempt += 1){
+        await waitForFaceVideoFrame(2200);
+        detection = await faceapi.detectSingleFace(faceLoginVideo).withFaceLandmarks().withFaceDescriptor();
+        if(!detection) await new Promise(resolve => setTimeout(resolve, 450));
+      }
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
       pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
       faceEnrollBtn.disabled = !store.user;
