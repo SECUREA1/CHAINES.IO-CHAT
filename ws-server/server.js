@@ -243,7 +243,18 @@ function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {});
 
 app.use(attachSession);
 app.use("/static", express.static(path.join(ROOT, "static")));
-app.get("/sw.js", (req, res) => res.sendFile(path.join(ROOT, "sw.js")));
+app.get("/manifest.webmanifest", (req, res) =>
+  res
+    .type("application/manifest+json")
+    .set("Cache-Control", "public, max-age=3600")
+    .sendFile(path.join(ROOT, "manifest.webmanifest"))
+);
+app.get("/sw.js", (req, res) =>
+  res
+    .type("application/javascript")
+    .set("Cache-Control", "no-cache")
+    .sendFile(path.join(ROOT, "sw.js"))
+);
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
