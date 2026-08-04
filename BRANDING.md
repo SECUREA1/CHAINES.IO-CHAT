@@ -1,9 +1,8 @@
-# CHAINeS Post & Media Studio Network Brand Guide
+# CHAINeS Composer Brand Guide
 
 ## Identity
-- **Name**: CHAINeS Post & Media Studio Network
-- **Short name**: CHAINeS Studio
-- **Slogan**: Create boldly. Publish brilliantly. Connect without limits.
+- **Name**: CHAINeS Composer
+- **Tagline**: Linking conversations across the chain.
 - **Logo**: Blue-to-cobalt gradient chain-link badge in white (see `static/logo.svg`).
 - **Mascot**: Ioncore Sentinel — the blue wolf wearing the Ioncore cap and chain (`static/mascot.svg`).
 

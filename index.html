@@ -3,48 +3,41 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="description" content="CHAINeS Post &amp; Media Studio Network is an all-in-one creator platform for multimedia publishing, live streaming, social commerce, and secure community conversations." />
-  <meta name="keywords" content="CHAINeS Post and Media Studio Network, media studio, creator network, multimedia publishing, live streaming, social commerce, marketplace drops, secure messaging" />
+  <meta name="description" content="CHAINeS Composer is a blue creator network for publishing multimedia posts, live streams, marketplace drops, and secure community conversations." />
+  <meta name="keywords" content="CHAINeS Composer, CHAINeS POST, creator network, live streaming, marketplace drops, social commerce, secure messaging" />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://chaines.io/" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="CHAINeS Post &amp; Media Studio Network" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="CHAINeS Post &amp; Media Studio Network" />
-  <meta property="og:description" content="Create boldly. Publish brilliantly. Connect without limits. Bring posts, media, live streams, and community commerce together in one professional studio network." />
+  <meta property="og:site_name" content="CHAINeS Composer" />
+  <meta property="og:title" content="CHAINeS Composer | Blue creator network" />
+  <meta property="og:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
   <meta property="og:url" content="https://chaines.io/" />
   <meta property="og:image" content="/static/logo.svg" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CHAINeS Post &amp; Media Studio Network" />
-  <meta name="twitter:description" content="Create boldly. Publish brilliantly. Connect without limits. One professional network for posts, media, live streams, and community commerce." />
+  <meta name="twitter:title" content="CHAINeS Composer | Blue creator network" />
+  <meta name="twitter:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
   <meta name="twitter:image" content="/static/logo.svg" />
-  <title>CHAINeS Post &amp; Media Studio Network | Create. Publish. Connect.</title>
+  <title>CHAINeS Composer | Blue Creator Network</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/static/logo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#0756b7" />
-  <meta name="application-name" content="CHAINeS Studio" />
-  <meta name="msapplication-TileColor" content="#0756b7" />
+  <meta name="application-name" content="CHAINeS Composer" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="CHAINeS Studio" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "@id": "https://chaines.io/#application",
-      "name": "CHAINeS Post & Media Studio Network",
-      "alternateName": ["CHAINeS Studio", "CHAINeS POST"],
+      "name": "CHAINeS Composer",
+      "alternateName": "CHAINeS POST",
       "url": "https://chaines.io/",
-      "description": "An all-in-one creator platform for multimedia publishing, live streaming, social commerce, and secure community conversations.",
+      "description": "A blue creator network for publishing posts, live moments, marketplace drops, and community conversations.",
       "applicationCategory": "SocialNetworkingApplication",
       "operatingSystem": "Web",
       "image": "https://chaines.io/static/logo.svg",
-      "logo": "https://chaines.io/static/logo.svg",
-      "isAccessibleForFree": true,
-      "featureList": "Multimedia publishing, live streaming, creator marketplace, secure community messaging",
       "browserRequirements": "Requires JavaScript and a modern web browser"
     }
   </script>
@@ -85,19 +78,6 @@
         --shadow:0 0 20px rgba(0,114,255,.4);
         --lining:#94a3b8;
         --caption-color:#0f172a;
-      }
-      ::view-transition-old(root),
-      ::view-transition-new(root) {
-        animation-duration: 900ms;
-        animation-timing-function: ease-in-out;
-      }
-      ::view-transition-old(root) { animation-name: theme-fade-out; }
-      ::view-transition-new(root) { animation-name: theme-fade-in; }
-      @keyframes theme-fade-out { to { opacity: 0; } }
-      @keyframes theme-fade-in { from { opacity: 0; } }
-      @media (prefers-reduced-motion: reduce) {
-        ::view-transition-old(root),
-        ::view-transition-new(root) { animation-duration: 1ms; }
       }
     * { box-sizing: border-box; }
       html, body { height: 100%; width:100%; overflow-x:hidden; }
@@ -277,45 +257,27 @@
     .toolbar > * { flex:0 0 auto; }
     .toolbar .chip { justify-content:center; }
     .toolbar-overflow { position:relative; flex:0 0 auto; margin-right:2px; z-index:var(--menu-layer); }
-    .toolbar-overflow-panel { position:fixed; inset:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); display:none; flex-direction:column; gap:22px; width:auto; max-width:1180px; max-height:none; margin:auto; overflow-y:auto; padding:clamp(18px, 3vw, 36px); border:1px solid color-mix(in oklab, var(--accent), white 20%); border-radius:24px; background:linear-gradient(145deg, color-mix(in oklab, var(--panel), #063c86 14%), color-mix(in oklab, var(--bg), black 8%)); box-shadow:0 24px 90px rgba(0, 9, 35, .72); z-index:var(--menu-layer); }
-    .toolbar-overflow.is-open::before { content:""; position:fixed; inset:0; background:rgba(0, 10, 35, .72); backdrop-filter:blur(10px); z-index:calc(var(--menu-layer) - 1); }
+    .toolbar-overflow-panel { position:absolute; left:0; top:calc(100% + 6px); display:none; flex-direction:column; gap:8px; min-width:240px; max-width:min(92vw, 320px); max-height:min(58vh, 420px); overflow-y:auto; padding:8px; border:1px solid var(--lining); border-radius:12px; background: color-mix(in oklab, var(--panel), transparent 8%); box-shadow: var(--shadow); z-index:var(--menu-layer); }
     .toolbar-overflow.is-open .toolbar-overflow-panel { display:flex; }
     .toolbar-overflow-panel .chip { width:100%; justify-content:flex-start; }
-    .toolbar-overflow-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding-bottom:18px; border-bottom:1px solid var(--lining); }
-    .toolbar-overflow-eyebrow { display:block; margin-bottom:6px; color:var(--accent-2); font-size:11px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
-    .toolbar-overflow-header h2 { margin:0; color:var(--text); font-size:clamp(24px, 4vw, 38px); line-height:1.05; }
-    .toolbar-overflow-header p { max-width:650px; margin:9px 0 0; color:var(--muted); font-size:14px; line-height:1.55; }
-    .toolbar-overflow-close { flex:0 0 42px; width:42px; height:42px; padding:0; border-radius:50%; font-size:24px; }
-    .toolbar-overflow-content { display:flex; flex:1 1 auto; min-height:0; }
-    .toolbar-overflow-group { border:1px solid var(--lining); border-radius:18px; padding:18px; background:linear-gradient(150deg, color-mix(in oklab, var(--panel), white 3%), color-mix(in oklab, var(--panel), transparent 14%)); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
-    .toolbar-overflow-group summary { cursor:pointer; font-size:17px; font-weight:850; color:var(--text); list-style:none; }
+    .toolbar-overflow-group { border:1px solid var(--lining); border-radius:10px; padding:6px; background: color-mix(in oklab, var(--panel), transparent 15%); }
+    .toolbar-overflow-group summary { cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); list-style:none; }
     .toolbar-overflow-group summary::-webkit-details-marker { display:none; }
-    .toolbar-overflow-group-note { margin:5px 0 14px; color:var(--muted); font-size:12px; line-height:1.45; }
-    .toolbar-overflow-list { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); grid-template-rows:repeat(4, minmax(0, 1fr)); gap:10px; }
-    .toolbar-overflow-content > .toolbar-overflow-group { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; }
-    .toolbar-overflow-content > .toolbar-overflow-group > .toolbar-overflow-list { flex:1 1 auto; min-height:0; }
-    .toolbar-overflow-list .chip { min-height:68px; padding:11px 12px; font-size:12px; gap:10px; border-radius:13px; text-align:left; background:color-mix(in oklab, var(--panel), transparent 6%); }
+    .toolbar-overflow-list { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
+    .toolbar-overflow-list .chip { min-height:32px; padding:5px 8px; font-size:12px; gap:6px; border-radius:10px; }
     .toolbar-overflow-list .chip img { flex:0 0 auto; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--accent), transparent 35%)); }
     .toolbar-overflow-list .menu-link-copy { display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-width:0; line-height:1.15; }
     .toolbar-overflow-list .menu-link-title { font-weight:800; color:var(--text); }
-    .toolbar-overflow-list .menu-link-description { max-width:260px; color:var(--muted); font-size:11px; font-weight:600; line-height:1.35; white-space:normal; }
-    .theme-fade-status { margin:12px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
-    #theme-fade-toggle[aria-pressed="true"] { border-color:var(--accent-2); background:color-mix(in oklab, var(--panel), var(--accent) 24%); }
+    .toolbar-overflow-list .menu-link-description { max-width:220px; color:var(--muted); font-size:10px; font-weight:600; white-space:normal; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    @media (max-width: 760px) {
-      .toolbar-overflow-panel { inset:env(safe-area-inset-top) 0 0; border-radius:0; padding:20px 14px calc(24px + env(safe-area-inset-bottom)); }
-      .toolbar-overflow-list { grid-template-columns:repeat(4, minmax(0, 1fr)); }
-      .toolbar-overflow-header p { font-size:13px; }
-    }
-    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #messages-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
+    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; position:relative; z-index:var(--action-layer); }
     .toolbar-additional-desktop {
       display:none;
       align-items:center;
       gap:8px;
       min-width:0;
-      flex:1 1 auto;
-      justify-content:space-evenly;
+      flex:0 1 auto;
       position:relative;
       z-index:var(--action-layer);
     }
@@ -325,7 +287,7 @@
       min-height:36px;
       padding:0;
       gap:0;
-      flex:1 1 36px;
+      flex:0 0 36px;
       justify-content:center;
       white-space:nowrap;
       overflow:hidden;
@@ -1670,8 +1632,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         position: absolute;
         left: 0;
         top: calc(100% + 6px);
-        width: min(900px, calc(100vw - 32px));
-        max-width: calc(100vw - 32px);
+        width: min(380px, 48vw);
+        max-width: min(90vw, 420px);
         max-height: min(65vh, 500px);
         overflow-y: auto;
         margin: 0;
@@ -1691,16 +1653,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       .toolbar-overflow-group summary {
         display: block;
       }
-      .toolbar-overflow-content {
-        grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-        gap: 10px;
-      }
       .toolbar-overflow-list {
         margin: 6px 0 0;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        display: flex;
+        flex-direction: column;
         gap: 6px;
-        min-width: 0;
+        min-width: auto;
       }
       .toolbar-overflow-list li {
         list-style: none;
@@ -1714,7 +1672,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         padding: 6px 10px;
         font-size: 12px;
         min-width: 0;
-        white-space: normal;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -1867,20 +1825,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       min-height:34px; border:1px solid color-mix(in oklab, var(--gold), transparent 42%);
       border-radius:999px; padding:7px 11px; cursor:pointer; color:#07152f; font:700 11px/1 'Poppins', sans-serif;
       letter-spacing:.04em; text-transform:uppercase;
-      background:linear-gradient(120deg, #0067d8, #168eea 52%, #46c7ff); color:#fff; box-shadow:0 8px 20px rgba(0,76,190,.35);
+      background:linear-gradient(120deg, #f8d58d, #fff2c7 45%, #72d8ff); box-shadow:0 8px 20px rgba(0,114,255,.2);
       transition:transform .18s ease, box-shadow .18s ease;
     }
     .install-app-btn:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(0,198,255,.28); }
     .install-app-btn[hidden] { display:none; }
-    .install-help { position:fixed; inset:0; z-index:10001; display:grid; place-items:center; padding:20px; background:rgba(2,8,24,.78); backdrop-filter:blur(12px); }
-    .install-help[hidden] { display:none; }
-    .install-help__panel { width:min(520px, 100%); padding:24px; border:1px solid color-mix(in oklab, var(--gold), transparent 48%); border-radius:20px; background:var(--panel); box-shadow:0 24px 80px rgba(0,0,0,.55); }
-    .install-help__head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-    .install-help h2 { margin:0; font-size:clamp(22px,5vw,30px); }
-    .install-help p { color:var(--muted); }
-    .install-help ol { margin:18px 0; padding-left:22px; display:grid; gap:10px; }
-    .install-help__actions { display:flex; flex-wrap:wrap; gap:10px; }
-    .install-help__actions button { flex:1 1 180px; }
     .app-download-card {
       margin-top:16px; display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center;
       padding:13px; border:1px solid color-mix(in oklab, var(--accent-2), transparent 40%); border-radius:14px;
@@ -2131,136 +2080,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         display:none !important;
       }
     }
-
-    /* The explore control opens a page, rather than a compact toolbar dropdown. */
-    @media (min-width: 901px) {
-      .toolbar-overflow-panel {
-        position:fixed;
-        inset:0;
-        top:0;
-        left:0;
-        width:100vw;
-        max-width:none;
-        height:100vh;
-        height:100dvh;
-        max-height:none;
-        margin:0;
-        padding:calc(24px + env(safe-area-inset-top)) max(24px, calc((100vw - 1440px) / 2)) calc(32px + env(safe-area-inset-bottom));
-        border:0;
-        border-radius:0;
-        overflow-y:auto;
-        background:
-          radial-gradient(circle at 90% 5%, color-mix(in oklab, var(--accent), transparent 76%), transparent 34%),
-          linear-gradient(145deg, color-mix(in oklab, var(--panel), #063c86 14%), color-mix(in oklab, var(--bg), black 8%));
-        box-shadow:none;
-      }
-      .toolbar-overflow-content {
-        width:100%;
-        grid-template-columns:repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-        gap:clamp(18px, 2vw, 30px);
-      }
-      .toolbar-overflow-group {
-        padding:clamp(18px, 2.4vw, 30px);
-        border-radius:22px;
-      }
-      .toolbar-overflow-list {
-        display:grid;
-        grid-template-columns:repeat(2, minmax(0, 1fr));
-        gap:14px;
-      }
-      .toolbar-overflow-list .chip {
-        min-height:92px;
-        padding:16px;
-        white-space:normal;
-      }
-      .toolbar-overflow-list .chip img {
-        width:28px;
-        height:28px;
-        flex-basis:28px;
-      }
-      .toolbar-overflow-list .menu-link-title { font-size:15px; }
-      .toolbar-overflow-list .menu-link-description { max-width:none; font-size:12px; }
-    }
-    @media (max-width: 900px) {
-      .toolbar-overflow-panel {
-        position:fixed;
-        inset:0;
-        top:0;
-        left:0;
-        width:100vw;
-        height:100vh;
-        height:100dvh;
-        max-height:none;
-        margin:0;
-        padding:calc(18px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
-        border:0;
-        border-radius:0;
-        overflow-y:auto;
-      }
-      .toolbar-overflow-list .chip {
-        min-height:78px;
-        padding:14px;
-        white-space:normal;
-      }
-    }
-    /* Keep both complete launcher sections visible and fluid at every viewport size. */
-    .toolbar-overflow-panel {
-      overflow-y:auto;
-    }
-    .toolbar-overflow-content {
-      display:grid;
-      flex:1 0 auto;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
-      gap:clamp(10px, 2vw, 24px);
-      align-items:start;
-    }
-    .toolbar-overflow-group {
-      display:flex;
-      flex-direction:column;
-    }
-    .toolbar-overflow-list {
-      flex:0 0 auto;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
-      grid-auto-rows:auto;
-    }
-    .toolbar-overflow-group-title {
-      margin:0;
-      font-size:17px;
-      font-weight:850;
-      color:var(--text);
-    }
-    @media (max-width: 600px) {
-      .toolbar-overflow-panel {
-        gap:10px;
-        padding:calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
-      }
-      .toolbar-overflow-header { gap:8px; padding-bottom:8px; }
-      .toolbar-overflow-header h2 { font-size:20px; }
-      .toolbar-overflow-header p,
-      .toolbar-overflow-eyebrow,
-      .toolbar-overflow-group-note,
-      .toolbar-overflow-list .menu-link-description { display:none; }
-      .toolbar-overflow-content { gap:8px; }
-      .toolbar-overflow-group { padding:8px; border-radius:14px; }
-      .toolbar-overflow-group-title { margin-bottom:6px; font-size:13px; text-align:center; }
-      .toolbar-overflow-list { gap:6px; }
-      .toolbar-overflow-list .chip {
-        min-height:0;
-        height:100%;
-        padding:6px 4px;
-        flex-direction:column;
-        justify-content:center;
-        gap:4px;
-        text-align:center;
-      }
-      .toolbar-overflow-list .chip img { width:20px; height:20px; }
-      .toolbar-overflow-list .menu-link-copy { align-items:center; }
-      .toolbar-overflow-list .menu-link-title { font-size:10px; line-height:1.15; }
-      .toolbar-overflow-close { flex-basis:36px; width:36px; height:36px; }
-    }
-    @media (max-width: 700px) {
-      .toolbar-overflow-content { grid-template-columns:minmax(0, 1fr); }
-    }
   
 </style>
 
@@ -2344,35 +2163,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             <div class="toolbar">
               <div id="toolbar-overflow" class="toolbar-overflow">
                 <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Toggle additional actions">☰</button>
-                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="dialog" aria-modal="true" aria-labelledby="toolbar-overflow-title">
-                  <div class="toolbar-overflow-header">
-                    <div><span class="toolbar-overflow-eyebrow">CHAINeS network</span><h2 id="toolbar-overflow-title">Explore your creator hub</h2><p>Move between publishing tools, secure live experiences, rewards, stores, and connected cloud products from one complete launchpad.</p></div>
-                    <button id="toolbar-overflow-close" class="chip toolbar-overflow-close" type="button" aria-label="Close explore menu">×</button>
-                  </div>
-                  <div class="toolbar-overflow-content">
-                  <section class="toolbar-overflow-group" aria-labelledby="additional-actions-title">
-                    <h3 id="additional-actions-title" class="toolbar-overflow-group-title">Additional actions</h3>
-                    <p class="toolbar-overflow-group-note">Create, manage, and discover more across CHAINeS.</p>
+                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Additional quick actions">
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
                       <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
-                      <li><a id="rewards-page-menu-link" class="chip" href="/rewards-program.html" title="Open Rewards Program" aria-label="Open Rewards Program"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards Program</span><span class="menu-link-description">View rewards, tiers, benefits, and ways to earn.</span></span></a></li>
-                      <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
-                      <li><a id="messages-menu-btn" class="chip" href="/private-chat.html" title="Open private messages" aria-label="Open private messages"><img src="static/chat.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Messages</span><span class="menu-link-description">Connect with users in your private message list.</span></span></a></li>
-                      <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
-                      <li hidden><button id="streams-fit-btn" class="chip" data-mobile-menu-excluded="true" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li hidden><button id="theme-toggle" class="chip" data-mobile-menu-excluded="true" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
-                      <li hidden><button id="video-toggle" class="chip" data-mobile-menu-excluded="true" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
-                      <li hidden><button id="market-mode-toggle" class="chip" data-mobile-menu-excluded="true" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
-                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
-                      <li hidden><button id="omconsole-btn" class="chip" data-mobile-menu-excluded="true" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
-                      <li hidden><button id="chaines-ar-btn" class="chip" data-mobile-menu-excluded="true" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
+                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
+                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
+                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
-                  </section>
-                  <section class="toolbar-overflow-group" aria-labelledby="cloud-links-title">
-                    <h3 id="cloud-links-title" class="toolbar-overflow-group-title">Cloud Links</h3>
-                    <p class="toolbar-overflow-group-note">Launch connected apps and partner experiences.</p>
+                  </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Cloud Links</summary>
                     <ul class="toolbar-overflow-list">
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
@@ -2383,8 +2187,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Gaming Demos</span><span class="menu-link-description">Play OMConsole gaming demos.</span></span></button></li>
                       <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Drone Engine</span><span class="menu-link-description">Open the drone engine investor model.</span></span></button></li>
                     </ul>
-                  </section>
-                  </div>
+                  </details>
                 </div>
               </div>
               <div class="toolbar-primary">
@@ -2392,7 +2195,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
+                <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
+                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
+                <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
+                <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
               <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
@@ -2589,8 +2396,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
-      <h2>Welcome to CHAINeS Studio</h2>
-      <p>Create boldly. Publish brilliantly. Connect without limits.</p>
+      <h2>Welcome to CHAINeS POST</h2>
+      <p>Choose your network, validate your token on entry, then sign in to open your account.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
@@ -2605,10 +2412,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       <div id="app-download-card" class="app-download-card" aria-live="polite">
         <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
         <div class="app-download-card__copy">
-          <strong>Take your media studio anywhere</strong>
-          <span>Install CHAINeS Studio with a signature blue browser control bar and a focused, full-screen creator workspace.</span>
+          <strong>Take CHAINeS with you</strong>
+          <span>Install the branded app for a focused, full-screen creator workspace.</span>
         </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button">Install CHAINeS Studio</button>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
       </div>
       <div class="fields" style="margin-top:8px">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -2622,20 +2429,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
         <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
         <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
-      </div>
-    </div>
-  </section>
-  <section id="install-help" class="install-help" role="dialog" aria-modal="true" aria-labelledby="install-help-title" hidden>
-    <div class="install-help__panel">
-      <div class="install-help__head">
-        <div><span class="brand-kicker">Browser app · Version 1.0.0</span><h2 id="install-help-title">Install CHAINeS Studio</h2></div>
-        <button id="install-help-close" class="chip" type="button" aria-label="Close installation help">×</button>
-      </div>
-      <p id="install-help-copy">Install this site as an app for a full-screen experience, home-screen access, and offline launch.</p>
-      <ol id="install-help-steps"></ol>
-      <div class="install-help__actions">
-        <button id="install-help-native" class="btn primary" type="button" hidden>Install now</button>
-        <button id="install-help-dismiss" class="btn ghost" type="button">Not now</button>
       </div>
     </div>
   </section>
@@ -3191,10 +2984,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const installAppBtn = el('#install-app-btn');
     const authInstallAppBtn = el('#auth-install-app-btn');
     const appDownloadCard = el('#app-download-card');
-    const installHelp = el('#install-help');
-    const installHelpSteps = el('#install-help-steps');
-    const installHelpCopy = el('#install-help-copy');
-    const installHelpNative = el('#install-help-native');
     const usernameInput = el('#username');
     const passwordInput = el('#password');
     const profileInput = el('#profile');
@@ -3224,8 +3013,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const themeToggleIcon = themeToggle ? themeToggle.querySelector('img') : null;
     const themeToggleMobile = el('#theme-toggle-mobile');
     const themeToggleMobileIcon = themeToggleMobile ? themeToggleMobile.querySelector('img') : null;
-    const themeFadeToggle = el('#theme-fade-toggle');
-    const themeFadeStatus = el('#theme-fade-status');
     const userList = el('#user-list');
     const usersEl = el('#users');
     const popup = el('#popup');
@@ -3288,10 +3075,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarPanel = el('#toolbar-panel');
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
-    const toolbarOverflowClose = el('#toolbar-overflow-close');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['messages-menu-btn', 'streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'omconsole-btn', 'watchtower-btn', 'chaines-ar-btn']
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
       .map(id => el(`#${id}`))
       .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
@@ -4441,16 +4227,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const useDesktopHeader = desktopToolbarMedia.matches;
       additionalButtons.forEach((btn) => {
         if(useDesktopHeader){
-          if(btn.parentElement !== toolbarAdditionalDesktop){
-            const sourceListItem = btn.closest('li');
-            toolbarAdditionalDesktop.appendChild(btn);
-            sourceListItem?.remove();
-          }
+          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
         } else {
-          if(btn.dataset.mobileMenuExcluded === 'true'){
-            btn.closest('li')?.remove();
-            return;
-          }
           const existingListItem = btn.closest('li');
           if(existingListItem && existingListItem.parentElement === additionalList) return;
           const li = document.createElement('li');
@@ -4483,40 +4261,36 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     if(toolbarOverflowToggle && toolbarOverflow){
-      const setExploreOpen = (open) => {
-        toolbarOverflow.classList.toggle('is-open', open);
-        toolbarOverflowToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        document.body.style.overflow = open ? 'hidden' : '';
-        if(open) toolbarOverflowClose?.focus();
-        else toolbarOverflowToggle.focus();
-      };
       toolbarOverflowToggle.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         const next = !toolbarOverflow.classList.contains('is-open');
-        setExploreOpen(next);
+        toolbarOverflow.classList.toggle('is-open', next);
+        toolbarOverflowToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
       });
-      toolbarOverflowClose?.addEventListener('click', () => setExploreOpen(false));
       document.addEventListener('click', (event) => {
-        if(toolbarOverflow.classList.contains('is-open') && !toolbarOverflow.contains(event.target)){
-          setExploreOpen(false);
+        if(!toolbarOverflow.contains(event.target)){
+          toolbarOverflow.classList.remove('is-open');
+          toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
         }
       });
       document.addEventListener('keydown', (event) => {
-        if(event.key === 'Escape' && toolbarOverflow.classList.contains('is-open')){
-          setExploreOpen(false);
+        if(event.key === 'Escape'){
+          toolbarOverflow.classList.remove('is-open');
+          toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
         }
       });
       toolbarOverflow.addEventListener('click', (event) => {
         const trigger = event.target.closest('button, a');
         if(!trigger || trigger.id === 'toolbar-overflow-toggle') return;
-        setExploreOpen(false);
+        toolbarOverflow.classList.remove('is-open');
+        toolbarOverflowToggle.setAttribute('aria-expanded', 'false');
       });
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
+    syncToolbarLayout();
     desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
     syncAdditionalButtonsLayout();
-    syncToolbarLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
@@ -4584,14 +4358,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       },
       set theme(v) {
         try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
-        catch {}
-      },
-      get themeFade() {
-        try { return localStorage.getItem('chaines_theme_fade') === '1'; }
-        catch { return false; }
-      },
-      set themeFade(v) {
-        try { v ? localStorage.setItem('chaines_theme_fade', '1') : localStorage.removeItem('chaines_theme_fade'); }
         catch {}
       },
       get autoDelete(){
@@ -4836,22 +4602,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const themePaletteMap = new Map(themePalettes.map((palette) => [palette.key, palette]));
     const themeKeys = themePalettes.map((palette) => palette.key);
 
-    function applyTheme(themeKey, animate = false){
+    function applyTheme(themeKey){
       const root = document.documentElement;
       const fallback = themePaletteMap.get('light');
       const nextPalette = themePaletteMap.get(themeKey) || fallback;
-      const updatePalette = () => {
-        root.dataset.theme = nextPalette.key;
-        Object.entries(nextPalette.vars).forEach(([name, value]) => {
-          root.style.setProperty(name, value);
-        });
-      };
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if(animate && !reduceMotion && typeof document.startViewTransition === 'function'){
-        document.startViewTransition(updatePalette);
-      } else {
-        updatePalette();
-      }
+      root.dataset.theme = nextPalette.key;
+      Object.entries(nextPalette.vars).forEach(([name, value]) => {
+        root.style.setProperty(name, value);
+      });
       const themeIconSrc = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
       const themeTitle = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
       const themeAriaLabel = `Switch theme (${nextPalette.label})`;
@@ -4869,42 +4627,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     const initialTheme = applyTheme(store.theme || 'light');
     store.theme = initialTheme;
-    function cycleTheme(animate = true){
+    function cycleTheme(){
       const current = document.documentElement.dataset.theme || initialTheme;
       const currentIndex = Math.max(0, themeKeys.indexOf(current));
       const nextKey = themeKeys[(currentIndex + 1) % themeKeys.length];
       store.theme = nextKey;
-      applyTheme(nextKey, animate);
-    }
-    let themeFadeTimer = null;
-    function setThemeFade(enabled){
-      if(themeFadeTimer){
-        clearInterval(themeFadeTimer);
-        themeFadeTimer = null;
-      }
-      store.themeFade = enabled;
-      if(themeFadeToggle){
-        themeFadeToggle.setAttribute('aria-pressed', String(enabled));
-        themeFadeToggle.title = enabled ? 'Stop fading through color themes' : 'Fade through every color theme';
-      }
-      if(themeFadeStatus){
-        themeFadeStatus.textContent = enabled
-          ? `Automatic theme fading is on. The palette changes every 5 seconds.`
-          : 'Automatic theme fading is off.';
-      }
-      if(enabled){
-        themeFadeTimer = window.setInterval(() => cycleTheme(true), 5000);
-      }
+      applyTheme(nextKey);
     }
     if(themeToggle){
-      themeToggle.addEventListener('click', () => cycleTheme(true));
+      themeToggle.addEventListener('click', cycleTheme);
     }
     if(themeToggleMobile){
-      themeToggleMobile.addEventListener('click', () => cycleTheme(true));
-    }
-    if(themeFadeToggle){
-      themeFadeToggle.addEventListener('click', () => setThemeFade(!store.themeFade));
-      setThemeFade(store.themeFade);
+      themeToggleMobile.addEventListener('click', cycleTheme);
     }
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
@@ -6800,42 +6534,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // Keep the app shell available independently of notification preferences.
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
-    const isInstalledApp = () => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
     function setInstallAvailability(available){
       [installAppBtn, authInstallAppBtn].forEach((button) => {
-        if(button){
-          button.hidden = isInstalledApp();
-          button.textContent = available ? 'Install Studio App' : 'Get the app';
-        }
+        if(button) button.hidden = !available;
       });
       if(appDownloadCard){
-        appDownloadCard.classList.toggle('is-installed', isInstalledApp());
+        appDownloadCard.classList.toggle('is-installed', !available && window.matchMedia?.('(display-mode: standalone)').matches);
       }
     }
-    function showInstallHelp(){
-      const isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      const isFirefox = /firefox/i.test(navigator.userAgent);
-      installHelpSteps.replaceChildren();
-      const steps = isAppleMobile
-        ? ['Tap the Share button in Safari.', 'Choose “Add to Home Screen”.', 'Tap Add to download and open CHAINeS like an app.']
-        : isFirefox
-          ? ['Open your browser menu.', 'Choose “Install” or “Add to Home screen”.', 'Confirm to add CHAINeS to your device.']
-          : ['Open the browser menu or installation icon in the address bar.', 'Choose “Install CHAINeS Studio”.', 'Confirm to add the app to your device.'];
-      steps.forEach((step) => { const item = document.createElement('li'); item.textContent = step; installHelpSteps.append(item); });
-      installHelpCopy.textContent = isAppleMobile ? 'Safari installs browser apps through its Share menu.' : 'Your browser can download this site as a secure, standalone web app.';
-      installHelpNative.hidden = !deferredInstallPrompt;
-      installHelp.hidden = false;
-      installHelp.querySelector('button')?.focus();
-    }
-    function hideInstallHelp(){ installHelp.hidden = true; }
     async function installBrandedApp(){
-      if(isInstalledApp()) return;
-      if(!deferredInstallPrompt){ showInstallHelp(); return; }
+      if(!deferredInstallPrompt) return;
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice;
       if(choice.outcome === 'accepted') setInstallAvailability(false);
       deferredInstallPrompt = null;
-      hideInstallHelp();
     }
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
@@ -6848,16 +6560,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(appDownloadCard){
         appDownloadCard.classList.add('is-installed');
         const copy = appDownloadCard.querySelector('.app-download-card__copy span');
-        if(copy) copy.textContent = 'CHAINeS Studio is installed and ready from your home screen.';
+        if(copy) copy.textContent = 'CHAINeS is installed and ready from your home screen.';
       }
     });
     [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
-    installHelpNative?.addEventListener('click', installBrandedApp);
-    el('#install-help-close')?.addEventListener('click', hideInstallHelp);
-    el('#install-help-dismiss')?.addEventListener('click', hideInstallHelp);
-    installHelp?.addEventListener('click', (event) => { if(event.target === installHelp) hideInstallHelp(); });
-    document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !installHelp?.hidden) hideInstallHelp(); });
-    setInstallAvailability(Boolean(deferredInstallPrompt));
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }
