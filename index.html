@@ -2192,14 +2192,54 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         white-space:normal;
       }
     }
+    /* Keep the complete 8 + 8 launcher visible as one evenly spaced page. */
+    .toolbar-overflow-panel {
+      overflow:hidden;
+    }
+    .toolbar-overflow-content {
+      flex:1 1 auto;
+      min-height:0;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      align-items:stretch;
+    }
+    .toolbar-overflow-group {
+      display:flex;
+      min-height:0;
+      flex-direction:column;
+    }
+    .toolbar-overflow-list {
+      flex:1 1 auto;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-rows:repeat(4, minmax(0, 1fr));
+    }
     @media (max-width: 600px) {
-      .toolbar-overflow-content,
-      .toolbar-overflow-list {
-        grid-template-columns:1fr;
+      .toolbar-overflow-panel {
+        gap:10px;
+        padding:calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
       }
+      .toolbar-overflow-header { gap:8px; padding-bottom:8px; }
+      .toolbar-overflow-header h2 { font-size:20px; }
+      .toolbar-overflow-header p,
+      .toolbar-overflow-eyebrow,
+      .toolbar-overflow-group-note,
+      .toolbar-overflow-list .menu-link-description { display:none; }
+      .toolbar-overflow-content { gap:8px; }
+      .toolbar-overflow-group { padding:8px; border-radius:14px; }
+      .toolbar-overflow-group summary { margin-bottom:6px; font-size:13px; text-align:center; }
+      .toolbar-overflow-list { gap:6px; }
       .toolbar-overflow-list .chip {
-        min-height:68px;
+        min-height:0;
+        height:100%;
+        padding:6px 4px;
+        flex-direction:column;
+        justify-content:center;
+        gap:4px;
+        text-align:center;
       }
+      .toolbar-overflow-list .chip img { width:20px; height:20px; }
+      .toolbar-overflow-list .menu-link-copy { align-items:center; }
+      .toolbar-overflow-list .menu-link-title { font-size:10px; line-height:1.15; }
+      .toolbar-overflow-close { flex-basis:36px; width:36px; height:36px; }
     }
   
 </style>
@@ -2294,11 +2334,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                     <summary>Additional</summary>
                     <p class="toolbar-overflow-group-note">Create, manage, and discover more across CHAINeS.</p>
                     <ul class="toolbar-overflow-list">
-                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
-                      <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
-                      <li><a id="rewards-page-menu-link" class="chip" href="/rewards-program.html" title="Open Rewards Program" aria-label="Open Rewards Program"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards Program</span><span class="menu-link-description">View rewards, tiers, benefits, and ways to earn.</span></span></a></li>
-                      <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
-                      <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
@@ -2345,7 +2380,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
-              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -3222,11 +3256,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarOverflowClose = el('#toolbar-overflow-close');
-    const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
-    const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'omconsole-btn', 'watchtower-btn', 'chaines-ar-btn']
-      .map(id => el(`#${id}`))
-      .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4368,22 +4397,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
-    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
-    function syncAdditionalButtonsLayout(){
-      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
-      const useDesktopHeader = desktopToolbarMedia.matches;
-      additionalButtons.forEach((btn) => {
-        if(useDesktopHeader){
-          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
-        } else {
-          const existingListItem = btn.closest('li');
-          if(existingListItem && existingListItem.parentElement === additionalList) return;
-          const li = document.createElement('li');
-          li.appendChild(btn);
-          additionalList.appendChild(li);
-        }
-      });
-    }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
@@ -4440,8 +4453,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
     syncToolbarLayout();
-    desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
-    syncAdditionalButtonsLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
