@@ -1175,7 +1175,10 @@
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
-    .actions { display:flex; gap:10px; margin-top:12px; }
+    .auth-mode, .biometric-mode { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+    .auth-mode .btn, .biometric-mode .btn { width:100%; }
+    .auth-mode .btn[aria-pressed="true"], .biometric-mode .btn[aria-pressed="true"] { background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; border-color:transparent; }
+    .actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
     .face-login { margin-top:12px; display:grid; gap:12px; padding:14px; border:1px solid color-mix(in oklab, var(--accent), transparent 35%); border-radius:18px; background: radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--accent), transparent 72%), transparent 34%), linear-gradient(135deg, rgba(6,11,30,.92), rgba(10,22,38,.84)); box-shadow:0 0 28px color-mix(in oklab, var(--accent), transparent 72%), inset 0 0 32px rgba(255,255,255,.04); overflow:hidden; position:relative; }
     .face-login::before { content:""; position:absolute; inset:-40%; background: repeating-linear-gradient(90deg, transparent 0 28px, rgba(255,255,255,.035) 29px 30px); animation: faceGridDrift 12s linear infinite; pointer-events:none; }
     .face-login > * { position:relative; z-index:1; }
@@ -2419,14 +2422,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <section id="auth" class="auth" hidden>
     <div class="card">
       <h2>Welcome to CHAINeS POST</h2>
-      <p>Choose your network, validate your token on entry, then sign in to open your account.</p>
-      <div class="fields">
-        <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-        <input id="password" type="password" placeholder="Password" />
-        <input id="profile" type="file" accept="image/*" />
+      <p>Login with your username and password. Sign up maps a new face vector; existing accounts only scan when the account requires face recognition.</p>
+      <div class="auth-mode" aria-label="Choose login or sign up">
+        <button class="btn primary" id="auth-mode-login" type="button" aria-pressed="true">Login</button>
+        <button class="btn ghost" id="auth-mode-signup" type="button" aria-pressed="false">Sign Up</button>
       </div>
-      <div class="face-login" aria-label="Required facial recognition login">
-        <div class="face-login__hud"><span>Biometric Entry Required</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
+      <div class="fields">
+        <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" autocomplete="username" />
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+        <input id="profile" type="file" accept="image/*" hidden />
+      </div>
+      <div class="face-login" aria-label="Facial recognition and mapping options">
+        <div class="face-login__hud"><span id="face-mode-title">Facial Recognition Optional</span><span class="face-login__badge" id="face-lock-badge">READY</span></div>
+        <div class="biometric-mode" aria-label="Choose facial option">
+          <button class="btn primary" id="face-mode-recognition" type="button" aria-pressed="true">Facial Recognition</button>
+          <button class="btn ghost" id="face-mode-mapping" type="button" aria-pressed="false">Facial Mapping</button>
+        </div>
         <div class="face-login__stage">
           <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
           <div class="face-login__reticle" aria-hidden="true"></div>
@@ -2438,15 +2449,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         </div>
         <div id="face-capture-data" class="face-login__capture">Captured tech: waiting for live camera vectors…</div>
         <div class="face-login__actions">
-          <button class="btn ghost" id="face-start" type="button">Start Face Scan</button>
-          <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
-          <button class="btn ghost" id="face-enroll" type="button" disabled>Enroll Face</button>
+          <button class="btn ghost" id="face-start" type="button">Scan Face</button>
+          <button class="btn ghost" id="face-capture" type="button" disabled>Use This Scan</button>
+          <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
         </div>
-        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Face scan required: capture your live facial vector to register or log in. Guest access is disabled.</p>
+        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Enter your username and password to log in. Use Scan Face only if prompted for facial recognition.</p>
       </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
-        <button class="btn ghost" id="register" type="button">Register</button>
+        <button class="btn ghost" id="register" type="button" hidden>Sign Up</button>
         <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
       </div>
       <div id="app-download-card" class="app-download-card" aria-live="polite">
@@ -3031,6 +3042,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const authModeLoginBtn = el('#auth-mode-login');
+    const authModeSignupBtn = el('#auth-mode-signup');
+    const faceModeRecognitionBtn = el('#face-mode-recognition');
+    const faceModeMappingBtn = el('#face-mode-mapping');
+    const faceModeTitle = el('#face-mode-title');
     const faceLoginVideo = el('#face-login-video');
     const faceStartBtn = el('#face-start');
     const faceCaptureBtn = el('#face-capture');
@@ -6623,6 +6639,35 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let faceModelsReady = false;
     let faceStream = null;
     let pendingFaceDescriptor = null;
+    let authMode = 'login';
+    let biometricMode = 'recognition';
+
+    function setButtonPressed(button, pressed){
+      if(!button) return;
+      button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+      button.classList.toggle('primary', !!pressed);
+      button.classList.toggle('ghost', !pressed);
+    }
+    function syncAuthFlow(){
+      const signup = authMode === 'signup';
+      const mapping = biometricMode === 'mapping';
+      setButtonPressed(authModeLoginBtn, !signup);
+      setButtonPressed(authModeSignupBtn, signup);
+      setButtonPressed(faceModeRecognitionBtn, !mapping);
+      setButtonPressed(faceModeMappingBtn, mapping);
+      if(profileInput) profileInput.hidden = !signup;
+      if(loginBtn) loginBtn.hidden = signup;
+      if(registerBtn) registerBtn.hidden = !signup;
+      if(faceEnrollBtn) faceEnrollBtn.hidden = !store.user;
+      if(faceStartBtn) faceStartBtn.textContent = mapping ? 'Start Face Mapping' : 'Scan Face';
+      if(faceCaptureBtn) faceCaptureBtn.textContent = mapping ? 'Save Face Map' : 'Use This Scan';
+      if(faceModeTitle) faceModeTitle.textContent = signup || mapping ? 'Facial Mapping Required' : 'Facial Recognition Optional';
+      if(faceLockBadge && !pendingFaceDescriptor) faceLockBadge.textContent = signup ? 'MAP REQUIRED' : 'READY';
+      if(!pendingFaceDescriptor){
+        setFaceLoginStatus(signup ? 'Sign up requires facial mapping. Start mapping, save your face map, then create the account.' : 'Enter your username and password to log in. Scan Face only if your account asks for facial recognition.');
+      }
+    }
+
     function setFaceLoginStatus(message, tone=''){
       if(!faceLoginStatus) return;
       faceLoginStatus.textContent = message;
@@ -6679,7 +6724,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       await faceLoginVideo.play();
       faceCaptureBtn.disabled = false;
       updateFaceScanHud('ready');
-      setFaceLoginStatus('Camera ready. Center your face inside the scanner and capture to unlock entry.', 'success');
+      setFaceLoginStatus(biometricMode === 'mapping' ? 'Camera ready. Center your face to map and save this account biometric.' : 'Camera ready. Center your face inside the scanner and use this scan if prompted.', 'success');
     }
     async function captureFaceDescriptor(){
       await startFaceLoginCamera();
@@ -6687,8 +6732,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
       pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
       faceEnrollBtn.disabled = !store.user;
+      syncAuthFlow();
       updateFaceScanHud('captured', pendingFaceDescriptor);
-      setFaceLoginStatus('Face vector captured. Login validates it against your account; registration stores it as your required entry scan.', 'success');
+      setFaceLoginStatus(biometricMode === 'mapping' ? 'Face map captured. Sign Up will store it as the account entry check.' : 'Face scan captured. Login will validate it if this account requires facial recognition.', 'success');
       return pendingFaceDescriptor;
     }
 
@@ -6743,11 +6789,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      if(!pendingFaceDescriptor){
-        setFaceLoginStatus('Required face scan missing. Start the scanner and capture your face before continuing.', 'error');
-        try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
-        return;
-      }
       const chain = selectedValidationChain();
       const validation = prevalidated === undefined ? await ensureTokenValidated() : prevalidated;
       if(chain && !validation){
@@ -6774,7 +6815,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         if(data?.faceRequired && !pendingFaceDescriptor){
-          setFaceLoginStatus('This account requires face validation. Start the face scan, capture your face, then log in again.', 'error');
+          setFaceLoginStatus('This account requires facial recognition. Click Scan Face, use the captured scan, then Login again.', 'error');
           try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
           return;
         }
@@ -6788,6 +6829,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+    authModeLoginBtn?.addEventListener('click', () => { authMode = 'login'; biometricMode = 'recognition'; pendingFaceDescriptor = null; updateFaceScanHud('reset'); syncAuthFlow(); });
+    authModeSignupBtn?.addEventListener('click', () => { authMode = 'signup'; biometricMode = 'mapping'; pendingFaceDescriptor = null; updateFaceScanHud('reset'); syncAuthFlow(); });
+    faceModeRecognitionBtn?.addEventListener('click', () => { biometricMode = 'recognition'; syncAuthFlow(); });
+    faceModeMappingBtn?.addEventListener('click', () => { biometricMode = 'mapping'; authMode = 'signup'; syncAuthFlow(); });
 
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();
@@ -6795,7 +6840,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
       if(!pendingFaceDescriptor){
-        setFaceLoginStatus('Registration requires a captured face scan so the account can be validated on entry.', 'error');
+        biometricMode = 'mapping'; syncAuthFlow();
+        setFaceLoginStatus('Sign up requires a saved facial map so this account can be validated on future entry.', 'error');
         try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
         return;
       }
@@ -6849,6 +6895,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setFaceLoginStatus('Face enrolled. Future password logins for this account require a matching face.', 'success');
       } catch(error){ setFaceLoginStatus(error.message || 'Face enrollment failed.', 'error'); }
     });
+
+    syncAuthFlow();
 
     tokenLoginValidateBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
