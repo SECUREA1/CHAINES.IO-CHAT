@@ -4649,16 +4649,85 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       { key: 'retro', label: 'Retro', vars: { '--bg':'#211c1b','--panel':'#3b2f2b','--fg':'#fef3c7','--muted':'#d6b58a','--accent':'#f59e0b','--accent-2':'#d97706','--gold':'#fde68a','--gold-2':'#f59e0b','--shadow':'0 0 16px rgba(245,158,11,.3)','--lining':'#8a6b4a','--caption-color':'#fef3c7' } },
       { key: 'matrix', label: 'Matrix', vars: { '--bg':'#040b04','--panel':'#0d1b0d','--fg':'#c8ffc8','--muted':'#6eeb83','--accent':'#22c55e','--accent-2':'#16a34a','--gold':'#86efac','--gold-2':'#22c55e','--shadow':'0 0 16px rgba(34,197,94,.35)','--lining':'#2f6f3f','--caption-color':'#c8ffc8' } },
       { key: 'midnight', label: 'Midnight', vars: { '--bg':'#050816','--panel':'#101935','--fg':'#dbeafe','--muted':'#93c5fd','--accent':'#1d4ed8','--accent-2':'#1e40af','--gold':'#60a5fa','--gold-2':'#2563eb','--shadow':'0 0 16px rgba(37,99,235,.35)','--lining':'#2f4f8a','--caption-color':'#dbeafe' } },
-      { key: 'neon', label: 'Neon', vars: { '--bg':'#15061f','--panel':'#2a0f3b','--fg':'#f5e8ff','--muted':'#d8b4fe','--accent':'#c026d3','--accent-2':'#a21caf','--gold':'#e879f9','--gold-2':'#c026d3','--shadow':'0 0 18px rgba(192,38,211,.45)','--lining':'#6e3290','--caption-color':'#f5e8ff' } }
+      { key: 'neon', label: 'Neon', vars: { '--bg':'#15061f','--panel':'#2a0f3b','--fg':'#f5e8ff','--muted':'#d8b4fe','--accent':'#c026d3','--accent-2':'#a21caf','--gold':'#e879f9','--gold-2':'#c026d3','--shadow':'0 0 18px rgba(192,38,211,.45)','--lining':'#6e3290','--caption-color':'#f5e8ff' } },
+      { key: 'rainbow', label: 'Rainbow Fade', animated: true, vars: { '--bg':'#12071f','--panel':'#24113b','--fg':'#fff7ff','--muted':'#f0abfc','--accent':'#ef4444','--accent-2':'#f97316','--gold':'#facc15','--gold-2':'#22c55e','--shadow':'0 0 20px rgba(239,68,68,.42)','--lining':'#7c3aed','--caption-color':'#fff7ff' } }
     ];
     const themePaletteMap = new Map(themePalettes.map((palette) => [palette.key, palette]));
     const themeKeys = themePalettes.map((palette) => palette.key);
+    const rainbowFadeStops = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+    let rainbowFadeFrame = 0;
+
+    function hexToRgb(hex){
+      const normalized = hex.replace('#', '');
+      const value = parseInt(normalized, 16);
+      return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+    }
+
+    function mixRgb(a, b, amount){
+      return a.map((channel, index) => Math.round(channel + (b[index] - channel) * amount));
+    }
+
+    function rgbToHex(rgb){
+      return `#${rgb.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+    }
+
+    function colorAtFadePosition(position){
+      const scaled = (position % 1) * rainbowFadeStops.length;
+      const startIndex = Math.floor(scaled);
+      const endIndex = (startIndex + 1) % rainbowFadeStops.length;
+      const localAmount = scaled - startIndex;
+      return rgbToHex(mixRgb(hexToRgb(rainbowFadeStops[startIndex]), hexToRgb(rainbowFadeStops[endIndex]), localAmount));
+    }
+
+    function setRainbowFadeVars(root, elapsed){
+      const cyclePosition = (elapsed % 12000) / 12000;
+      const accent = colorAtFadePosition(cyclePosition);
+      const accent2 = colorAtFadePosition(cyclePosition + 0.16);
+      const gold = colorAtFadePosition(cyclePosition + 0.32);
+      const lining = colorAtFadePosition(cyclePosition + 0.48);
+      root.style.setProperty('--bg', '#10071f');
+      root.style.setProperty('--panel', '#211133');
+      root.style.setProperty('--fg', '#fff7ff');
+      root.style.setProperty('--muted', '#f0abfc');
+      root.style.setProperty('--accent', accent);
+      root.style.setProperty('--accent-2', accent2);
+      root.style.setProperty('--gold', gold);
+      root.style.setProperty('--gold-2', accent2);
+      root.style.setProperty('--shadow', `0 0 22px ${accent}99`);
+      root.style.setProperty('--lining', lining);
+      root.style.setProperty('--caption-color', '#fff7ff');
+    }
+
+    function stopRainbowFade(){
+      if(rainbowFadeFrame){
+        cancelAnimationFrame(rainbowFadeFrame);
+        rainbowFadeFrame = 0;
+      }
+    }
+
+    function startRainbowFade(root){
+      stopRainbowFade();
+      const animate = (elapsed) => {
+        if(root.dataset.theme !== 'rainbow'){
+          rainbowFadeFrame = 0;
+          return;
+        }
+        setRainbowFadeVars(root, elapsed);
+        rainbowFadeFrame = requestAnimationFrame(animate);
+      };
+      rainbowFadeFrame = requestAnimationFrame(animate);
+    }
 
     function applyTheme(themeKey){
       const root = document.documentElement;
       const fallback = themePaletteMap.get('light');
       const nextPalette = themePaletteMap.get(themeKey) || fallback;
       root.dataset.theme = nextPalette.key;
+      if(nextPalette.animated){
+        startRainbowFade(root);
+      } else {
+        stopRainbowFade();
+      }
       Object.entries(nextPalette.vars).forEach(([name, value]) => {
         root.style.setProperty(name, value);
       });
