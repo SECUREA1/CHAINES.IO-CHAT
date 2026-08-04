@@ -1,12 +1,8 @@
-const CACHE_NAME = 'chaines-studio-shell-v5';
+const CACHE_NAME = 'chaines-composer-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/marketplace.html',
-  '/profile.html',
-  '/private-chat.html',
-  '/rewards-program.html',
   '/static/logo.svg',
   '/static/marketplace.svg',
   '/static/user.svg',
@@ -34,15 +30,7 @@ self.addEventListener('fetch', (event) => {
   if(requestUrl.origin !== self.location.origin) return;
 
   if(event.request.mode === 'navigate'){
-    event.respondWith(
-      fetch(event.request).then((response) => {
-        if(response.ok){
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
-    );
+    event.respondWith(fetch(event.request).catch(() => caches.match('/index.html')));
     return;
   }
 
