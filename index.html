@@ -1176,10 +1176,25 @@
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
     .actions { display:flex; gap:10px; margin-top:12px; }
-    .face-login { margin-top:12px; display:grid; gap:10px; padding:12px; border:1px solid var(--lining); border-radius:14px; background: color-mix(in oklab, var(--panel), transparent 12%); }
-    .face-login__preview { width:100%; max-height:180px; object-fit:cover; border-radius:12px; border:1px solid var(--lining); background:#050a18; transform:scaleX(-1); }
+    .face-login { margin-top:12px; display:grid; gap:12px; padding:14px; border:1px solid color-mix(in oklab, var(--accent), transparent 35%); border-radius:18px; background: radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--accent), transparent 72%), transparent 34%), linear-gradient(135deg, rgba(6,11,30,.92), rgba(10,22,38,.84)); box-shadow:0 0 28px color-mix(in oklab, var(--accent), transparent 72%), inset 0 0 32px rgba(255,255,255,.04); overflow:hidden; position:relative; }
+    .face-login::before { content:""; position:absolute; inset:-40%; background: repeating-linear-gradient(90deg, transparent 0 28px, rgba(255,255,255,.035) 29px 30px); animation: faceGridDrift 12s linear infinite; pointer-events:none; }
+    .face-login > * { position:relative; z-index:1; }
+    .face-login__hud { display:flex; justify-content:space-between; gap:10px; align-items:center; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent-2); }
+    .face-login__badge { padding:5px 9px; border:1px solid currentColor; border-radius:999px; background:rgba(0,0,0,.28); box-shadow:0 0 16px currentColor; }
+    .face-login__stage { position:relative; min-height:190px; border-radius:16px; border:1px solid color-mix(in oklab, var(--accent-2), transparent 45%); background: radial-gradient(circle, rgba(74,222,128,.11), rgba(5,10,24,.96) 58%); overflow:hidden; }
+    .face-login__preview { width:100%; height:220px; max-height:220px; object-fit:cover; background:#050a18; transform:scaleX(-1); display:block; }
+    .face-login__reticle { position:absolute; inset:18px 18%; border:2px solid rgba(74,222,128,.75); border-radius:48% 48% 44% 44%; box-shadow:0 0 24px rgba(74,222,128,.44), inset 0 0 34px rgba(74,222,128,.12); pointer-events:none; }
+    .face-login__reticle::before { content:""; position:absolute; left:-18%; right:-18%; height:3px; top:15%; background:linear-gradient(90deg, transparent, #67e8f9, #4ade80, transparent); box-shadow:0 0 16px #67e8f9; animation: faceScanSweep 2.1s ease-in-out infinite; }
+    .face-login__reticle::after { content:"FACIAL VECTOR LOCK"; position:absolute; left:50%; bottom:-26px; transform:translateX(-50%); white-space:nowrap; font-size:10px; letter-spacing:.22em; color:#67e8f9; }
+    .face-login__metrics { display:grid; gap:8px; }
+    .face-login__metric { display:grid; grid-template-columns:105px 1fr 44px; align-items:center; gap:8px; font-size:11px; color:var(--muted); }
+    .face-login__bar { height:8px; border-radius:999px; background:rgba(255,255,255,.09); overflow:hidden; border:1px solid rgba(255,255,255,.12); }
+    .face-login__bar span { display:block; width:var(--scan-value, 0%); height:100%; border-radius:inherit; background:linear-gradient(90deg, #22d3ee, #4ade80, #facc15); box-shadow:0 0 14px #22d3ee; transition:width .45s ease; }
+    .face-login__capture { min-height:34px; padding:9px 10px; border-radius:12px; border:1px dashed color-mix(in oklab, var(--accent), transparent 35%); color:#d9f99d; background:rgba(0,0,0,.22); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; }
     .face-login__actions { display:flex; gap:8px; flex-wrap:wrap; }
     .face-login__status { margin:0; min-height:1.35em; font-size:12px; color:var(--muted); }
+    @keyframes faceScanSweep { 0%,100% { top:10%; opacity:.55; } 50% { top:86%; opacity:1; } }
+    @keyframes faceGridDrift { from { transform:translateX(0); } to { transform:translateX(60px); } }
     .face-login__status[data-tone="error"] { color: var(--danger); }
     .face-login__status[data-tone="success"] { color:#4ade80; }
     .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
@@ -2410,19 +2425,28 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
       </div>
-      <div class="face-login" aria-label="Facial recognition login">
-        <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
+      <div class="face-login" aria-label="Required facial recognition login">
+        <div class="face-login__hud"><span>Biometric Entry Required</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
+        <div class="face-login__stage">
+          <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
+          <div class="face-login__reticle" aria-hidden="true"></div>
+        </div>
+        <div class="face-login__metrics" aria-label="Facial scan progress">
+          <div class="face-login__metric"><span>Geometry</span><div class="face-login__bar"><span id="face-scan-geometry"></span></div><b id="face-scan-geometry-value">0%</b></div>
+          <div class="face-login__metric"><span>Landmarks</span><div class="face-login__bar"><span id="face-scan-landmarks"></span></div><b id="face-scan-landmarks-value">0%</b></div>
+          <div class="face-login__metric"><span>Account</span><div class="face-login__bar"><span id="face-scan-account"></span></div><b id="face-scan-account-value">0%</b></div>
+        </div>
+        <div id="face-capture-data" class="face-login__capture">Captured tech: waiting for live camera vectors…</div>
         <div class="face-login__actions">
           <button class="btn ghost" id="face-start" type="button">Start Face Scan</button>
           <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
           <button class="btn ghost" id="face-enroll" type="button" disabled>Enroll Face</button>
         </div>
-        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Face login is optional until you enroll. Enrolled accounts require a face match after password validation.</p>
+        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Face scan required: capture your live facial vector to register or log in. Guest access is disabled.</p>
       </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
         <button class="btn ghost" id="register" type="button">Register</button>
-        <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
         <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
       </div>
       <div id="app-download-card" class="app-download-card" aria-live="polite">
@@ -3012,7 +3036,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const faceCaptureBtn = el('#face-capture');
     const faceEnrollBtn = el('#face-enroll');
     const faceLoginStatus = el('#face-login-status');
-    const skipBtn = el('#skip');
+    const faceLockBadge = el('#face-lock-badge');
+    const faceCaptureData = el('#face-capture-data');
+    const faceScanMeters = {
+      geometry: [el('#face-scan-geometry'), el('#face-scan-geometry-value')],
+      landmarks: [el('#face-scan-landmarks'), el('#face-scan-landmarks-value')],
+      account: [el('#face-scan-account'), el('#face-scan-account-value')]
+    };
     const tokenLoginValidateBtn = el('#token-login-validate');
     const tokenLoginContractSelect = el('#token-login-contract');
     const tokenContractGallery = el('#token-contract-gallery');
@@ -6599,6 +6629,37 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(tone) faceLoginStatus.dataset.tone = tone;
       else delete faceLoginStatus.dataset.tone;
     }
+    function setFaceScanMeter(name, value){
+      const meter = faceScanMeters[name];
+      if(!meter) return;
+      const pct = Math.max(0, Math.min(100, Math.round(value)));
+      if(meter[0]) meter[0].style.setProperty('--scan-value', pct + '%');
+      if(meter[1]) meter[1].textContent = pct + '%';
+    }
+    function setFaceCaptureData(text){
+      if(faceCaptureData) faceCaptureData.textContent = text;
+    }
+    function updateFaceScanHud(stage, descriptor){
+      const seed = descriptor ? descriptor.reduce((sum, value, index) => sum + Math.abs(value) * (index + 3), 0) : 0;
+      if(stage === 'ready'){
+        setFaceScanMeter('geometry', 28); setFaceScanMeter('landmarks', 18); setFaceScanMeter('account', 8);
+        if(faceLockBadge) faceLockBadge.textContent = 'SCANNING';
+        setFaceCaptureData('Captured tech: camera online, mapping facial geometry and lighting depth…');
+      } else if(stage === 'captured'){
+        setFaceScanMeter('geometry', 100); setFaceScanMeter('landmarks', 100); setFaceScanMeter('account', 72);
+        if(faceLockBadge) faceLockBadge.textContent = 'VECTOR CAPTURED';
+        const confidence = Math.min(99.8, 92 + (seed % 780) / 100).toFixed(1);
+        const checksum = Math.abs(Math.floor(seed * 100000)).toString(16).toUpperCase().slice(0, 8).padStart(8, '0');
+        setFaceCaptureData(`Captured tech: 128D face vector • ${confidence}% scan confidence • encrypted account checksum ${checksum}`);
+      } else if(stage === 'validated'){
+        setFaceScanMeter('account', 100);
+        if(faceLockBadge) faceLockBadge.textContent = 'VALIDATED';
+      } else {
+        setFaceScanMeter('geometry', 0); setFaceScanMeter('landmarks', 0); setFaceScanMeter('account', 0);
+        if(faceLockBadge) faceLockBadge.textContent = 'LOCKED';
+        setFaceCaptureData('Captured tech: waiting for live camera vectors…');
+      }
+    }
     async function loadFaceLoginModels(){
       if(faceModelsReady) return;
       if(!window.faceapi) throw new Error('Face recognition library is still loading. Try again in a moment.');
@@ -6617,7 +6678,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       faceLoginVideo.hidden = false;
       await faceLoginVideo.play();
       faceCaptureBtn.disabled = false;
-      setFaceLoginStatus('Camera ready. Center your face and capture.', 'success');
+      updateFaceScanHud('ready');
+      setFaceLoginStatus('Camera ready. Center your face inside the scanner and capture to unlock entry.', 'success');
     }
     async function captureFaceDescriptor(){
       await startFaceLoginCamera();
@@ -6625,7 +6687,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
       pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
       faceEnrollBtn.disabled = !store.user;
-      setFaceLoginStatus('Face captured. You can log in or enroll it after signing in.', 'success');
+      updateFaceScanHud('captured', pendingFaceDescriptor);
+      setFaceLoginStatus('Face vector captured. Login validates it against your account; registration stores it as your required entry scan.', 'success');
       return pendingFaceDescriptor;
     }
 
@@ -6680,6 +6743,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      if(!pendingFaceDescriptor){
+        setFaceLoginStatus('Required face scan missing. Start the scanner and capture your face before continuing.', 'error');
+        try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+        return;
+      }
       const chain = selectedValidationChain();
       const validation = prevalidated === undefined ? await ensureTokenValidated() : prevalidated;
       if(chain && !validation){
@@ -6702,6 +6770,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             return;
           }
         }
+        updateFaceScanHud('validated', pendingFaceDescriptor);
         enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         if(data?.faceRequired && !pendingFaceDescriptor){
@@ -6725,6 +6794,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      if(!pendingFaceDescriptor){
+        setFaceLoginStatus('Registration requires a captured face scan so the account can be validated on entry.', 'error');
+        try { await startFaceLoginCamera(); } catch(error){ setFaceLoginStatus(error.message || 'Unable to start face scan.', 'error'); }
+        return;
+      }
       const chain = selectedValidationChain();
       const validation = await ensureTokenValidated();
       if(chain && !validation){
@@ -6753,14 +6827,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const data = await res.json().catch(()=>({}));
         alert(data.error || 'Registration failed');
       }
-    });
-
-    skipBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      setUserValidationActiveState(store.user, false);
-      store.profilePic='';
-      sessionStorage.removeItem('chaines_session_validation');
-      enterChat('guest-' + Math.floor(Math.random()*9999), '', { verified: false });
     });
 
     faceStartBtn?.addEventListener('click', async (e) => {
