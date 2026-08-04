@@ -79,6 +79,19 @@
         --lining:#94a3b8;
         --caption-color:#0f172a;
       }
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation-duration: 900ms;
+        animation-timing-function: ease-in-out;
+      }
+      ::view-transition-old(root) { animation-name: theme-fade-out; }
+      ::view-transition-new(root) { animation-name: theme-fade-in; }
+      @keyframes theme-fade-out { to { opacity: 0; } }
+      @keyframes theme-fade-in { from { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) { animation-duration: 1ms; }
+      }
     * { box-sizing: border-box; }
       html, body { height: 100%; width:100%; overflow-x:hidden; }
     body {
@@ -277,6 +290,8 @@
     .toolbar-overflow-list .menu-link-copy { display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-width:0; line-height:1.15; }
     .toolbar-overflow-list .menu-link-title { font-weight:800; color:var(--text); }
     .toolbar-overflow-list .menu-link-description { max-width:260px; color:var(--muted); font-size:11px; font-weight:600; line-height:1.35; white-space:normal; }
+    .theme-fade-status { margin:12px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
+    #theme-fade-toggle[aria-pressed="true"] { border-color:var(--accent-2); background:color-mix(in oklab, var(--panel), var(--accent) 24%); }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
     @media (max-width: 760px) {
       .toolbar-overflow-panel { inset:env(safe-area-inset-top) 0 0; border-radius:0; padding:20px 14px calc(24px + env(safe-area-inset-bottom)); }
@@ -2278,7 +2293,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
                       <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
@@ -2286,6 +2300,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
                       <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
+                  </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Color &amp; theme</summary>
+                    <p class="toolbar-overflow-group-note">Choose one palette at a time or let the full theme selection fade in and out automatically.</p>
+                    <ul class="toolbar-overflow-list">
+                      <li><button id="theme-toggle" class="chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Next theme</span><span class="menu-link-description">Move to the next color palette.</span></span></button></li>
+                      <li><button id="theme-fade-toggle" class="chip" type="button" aria-pressed="false" title="Fade through every color theme"><img src="static/moon.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Fade through themes</span><span class="menu-link-description">Continuously crossfade through the entire palette selection.</span></span></button></li>
+                    </ul>
+                    <p id="theme-fade-status" class="theme-fade-status" role="status" aria-live="polite">Automatic theme fading is off.</p>
                   </details>
                   <details class="toolbar-overflow-group" open>
                     <summary>Cloud Links</summary>
@@ -2310,7 +2333,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
-                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
+                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
@@ -3127,6 +3150,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const themeToggleIcon = themeToggle ? themeToggle.querySelector('img') : null;
     const themeToggleMobile = el('#theme-toggle-mobile');
     const themeToggleMobileIcon = themeToggleMobile ? themeToggleMobile.querySelector('img') : null;
+    const themeFadeToggle = el('#theme-fade-toggle');
+    const themeFadeStatus = el('#theme-fade-status');
     const userList = el('#user-list');
     const usersEl = el('#users');
     const popup = el('#popup');
@@ -4479,6 +4504,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         try { v ? localStorage.setItem('chaines_theme', v) : localStorage.removeItem('chaines_theme'); }
         catch {}
       },
+      get themeFade() {
+        try { return localStorage.getItem('chaines_theme_fade') === '1'; }
+        catch { return false; }
+      },
+      set themeFade(v) {
+        try { v ? localStorage.setItem('chaines_theme_fade', '1') : localStorage.removeItem('chaines_theme_fade'); }
+        catch {}
+      },
       get autoDelete(){
         try { return localStorage.getItem('chaines_autodelete') === '1'; }
         catch { return false; }
@@ -4721,14 +4754,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const themePaletteMap = new Map(themePalettes.map((palette) => [palette.key, palette]));
     const themeKeys = themePalettes.map((palette) => palette.key);
 
-    function applyTheme(themeKey){
+    function applyTheme(themeKey, animate = false){
       const root = document.documentElement;
       const fallback = themePaletteMap.get('light');
       const nextPalette = themePaletteMap.get(themeKey) || fallback;
-      root.dataset.theme = nextPalette.key;
-      Object.entries(nextPalette.vars).forEach(([name, value]) => {
-        root.style.setProperty(name, value);
-      });
+      const updatePalette = () => {
+        root.dataset.theme = nextPalette.key;
+        Object.entries(nextPalette.vars).forEach(([name, value]) => {
+          root.style.setProperty(name, value);
+        });
+      };
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(animate && !reduceMotion && typeof document.startViewTransition === 'function'){
+        document.startViewTransition(updatePalette);
+      } else {
+        updatePalette();
+      }
       const themeIconSrc = nextPalette.key === 'light' ? 'static/moon.svg' : 'static/sun.svg';
       const themeTitle = `Theme: ${nextPalette.label} (${themeKeys.indexOf(nextPalette.key) + 1}/${themeKeys.length})`;
       const themeAriaLabel = `Switch theme (${nextPalette.label})`;
@@ -4746,18 +4787,42 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     const initialTheme = applyTheme(store.theme || 'light');
     store.theme = initialTheme;
-    function cycleTheme(){
+    function cycleTheme(animate = true){
       const current = document.documentElement.dataset.theme || initialTheme;
       const currentIndex = Math.max(0, themeKeys.indexOf(current));
       const nextKey = themeKeys[(currentIndex + 1) % themeKeys.length];
       store.theme = nextKey;
-      applyTheme(nextKey);
+      applyTheme(nextKey, animate);
+    }
+    let themeFadeTimer = null;
+    function setThemeFade(enabled){
+      if(themeFadeTimer){
+        clearInterval(themeFadeTimer);
+        themeFadeTimer = null;
+      }
+      store.themeFade = enabled;
+      if(themeFadeToggle){
+        themeFadeToggle.setAttribute('aria-pressed', String(enabled));
+        themeFadeToggle.title = enabled ? 'Stop fading through color themes' : 'Fade through every color theme';
+      }
+      if(themeFadeStatus){
+        themeFadeStatus.textContent = enabled
+          ? `Automatic theme fading is on. The palette changes every 5 seconds.`
+          : 'Automatic theme fading is off.';
+      }
+      if(enabled){
+        themeFadeTimer = window.setInterval(() => cycleTheme(true), 5000);
+      }
     }
     if(themeToggle){
-      themeToggle.addEventListener('click', cycleTheme);
+      themeToggle.addEventListener('click', () => cycleTheme(true));
     }
     if(themeToggleMobile){
-      themeToggleMobile.addEventListener('click', cycleTheme);
+      themeToggleMobile.addEventListener('click', () => cycleTheme(true));
+    }
+    if(themeFadeToggle){
+      themeFadeToggle.addEventListener('click', () => setThemeFade(!store.themeFade));
+      setThemeFade(store.themeFade);
     }
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
