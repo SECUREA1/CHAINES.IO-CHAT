@@ -3,41 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="description" content="CHAINeS Composer is a blue creator network for publishing multimedia posts, live streams, marketplace drops, and secure community conversations." />
-  <meta name="keywords" content="CHAINeS Composer, CHAINeS POST, creator network, live streaming, marketplace drops, social commerce, secure messaging" />
+  <meta name="description" content="CHAINeS Post &amp; Media Studio Network is an all-in-one creator platform for multimedia publishing, live streaming, social commerce, and secure community conversations." />
+  <meta name="keywords" content="CHAINeS Post and Media Studio Network, media studio, creator network, multimedia publishing, live streaming, social commerce, marketplace drops, secure messaging" />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://chaines.io/" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="CHAINeS Composer" />
-  <meta property="og:title" content="CHAINeS Composer | Blue creator network" />
-  <meta property="og:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
+  <meta property="og:site_name" content="CHAINeS Post &amp; Media Studio Network" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="CHAINeS Post &amp; Media Studio Network" />
+  <meta property="og:description" content="Create boldly. Publish brilliantly. Connect without limits. Bring posts, media, live streams, and community commerce together in one professional studio network." />
   <meta property="og:url" content="https://chaines.io/" />
   <meta property="og:image" content="/static/logo.svg" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CHAINeS Composer | Blue creator network" />
-  <meta name="twitter:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
+  <meta name="twitter:title" content="CHAINeS Post &amp; Media Studio Network" />
+  <meta name="twitter:description" content="Create boldly. Publish brilliantly. Connect without limits. One professional network for posts, media, live streams, and community commerce." />
   <meta name="twitter:image" content="/static/logo.svg" />
-  <title>CHAINeS Composer | Blue Creator Network</title>
+  <title>CHAINeS Post &amp; Media Studio Network | Create. Publish. Connect.</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/static/logo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#0756b7" />
-  <meta name="application-name" content="CHAINeS Composer" />
+  <meta name="application-name" content="CHAINeS Studio" />
+  <meta name="msapplication-TileColor" content="#0756b7" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CHAINeS Studio" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "CHAINeS Composer",
-      "alternateName": "CHAINeS POST",
+      "@id": "https://chaines.io/#application",
+      "name": "CHAINeS Post & Media Studio Network",
+      "alternateName": ["CHAINeS Studio", "CHAINeS POST"],
       "url": "https://chaines.io/",
-      "description": "A blue creator network for publishing posts, live moments, marketplace drops, and community conversations.",
+      "description": "An all-in-one creator platform for multimedia publishing, live streaming, social commerce, and secure community conversations.",
       "applicationCategory": "SocialNetworkingApplication",
       "operatingSystem": "Web",
       "image": "https://chaines.io/static/logo.svg",
+      "logo": "https://chaines.io/static/logo.svg",
+      "isAccessibleForFree": true,
+      "featureList": "Multimedia publishing, live streaming, creator marketplace, secure community messaging",
       "browserRequirements": "Requires JavaScript and a modern web browser"
     }
   </script>
@@ -1859,7 +1866,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       min-height:34px; border:1px solid color-mix(in oklab, var(--gold), transparent 42%);
       border-radius:999px; padding:7px 11px; cursor:pointer; color:#07152f; font:700 11px/1 'Poppins', sans-serif;
       letter-spacing:.04em; text-transform:uppercase;
-      background:linear-gradient(120deg, #f8d58d, #fff2c7 45%, #72d8ff); box-shadow:0 8px 20px rgba(0,114,255,.2);
+      background:linear-gradient(120deg, #0067d8, #168eea 52%, #46c7ff); color:#fff; box-shadow:0 8px 20px rgba(0,76,190,.35);
       transition:transform .18s ease, box-shadow .18s ease;
     }
     .install-app-btn:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(0,198,255,.28); }
@@ -2186,41 +2193,54 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         white-space:normal;
       }
     }
-    @media (max-width: 600px) {
-      .toolbar-overflow-list { grid-template-columns:repeat(4, minmax(0, 1fr)); }
-      .toolbar-overflow-list .chip { min-height:0; }
+    /* Keep the complete 8 + 8 launcher visible as one evenly spaced page. */
+    .toolbar-overflow-panel {
+      overflow:hidden;
     }
-
-    /* Keep all 16 More choices visible together at every viewport size. */
-    .toolbar-overflow-panel { overflow:hidden; gap:clamp(8px, 2vh, 18px); }
-    .toolbar-overflow-content { display:flex; flex:1 1 auto; min-height:0; width:100%; }
-    .toolbar-overflow-content .toolbar-overflow-group {
-      display:flex; flex:1 1 auto; min-height:0; width:100%; flex-direction:column;
-      padding:clamp(8px, 1.8vh, 18px);
+    .toolbar-overflow-content {
+      flex:1 1 auto;
+      min-height:0;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      align-items:stretch;
     }
-    .toolbar-overflow-content .toolbar-overflow-list {
-      display:grid; flex:1 1 auto; min-height:0;
-      grid-template-columns:repeat(4, minmax(0, 1fr));
+    .toolbar-overflow-group {
+      display:flex;
+      min-height:0;
+      flex-direction:column;
+    }
+    .toolbar-overflow-list {
+      flex:1 1 auto;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
       grid-template-rows:repeat(4, minmax(0, 1fr));
-      gap:clamp(5px, 1vw, 12px);
-    }
-    .toolbar-overflow-content .toolbar-overflow-list .chip {
-      height:100%; min-height:0; padding:clamp(6px, 1.2vw, 14px);
     }
     @media (max-width: 600px) {
-      .toolbar-overflow-panel { padding:calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom)); }
-      .toolbar-overflow-header { gap:8px; padding-bottom:8px; }
-      .toolbar-overflow-header h2 { font-size:clamp(18px, 6vw, 25px); }
-      .toolbar-overflow-header p { display:none; }
-      .toolbar-overflow-close { width:36px; height:36px; flex-basis:36px; }
-      .toolbar-overflow-group summary { font-size:14px; }
-      .toolbar-overflow-group-note { margin:2px 0 6px; font-size:10px; }
-      .toolbar-overflow-content .toolbar-overflow-list .chip {
-        flex-direction:column; justify-content:center; gap:4px; text-align:center;
+      .toolbar-overflow-panel {
+        gap:10px;
+        padding:calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
       }
-      .toolbar-overflow-list .menu-link-copy { align-items:center; }
-      .toolbar-overflow-list .menu-link-title { font-size:clamp(9px, 2.8vw, 12px); text-align:center; }
+      .toolbar-overflow-header { gap:8px; padding-bottom:8px; }
+      .toolbar-overflow-header h2 { font-size:20px; }
+      .toolbar-overflow-header p,
+      .toolbar-overflow-eyebrow,
+      .toolbar-overflow-group-note,
       .toolbar-overflow-list .menu-link-description { display:none; }
+      .toolbar-overflow-content { gap:8px; }
+      .toolbar-overflow-group { padding:8px; border-radius:14px; }
+      .toolbar-overflow-group summary { margin-bottom:6px; font-size:13px; text-align:center; }
+      .toolbar-overflow-list { gap:6px; }
+      .toolbar-overflow-list .chip {
+        min-height:0;
+        height:100%;
+        padding:6px 4px;
+        flex-direction:column;
+        justify-content:center;
+        gap:4px;
+        text-align:center;
+      }
+      .toolbar-overflow-list .chip img { width:20px; height:20px; }
+      .toolbar-overflow-list .menu-link-copy { align-items:center; }
+      .toolbar-overflow-list .menu-link-title { font-size:10px; line-height:1.15; }
+      .toolbar-overflow-close { flex-basis:36px; width:36px; height:36px; }
     }
   
 </style>
@@ -2283,8 +2303,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     <header>
         <div class="bar">
           <div class="brand">
-            <img class="logo" src="/static/logo.svg" alt="CHAINeS Composer" width="36" height="36" />
-            <div class="brand-lockup"><span class="brand-kicker">Blue creator network</span><h1>CHAINeS Composer</h1></div>
+            <img class="logo" src="/static/logo.svg" alt="CHAINeS Post and Media Studio Network" width="36" height="36" />
+            <div class="brand-lockup"><span class="brand-kicker">Create boldly · Publish brilliantly</span><h1>CHAINeS Studio</h1></div>
             <div class="brand-signals" aria-label="CHAINeS services">
               <span class="brand-signal"><img src="/static/chat.svg" alt="" aria-hidden="true" /><span>Connect</span></span>
               <span class="brand-signal"><img src="/static/marketplace.svg" alt="" aria-hidden="true" /><span>Market</span></span>
@@ -2292,7 +2312,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             </div>
           </div>
           <div class="bar-right">
-            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Download app</button>
+            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Install Studio App</button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2347,7 +2367,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
-              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -2542,8 +2561,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
-      <h2>Welcome to CHAINeS POST</h2>
-      <p>Choose your network, validate your token on entry, then sign in to open your account.</p>
+      <h2>Welcome to CHAINeS Studio</h2>
+      <p>Create boldly. Publish brilliantly. Connect without limits.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
@@ -2558,10 +2577,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       <div id="app-download-card" class="app-download-card" aria-live="polite">
         <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
         <div class="app-download-card__copy">
-          <strong>Take CHAINeS with you</strong>
-          <span>Install the branded app for a focused, full-screen creator workspace.</span>
+          <strong>Take your media studio anywhere</strong>
+          <span>Install CHAINeS Studio with a signature blue browser control bar and a focused, full-screen creator workspace.</span>
         </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Install CHAINeS Studio</button>
       </div>
       <div class="fields" style="margin-top:8px">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -6730,7 +6749,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(appDownloadCard){
         appDownloadCard.classList.add('is-installed');
         const copy = appDownloadCard.querySelector('.app-download-card__copy span');
-        if(copy) copy.textContent = 'CHAINeS is installed and ready from your home screen.';
+        if(copy) copy.textContent = 'CHAINeS Studio is installed and ready from your home screen.';
       }
     });
     [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
