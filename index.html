@@ -2202,7 +2202,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         white-space:normal;
       }
     }
-    /* Keep the complete 8 + 8 launcher visible as one evenly spaced page. */
+    /* Keep the complete 6 + 8 launcher visible as one evenly spaced page. */
     .toolbar-overflow-panel {
       overflow:hidden;
     }
@@ -2220,7 +2220,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     .toolbar-overflow-list {
       flex:1 1 auto;
       grid-template-columns:repeat(2, minmax(0, 1fr));
-      grid-template-rows:repeat(4, minmax(0, 1fr));
+      grid-auto-rows:minmax(0, 1fr);
     }
     @media (max-width: 600px) {
       .toolbar-overflow-panel {
@@ -2341,17 +2341,21 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   </div>
                   <div class="toolbar-overflow-content">
                   <details class="toolbar-overflow-group" open>
-                    <summary>More actions &amp; cloud links</summary>
-                    <p class="toolbar-overflow-group-note">Choose from eight creator actions and eight connected cloud experiences.</p>
+                    <summary>Additional</summary>
+                    <p class="toolbar-overflow-group-note">Choose from six creator actions.</p>
                     <ul class="toolbar-overflow-list">
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
                       <li><button id="theme-toggle" class="chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Next theme</span><span class="menu-link-description">Move to the next color palette.</span></span></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
-                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
-                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
+                    </ul>
+                  </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Cloud Links</summary>
+                    <p class="toolbar-overflow-group-note">Launch eight connected apps and partner experiences.</p>
+                    <ul class="toolbar-overflow-list">
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
                       <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
