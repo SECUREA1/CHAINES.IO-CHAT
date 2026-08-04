@@ -706,7 +706,7 @@ app.post("/api/nft-dropper/mint", async (req, res) => {
     const mergedMeta = {
       name: metadata?.name || baseName,
       description:
-        metadata?.description || "Minted via CHAINeS Composer and NFT Dropper.",
+        metadata?.description || "Minted via CHAINeS Studio and NFT Dropper.",
       mediaType: metadata?.mediaType || fileType || parsed.mime,
     };
 

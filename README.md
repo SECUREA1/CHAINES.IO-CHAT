@@ -1,4 +1,6 @@
-# CHAINeS Composer
+# CHAINeS Post & Media Studio Network
+
+**Create boldly. Publish brilliantly. Connect without limits.**
 
 Single-page chat client for chaines.io with optional WebSocket backend and
 persistent chat history.
