@@ -2312,8 +2312,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     <header>
         <div class="bar">
           <div class="brand">
-            <img class="logo" src="/static/logo.svg" alt="CHAINeS Post and Media Studio Network" width="36" height="36" />
-            <div class="brand-lockup"><span class="brand-kicker">Create boldly · Publish brilliantly</span><h1>CHAINeS Studio</h1></div>
+            <img class="logo" src="/static/logo.svg" alt="CHAINeS Composer" width="36" height="36" />
+            <div class="brand-lockup"><span class="brand-kicker">Blue creator network</span><h1>CHAINeS Composer</h1></div>
             <div class="brand-signals" aria-label="CHAINeS services">
               <span class="brand-signal"><img src="/static/chat.svg" alt="" aria-hidden="true" /><span>Connect</span></span>
               <span class="brand-signal"><img src="/static/marketplace.svg" alt="" aria-hidden="true" /><span>Market</span></span>
@@ -2321,7 +2321,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             </div>
           </div>
           <div class="bar-right">
-            <button id="install-app-btn" class="install-app-btn" type="button">Get the app</button>
+            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Download app</button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2341,17 +2341,28 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   </div>
                   <div class="toolbar-overflow-content">
                   <details class="toolbar-overflow-group" open>
-                    <summary>More actions &amp; cloud links</summary>
-                    <p class="toolbar-overflow-group-note">Choose from eight creator actions and eight connected cloud experiences.</p>
+                    <summary>Additional</summary>
+                    <p class="toolbar-overflow-group-note">Create, manage, and discover more across CHAINeS.</p>
                     <ul class="toolbar-overflow-list">
+                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
+                      <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
+                      <li><a id="rewards-page-menu-link" class="chip" href="/rewards-program.html" title="Open Rewards Program" aria-label="Open Rewards Program"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards Program</span><span class="menu-link-description">View rewards, tiers, benefits, and ways to earn.</span></span></a></li>
+                      <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
+                      <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li><button id="theme-toggle" class="chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Next theme</span><span class="menu-link-description">Move to the next color palette.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
                       <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
                       <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
+                    </ul>
+                  </details>
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Cloud Links</summary>
+                    <p class="toolbar-overflow-group-note">Launch connected apps and partner experiences.</p>
+                    <ul class="toolbar-overflow-list">
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
                       <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
@@ -2371,11 +2382,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /></button>
-                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
+                <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /></button>
                 <button id="omconsole-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /></button>
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
+              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -3270,6 +3282,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarOverflowClose = el('#toolbar-overflow-close');
+    const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
+    const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'omconsole-btn', 'watchtower-btn', 'chaines-ar-btn']
+      .map(id => el(`#${id}`))
+      .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4411,6 +4428,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
+    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
+    function syncAdditionalButtonsLayout(){
+      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
+      const useDesktopHeader = desktopToolbarMedia.matches;
+      additionalButtons.forEach((btn) => {
+        if(useDesktopHeader){
+          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
+        } else {
+          const existingListItem = btn.closest('li');
+          if(existingListItem && existingListItem.parentElement === additionalList) return;
+          const li = document.createElement('li');
+          li.appendChild(btn);
+          additionalList.appendChild(li);
+        }
+      });
+    }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
@@ -4467,6 +4500,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
     syncToolbarLayout();
+    desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
+    syncAdditionalButtonsLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
