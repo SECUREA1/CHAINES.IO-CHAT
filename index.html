@@ -1871,6 +1871,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     .install-app-btn:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(0,198,255,.28); }
     .install-app-btn[hidden] { display:none; }
+    .install-help { position:fixed; inset:0; z-index:10001; display:grid; place-items:center; padding:20px; background:rgba(2,8,24,.78); backdrop-filter:blur(12px); }
+    .install-help[hidden] { display:none; }
+    .install-help__panel { width:min(520px, 100%); padding:24px; border:1px solid color-mix(in oklab, var(--gold), transparent 48%); border-radius:20px; background:var(--panel); box-shadow:0 24px 80px rgba(0,0,0,.55); }
+    .install-help__head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+    .install-help h2 { margin:0; font-size:clamp(22px,5vw,30px); }
+    .install-help p { color:var(--muted); }
+    .install-help ol { margin:18px 0; padding-left:22px; display:grid; gap:10px; }
+    .install-help__actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .install-help__actions button { flex:1 1 180px; }
     .app-download-card {
       margin-top:16px; display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center;
       padding:13px; border:1px solid color-mix(in oklab, var(--accent-2), transparent 40%); border-radius:14px;
@@ -2312,7 +2321,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             </div>
           </div>
           <div class="bar-right">
-            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Install Studio App</button>
+            <button id="install-app-btn" class="install-app-btn" type="button">Get the app</button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2580,7 +2589,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <strong>Take your media studio anywhere</strong>
           <span>Install CHAINeS Studio with a signature blue browser control bar and a focused, full-screen creator workspace.</span>
         </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Install CHAINeS Studio</button>
+        <button id="auth-install-app-btn" class="btn primary" type="button">Install CHAINeS Studio</button>
       </div>
       <div class="fields" style="margin-top:8px">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -2594,6 +2603,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       <div id="ws-config" class="fields" style="display:none; margin-top:8px">
         <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
         <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
+      </div>
+    </div>
+  </section>
+  <section id="install-help" class="install-help" role="dialog" aria-modal="true" aria-labelledby="install-help-title" hidden>
+    <div class="install-help__panel">
+      <div class="install-help__head">
+        <div><span class="brand-kicker">Browser app · Version 1.0.0</span><h2 id="install-help-title">Install CHAINeS Studio</h2></div>
+        <button id="install-help-close" class="chip" type="button" aria-label="Close installation help">×</button>
+      </div>
+      <p id="install-help-copy">Install this site as an app for a full-screen experience, home-screen access, and offline launch.</p>
+      <ol id="install-help-steps"></ol>
+      <div class="install-help__actions">
+        <button id="install-help-native" class="btn primary" type="button" hidden>Install now</button>
+        <button id="install-help-dismiss" class="btn ghost" type="button">Not now</button>
       </div>
     </div>
   </section>
@@ -3149,6 +3172,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const installAppBtn = el('#install-app-btn');
     const authInstallAppBtn = el('#auth-install-app-btn');
     const appDownloadCard = el('#app-download-card');
+    const installHelp = el('#install-help');
+    const installHelpSteps = el('#install-help-steps');
+    const installHelpCopy = el('#install-help-copy');
+    const installHelpNative = el('#install-help-native');
     const usernameInput = el('#username');
     const passwordInput = el('#password');
     const profileInput = el('#profile');
@@ -6723,20 +6750,42 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // Keep the app shell available independently of notification preferences.
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
+    const isInstalledApp = () => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
     function setInstallAvailability(available){
       [installAppBtn, authInstallAppBtn].forEach((button) => {
-        if(button) button.hidden = !available;
+        if(button){
+          button.hidden = isInstalledApp();
+          button.textContent = available ? 'Install Studio App' : 'Get the app';
+        }
       });
       if(appDownloadCard){
-        appDownloadCard.classList.toggle('is-installed', !available && window.matchMedia?.('(display-mode: standalone)').matches);
+        appDownloadCard.classList.toggle('is-installed', isInstalledApp());
       }
     }
+    function showInstallHelp(){
+      const isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isFirefox = /firefox/i.test(navigator.userAgent);
+      installHelpSteps.replaceChildren();
+      const steps = isAppleMobile
+        ? ['Tap the Share button in Safari.', 'Choose “Add to Home Screen”.', 'Tap Add to download and open CHAINeS like an app.']
+        : isFirefox
+          ? ['Open your browser menu.', 'Choose “Install” or “Add to Home screen”.', 'Confirm to add CHAINeS to your device.']
+          : ['Open the browser menu or installation icon in the address bar.', 'Choose “Install CHAINeS Studio”.', 'Confirm to add the app to your device.'];
+      steps.forEach((step) => { const item = document.createElement('li'); item.textContent = step; installHelpSteps.append(item); });
+      installHelpCopy.textContent = isAppleMobile ? 'Safari installs browser apps through its Share menu.' : 'Your browser can download this site as a secure, standalone web app.';
+      installHelpNative.hidden = !deferredInstallPrompt;
+      installHelp.hidden = false;
+      installHelp.querySelector('button')?.focus();
+    }
+    function hideInstallHelp(){ installHelp.hidden = true; }
     async function installBrandedApp(){
-      if(!deferredInstallPrompt) return;
+      if(isInstalledApp()) return;
+      if(!deferredInstallPrompt){ showInstallHelp(); return; }
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice;
       if(choice.outcome === 'accepted') setInstallAvailability(false);
       deferredInstallPrompt = null;
+      hideInstallHelp();
     }
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
@@ -6753,6 +6802,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     });
     [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
+    installHelpNative?.addEventListener('click', installBrandedApp);
+    el('#install-help-close')?.addEventListener('click', hideInstallHelp);
+    el('#install-help-dismiss')?.addEventListener('click', hideInstallHelp);
+    installHelp?.addEventListener('click', (event) => { if(event.target === installHelp) hideInstallHelp(); });
+    document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !installHelp?.hidden) hideInstallHelp(); });
+    setInstallAvailability(Boolean(deferredInstallPrompt));
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }
