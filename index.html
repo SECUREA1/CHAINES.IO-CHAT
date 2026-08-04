@@ -2094,6 +2094,78 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         display:none !important;
       }
     }
+
+    /* The explore control opens a page, rather than a compact toolbar dropdown. */
+    @media (min-width: 901px) {
+      .toolbar-overflow-panel {
+        position:fixed;
+        inset:0;
+        top:0;
+        left:0;
+        width:100vw;
+        max-width:none;
+        height:100vh;
+        height:100dvh;
+        max-height:none;
+        margin:0;
+        padding:calc(24px + env(safe-area-inset-top)) max(24px, calc((100vw - 1440px) / 2)) calc(32px + env(safe-area-inset-bottom));
+        border:0;
+        border-radius:0;
+        overflow-y:auto;
+        background:
+          radial-gradient(circle at 90% 5%, color-mix(in oklab, var(--accent), transparent 76%), transparent 34%),
+          linear-gradient(145deg, color-mix(in oklab, var(--panel), #063c86 14%), color-mix(in oklab, var(--bg), black 8%));
+        box-shadow:none;
+      }
+      .toolbar-overflow-content {
+        width:100%;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:clamp(18px, 2vw, 30px);
+      }
+      .toolbar-overflow-group {
+        padding:clamp(18px, 2.4vw, 30px);
+        border-radius:22px;
+      }
+      .toolbar-overflow-list {
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:14px;
+      }
+      .toolbar-overflow-list .chip {
+        min-height:92px;
+        padding:16px;
+        white-space:normal;
+      }
+      .toolbar-overflow-list .chip img {
+        width:28px;
+        height:28px;
+        flex-basis:28px;
+      }
+      .toolbar-overflow-list .menu-link-title { font-size:15px; }
+      .toolbar-overflow-list .menu-link-description { max-width:none; font-size:12px; }
+    }
+    @media (max-width: 900px) {
+      .toolbar-overflow-panel {
+        position:fixed;
+        inset:0;
+        top:0;
+        left:0;
+        width:100vw;
+        height:100vh;
+        height:100dvh;
+        max-height:none;
+        margin:0;
+        padding:calc(18px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
+        border:0;
+        border-radius:0;
+        overflow-y:auto;
+      }
+      .toolbar-overflow-list .chip {
+        min-height:78px;
+        padding:14px;
+        white-space:normal;
+      }
+    }
   
 </style>
 
@@ -2177,9 +2249,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             <div class="toolbar">
               <div id="toolbar-overflow" class="toolbar-overflow">
                 <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Toggle additional actions">☰</button>
-                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Additional quick actions">
+                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="dialog" aria-modal="true" aria-labelledby="toolbar-overflow-title">
                   <div class="toolbar-overflow-header">
-                    <div><span class="toolbar-overflow-eyebrow">CHAINeS network</span><h2>Explore your creator hub</h2><p>Move between publishing tools, secure live experiences, rewards, stores, and connected cloud products from one complete launchpad.</p></div>
+                    <div><span class="toolbar-overflow-eyebrow">CHAINeS network</span><h2 id="toolbar-overflow-title">Explore your creator hub</h2><p>Move between publishing tools, secure live experiences, rewards, stores, and connected cloud products from one complete launchpad.</p></div>
                     <button id="toolbar-overflow-close" class="chip toolbar-overflow-close" type="button" aria-label="Close explore menu">×</button>
                   </div>
                   <div class="toolbar-overflow-content">
