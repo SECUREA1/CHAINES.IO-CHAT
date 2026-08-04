@@ -966,14 +966,14 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     res.status(400).json({ error: "Missing fields" });
     return;
   }
-  if (!faceDescriptor) {
-    res.status(400).json({ error: "Face scan required", faceRequired: true });
-    return;
-  }
   const cleanUsername = sanitizeUsername(username);
   const existingUser = db.prepare("SELECT 1 FROM users WHERE username=?").get(cleanUsername);
   if (!cleanUsername || existingUser) {
     res.status(400).json({ error: "User exists" });
+    return;
+  }
+  if (!faceDescriptor) {
+    res.status(401).json({ error: "Face scan required", faceRequired: true });
     return;
   }
   try {
@@ -1000,10 +1000,6 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
-  if (!faceDescriptor) {
-    res.status(401).json({ error: "Face validation required", faceRequired: true });
-    return;
-  }
   if (sanitizeUsername(username) === ADMIN_ACCOUNT.username) {
     ensureAdminAccount();
   }
@@ -1019,6 +1015,10 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   const ok = await bcrypt.compare(password, hash);
   if (!ok) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  if (!faceDescriptor) {
+    res.status(401).json({ error: "Face validation required", faceRequired: true });
     return;
   }
   let incomingDescriptor;
