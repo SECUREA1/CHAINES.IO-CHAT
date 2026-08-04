@@ -286,12 +286,14 @@
     .toolbar-overflow-header h2 { margin:0; color:var(--text); font-size:clamp(24px, 4vw, 38px); line-height:1.05; }
     .toolbar-overflow-header p { max-width:650px; margin:9px 0 0; color:var(--muted); font-size:14px; line-height:1.55; }
     .toolbar-overflow-close { flex:0 0 42px; width:42px; height:42px; padding:0; border-radius:50%; font-size:24px; }
-    .toolbar-overflow-content { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; }
+    .toolbar-overflow-content { display:flex; flex:1 1 auto; min-height:0; }
     .toolbar-overflow-group { border:1px solid var(--lining); border-radius:18px; padding:18px; background:linear-gradient(150deg, color-mix(in oklab, var(--panel), white 3%), color-mix(in oklab, var(--panel), transparent 14%)); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
     .toolbar-overflow-group summary { cursor:pointer; font-size:17px; font-weight:850; color:var(--text); list-style:none; }
     .toolbar-overflow-group summary::-webkit-details-marker { display:none; }
     .toolbar-overflow-group-note { margin:5px 0 14px; color:var(--muted); font-size:12px; line-height:1.45; }
-    .toolbar-overflow-list { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap:10px; }
+    .toolbar-overflow-list { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); grid-template-rows:repeat(4, minmax(0, 1fr)); gap:10px; }
+    .toolbar-overflow-content > .toolbar-overflow-group { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; }
+    .toolbar-overflow-content > .toolbar-overflow-group > .toolbar-overflow-list { flex:1 1 auto; min-height:0; }
     .toolbar-overflow-list .chip { min-height:68px; padding:11px 12px; font-size:12px; gap:10px; border-radius:13px; text-align:left; background:color-mix(in oklab, var(--panel), transparent 6%); }
     .toolbar-overflow-list .chip img { flex:0 0 auto; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--accent), transparent 35%)); }
     .toolbar-overflow-list .menu-link-copy { display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-width:0; line-height:1.15; }
@@ -302,8 +304,7 @@
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
     @media (max-width: 760px) {
       .toolbar-overflow-panel { inset:env(safe-area-inset-top) 0 0; border-radius:0; padding:20px 14px calc(24px + env(safe-area-inset-bottom)); }
-      .toolbar-overflow-content { grid-template-columns:1fr; }
-      .toolbar-overflow-list { grid-template-columns:1fr; }
+      .toolbar-overflow-list { grid-template-columns:repeat(4, minmax(0, 1fr)); }
       .toolbar-overflow-header p { font-size:13px; }
     }
     .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
@@ -2331,31 +2332,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   </div>
                   <div class="toolbar-overflow-content">
                   <details class="toolbar-overflow-group" open>
-                    <summary>Additional</summary>
-                    <p class="toolbar-overflow-group-note">Create, manage, and discover more across CHAINeS.</p>
+                    <summary>More actions &amp; cloud links</summary>
+                    <p class="toolbar-overflow-group-note">Choose from eight creator actions and eight connected cloud experiences.</p>
                     <ul class="toolbar-overflow-list">
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Next theme</span><span class="menu-link-description">Move to the next color palette.</span></span></button></li>
                       <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
                       <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
                       <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
                       <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
-                    </ul>
-                  </details>
-                  <details class="toolbar-overflow-group" open>
-                    <summary>Color &amp; theme</summary>
-                    <p class="toolbar-overflow-group-note">Choose one palette at a time or let the full theme selection fade in and out automatically.</p>
-                    <ul class="toolbar-overflow-list">
-                      <li><button id="theme-toggle" class="chip" type="button" title="Choose the next color theme" aria-label="Choose the next color theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Next theme</span><span class="menu-link-description">Move to the next color palette.</span></span></button></li>
-                      <li><button id="theme-fade-toggle" class="chip" type="button" aria-pressed="false" title="Fade through every color theme"><img src="static/moon.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Fade through themes</span><span class="menu-link-description">Continuously crossfade through the entire palette selection.</span></span></button></li>
-                    </ul>
-                    <p id="theme-fade-status" class="theme-fade-status" role="status" aria-live="polite">Automatic theme fading is off.</p>
-                  </details>
-                  <details class="toolbar-overflow-group" open>
-                    <summary>Cloud Links</summary>
-                    <p class="toolbar-overflow-group-note">Launch connected apps and partner experiences.</p>
-                    <ul class="toolbar-overflow-list">
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
                       <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
