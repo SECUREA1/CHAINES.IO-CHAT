@@ -271,7 +271,7 @@
     .toolbar-overflow-list .menu-link-title { font-weight:800; color:var(--text); }
     .toolbar-overflow-list .menu-link-description { max-width:220px; color:var(--muted); font-size:10px; font-weight:600; white-space:normal; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
+    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #delivery-services-menu-link, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; position:relative; z-index:var(--action-layer); }
     .toolbar-additional-desktop {
       display:none;
@@ -293,6 +293,17 @@
       white-space:nowrap;
       overflow:hidden;
       font-size:0;
+    }
+    .toolbar-additional-desktop .menu-link-copy {
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0, 0, 0, 0);
+      white-space:nowrap;
+      border:0;
     }
     .toolbar-primary .chip {
       min-width:0;
@@ -2191,6 +2202,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                     <ul class="toolbar-overflow-list">
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
                       <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
+                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Toggle dark or light mode.</span></span></button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Toggle video and chat" aria-label="Toggle video and chat"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Video</span><span class="menu-link-description">Switch between streams and chat.</span></span></button></li>
+                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle marketplace view" aria-label="Toggle marketplace view"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
                       <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
@@ -3129,7 +3144,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
+    const additionalButtons = ['marketplace-menu-btn', 'delivery-services-menu-link', 'streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'watchtower-btn', 'omconsole-btn', 'chaines-ar-btn', 'watchtower-cloud-link', 'ioncore-store-link', 'muzikaz-house-link', 'ioncore-btn', 'rednode-btn', 'voice3-btn', 'omconsole-gaming-demos-btn', 'drone-engine-btn']
       .map(id => el(`#${id}`))
       .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
