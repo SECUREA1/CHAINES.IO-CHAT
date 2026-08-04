@@ -195,20 +195,26 @@
     .admin-panel { padding:14px; display:grid; gap:10px; }
     .admin-row { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
     .admin-controls { display:none; gap:10px; }
-    .admin-controls.enabled { display:grid; }
-    .admin-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+    .admin-controls.enabled {
+      display:grid;
+      grid-template-columns:minmax(0, 2fr) minmax(280px, .8fr);
+      align-items:start;
+    }
+    .admin-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
     .admin-option-list {
       border:1px solid var(--line);
       border-radius:10px;
       padding:8px;
       background:#0a1430;
       display:grid;
-      gap:6px;
-      max-height:180px;
-      overflow:auto;
+      grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+      align-content:start;
+      gap:4px 8px;
+      overflow:visible;
     }
-    .admin-option-list label { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--muted); }
-    .admin-option-list input { width:auto; margin-top:3px; }
+    .admin-option-list strong { grid-column:1 / -1; }
+    .admin-option-list label { display:flex; gap:6px; align-items:flex-start; font-size:11px; line-height:1.25; color:var(--muted); }
+    .admin-option-list input { flex:0 0 auto; width:auto; margin:1px 0 0; }
     .admin-note { margin:0; font-size:12px; color:var(--muted); }
     .daily-lineup { border:1px dashed var(--line); border-radius:10px; padding:10px; font-size:12px; color:var(--muted); }
     .delivery-scope { display:none; }
@@ -245,7 +251,8 @@
       .partner-grid { grid-template-columns:1fr 1fr; }
       .menu-item { grid-template-columns:1fr 1fr; }
       .menu-item .mini-btn { grid-column:1 / -1; }
-      .admin-grid { grid-template-columns:1fr; }
+      .admin-controls.enabled { grid-template-columns:1fr; }
+      .admin-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
     }
     @media (max-width: 640px) {
       .wrap { padding:12px; }
@@ -256,6 +263,7 @@
       .row, .row3, .partner-grid { grid-template-columns:1fr; }
       .menu-item { grid-template-columns:1fr; }
       .admin-row { grid-template-columns:1fr; }
+      .admin-grid { grid-template-columns:1fr; }
     }
   
     .site-copyright {
