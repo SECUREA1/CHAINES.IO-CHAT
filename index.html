@@ -314,7 +314,8 @@
       align-items:center;
       gap:8px;
       min-width:0;
-      flex:0 1 auto;
+      flex:1 1 auto;
+      justify-content:space-evenly;
       position:relative;
       z-index:var(--action-layer);
     }
@@ -324,7 +325,7 @@
       min-height:36px;
       padding:0;
       gap:0;
-      flex:0 0 36px;
+      flex:1 1 36px;
       justify-content:center;
       white-space:nowrap;
       overflow:hidden;
@@ -2359,6 +2360,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
                       <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
+                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
+                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
+                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
+                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole" aria-label="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
+                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
                   </section>
                   <section class="toolbar-overflow-group" aria-labelledby="cloud-links-title">
@@ -2389,6 +2397,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
+              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -3283,6 +3292,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarOverflowClose = el('#toolbar-overflow-close');
+    const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
+    const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'omconsole-btn', 'watchtower-btn', 'chaines-ar-btn']
+      .map(id => el(`#${id}`))
+      .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4424,6 +4438,26 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
+    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
+    function syncAdditionalButtonsLayout(){
+      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
+      const useDesktopHeader = desktopToolbarMedia.matches;
+      additionalButtons.forEach((btn) => {
+        if(useDesktopHeader){
+          if(btn.parentElement !== toolbarAdditionalDesktop){
+            const sourceListItem = btn.closest('li');
+            toolbarAdditionalDesktop.appendChild(btn);
+            sourceListItem?.remove();
+          }
+        } else {
+          const existingListItem = btn.closest('li');
+          if(existingListItem && existingListItem.parentElement === additionalList) return;
+          const li = document.createElement('li');
+          li.appendChild(btn);
+          additionalList.appendChild(li);
+        }
+      });
+    }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
@@ -4479,6 +4513,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
+    desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
+    syncAdditionalButtonsLayout();
     syncToolbarLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
