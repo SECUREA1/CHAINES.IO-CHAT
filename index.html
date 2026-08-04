@@ -6715,12 +6715,26 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let faceCameraPrimePromise = null;
     const FACE_SCAN_MAX_ATTEMPTS = 15;
     const faceLoginMobileMedia = window.matchMedia?.('(max-width: 760px), (pointer: coarse)');
-    const isFaceLoginMobile = () => !!(faceLoginMobileMedia?.matches || /Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|EdgiOS|DuckDuckGo/i.test(navigator.userAgent || ''));
+    const faceLoginUserAgent = navigator.userAgent || '';
+    const isFaceLoginFirefox = () => /Firefox|FxiOS/i.test(faceLoginUserAgent);
+    const isFaceLoginIE = () => /MSIE |Trident\//i.test(faceLoginUserAgent);
+    const isFaceLoginMobile = () => !!(faceLoginMobileMedia?.matches || /Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|EdgiOS|DuckDuckGo/i.test(faceLoginUserAgent));
+    const shouldPrimeFaceCameraSynchronously = () => isFaceLoginMobile() || isFaceLoginFirefox();
     const faceDetectionOptions = () => window.faceapi
-      ? (isFaceLoginMobile()
-        ? new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 })
+      ? (isFaceLoginMobile() || isFaceLoginFirefox()
+        ? new faceapi.TinyFaceDetectorOptions({ inputSize: isFaceLoginFirefox() ? 224 : 320, scoreThreshold: isFaceLoginFirefox() ? 0.38 : 0.45 })
         : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
       : null;
+    function installFaceCameraCompat(){
+      if(!navigator.mediaDevices) navigator.mediaDevices = {};
+      if(!navigator.mediaDevices.getUserMedia){
+        const legacyGetUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        if(legacyGetUserMedia){
+          navigator.mediaDevices.getUserMedia = (constraints) => new Promise((resolve, reject) => legacyGetUserMedia.call(navigator, constraints, resolve, reject));
+        }
+      }
+    }
+    installFaceCameraCompat();
     function revealFaceLogin(message, tone='error'){
       if(faceLoginPanel) faceLoginPanel.hidden = false;
       if(message) setFaceLoginStatus(message, tone);
@@ -6814,11 +6828,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     async function requestFaceLoginStream(){
+      installFaceCameraCompat();
       const mobile = isFaceLoginMobile();
+      const firefox = isFaceLoginFirefox();
       const constraintsList = mobile ? [
         { video:{ facingMode:{ ideal:'user' }, width:{ ideal:640 }, height:{ ideal:480 }, frameRate:{ ideal:24, max:30 } }, audio:false },
         { video:{ facingMode:'user', width:{ ideal:480 }, height:{ ideal:360 } }, audio:false },
-        { video:{ width:{ ideal:480 }, height:{ ideal:360 } }, audio:false },
+        { video:{ width:{ ideal:480 }, height:{ ideal:360 }, frameRate:{ ideal:15, max:24 } }, audio:false },
+        ...(firefox ? [{ video:{ width:320, height:240 }, audio:false }] : []),
         { video:true, audio:false }
       ] : [
         { video:{ facingMode:{ ideal:'user' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false },
@@ -6886,18 +6903,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     async function loadFaceLoginModels(){
       if(faceModelsReady) return;
+      if(isFaceLoginIE()) throw new Error('Internet Explorer cannot run secure live face scanning. Open CHAINeS in Firefox, Edge, Chrome, or install the app from a supported mobile browser.');
+      if(!window.isSecureContext && location.hostname !== 'localhost') throw new Error('Face scan needs a secure HTTPS connection so the browser can unlock the camera.');
       if(!window.faceapi) throw new Error('Face recognition library is still loading. Try again in a moment.');
-      await Promise.all([
+      const requiredModels = [
         faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-        faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
-      ]);
+      ];
+      if(!isFaceLoginMobile() && !isFaceLoginFirefox()) requiredModels.push(faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL));
+      await Promise.all(requiredModels);
       faceModelsReady = true;
     }
     async function startFaceLoginCamera({ primeOnly=false } = {}){
       await loadFaceLoginModels();
-      if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser.');
+      installFaceCameraCompat();
+      if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser. Use Firefox, Edge, Chrome, Safari, or the installed app with camera permission enabled.');
       if(!faceStream || !faceStream.getVideoTracks().some((track) => track.readyState === 'live')) faceStream = await requestFaceLoginStream();
       faceLoginVideo.setAttribute('autoplay', '');
       faceLoginVideo.setAttribute('muted', '');
@@ -6984,7 +7005,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      if(!pendingFaceDescriptor) primeFaceLoginCameraFromGesture().catch(() => {});
+      if(!pendingFaceDescriptor){
+        const primePromise = primeFaceLoginCameraFromGesture();
+        if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
+      }
       const chain = selectedValidationChain();
       const validation = prevalidated === undefined ? (pendingAuthValidation || await ensureTokenValidated()) : prevalidated;
       if(chain && !validation){
@@ -7041,7 +7065,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      if(!pendingFaceDescriptor) primeFaceLoginCameraFromGesture().catch(() => {});
+      if(!pendingFaceDescriptor){
+        const primePromise = primeFaceLoginCameraFromGesture();
+        if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
+      }
       const chain = selectedValidationChain();
       const validation = pendingAuthValidation || await ensureTokenValidated();
       if(chain && !validation){
