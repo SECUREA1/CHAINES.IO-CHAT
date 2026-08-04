@@ -6712,7 +6712,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let pendingAuthValidation = null;
     let faceScanAttempts = 0;
     let faceAutoScanInProgress = false;
+    let faceCameraPrimePromise = null;
     const FACE_SCAN_MAX_ATTEMPTS = 15;
+    const faceLoginMobileMedia = window.matchMedia?.('(max-width: 760px), (pointer: coarse)');
+    const isFaceLoginMobile = () => !!(faceLoginMobileMedia?.matches || /Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|EdgiOS|DuckDuckGo/i.test(navigator.userAgent || ''));
+    const faceDetectionOptions = () => window.faceapi
+      ? (isFaceLoginMobile()
+        ? new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 })
+        : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      : null;
     function revealFaceLogin(message, tone='error'){
       if(faceLoginPanel) faceLoginPanel.hidden = false;
       if(message) setFaceLoginStatus(message, tone);
@@ -6806,7 +6814,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     async function requestFaceLoginStream(){
-      const constraintsList = [
+      const mobile = isFaceLoginMobile();
+      const constraintsList = mobile ? [
+        { video:{ facingMode:{ ideal:'user' }, width:{ ideal:640 }, height:{ ideal:480 }, frameRate:{ ideal:24, max:30 } }, audio:false },
+        { video:{ facingMode:'user', width:{ ideal:480 }, height:{ ideal:360 } }, audio:false },
+        { video:{ width:{ ideal:480 }, height:{ ideal:360 } }, audio:false },
+        { video:true, audio:false }
+      ] : [
         { video:{ facingMode:{ ideal:'user' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false },
         { video:{ facingMode:'user' }, audio:false },
         { video:{ width:{ ideal:640 }, height:{ ideal:480 } }, audio:false },
@@ -6833,11 +6847,21 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         });
       } catch {}
     }
+    async function primeFaceLoginCameraFromGesture(){
+      if(pendingFaceDescriptor || faceStream?.getVideoTracks?.().some((track) => track.readyState === 'live')) return;
+      if(!navigator.mediaDevices?.getUserMedia) return;
+      faceCameraPrimePromise = startFaceLoginCamera({ primeOnly:true }).catch((error) => {
+        faceCameraPrimePromise = null;
+        throw error;
+      });
+      return faceCameraPrimePromise;
+    }
     async function runAutomaticFaceScan(reason='Touch-free scan starting. Center your face in the pop-up scanner.'){
       if(faceAutoScanInProgress) return;
       faceAutoScanInProgress = true;
       try {
         revealFaceLogin(reason, 'success');
+        if(faceCameraPrimePromise) await faceCameraPrimePromise.catch(() => {});
         await startFaceLoginCamera();
         playFaceScanSound('scan');
         await waitForFaceVideoFrame();
@@ -6864,13 +6888,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(faceModelsReady) return;
       if(!window.faceapi) throw new Error('Face recognition library is still loading. Try again in a moment.');
       await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
       ]);
       faceModelsReady = true;
     }
-    async function startFaceLoginCamera(){
+    async function startFaceLoginCamera({ primeOnly=false } = {}){
       await loadFaceLoginModels();
       if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser.');
       if(!faceStream || !faceStream.getVideoTracks().some((track) => track.readyState === 'live')) faceStream = await requestFaceLoginStream();
@@ -6887,14 +6912,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       await waitForFaceVideoFrame();
       faceCaptureBtn.disabled = false;
       updateFaceScanHud('ready');
-      revealFaceLogin('Camera ready. Center your face inside the scanner while CHAINeS auto-scans.', 'success');
+      if(!primeOnly) revealFaceLogin('Camera ready. Center your face inside the scanner while CHAINeS auto-scans.', 'success');
     }
     async function captureFaceDescriptor(){
       await startFaceLoginCamera();
       let detection = null;
       for(let attempt = 0; attempt < 5 && !detection; attempt += 1){
         await waitForFaceVideoFrame(2200);
-        detection = await faceapi.detectSingleFace(faceLoginVideo).withFaceLandmarks().withFaceDescriptor();
+        const options = faceDetectionOptions();
+        detection = await faceapi.detectSingleFace(faceLoginVideo, options).withFaceLandmarks().withFaceDescriptor();
         if(!detection) await new Promise(resolve => setTimeout(resolve, 450));
       }
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
@@ -6958,6 +6984,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      if(!pendingFaceDescriptor) primeFaceLoginCameraFromGesture().catch(() => {});
       const chain = selectedValidationChain();
       const validation = prevalidated === undefined ? (pendingAuthValidation || await ensureTokenValidated()) : prevalidated;
       if(chain && !validation){
@@ -7014,6 +7041,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
+      if(!pendingFaceDescriptor) primeFaceLoginCameraFromGesture().catch(() => {});
       const chain = selectedValidationChain();
       const validation = pendingAuthValidation || await ensureTokenValidated();
       if(chain && !validation){
