@@ -6712,7 +6712,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let pendingAuthValidation = null;
     let faceScanAttempts = 0;
     let faceAutoScanInProgress = false;
-    const FACE_SCAN_MAX_ATTEMPTS = 3;
+    const FACE_SCAN_MAX_ATTEMPTS = 15;
     function revealFaceLogin(message, tone='error'){
       if(faceLoginPanel) faceLoginPanel.hidden = false;
       if(message) setFaceLoginStatus(message, tone);
@@ -6795,7 +6795,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setTimeout(resolve, 900);
       });
     }
-    async function sendFaceScanFailureConfirmation(reason='Face validation failed after 3 scans.'){
+    async function sendFaceScanFailureConfirmation(reason=`Face validation failed after ${FACE_SCAN_MAX_ATTEMPTS} scans.`){
       const username = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       try {
         await fetch('/api/face/failed-confirmation', {
@@ -6826,7 +6826,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           setTimeout(() => runAutomaticFaceScan('Scan rejected. Touch-free rescan starting now.'), 900);
           return;
         }
-        setFaceLoginStatus(`${message} Three scans failed. Sending confirmation email and waiting for a new scan.`, 'error');
+        setFaceLoginStatus(`${message} ${FACE_SCAN_MAX_ATTEMPTS} scans failed. Sending confirmation email and waiting for a new scan.`, 'error');
         await sendFaceScanFailureConfirmation(message);
       } finally {
         faceAutoScanInProgress = false;
@@ -6955,7 +6955,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           pendingFaceDescriptor = null;
           if(faceScanAttempts >= FACE_SCAN_MAX_ATTEMPTS){
             await sendFaceScanFailureConfirmation(data?.error || 'Face validation failed.');
-            setFaceLoginStatus('Three scans failed. Confirmation email sent; start a new scan to try again.', 'error');
+            setFaceLoginStatus(`${FACE_SCAN_MAX_ATTEMPTS} scans failed. Confirmation email sent; start a new scan to try again.`, 'error');
             faceScanAttempts = 0;
           } else {
             setTimeout(() => runAutomaticFaceScan('Face rejected. Touch-free rescan starting now.'), 900);
