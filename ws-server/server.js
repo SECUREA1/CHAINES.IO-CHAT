@@ -966,6 +966,10 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     res.status(400).json({ error: "Missing fields" });
     return;
   }
+  if (!faceDescriptor) {
+    res.status(400).json({ error: "Face scan required", faceRequired: true });
+    return;
+  }
   const cleanUsername = sanitizeUsername(username);
   const existingUser = db.prepare("SELECT 1 FROM users WHERE username=?").get(cleanUsername);
   if (!cleanUsername || existingUser) {
@@ -996,6 +1000,10 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
+  if (!faceDescriptor) {
+    res.status(401).json({ error: "Face validation required", faceRequired: true });
+    return;
+  }
   if (sanitizeUsername(username) === ADMIN_ACCOUNT.username) {
     ensureAdminAccount();
   }
@@ -1013,25 +1021,28 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+  let incomingDescriptor;
+  try {
+    incomingDescriptor = normalizeFaceDescriptor(faceDescriptor);
+  } catch {
+    res.status(400).json({ error: "Invalid face validation data" });
+    return;
+  }
   if (dbUser.face_descriptor) {
-    if (!faceDescriptor) {
-      res.status(401).json({ error: "Face validation required", faceRequired: true });
-      return;
-    }
-    let incoming;
     let enrolled;
     try {
-      incoming = normalizeFaceDescriptor(faceDescriptor);
       enrolled = normalizeFaceDescriptor(dbUser.face_descriptor);
     } catch {
-      res.status(400).json({ error: "Invalid face validation data" });
+      res.status(400).json({ error: "Invalid enrolled face data" });
       return;
     }
-    const distance = faceDistance(incoming, enrolled);
+    const distance = faceDistance(incomingDescriptor, enrolled);
     if (distance > FACE_LOGIN_THRESHOLD) {
       res.status(401).json({ error: "Face validation failed", faceRequired: true, faceMatched: false });
       return;
     }
+  } else {
+    db.prepare("UPDATE users SET face_descriptor=? WHERE id=?").run(JSON.stringify(incomingDescriptor), dbUser.id);
   }
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
   profiles[dbUser.username] = { ...(memUser || {}), profilePic };

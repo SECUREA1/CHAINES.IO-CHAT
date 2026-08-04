@@ -19,10 +19,11 @@ async function startServer(){
   child.kill(); throw new Error('server did not start: '+output);
 }
 async function json(res){ return { status: res.status, headers: res.headers, body: await res.json().catch(()=>({})) }; }
+const faceDescriptor = JSON.stringify(Array.from({ length: 128 }, (_, index) => Number((index / 1000).toFixed(6))));
 
 test('register/login/session/memory are user scoped and cookie backed', async (t)=>{
   const srv = await startServer(); t.after(()=>srv.child.kill());
-  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'alice', password:'correct horse battery staple' }) }));
+  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'alice', password:'correct horse battery staple', faceDescriptor }) }));
   assert.equal(r.status, 200);
   const cookie = r.headers.get('set-cookie');
   assert.match(cookie, /chaines_session=/);
@@ -32,7 +33,7 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.status, 200); assert.equal(r.body.user.username, 'alice'); assert.equal(typeof r.body.user.id, 'number');
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { method:'PUT', headers:{ cookie, 'Content-Type':'application/json' }, body:JSON.stringify({ data:{ text:'draft A' } }) }));
   assert.equal(r.status, 200);
-  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'bob', password:'correct horse battery staple' }) }));
+  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'bob', password:'correct horse battery staple', faceDescriptor }) }));
   const bobCookie = r.headers.get('set-cookie');
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { headers:{ cookie:bobCookie } }));
   assert.equal(r.status, 404);
