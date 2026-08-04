@@ -2202,25 +2202,31 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         white-space:normal;
       }
     }
-    /* Keep the complete 8 + 8 launcher visible as one evenly spaced page. */
+    /* Keep both complete launcher sections visible and fluid at every viewport size. */
     .toolbar-overflow-panel {
-      overflow:hidden;
+      overflow-y:auto;
     }
     .toolbar-overflow-content {
-      flex:1 1 auto;
-      min-height:0;
+      display:grid;
+      flex:1 0 auto;
       grid-template-columns:repeat(2, minmax(0, 1fr));
-      align-items:stretch;
+      gap:clamp(10px, 2vw, 24px);
+      align-items:start;
     }
     .toolbar-overflow-group {
       display:flex;
-      min-height:0;
       flex-direction:column;
     }
     .toolbar-overflow-list {
-      flex:1 1 auto;
+      flex:0 0 auto;
       grid-template-columns:repeat(2, minmax(0, 1fr));
-      grid-template-rows:repeat(4, minmax(0, 1fr));
+      grid-auto-rows:auto;
+    }
+    .toolbar-overflow-group-title {
+      margin:0;
+      font-size:17px;
+      font-weight:850;
+      color:var(--text);
     }
     @media (max-width: 600px) {
       .toolbar-overflow-panel {
@@ -2235,7 +2241,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       .toolbar-overflow-list .menu-link-description { display:none; }
       .toolbar-overflow-content { gap:8px; }
       .toolbar-overflow-group { padding:8px; border-radius:14px; }
-      .toolbar-overflow-group summary { margin-bottom:6px; font-size:13px; text-align:center; }
+      .toolbar-overflow-group-title { margin-bottom:6px; font-size:13px; text-align:center; }
       .toolbar-overflow-list { gap:6px; }
       .toolbar-overflow-list .chip {
         min-height:0;
@@ -2250,6 +2256,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       .toolbar-overflow-list .menu-link-copy { align-items:center; }
       .toolbar-overflow-list .menu-link-title { font-size:10px; line-height:1.15; }
       .toolbar-overflow-close { flex-basis:36px; width:36px; height:36px; }
+    }
+    @media (max-width: 700px) {
+      .toolbar-overflow-content { grid-template-columns:minmax(0, 1fr); }
     }
   
 </style>
@@ -2340,8 +2349,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                     <button id="toolbar-overflow-close" class="chip toolbar-overflow-close" type="button" aria-label="Close explore menu">×</button>
                   </div>
                   <div class="toolbar-overflow-content">
-                  <details class="toolbar-overflow-group" open>
-                    <summary>Additional</summary>
+                  <section class="toolbar-overflow-group" aria-labelledby="additional-actions-title">
+                    <h3 id="additional-actions-title" class="toolbar-overflow-group-title">Additional actions</h3>
                     <p class="toolbar-overflow-group-note">Create, manage, and discover more across CHAINeS.</p>
                     <ul class="toolbar-overflow-list">
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
@@ -2350,17 +2359,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><a id="profile-page-menu-link" class="chip" href="/profile.html" title="Open your profile" aria-label="Open your profile"><img src="static/user.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Profile</span><span class="menu-link-description">Manage your creator identity and account activity.</span></span></a></li>
                       <li><a id="notifications-page-menu-link" class="chip" href="/profile.html#notifications-heading" title="Open notifications" aria-label="Open notifications"><img src="static/listeners.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Notifications</span><span class="menu-link-description">Review alerts, updates, and notification settings.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
-                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
-                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
-                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
-                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
-                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
-                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
-                  </details>
-                  <details class="toolbar-overflow-group" open>
-                    <summary>Cloud Links</summary>
+                  </section>
+                  <section class="toolbar-overflow-group" aria-labelledby="cloud-links-title">
+                    <h3 id="cloud-links-title" class="toolbar-overflow-group-title">Cloud Links</h3>
                     <p class="toolbar-overflow-group-note">Launch connected apps and partner experiences.</p>
                     <ul class="toolbar-overflow-list">
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
@@ -2372,7 +2374,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Gaming Demos</span><span class="menu-link-description">Play OMConsole gaming demos.</span></span></button></li>
                       <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Drone Engine</span><span class="menu-link-description">Open the drone engine investor model.</span></span></button></li>
                     </ul>
-                  </details>
+                  </section>
                   </div>
                 </div>
               </div>
@@ -2387,7 +2389,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 <button id="watchtower-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open watchtower live feeds" aria-label="Open Watchtower" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /></button>
                 <button id="chaines-ar-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Open CHAINeS AR Collectibles" aria-label="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /></button>
               </div>
-              <div id="toolbar-additional-desktop" class="toolbar-additional-desktop" aria-label="Desktop additional actions"></div>
             </div>
           </div>
         </div>
@@ -3282,11 +3283,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflow = el('#toolbar-overflow');
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarOverflowClose = el('#toolbar-overflow-close');
-    const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
-    const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'omconsole-btn', 'watchtower-btn', 'chaines-ar-btn']
-      .map(id => el(`#${id}`))
-      .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4428,22 +4424,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
-    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
-    function syncAdditionalButtonsLayout(){
-      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
-      const useDesktopHeader = desktopToolbarMedia.matches;
-      additionalButtons.forEach((btn) => {
-        if(useDesktopHeader){
-          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
-        } else {
-          const existingListItem = btn.closest('li');
-          if(existingListItem && existingListItem.parentElement === additionalList) return;
-          const li = document.createElement('li');
-          li.appendChild(btn);
-          additionalList.appendChild(li);
-        }
-      });
-    }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
       const isOpen = !!nextOpen;
@@ -4500,8 +4480,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     mobileToolbarMedia.addEventListener?.('change', syncToolbarLayout);
     syncToolbarLayout();
-    desktopToolbarMedia.addEventListener?.('change', syncAdditionalButtonsLayout);
-    syncAdditionalButtonsLayout();
     if(streamsFitBtn){
       streamsFitBtn.addEventListener('click', () => setStreamsFlexFit(!streamsFlexFit));
     }
