@@ -45,6 +45,7 @@
   --shadow:0 0 20px rgba(255,215,0,.4);
 }
 body{margin:0;padding:20px;background:var(--bg);color:var(--fg);font:15px/1.55 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 .profile{max-width:1120px;margin:0 auto;}
 .profile-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:color-mix(in oklab, var(--panel), transparent 25%);padding:14px;border-radius:12px;border:1px solid var(--lining);box-shadow:var(--shadow);backdrop-filter:blur(8px);}
 .profile-header img{width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--lining);}
@@ -79,6 +80,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
 .dating-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;}
 .admin-face-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px;}
+#admin-face-search{width:min(100%,360px);margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--lining);background:rgba(15,23,42,.45);color:var(--text);}
 .admin-face-card{display:grid;gap:8px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:rgba(15,23,42,.35);}
 .admin-face-card img,.admin-face-placeholder{width:100%;aspect-ratio:1/1;border-radius:12px;border:1px solid var(--lining);object-fit:cover;background:linear-gradient(135deg, rgba(0,198,255,.22), rgba(124,58,237,.18));}
 .admin-face-placeholder{display:grid;place-items:center;color:var(--muted);font-weight:700;text-align:center;padding:8px;box-sizing:border-box;}
@@ -352,9 +354,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <div class="section-card__header">
       <div>
         <h2 id="admin-face-gallery-heading">Stored facial recognition photos</h2>
-        <p class="section-help">Admin-only view of members with enrolled face recognition records.</p>
+        <p class="section-help">Admin-only view of members with enrolled face recognition records. Search active user face cards by username.</p>
       </div>
     </div>
+    <label class="sr-only" for="admin-face-search">Search facial recognition scans</label>
+    <input id="admin-face-search" type="search" placeholder="Search users by username…" autocomplete="off" />
     <div id="admin-face-gallery-list" class="admin-face-grid"></div>
   </section>
   <section class="section-card" aria-labelledby="connections-heading">
@@ -539,9 +543,11 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const profileRewardsBoard = document.getElementById('profile-rewards-board');
   const adminFaceGallery = document.getElementById('admin-face-gallery');
   const adminFaceGalleryList = document.getElementById('admin-face-gallery-list');
+  const adminFaceSearch = document.getElementById('admin-face-search');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
+  let adminFaceRecords = [];
   let activeTab = 'posts';
   const TOKEN_CURRENCY_META = {
     cardano: { currency: 'ADA', label: 'Cardano' },
@@ -561,6 +567,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   function renderAdminFaceGallery(faces, message = ''){
     if(!adminFaceGallery || !adminFaceGalleryList) return;
     adminFaceGallery.hidden = false;
+    const query = String(adminFaceSearch?.value || '').trim().toLowerCase();
+    const visibleFaces = Array.isArray(faces)
+      ? faces.filter((face) => !query || String(face?.username || '').toLowerCase().includes(query))
+      : [];
     adminFaceGalleryList.textContent = '';
     if(message){
       const note = document.createElement('div');
@@ -576,19 +586,26 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       adminFaceGalleryList.appendChild(empty);
       return;
     }
-    faces.forEach((face) => {
+    if(!visibleFaces.length){
+      const empty = document.createElement('div');
+      empty.className = 'calendar-muted';
+      empty.textContent = 'No facial recognition records match that username search.';
+      adminFaceGalleryList.appendChild(empty);
+      return;
+    }
+    visibleFaces.forEach((face) => {
       const card = document.createElement('article');
       card.className = 'admin-face-card';
       const username = String(face?.username || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24) || 'unknown';
-      if(face?.profilePic){
+      if(face?.faceScanImage){
         const img = document.createElement('img');
-        img.src = face.profilePic;
-        img.alt = `Stored face profile photo for @${username}`;
+        img.src = face.faceScanImage;
+        img.alt = `Stored facial recognition scan for @${username}`;
         card.appendChild(img);
       } else {
         const placeholder = document.createElement('div');
         placeholder.className = 'admin-face-placeholder';
-        placeholder.textContent = 'Face scan stored — no profile photo';
+        placeholder.textContent = 'Face scan vector stored — no scanned image saved yet';
         card.appendChild(placeholder);
       }
       const meta = document.createElement('div');
@@ -611,11 +628,14 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         return;
       }
       const data = await res.json().catch(() => ({}));
-      renderAdminFaceGallery(Array.isArray(data.faces) ? data.faces : []);
+      adminFaceRecords = Array.isArray(data.faces) ? data.faces : [];
+      renderAdminFaceGallery(adminFaceRecords);
     } catch {
       renderAdminFaceGallery([], 'Unable to load stored facial recognition records.');
     }
   }
+
+  adminFaceSearch?.addEventListener('input', () => renderAdminFaceGallery(adminFaceRecords));
 
   function rewardsStore(){
     const parsed = safeParse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}', {});
