@@ -271,7 +271,7 @@
     .toolbar-overflow-list .menu-link-title { font-weight:800; color:var(--text); }
     .toolbar-overflow-list .menu-link-description { max-width:220px; color:var(--muted); font-size:10px; font-weight:600; white-space:normal; }
     #toolbar-overflow-toggle { width:44px; height:36px; padding:0; justify-content:center; font-size:18px; font-weight:700; }
-    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #delivery-services-menu-link, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #chaines-ar-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
+    .toolbar-overflow-panel #marketplace-menu-btn, .toolbar-overflow-panel #streams-fit-btn, .toolbar-overflow-panel #theme-toggle, .toolbar-overflow-panel #video-toggle, .toolbar-overflow-panel #market-mode-toggle, .toolbar-overflow-panel #rewards-menu-btn, .toolbar-overflow-panel #watchtower-btn, .toolbar-overflow-panel #watchtower-cloud-link, .toolbar-overflow-panel #ioncore-store-link, .toolbar-overflow-panel #muzikaz-house-link, .toolbar-overflow-panel #omconsole-btn, .toolbar-overflow-panel #ioncore-btn, .toolbar-overflow-panel #rednode-btn, .toolbar-overflow-panel #voice3-btn, .toolbar-overflow-panel #omconsole-gaming-demos-btn, .toolbar-overflow-panel #drone-engine-btn, .toolbar-overflow-panel #chaines-ar-btn { width:100%; height:auto; padding:6px 10px; justify-content:flex-start; align-items:center; }
     .toolbar-primary { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; position:relative; z-index:var(--action-layer); }
     .toolbar-additional-desktop {
       display:none;
@@ -283,28 +283,17 @@
       z-index:var(--action-layer);
     }
     .toolbar-additional-desktop .chip {
-      width:auto;
-      min-width:36px;
+      width:36px;
       height:36px;
       min-height:36px;
-      padding:0 10px;
-      gap:6px;
-      flex:0 0 auto;
+      padding:0;
+      gap:0;
+      flex:0 0 36px;
       justify-content:center;
       white-space:nowrap;
       overflow:hidden;
-      font-size:12px;
+      font-size:0;
     }
-    .toolbar-additional-desktop .menu-link-copy {
-      display:inline-flex;
-      flex-direction:column;
-      align-items:flex-start;
-      gap:1px;
-      min-width:0;
-      line-height:1.1;
-    }
-    .toolbar-additional-desktop .menu-link-title { font-size:11px; font-weight:800; }
-    .toolbar-additional-desktop .menu-link-description { display:none; }
     .toolbar-primary .chip {
       min-width:0;
       max-width:100%;
@@ -2201,28 +2190,27 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                     <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
-                      <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
                       <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
-                      <li><button id="theme-toggle" class="chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Toggle dark or light mode.</span></span></button></li>
-                      <li><button id="video-toggle" class="chip" type="button" title="Toggle video and chat" aria-label="Toggle video and chat"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Video</span><span class="menu-link-description">Switch between streams and chat.</span></span></button></li>
-                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle marketplace view" aria-label="Toggle marketplace view"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
+                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
                       <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
-                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
-                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
-                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
                   </details>
                   <details class="toolbar-overflow-group" open>
                     <summary>Cloud Links</summary>
                     <ul class="toolbar-overflow-list">
+                      <li><button id="watchtower-btn" class="chip" type="button" title="Open secure watchtower live feeds" aria-pressed="false"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Open Watchtower</span><span class="menu-link-description">Secure live monitoring feeds.</span></span></button></li>
                       <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
                       <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
+                      <li><button id="omconsole-btn" class="chip" type="button" title="Open OMConsole"><img src="static/mascot.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">OMConsole</span><span class="menu-link-description">Control multimodal automation tools.</span></span></button></li>
                       <li><button id="ioncore-btn" class="chip" type="button" title="Open ION Core Energy page"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">ION Core Energy</span><span class="menu-link-description">Open the ION Core Energy website.</span></span></button></li>
                       <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/rednode.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rednode AI</span><span class="menu-link-description">Open rednode.ai intelligence tools.</span></span></button></li>
                       <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Voice3 App</span><span class="menu-link-description">Open the Voice3 audio app.</span></span></button></li>
                       <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Gaming Demos</span><span class="menu-link-description">Play OMConsole gaming demos.</span></span></button></li>
                       <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Drone Engine</span><span class="menu-link-description">Open the drone engine investor model.</span></span></button></li>
+                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
                   </details>
                 </div>
@@ -3144,28 +3132,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarOverflowToggle = el('#toolbar-overflow-toggle');
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
-    const cloudLinksList = toolbarOverflow ? toolbarOverflow.querySelectorAll('.toolbar-overflow-group .toolbar-overflow-list')[1] : null;
-    const desktopToolbarActionIds = [
-      'marketplace-menu-btn',
-      'delivery-services-menu-link',
-      'streams-fit-btn',
-      'theme-toggle',
-      'video-toggle',
-      'market-mode-toggle',
-      'rewards-menu-btn',
-      'watchtower-btn',
-      'omconsole-btn',
-      'chaines-ar-btn',
-      'watchtower-cloud-link',
-      'ioncore-store-link',
-      'muzikaz-house-link',
-      'ioncore-btn',
-      'rednode-btn',
-      'voice3-btn',
-      'omconsole-gaming-demos-btn',
-      'drone-engine-btn'
-    ];
-    const additionalButtons = desktopToolbarActionIds.map(id => el(`#${id}`)).filter(Boolean);
+    const additionalButtons = ['streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn']
+      .map(id => el(`#${id}`))
+      .filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4308,45 +4277,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
     const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
-    function syncDesktopToolbarProxy(proxy, source){
-      if(!proxy || !source) return;
-      proxy.innerHTML = source.innerHTML;
-      ['title', 'aria-label', 'aria-pressed', 'href', 'target', 'rel'].forEach((attr) => {
-        if(source.hasAttribute(attr)) proxy.setAttribute(attr, source.getAttribute(attr));
-        else proxy.removeAttribute(attr);
-      });
-    }
-    function createDesktopToolbarProxy(source){
-      const proxy = document.createElement(source.tagName.toLowerCase() === 'a' ? 'a' : 'button');
-      proxy.className = source.className;
-      proxy.classList.add('toolbar-desktop-proxy');
-      proxy.dataset.proxyFor = source.id;
-      if(proxy.tagName.toLowerCase() === 'button') proxy.type = 'button';
-      syncDesktopToolbarProxy(proxy, source);
-      proxy.addEventListener('click', (event) => {
-        event.preventDefault();
-        source.click();
-      });
-      new MutationObserver(() => syncDesktopToolbarProxy(proxy, source)).observe(source, {
-        attributes: true,
-        childList: true,
-        subtree: true,
-        attributeFilter: ['title', 'aria-label', 'aria-pressed', 'href', 'target', 'rel']
-      });
-      return proxy;
-    }
     function syncAdditionalButtonsLayout(){
-      if(!toolbarAdditionalDesktop || !additionalButtons.length) return;
-      toolbarAdditionalDesktop.hidden = !desktopToolbarMedia.matches;
-      if(!desktopToolbarMedia.matches) return;
-      const existing = new Map(Array.from(toolbarAdditionalDesktop.querySelectorAll('[data-proxy-for]')).map(btn => [btn.dataset.proxyFor, btn]));
+      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
+      const useDesktopHeader = desktopToolbarMedia.matches;
       additionalButtons.forEach((btn) => {
-        let proxy = existing.get(btn.id);
-        if(!proxy){
-          proxy = createDesktopToolbarProxy(btn);
-          toolbarAdditionalDesktop.appendChild(proxy);
+        if(useDesktopHeader){
+          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
         } else {
-          syncDesktopToolbarProxy(proxy, btn);
+          const existingListItem = btn.closest('li');
+          if(existingListItem && existingListItem.parentElement === additionalList) return;
+          const li = document.createElement('li');
+          li.appendChild(btn);
+          additionalList.appendChild(li);
         }
       });
     }
