@@ -283,28 +283,28 @@
       z-index:var(--action-layer);
     }
     .toolbar-additional-desktop .chip {
-      width:36px;
+      width:auto;
+      min-width:36px;
       height:36px;
       min-height:36px;
-      padding:0;
-      gap:0;
-      flex:0 0 36px;
+      padding:0 10px;
+      gap:6px;
+      flex:0 0 auto;
       justify-content:center;
       white-space:nowrap;
       overflow:hidden;
-      font-size:0;
+      font-size:12px;
     }
     .toolbar-additional-desktop .menu-link-copy {
-      position:absolute;
-      width:1px;
-      height:1px;
-      padding:0;
-      margin:-1px;
-      overflow:hidden;
-      clip:rect(0, 0, 0, 0);
-      white-space:nowrap;
-      border:0;
+      display:inline-flex;
+      flex-direction:column;
+      align-items:flex-start;
+      gap:1px;
+      min-width:0;
+      line-height:1.1;
     }
+    .toolbar-additional-desktop .menu-link-title { font-size:11px; font-weight:800; }
+    .toolbar-additional-desktop .menu-link-description { display:none; }
     .toolbar-primary .chip {
       min-width:0;
       max-width:100%;
@@ -3145,9 +3145,27 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const toolbarAdditionalDesktop = el('#toolbar-additional-desktop');
     const additionalList = toolbarOverflow ? toolbarOverflow.querySelector('.toolbar-overflow-group .toolbar-overflow-list') : null;
     const cloudLinksList = toolbarOverflow ? toolbarOverflow.querySelectorAll('.toolbar-overflow-group .toolbar-overflow-list')[1] : null;
-    const additionalButtons = ['marketplace-menu-btn', 'delivery-services-menu-link', 'streams-fit-btn', 'theme-toggle', 'video-toggle', 'market-mode-toggle', 'rewards-menu-btn', 'watchtower-btn', 'omconsole-btn', 'chaines-ar-btn']
-      .map(id => el(`#${id}`))
-      .filter(Boolean);
+    const desktopToolbarActionIds = [
+      'marketplace-menu-btn',
+      'delivery-services-menu-link',
+      'streams-fit-btn',
+      'theme-toggle',
+      'video-toggle',
+      'market-mode-toggle',
+      'rewards-menu-btn',
+      'watchtower-btn',
+      'omconsole-btn',
+      'chaines-ar-btn',
+      'watchtower-cloud-link',
+      'ioncore-store-link',
+      'muzikaz-house-link',
+      'ioncore-btn',
+      'rednode-btn',
+      'voice3-btn',
+      'omconsole-gaming-demos-btn',
+      'drone-engine-btn'
+    ];
+    const additionalButtons = desktopToolbarActionIds.map(id => el(`#${id}`)).filter(Boolean);
     const ghostBtn = el('#ghost-btn');
     const rewardsMenuBtn = el('#rewards-menu-btn');
     const rewardsMenuBtnMobile = el('#rewards-menu-btn-mobile');
@@ -4290,32 +4308,47 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
     const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
+    function syncDesktopToolbarProxy(proxy, source){
+      if(!proxy || !source) return;
+      proxy.innerHTML = source.innerHTML;
+      ['title', 'aria-label', 'aria-pressed', 'href', 'target', 'rel'].forEach((attr) => {
+        if(source.hasAttribute(attr)) proxy.setAttribute(attr, source.getAttribute(attr));
+        else proxy.removeAttribute(attr);
+      });
+    }
+    function createDesktopToolbarProxy(source){
+      const proxy = document.createElement(source.tagName.toLowerCase() === 'a' ? 'a' : 'button');
+      proxy.className = source.className;
+      proxy.classList.add('toolbar-desktop-proxy');
+      proxy.dataset.proxyFor = source.id;
+      if(proxy.tagName.toLowerCase() === 'button') proxy.type = 'button';
+      syncDesktopToolbarProxy(proxy, source);
+      proxy.addEventListener('click', (event) => {
+        event.preventDefault();
+        source.click();
+      });
+      new MutationObserver(() => syncDesktopToolbarProxy(proxy, source)).observe(source, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['title', 'aria-label', 'aria-pressed', 'href', 'target', 'rel']
+      });
+      return proxy;
+    }
     function syncAdditionalButtonsLayout(){
-      if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
-      const useDesktopHeader = desktopToolbarMedia.matches;
+      if(!toolbarAdditionalDesktop || !additionalButtons.length) return;
+      toolbarAdditionalDesktop.hidden = !desktopToolbarMedia.matches;
+      if(!desktopToolbarMedia.matches) return;
+      const existing = new Map(Array.from(toolbarAdditionalDesktop.querySelectorAll('[data-proxy-for]')).map(btn => [btn.dataset.proxyFor, btn]));
       additionalButtons.forEach((btn) => {
-        if(useDesktopHeader){
-          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
+        let proxy = existing.get(btn.id);
+        if(!proxy){
+          proxy = createDesktopToolbarProxy(btn);
+          toolbarAdditionalDesktop.appendChild(proxy);
         } else {
-          const existingListItem = btn.closest('li');
-          if(existingListItem && existingListItem.parentElement === additionalList) return;
-          const li = document.createElement('li');
-          li.appendChild(btn);
-          additionalList.appendChild(li);
+          syncDesktopToolbarProxy(proxy, btn);
         }
       });
-      if(cloudLinksList){
-        ['watchtower-cloud-link', 'ioncore-store-link', 'muzikaz-house-link', 'ioncore-btn', 'rednode-btn', 'voice3-btn', 'omconsole-gaming-demos-btn', 'drone-engine-btn']
-          .map(id => el(`#${id}`))
-          .filter(Boolean)
-          .forEach((btn) => {
-            const existingListItem = btn.closest('li');
-            if(existingListItem && existingListItem.parentElement === cloudLinksList) return;
-            const li = document.createElement('li');
-            li.appendChild(btn);
-            cloudLinksList.appendChild(li);
-          });
-      }
     }
     function setToolbarOpen(nextOpen){
       if(!toolbarShell || !toolbarToggle || !toolbarPanel) return;
