@@ -78,7 +78,8 @@ db.exec(`
     password TEXT,
     profile_pic TEXT,
     description TEXT,
-    face_descriptor TEXT
+    face_descriptor TEXT,
+    face_scan_image TEXT
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -188,6 +189,7 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN face_descriptor TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN face_scan_image TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
@@ -273,6 +275,21 @@ function faceDistance(a, b) {
 }
 
 const FACE_LOGIN_THRESHOLD = Number(process.env.FACE_LOGIN_THRESHOLD || 0.52);
+const FACE_SCAN_IMAGE_MAX_BYTES = Number(process.env.FACE_SCAN_IMAGE_MAX_BYTES || 750_000);
+
+function normalizeFaceScanImage(value) {
+  if (value == null || value === "") return null;
+  const image = String(value);
+  if (!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image)) {
+    throw new Error("Face scan image must be a PNG, JPEG, or WEBP data URL");
+  }
+  const base64 = image.slice(image.indexOf(",") + 1);
+  const bytes = Buffer.byteLength(base64, "base64");
+  if (!bytes || bytes > FACE_SCAN_IMAGE_MAX_BYTES) {
+    throw new Error("Face scan image is too large");
+  }
+  return image;
+}
 
 function safeMemoryPayload(body = {}) { const json = JSON.stringify(body ?? {}); if (json.length > 65536) throw new Error("Memory payload too large"); return json; }
 
@@ -1013,7 +1030,7 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", rateLimit("register", 5), upload.single("profile"), async (req, res) => {
-  const { username, password, faceDescriptor } = req.body || {};
+  const { username, password, faceDescriptor, faceScanImage } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -1034,9 +1051,10 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     if (req.file) pic = "/static/profiles/" + req.file.filename;
     let faceJson = null;
     if (faceDescriptor) faceJson = JSON.stringify(normalizeFaceDescriptor(faceDescriptor));
+    const scanImage = normalizeFaceScanImage(faceScanImage);
     const info = db.prepare(
-      "INSERT INTO users (username, password, profile_pic, face_descriptor) VALUES (?,?,?,?)"
-    ).run(cleanUsername, hash, pic, faceJson);
+      "INSERT INTO users (username, password, profile_pic, face_descriptor, face_scan_image) VALUES (?,?,?,?,?)"
+    ).run(cleanUsername, hash, pic, faceJson, scanImage);
     profiles[cleanUsername] = { profilePic: pic, description: null };
     saveProfiles();
     const session = createSession(res, Number(info.lastInsertRowid));
@@ -1047,7 +1065,7 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
 });
 
 app.post("/login", rateLimit("login", 8), async (req, res) => {
-  const { username, password, faceDescriptor } = req.body || {};
+  const { username, password, faceDescriptor, faceScanImage } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -1080,6 +1098,13 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     res.status(400).json({ error: "Invalid face validation data" });
     return;
   }
+  let scanImage = null;
+  try {
+    scanImage = normalizeFaceScanImage(faceScanImage);
+  } catch {
+    res.status(400).json({ error: "Invalid face scan image" });
+    return;
+  }
   if (dbUser.face_descriptor) {
     let enrolled;
     try {
@@ -1093,9 +1118,10 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
       res.status(401).json({ error: "Face validation failed", faceRequired: true, faceMatched: false });
       return;
     }
-  } else {
-    db.prepare("UPDATE users SET face_descriptor=? WHERE id=?").run(JSON.stringify(incomingDescriptor), dbUser.id);
   }
+  db.prepare(
+    "UPDATE users SET face_descriptor=COALESCE(face_descriptor, ?), face_scan_image=COALESCE(?, face_scan_image) WHERE id=?"
+  ).run(JSON.stringify(incomingDescriptor), scanImage, dbUser.id);
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
   profiles[dbUser.username] = { ...(memUser || {}), profilePic };
   saveProfiles();
@@ -1118,7 +1144,7 @@ app.post("/api/face/failed-confirmation", rateLimit("face-failed-confirmation", 
 app.get("/api/admin/faces", requireAdminSession, (req, res) => {
   const rows = db
     .prepare(
-      `SELECT username, profile_pic, description,
+      `SELECT username, profile_pic, description, face_scan_image,
               CASE WHEN face_descriptor IS NOT NULL AND face_descriptor != '' THEN 1 ELSE 0 END AS enrolled
        FROM users
        WHERE face_descriptor IS NOT NULL AND face_descriptor != ''
@@ -1128,6 +1154,7 @@ app.get("/api/admin/faces", requireAdminSession, (req, res) => {
   res.json({
     faces: rows.map((row) => ({
       username: row.username,
+      faceScanImage: row.face_scan_image || null,
       profilePic: row.profile_pic || profiles[row.username]?.profilePic || null,
       description: row.description || profiles[row.username]?.description || null,
       enrolled: Boolean(row.enrolled),
@@ -1143,14 +1170,20 @@ app.get("/api/face/status/:username", rateLimit("face-status", 30), (req, res) =
 });
 
 app.post("/api/face/enroll", rateLimit("face-enroll", 8), requireSession, (req, res) => {
-  const { faceDescriptor } = req.body || {};
+  const { faceDescriptor, faceScanImage } = req.body || {};
   let descriptor;
   try {
     descriptor = normalizeFaceDescriptor(faceDescriptor);
   } catch {
     return res.status(400).json({ error: "Invalid face descriptor" });
   }
-  db.prepare("UPDATE users SET face_descriptor=? WHERE id=?").run(JSON.stringify(descriptor), req.session.user.id);
+  let scanImage = null;
+  try {
+    scanImage = normalizeFaceScanImage(faceScanImage);
+  } catch {
+    return res.status(400).json({ error: "Invalid face scan image" });
+  }
+  db.prepare("UPDATE users SET face_descriptor=?, face_scan_image=COALESCE(?, face_scan_image) WHERE id=?").run(JSON.stringify(descriptor), scanImage, req.session.user.id);
   res.json({ success: true, enrolled: true });
 });
 

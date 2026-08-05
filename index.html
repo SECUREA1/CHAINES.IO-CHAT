@@ -6701,6 +6701,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let faceModelsReady = false;
     let faceStream = null;
     let pendingFaceDescriptor = null;
+    let pendingFaceScanImage = null;
     let pendingAuthAction = null;
     let pendingAuthValidation = null;
     let faceScanAttempts = 0;
@@ -6735,6 +6736,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function concealFaceLogin(){
       if(faceLoginPanel) faceLoginPanel.hidden = true;
       pendingFaceDescriptor = null;
+      pendingFaceScanImage = null;
       pendingAuthAction = null;
       pendingAuthValidation = null;
       faceScanAttempts = 0;
@@ -6802,6 +6804,26 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         });
         setTimeout(() => ctx.close().catch(() => {}), 900);
       } catch {}
+    }
+    function captureFaceScanImage(){
+      if(!faceLoginVideo || !faceLoginVideo.videoWidth || !faceLoginVideo.videoHeight) return null;
+      try {
+        const maxSize = 420;
+        const scale = Math.min(1, maxSize / Math.max(faceLoginVideo.videoWidth, faceLoginVideo.videoHeight));
+        const width = Math.max(1, Math.round(faceLoginVideo.videoWidth * scale));
+        const height = Math.max(1, Math.round(faceLoginVideo.videoHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if(!ctx) return null;
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(faceLoginVideo, 0, 0, width, height);
+        return canvas.toDataURL('image/jpeg', 0.72);
+      } catch {
+        return null;
+      }
     }
     function waitForFaceVideoFrame(timeoutMs = 1800){
       return new Promise((resolve) => {
@@ -6939,6 +6961,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
       pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
+      pendingFaceScanImage = captureFaceScanImage();
       faceEnrollBtn.disabled = !store.user;
       updateFaceScanHud('captured', pendingFaceDescriptor);
       setFaceLoginStatus('Face vector captured. Finishing your credential-approved entry now…', 'success');
@@ -7011,7 +7034,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass, faceDescriptor: pendingFaceDescriptor })
+        body: JSON.stringify({ username: name, password: pass, faceDescriptor: pendingFaceDescriptor, faceScanImage: pendingFaceScanImage })
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
@@ -7073,6 +7096,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       fd.append('password', pass);
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       if(pendingFaceDescriptor) fd.append('faceDescriptor', JSON.stringify(pendingFaceDescriptor));
+      if(pendingFaceScanImage) fd.append('faceScanImage', pendingFaceScanImage);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
         if(chain){
@@ -7115,7 +7139,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       e.preventDefault();
       try {
         const descriptor = pendingFaceDescriptor || await captureFaceDescriptor();
-        const res = await fetch('/api/face/enroll', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ faceDescriptor: descriptor }) });
+        const res = await fetch('/api/face/enroll', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ faceDescriptor: descriptor, faceScanImage: pendingFaceScanImage }) });
         const data = await res.json().catch(()=>({}));
         if(!res.ok) throw new Error(data.error || 'Face enrollment failed.');
         setFaceLoginStatus('Face enrolled. Future password logins for this account require a matching face.', 'success');

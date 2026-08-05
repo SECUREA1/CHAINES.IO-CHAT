@@ -20,10 +20,11 @@ async function startServer(){
 }
 async function json(res){ return { status: res.status, headers: res.headers, body: await res.json().catch(()=>({})) }; }
 const faceDescriptor = JSON.stringify(Array.from({ length: 128 }, (_, index) => Number((index / 1000).toFixed(6))));
+const faceScanImage = 'data:image/jpeg;base64,' + Buffer.from('mock scanned facial recognition image').toString('base64');
 
 test('register/login/session/memory are user scoped and cookie backed', async (t)=>{
   const srv = await startServer(); t.after(()=>srv.child.kill());
-  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'alice', password:'correct horse battery staple', faceDescriptor }) }));
+  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'alice', password:'correct horse battery staple', faceDescriptor, faceScanImage }) }));
   assert.equal(r.status, 200);
   const cookie = r.headers.get('set-cookie');
   assert.match(cookie, /chaines_session=/);
@@ -33,7 +34,7 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.status, 200); assert.equal(r.body.user.username, 'alice'); assert.equal(typeof r.body.user.id, 'number');
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { method:'PUT', headers:{ cookie, 'Content-Type':'application/json' }, body:JSON.stringify({ data:{ text:'draft A' } }) }));
   assert.equal(r.status, 200);
-  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'bob', password:'correct horse battery staple', faceDescriptor }) }));
+  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'bob', password:'correct horse battery staple', faceDescriptor, faceScanImage }) }));
   const bobCookie = r.headers.get('set-cookie');
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { headers:{ cookie:bobCookie } }));
   assert.equal(r.status, 404);
@@ -48,12 +49,15 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.status, 401);
   r = await json(await fetch(srv.base+'/api/admin/faces', { headers:{ cookie:bobCookie } }));
   assert.equal(r.status, 403);
-  r = await json(await fetch(srv.base+'/login', { method:'POST', body:new URLSearchParams({ username:'admin', password:'test-admin-secret', faceDescriptor }) }));
+  r = await json(await fetch(srv.base+'/login', { method:'POST', body:new URLSearchParams({ username:'admin', password:'test-admin-secret', faceDescriptor, faceScanImage }) }));
   assert.equal(r.status, 200);
   const adminCookie = r.headers.get('set-cookie');
   r = await json(await fetch(srv.base+'/api/admin/faces', { headers:{ cookie:adminCookie } }));
   assert.equal(r.status, 200);
-  assert(r.body.faces.some((face) => face.username === 'alice' && face.enrolled === true));
+  const aliceFace = r.body.faces.find((face) => face.username === 'alice');
+  assert(aliceFace);
+  assert.equal(aliceFace.enrolled, true);
+  assert.equal(aliceFace.faceScanImage, faceScanImage);
 });
 
 test('source does not contain removed hardcoded credentials', ()=>{
