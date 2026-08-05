@@ -43,6 +43,17 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.status, 200);
   r = await json(await fetch(srv.base+'/api/session', { headers:{ cookie } }));
   assert.equal(r.status, 401);
+
+  r = await json(await fetch(srv.base+'/api/admin/faces'));
+  assert.equal(r.status, 401);
+  r = await json(await fetch(srv.base+'/api/admin/faces', { headers:{ cookie:bobCookie } }));
+  assert.equal(r.status, 403);
+  r = await json(await fetch(srv.base+'/login', { method:'POST', body:new URLSearchParams({ username:'admin', password:'test-admin-secret', faceDescriptor }) }));
+  assert.equal(r.status, 200);
+  const adminCookie = r.headers.get('set-cookie');
+  r = await json(await fetch(srv.base+'/api/admin/faces', { headers:{ cookie:adminCookie } }));
+  assert.equal(r.status, 200);
+  assert(r.body.faces.some((face) => face.username === 'alice' && face.enrolled === true));
 });
 
 test('source does not contain removed hardcoded credentials', ()=>{

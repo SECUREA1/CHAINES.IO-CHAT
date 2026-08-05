@@ -239,6 +239,13 @@ function createSession(res, userId) { const token = crypto.randomBytes(32).toStr
 function loadSession(req) { const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE]; if (!token) return null; const row = db.prepare(`SELECT s.*, u.username, u.profile_pic, u.description FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL`).get(hashToken(token)); if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null; const last = new Date(row.last_seen_at).getTime() || 0; if (Date.now() - last > SESSION_REFRESH_MS) db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), row.id); return { id: row.id, user: { id: row.user_id, username: row.username, profilePic: row.profile_pic || null, verified: true, description: row.description || null }, expiresAt: row.expires_at, tokenHash: row.token_hash }; }
 function attachSession(req, _res, next) { req.session = loadSession(req); next(); }
 function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
+function requireAdminSession(req, res, next) {
+  if (!req.session) return res.status(401).json({ error: "Authentication required" });
+  if (sanitizeUsername(req.session.user?.username || "") !== ADMIN_ACCOUNT.username) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
 function publicSession(req) { return req.session ? { user: req.session.user, expiresAt: req.session.expiresAt } : null; }
 function validNamespace(ns="") { return /^[a-z0-9][a-z0-9-]{0,63}$/.test(String(ns)); }
 
@@ -1105,6 +1112,27 @@ app.post("/api/face/failed-confirmation", rateLimit("face-failed-confirmation", 
   const reason = String(payload.reason || "Face validation failed after three scans.").slice(0, 500);
   const result = await sendFaceScanFailureEmail({ username, attempts, reason });
   res.json({ success: true, email: result });
+});
+
+
+app.get("/api/admin/faces", requireAdminSession, (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT username, profile_pic, description,
+              CASE WHEN face_descriptor IS NOT NULL AND face_descriptor != '' THEN 1 ELSE 0 END AS enrolled
+       FROM users
+       WHERE face_descriptor IS NOT NULL AND face_descriptor != ''
+       ORDER BY username COLLATE NOCASE ASC`
+    )
+    .all();
+  res.json({
+    faces: rows.map((row) => ({
+      username: row.username,
+      profilePic: row.profile_pic || profiles[row.username]?.profilePic || null,
+      description: row.description || profiles[row.username]?.description || null,
+      enrolled: Boolean(row.enrolled),
+    })),
+  });
 });
 
 app.get("/api/face/status/:username", rateLimit("face-status", 30), (req, res) => {

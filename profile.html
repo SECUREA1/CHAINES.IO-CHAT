@@ -74,6 +74,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 .relation-list{list-style:none;margin:0;padding:0;}
 .relation-item{padding:6px 8px;border:1px solid var(--lining);border-radius:10px;margin-bottom:6px;background:color-mix(in oklab, var(--panel), transparent 25%);}
 .dating-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;}
+.admin-face-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px;}
+.admin-face-card{display:grid;gap:8px;padding:10px;border:1px solid var(--lining);border-radius:12px;background:rgba(15,23,42,.35);}
+.admin-face-card img,.admin-face-placeholder{width:100%;aspect-ratio:1/1;border-radius:12px;border:1px solid var(--lining);object-fit:cover;background:linear-gradient(135deg, rgba(0,198,255,.22), rgba(124,58,237,.18));}
+.admin-face-placeholder{display:grid;place-items:center;color:var(--muted);font-weight:700;text-align:center;padding:8px;box-sizing:border-box;}
+.admin-face-meta{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;}
+.admin-face-meta a{color:var(--accent);font-weight:700;text-decoration:none;}
+.admin-face-status{color:#bbf7d0;font-size:12px;}
 .verified-badge{
   display:inline-flex;
   align-items:center;
@@ -337,6 +344,15 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     <h4 style="margin:12px 0 8px;">Leaderboard</h4>
     <ul id="profile-rewards-board" class="rewards-board"></ul>
   </section>
+  <section id="admin-face-gallery" class="section-card" aria-labelledby="admin-face-gallery-heading" hidden>
+    <div class="section-card__header">
+      <div>
+        <h2 id="admin-face-gallery-heading">Stored facial recognition photos</h2>
+        <p class="section-help">Admin-only view of members with enrolled face recognition records.</p>
+      </div>
+    </div>
+    <div id="admin-face-gallery-list" class="admin-face-grid"></div>
+  </section>
   <section class="section-card" aria-labelledby="connections-heading">
     <div class="section-card__header">
       <div>
@@ -517,6 +533,8 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const profileRewardsBreakdown = document.getElementById('profile-rewards-breakdown');
   const profileRewardsLog = document.getElementById('profile-rewards-log');
   const profileRewardsBoard = document.getElementById('profile-rewards-board');
+  const adminFaceGallery = document.getElementById('admin-face-gallery');
+  const adminFaceGalleryList = document.getElementById('admin-face-gallery-list');
   const tabs = [...document.querySelectorAll('#feed-tabs .tab-btn')];
 
   let profileData = null;
@@ -533,6 +551,67 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   const PROFILE_ENTRY_WALLETS_KEY = 'chaines_profile_entry_wallets_v1';
   const PROFILE_AIRDROP_WALLETS_KEY = 'chaines_profile_airdrop_wallets_v1';
   const REWARDS_STORAGE_KEY = 'chaines_rewards_v1';
+  const ADMIN_USERNAME = 'admin';
+
+
+  function renderAdminFaceGallery(faces, message = ''){
+    if(!adminFaceGallery || !adminFaceGalleryList) return;
+    adminFaceGallery.hidden = false;
+    adminFaceGalleryList.textContent = '';
+    if(message){
+      const note = document.createElement('div');
+      note.className = 'calendar-muted';
+      note.textContent = message;
+      adminFaceGalleryList.appendChild(note);
+      return;
+    }
+    if(!Array.isArray(faces) || !faces.length){
+      const empty = document.createElement('div');
+      empty.className = 'calendar-muted';
+      empty.textContent = 'No members have enrolled a facial recognition scan yet.';
+      adminFaceGalleryList.appendChild(empty);
+      return;
+    }
+    faces.forEach((face) => {
+      const card = document.createElement('article');
+      card.className = 'admin-face-card';
+      const username = String(face?.username || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24) || 'unknown';
+      if(face?.profilePic){
+        const img = document.createElement('img');
+        img.src = face.profilePic;
+        img.alt = `Stored face profile photo for @${username}`;
+        card.appendChild(img);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'admin-face-placeholder';
+        placeholder.textContent = 'Face scan stored — no profile photo';
+        card.appendChild(placeholder);
+      }
+      const meta = document.createElement('div');
+      meta.className = 'admin-face-meta';
+      meta.innerHTML = `<a href="/profile.html?user=${encodeURIComponent(username)}">@${username}</a><span class="admin-face-status">Enrolled</span>`;
+      card.appendChild(meta);
+      adminFaceGalleryList.appendChild(card);
+    });
+  }
+
+  async function loadAdminFaceGallery(){
+    if(!adminFaceGallery || !adminFaceGalleryList) return;
+    adminFaceGallery.hidden = false;
+    renderAdminFaceGallery([], 'Loading stored facial recognition records…');
+    try {
+      const res = await fetch('/api/admin/faces', { credentials: 'include' });
+      if(!res.ok){
+        const err = await res.json().catch(() => ({}));
+        renderAdminFaceGallery([], err.error || 'Unable to load stored facial recognition records.');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      renderAdminFaceGallery(Array.isArray(data.faces) ? data.faces : []);
+    } catch {
+      renderAdminFaceGallery([], 'Unable to load stored facial recognition records.');
+    }
+  }
 
   function rewardsStore(){
     const parsed = safeParse(localStorage.getItem(REWARDS_STORAGE_KEY) || '{}', {});
@@ -1773,6 +1852,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     settingsSection.hidden = true;
     calendarPanel.hidden = true;
     airdropWalletSection.hidden = true;
+    if(adminFaceGallery) adminFaceGallery.hidden = true;
   }
 
   pushToggle.addEventListener('change', async () => {
@@ -1963,6 +2043,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         setTimeout(() => deliveryWindow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
       }
       renderCalendar(currentUser, true);
+      if(currentUser === ADMIN_USERNAME) loadAdminFaceGallery();
     }
     renderFeed();
   }
