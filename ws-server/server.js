@@ -409,7 +409,10 @@ function visitNotificationText(page = "/") {
 }
 
 async function sendVisitEmail(text) {
-  if (!RESEND_API_KEY || !VISIT_NOTIFICATION_EMAIL) return { skipped: true };
+  if (!RESEND_API_KEY || !VISIT_NOTIFICATION_EMAIL) {
+    console.warn("[visit-notification] Email skipped: RESEND_API_KEY or VISIT_NOTIFICATION_EMAIL is not configured");
+    return { skipped: true };
+  }
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
@@ -420,12 +423,16 @@ async function sendVisitEmail(text) {
       text,
     }),
   });
-  if (!response.ok) throw new Error(`Resend returned ${response.status}`);
+  if (!response.ok) {
+    const details = (await response.text()).slice(0, 500);
+    throw new Error(`Resend returned ${response.status}: ${details}`);
+  }
   return { sent: true };
 }
 
 async function sendVisitSms(text) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_PHONE || !VISIT_NOTIFICATION_PHONE) {
+    console.warn("[visit-notification] SMS skipped: Twilio credentials, sender, or destination is not configured");
     return { skipped: true };
   }
   const body = new URLSearchParams({ To: VISIT_NOTIFICATION_PHONE, From: TWILIO_FROM_PHONE, Body: text });
@@ -437,7 +444,10 @@ async function sendVisitSms(text) {
     },
     body,
   });
-  if (!response.ok) throw new Error(`Twilio returned ${response.status}`);
+  if (!response.ok) {
+    const details = (await response.text()).slice(0, 500);
+    throw new Error(`Twilio returned ${response.status}: ${details}`);
+  }
   return { sent: true };
 }
 

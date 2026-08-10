@@ -78,6 +78,16 @@ test('site-open reports are accepted and entry pages load the notifier', async (
 
   const page = await (await fetch(srv.base+'/')).text();
   assert.match(page, /\/static\/visit-notifier\.js/);
+
+  const notifier = fs.readFileSync(path.join(root, 'static', 'visit-notifier.js'), 'utf8');
+  assert.match(notifier, /https:\/\/chaines-chat-ws\.onrender\.com/);
+
+  const blueprint = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');
+  assert.match(blueprint, /VISIT_NOTIFICATION_EMAIL\s*\n\s*value: chadolthofedx@gmail\.com/);
+  assert.match(blueprint, /VISIT_NOTIFICATION_PHONE\s*\n\s*value: ["']?\+15194760080/);
+  for (const secret of ['RESEND_API_KEY', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_PHONE']) {
+    assert.match(blueprint, new RegExp(`key: ${secret}\\s*\\n\\s*sync: false`));
+  }
 });
 
 test('facial recognition is an explicit, reversible sign-in choice', async (t)=>{

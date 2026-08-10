@@ -144,6 +144,11 @@ email notification. To also send an SMS, configure `TWILIO_ACCOUNT_SID`,
 `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_PHONE`. The destination values are
 `VISIT_NOTIFICATION_EMAIL` and `VISIT_NOTIFICATION_PHONE` (in E.164 format).
 Notification delivery runs asynchronously so it does not delay page loading.
+The Render blueprint wires the destination email and phone into the WebSocket
+service and prompts for the Resend and Twilio secrets during the initial
+Blueprint deploy. `RECEIPT_FROM_EMAIL` must use a sender/domain authorized by
+the configured Resend account, and `TWILIO_FROM_PHONE` must be an SMS-capable
+sender in the configured Twilio account.
 
 ## Secure sessions and CHAINeS Memory Bank
 
