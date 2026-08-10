@@ -1173,7 +1173,7 @@
     .send:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Auth screen */
-    .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:flex-start; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow-y:auto; overflow-x:hidden; padding:12px 0; }
+    .auth { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter:blur(4px); overflow:hidden; padding:clamp(8px, 2vh, 18px); }
     .privacy-choice { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(2,8,23,.78); backdrop-filter:blur(12px); }
     .privacy-choice__card { width:min(520px, 100%); padding:28px; border:1px solid var(--lining); border-radius:24px; background:var(--panel); box-shadow:0 24px 80px rgba(0,0,0,.5); }
     .privacy-choice__card h2 { margin:0 0 10px; font-size:26px; }
@@ -1181,9 +1181,12 @@
     .privacy-choice__actions { display:grid; gap:10px; margin-top:20px; }
     .privacy-choice__actions .btn { min-height:48px; }
     .privacy-choice__note { display:block; margin-top:14px; color:var(--muted); font-size:12px; }
-    .face-preference { display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--lining); border-radius:12px; color:var(--fg); }
-    .face-preference input { width:auto; margin-top:3px; }
-    .card { width:min(520px, 92vw); margin:0 auto; max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
+    .face-preference { display:flex; align-items:center; gap:12px; min-width:0; padding:10px 12px; border:1px solid var(--lining); border-radius:12px; color:var(--fg); background:color-mix(in oklab, var(--panel), transparent 8%); cursor:pointer; }
+    .face-preference input { flex:0 0 auto; width:42px; height:24px; margin:0; accent-color:var(--accent); cursor:pointer; }
+    .face-preference__copy { display:flex; flex:1 1 auto; min-width:0; align-items:baseline; gap:8px; line-height:1.25; }
+    .face-preference__copy b { flex:0 0 auto; font-size:14px; }
+    .face-preference__copy small { min-width:0; color:var(--muted); font-size:12px; }
+    .card { width:min(520px, 100%); margin:0 auto; max-height:calc(100dvh - clamp(16px, 4vh, 36px)); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:clamp(14px, 3vw, 22px); border-radius:18px; background:color-mix(in oklab, var(--panel), transparent 25%); border:1px solid var(--lining); box-shadow:var(--shadow); backdrop-filter:blur(8px); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
@@ -1213,6 +1216,20 @@
     .btn { padding:12px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
     .btn.primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#05130e; }
     .btn.ghost { background: color-mix(in oklab, var(--panel), transparent 10%); color: var(--fg); border:1px solid var(--lining); }
+
+    @media (max-width: 560px), (max-height: 700px) {
+      .auth { align-items:stretch; padding:8px; }
+      .card { max-height:calc(100dvh - 16px); border-radius:14px; }
+      .card h2 { font-size:19px; }
+      .card > p { font-size:13px; margin-bottom:10px; }
+      .fields { gap:8px; }
+      .fields input { padding:10px 12px; }
+      .face-preference__copy { display:grid; gap:2px; }
+      .face-preference__copy b { font-size:13px; }
+      .actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+      .actions .btn { padding:10px 8px; }
+      #token-login-validate { grid-column:1 / -1; }
+    }
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
 
@@ -2454,7 +2471,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
-        <label class="face-preference"><input id="face-preference" type="checkbox" /><span><b>Use facial recognition</b><br /><small>Optional. Turn this off to sign in with your username and password only.</small></span></label>
+        <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" role="switch" aria-describedby="face-preference-help" /><span class="face-preference__copy"><b>Use facial recognition</b><small id="face-preference-help">Optional. Turn this off to sign in with your username and password only.</small></span></label>
       </div>
       <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
         <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
