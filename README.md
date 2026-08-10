@@ -135,6 +135,16 @@ REST endpoints provided by the chat server:
   metadata }`, writes the file and metadata into `NFT_DROPPER_SOURCE_DIR`, and
   echoes dropper status for the client UI.
 
+## Site-open notifications
+
+Every browser entry page reports an open to `POST /api/site-opened`. The server
+also detects pages that it serves directly, and deduplicates the browser and
+server reports for 30 seconds. Configure `RESEND_API_KEY` to send the automatic
+email notification. To also send an SMS, configure `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_PHONE`. The destination values are
+`VISIT_NOTIFICATION_EMAIL` and `VISIT_NOTIFICATION_PHONE` (in E.164 format).
+Notification delivery runs asynchronously so it does not delay page loading.
+
 ## Secure sessions and CHAINeS Memory Bank
 
 CHAINeS now uses a server-backed authenticated session and a per-user Memory Bank.

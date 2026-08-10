@@ -12,7 +12,7 @@ function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
 async function startServer(){
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chaines-test-'));
   const port = 13000 + Math.floor(Math.random()*1000);
-  const child = spawn(process.execPath, [serverFile], { cwd: path.join(root, 'ws-server'), env: { ...process.env, PORT:String(port), DB_PATH:path.join(dir,'test.db'), ADMIN_PASSWORD:'test-admin-secret' }, stdio: ['ignore','pipe','pipe'] });
+  const child = spawn(process.execPath, [serverFile], { cwd: path.join(root, 'ws-server'), env: { ...process.env, PORT:String(port), DB_PATH:path.join(dir,'test.db'), ADMIN_PASSWORD:'test-admin-secret', RESEND_API_KEY:'', TWILIO_ACCOUNT_SID:'', TWILIO_AUTH_TOKEN:'', TWILIO_FROM_PHONE:'' }, stdio: ['ignore','pipe','pipe'] });
   let output=''; child.stdout.on('data', d=> output+=d); child.stderr.on('data', d=> output+=d);
   const base = `http://127.0.0.1:${port}`;
   for(let i=0;i<60;i++){ try{ const r=await fetch(base+'/healthz'); if(r.ok) return { child, base, db:path.join(dir,'test.db'), output }; }catch{} await wait(100); }
@@ -66,6 +66,18 @@ test('source does not contain removed hardcoded credentials', ()=>{
   assert(!wallet.includes('PASSWORD_OVERRIDE_SECRET'));
   assert(!server.includes('giraff'));
   assert(!server.includes('password: hash'));
+});
+
+test('site-open reports are accepted and entry pages load the notifier', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  const report = await fetch(srv.base+'/api/site-opened?page=%2Fmarketplace', {
+    method:'POST', headers:{ 'Content-Type':'text/plain', 'User-Agent':'visit-notifier-test' }, body:'opened'
+  });
+  assert.equal(report.status, 202);
+  assert.deepEqual(await report.json(), { accepted:true });
+
+  const page = await (await fetch(srv.base+'/')).text();
+  assert.match(page, /\/static\/visit-notifier\.js/);
 });
 
 test('facial recognition is an explicit, reversible sign-in choice', async (t)=>{
