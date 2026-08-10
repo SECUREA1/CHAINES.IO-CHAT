@@ -144,6 +144,11 @@ email notification. To also send an SMS, configure `TWILIO_ACCOUNT_SID`,
 `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_PHONE`. The destination values are
 `VISIT_NOTIFICATION_EMAIL` and `VISIT_NOTIFICATION_PHONE` (in E.164 format).
 Notification delivery runs asynchronously so it does not delay page loading.
+On Render, enter each secret marked `sync: false` when creating or updating the
+service. `RECEIPT_FROM_EMAIL` must use a sender/domain verified in Resend; the
+default Resend onboarding sender may only deliver to the account owner's email.
+`TWILIO_FROM_PHONE` must be an SMS-capable Twilio sender, and trial accounts may
+only send to recipient numbers verified in Twilio.
 Notifications include the visitor IP address, signed-in username (when a valid
 session is present), and user-agent string. Passwords, session cookies, wallet
 secrets, API keys, and other authentication credentials are intentionally never

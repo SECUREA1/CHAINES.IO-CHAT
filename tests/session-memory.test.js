@@ -84,6 +84,18 @@ test('site-open reports are accepted and entry pages load the notifier', async (
   assert.match(page, /\/static\/visit-notifier\.js/);
 });
 
+test('production visit notifications target the deployed backend and configured recipients', ()=>{
+  const notifier = fs.readFileSync(path.join(root, 'static', 'visit-notifier.js'), 'utf8');
+  const blueprint = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');
+  assert.match(notifier, /https:\/\/chaines-chat-ws\.onrender\.com/);
+  assert.doesNotMatch(notifier, /https:\/\/chaines-io-chat\.onrender\.com/);
+  assert.match(blueprint, /key: VISIT_NOTIFICATION_EMAIL\s+value: chadolthofedx@gmail\.com/);
+  assert.match(blueprint, /key: VISIT_NOTIFICATION_PHONE\s+value: ["']?\+15194760080["']?/);
+  for (const key of ['RESEND_API_KEY', 'RECEIPT_FROM_EMAIL', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_PHONE']) {
+    assert.match(blueprint, new RegExp(`key: ${key}\\s+sync: false`));
+  }
+});
+
 test('facial recognition is an explicit, reversible sign-in choice', async (t)=>{
   const srv = await startServer(); t.after(()=>srv.child.kill());
   let r = await json(await fetch(srv.base+'/register', {
