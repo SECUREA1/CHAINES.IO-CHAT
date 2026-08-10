@@ -392,6 +392,72 @@ const ADMIN_ACCOUNT = Object.freeze({
 const DEFAULT_RECEIPT_EMAIL = (process.env.DELIVERY_RECEIPT_EMAIL || "chadslondonrentals@gmail.com").trim();
 const RESEND_API_KEY = (process.env.RESEND_API_KEY || "").trim();
 const RECEIPT_FROM_EMAIL = (process.env.RECEIPT_FROM_EMAIL || "CHAINeS Delivery <onboarding@resend.dev>").trim();
+const VISIT_NOTIFICATION_EMAIL = (process.env.VISIT_NOTIFICATION_EMAIL || "chadolthofedx@gmail.com").trim();
+const VISIT_NOTIFICATION_PHONE = (process.env.VISIT_NOTIFICATION_PHONE || "+15194760080").trim();
+const TWILIO_ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || "").trim();
+const TWILIO_AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || "").trim();
+const TWILIO_FROM_PHONE = (process.env.TWILIO_FROM_PHONE || "").trim();
+const recentVisitNotifications = new Map();
+const VISIT_DEDUPE_MS = 30_000;
+
+function visitNotificationText(page = "/") {
+  return [
+    "Someone opened CHAINeS.",
+    `Page: ${String(page || "/").slice(0, 200)}`,
+    `Time: ${new Date().toISOString()}`,
+  ].join("\n");
+}
+
+async function sendVisitEmail(text) {
+  if (!RESEND_API_KEY || !VISIT_NOTIFICATION_EMAIL) return { skipped: true };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: RECEIPT_FROM_EMAIL,
+      to: [VISIT_NOTIFICATION_EMAIL],
+      subject: "CHAINeS website opened",
+      text,
+    }),
+  });
+  if (!response.ok) throw new Error(`Resend returned ${response.status}`);
+  return { sent: true };
+}
+
+async function sendVisitSms(text) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_PHONE || !VISIT_NOTIFICATION_PHONE) {
+    return { skipped: true };
+  }
+  const body = new URLSearchParams({ To: VISIT_NOTIFICATION_PHONE, From: TWILIO_FROM_PHONE, Body: text });
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(TWILIO_ACCOUNT_SID)}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  if (!response.ok) throw new Error(`Twilio returned ${response.status}`);
+  return { sent: true };
+}
+
+function notifySiteVisit(req, page = req.path) {
+  const fingerprint = crypto.createHash("sha256").update(`${req.ip}|${req.get("user-agent") || ""}`).digest("hex");
+  const now = Date.now();
+  const previous = recentVisitNotifications.get(fingerprint) || 0;
+  if (now - previous < VISIT_DEDUPE_MS) return false;
+  recentVisitNotifications.set(fingerprint, now);
+  for (const [key, timestamp] of recentVisitNotifications) {
+    if (now - timestamp > VISIT_DEDUPE_MS) recentVisitNotifications.delete(key);
+  }
+  const text = visitNotificationText(page);
+  Promise.allSettled([sendVisitEmail(text), sendVisitSms(text)]).then((results) => {
+    results.forEach((result) => {
+      if (result.status === "rejected") console.error("[visit-notification]", result.reason?.message || result.reason);
+    });
+  });
+  return true;
+}
 
 function ensureUserProfile(username = "") {
   const clean = sanitizeUsername(username);
@@ -568,6 +634,22 @@ app.get("/favicon.svg", (req, res) =>
 );
 
 app.get("/healthz", (req, res) => res.send("ok"));
+app.post("/api/site-opened", rateLimit("site-opened", 10), (req, res) => {
+  notifySiteVisit(req, req.query.page || "/");
+  res.status(202).json({ accepted: true });
+});
+
+const SITE_ENTRY_PATHS = new Set([
+  "/", "/index.html", "/secure", "/secure.html", "/home", "/home.html",
+  "/dashboard", "/dashboard.html", "/multi_camera", "/multi_camera.html", "/start", "/start.html",
+  "/marketplace", "/marketplace.html", "/delivery-services", "/delivery-services.html",
+  "/private-chat", "/private-chat.html", "/profile", "/profile.html", "/rewards-program",
+  "/rewards-program.html", "/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player",
+]);
+app.use((req, _res, next) => {
+  if (req.method === "GET" && SITE_ENTRY_PATHS.has(req.path)) notifySiteVisit(req);
+  next();
+});
 app.get(["/", "/index.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "index.html"))
 );
