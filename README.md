@@ -1,7 +1,15 @@
-# CHAINeS Composer
+# CHAINeS POST
 
 Single-page chat client for chaines.io with optional WebSocket backend and
 persistent chat history.
+
+## Sign-in privacy
+
+On first launch, CHAINeS POST presents an on-screen privacy choice between
+standard username/password sign-in and optional facial recognition. The choice
+can be changed from the sign-in screen. Selecting standard sign-in after using
+facial recognition disables biometric authentication and removes the saved face
+template after the account password has been verified.
 
 ## Deploying on Render
 

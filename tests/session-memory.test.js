@@ -67,3 +67,26 @@ test('source does not contain removed hardcoded credentials', ()=>{
   assert(!server.includes('giraff'));
   assert(!server.includes('password: hash'));
 });
+
+test('facial recognition is an explicit, reversible sign-in choice', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  let r = await json(await fetch(srv.base+'/register', {
+    method:'POST',
+    body:new URLSearchParams({ username:'privacy_user', password:'correct horse battery staple', useFacialRecognition:'false' })
+  }));
+  assert.equal(r.status, 200);
+
+  r = await json(await fetch(srv.base+'/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ username:'privacy_user', password:'correct horse battery staple', useFacialRecognition:false })
+  }));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.faceAuthEnabled, false);
+
+  r = await json(await fetch(srv.base+'/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ username:'privacy_user', password:'correct horse battery staple', useFacialRecognition:true })
+  }));
+  assert.equal(r.status, 401);
+  assert.equal(r.body.faceRequired, true);
+});

@@ -79,7 +79,8 @@ db.exec(`
     profile_pic TEXT,
     description TEXT,
     face_descriptor TEXT,
-    face_scan_image TEXT
+    face_scan_image TEXT,
+    face_auth_enabled INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -189,6 +190,10 @@ try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_of INTEGER"); } catch
 try { db.exec("ALTER TABLE chat_messages ADD COLUMN repost_note TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN description TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN face_descriptor TEXT"); } catch {}
+try {
+  db.exec("ALTER TABLE users ADD COLUMN face_auth_enabled INTEGER DEFAULT 0");
+  db.exec("UPDATE users SET face_auth_enabled=1 WHERE face_descriptor IS NOT NULL AND face_descriptor != ''");
+} catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN face_scan_image TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
@@ -814,7 +819,7 @@ app.post("/api/nft-dropper/mint", async (req, res) => {
     const mergedMeta = {
       name: metadata?.name || baseName,
       description:
-        metadata?.description || "Minted via CHAINeS Composer and NFT Dropper.",
+        metadata?.description || "Minted via CHAINeS POST and NFT Dropper.",
       mediaType: metadata?.mediaType || fileType || parsed.mime,
     };
 
@@ -1030,7 +1035,8 @@ app.post("/notification-settings/:username", (req, res) => {
 });
 
 app.post("/register", rateLimit("register", 5), upload.single("profile"), async (req, res) => {
-  const { username, password, faceDescriptor, faceScanImage } = req.body || {};
+  const { username, password, faceDescriptor, faceScanImage, useFacialRecognition } = req.body || {};
+  const faceAuthEnabled = useFacialRecognition === true || useFacialRecognition === "true";
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -1041,7 +1047,7 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     res.status(400).json({ error: "User exists" });
     return;
   }
-  if (!faceDescriptor) {
+  if (faceAuthEnabled && !faceDescriptor) {
     res.status(401).json({ error: "Face scan required", faceRequired: true });
     return;
   }
@@ -1053,8 +1059,8 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     if (faceDescriptor) faceJson = JSON.stringify(normalizeFaceDescriptor(faceDescriptor));
     const scanImage = normalizeFaceScanImage(faceScanImage);
     const info = db.prepare(
-      "INSERT INTO users (username, password, profile_pic, face_descriptor, face_scan_image) VALUES (?,?,?,?,?)"
-    ).run(cleanUsername, hash, pic, faceJson, scanImage);
+      "INSERT INTO users (username, password, profile_pic, face_descriptor, face_scan_image, face_auth_enabled) VALUES (?,?,?,?,?,?)"
+    ).run(cleanUsername, hash, pic, faceJson, scanImage, faceAuthEnabled ? 1 : 0);
     profiles[cleanUsername] = { profilePic: pic, description: null };
     saveProfiles();
     const session = createSession(res, Number(info.lastInsertRowid));
@@ -1065,7 +1071,7 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
 });
 
 app.post("/login", rateLimit("login", 8), async (req, res) => {
-  const { username, password, faceDescriptor, faceScanImage } = req.body || {};
+  const { username, password, faceDescriptor, faceScanImage, useFacialRecognition } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
@@ -1074,7 +1080,7 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     ensureAdminAccount();
   }
   const dbUser = db
-    .prepare("SELECT id, username, password, profile_pic, face_descriptor FROM users WHERE username=?")
+    .prepare("SELECT id, username, password, profile_pic, face_descriptor, face_auth_enabled FROM users WHERE username=?")
     .get(sanitizeUsername(username));
   const memUser = profiles[sanitizeUsername(username)];
   const hash = dbUser?.password;
@@ -1085,6 +1091,21 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   const ok = await bcrypt.compare(password, hash);
   if (!ok) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  const hasExplicitFacePreference = typeof useFacialRecognition === "boolean";
+  const faceAuthEnabled = hasExplicitFacePreference ? useFacialRecognition : !!dbUser.face_auth_enabled;
+  if (hasExplicitFacePreference && Number(faceAuthEnabled) !== Number(!!dbUser.face_auth_enabled)) {
+    if (faceAuthEnabled) {
+      db.prepare("UPDATE users SET face_auth_enabled=1 WHERE id=?").run(dbUser.id);
+    } else {
+      db.prepare("UPDATE users SET face_auth_enabled=0, face_descriptor=NULL, face_scan_image=NULL WHERE id=?").run(dbUser.id);
+    }
+  }
+  if (!faceAuthEnabled) {
+    const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
+    const session = createSession(res, dbUser.id);
+    res.json({ success: true, username: dbUser.username, profilePic, faceAuthEnabled: false, session: { user: { id: dbUser.id, username: dbUser.username, profilePic, verified: true }, expiresAt: session.expires.toISOString() } });
     return;
   }
   if (!faceDescriptor) {

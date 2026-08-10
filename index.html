@@ -3,31 +3,31 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="description" content="CHAINeS Composer is a blue creator network for publishing multimedia posts, live streams, marketplace drops, and secure community conversations." />
-  <meta name="keywords" content="CHAINeS Composer, CHAINeS POST, creator network, live streaming, marketplace drops, social commerce, secure messaging" />
+  <meta name="description" content="CHAINeS POST is a blue creator network for publishing multimedia posts, live streams, marketplace drops, and secure community conversations." />
+  <meta name="keywords" content="CHAINeS POST, CHAINeS POST, creator network, live streaming, marketplace drops, social commerce, secure messaging" />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://chaines.io/" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="CHAINeS Composer" />
-  <meta property="og:title" content="CHAINeS Composer | Blue creator network" />
+  <meta property="og:site_name" content="CHAINeS POST" />
+  <meta property="og:title" content="CHAINeS POST | Blue creator network" />
   <meta property="og:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
   <meta property="og:url" content="https://chaines.io/" />
   <meta property="og:image" content="https://chaines.io/static/social-card.svg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="CHAINeS Composer logo and slogan: Create. Share. Stream. Discover." />
+  <meta property="og:image:alt" content="CHAINeS POST logo and slogan: Create. Share. Stream. Discover." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CHAINeS Composer | Blue creator network" />
+  <meta name="twitter:title" content="CHAINeS POST | Blue creator network" />
   <meta name="twitter:description" content="Create, share, stream, and discover community drops in the blue CHAINeS creator network." />
   <meta name="twitter:image" content="https://chaines.io/static/social-card.svg" />
-  <meta name="twitter:image:alt" content="CHAINeS Composer logo and slogan: Create. Share. Stream. Discover." />
-  <title>CHAINeS Composer | Blue Creator Network</title>
+  <meta name="twitter:image:alt" content="CHAINeS POST logo and slogan: Create. Share. Stream. Discover." />
+  <title>CHAINeS POST | Blue Creator Network</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/static/logo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#0756b7" />
-  <meta name="application-name" content="CHAINeS Composer" />
+  <meta name="application-name" content="CHAINeS POST" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -35,7 +35,7 @@
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "CHAINeS Composer",
+      "name": "CHAINeS POST",
       "alternateName": "CHAINeS POST",
       "url": "https://chaines.io/",
       "description": "A blue creator network for publishing posts, live moments, marketplace drops, and community conversations.",
@@ -1174,6 +1174,15 @@
 
     /* Auth screen */
     .auth { position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:flex-start; justify-content:center; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.65)); backdrop-filter: blur(4px); overflow-y:auto; overflow-x:hidden; padding:12px 0; }
+    .privacy-choice { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(2,8,23,.78); backdrop-filter:blur(12px); }
+    .privacy-choice__card { width:min(520px, 100%); padding:28px; border:1px solid var(--lining); border-radius:24px; background:var(--panel); box-shadow:0 24px 80px rgba(0,0,0,.5); }
+    .privacy-choice__card h2 { margin:0 0 10px; font-size:26px; }
+    .privacy-choice__card p { color:var(--muted); line-height:1.55; }
+    .privacy-choice__actions { display:grid; gap:10px; margin-top:20px; }
+    .privacy-choice__actions .btn { min-height:48px; }
+    .privacy-choice__note { display:block; margin-top:14px; color:var(--muted); font-size:12px; }
+    .face-preference { display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--lining); border-radius:12px; color:var(--fg); }
+    .face-preference input { width:auto; margin-top:3px; }
     .card { width:min(520px, 92vw); margin:0 auto; max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:22px; border-radius: 18px; background: color-mix(in oklab, var(--panel), transparent 25%); border: 1px solid var(--lining); box-shadow: var(--shadow); backdrop-filter: blur(8px); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
@@ -2167,8 +2176,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     <header>
         <div class="bar">
           <div class="brand">
-            <img class="logo" src="/static/logo.svg" alt="CHAINeS Composer" width="36" height="36" />
-            <div class="brand-lockup"><span class="brand-kicker">Blue creator network</span><h1>CHAINeS Composer</h1></div>
+            <img class="logo" src="/static/logo.svg" alt="CHAINeS POST" width="36" height="36" />
+            <div class="brand-lockup"><span class="brand-kicker">Blue creator network</span><h1>CHAINeS POST</h1></div>
             <div class="brand-signals" aria-label="CHAINeS services">
               <span class="brand-signal"><img src="/static/chat.svg" alt="" aria-hidden="true" /><span>Connect</span></span>
               <span class="brand-signal"><img src="/static/marketplace.svg" alt="" aria-hidden="true" /><span>Market</span></span>
@@ -2423,18 +2432,31 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     </div>
   </div>
 
+  <section id="privacy-choice" class="privacy-choice" aria-labelledby="privacy-choice-title" aria-modal="true" role="dialog" hidden>
+    <div class="privacy-choice__card">
+      <h2 id="privacy-choice-title">Choose how you sign in</h2>
+      <p>CHAINeS POST lets you decide whether to use facial recognition. Standard sign-in uses only your username and password; facial recognition uses your camera and stores a face template with your account. Choosing standard sign-in removes any saved face template after your password is verified.</p>
+      <div class="privacy-choice__actions">
+        <button id="face-choice-off" class="btn primary" type="button">Use username and password</button>
+        <button id="face-choice-on" class="btn ghost" type="button">Use facial recognition</button>
+      </div>
+      <small class="privacy-choice__note">You can change this choice on the sign-in screen before entering your account.</small>
+    </div>
+  </section>
+
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
     <div class="card">
       <h2>Welcome to CHAINeS POST</h2>
-      <p>Enter your username and password first. The facial scan unlocks only after those credentials are accepted for login or sign up.</p>
+      <p>Enter your username and password, then choose whether you want optional facial recognition for this account.</p>
       <div class="fields">
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
+        <label class="face-preference"><input id="face-preference" type="checkbox" /><span><b>Use facial recognition</b><br /><small>Optional. Turn this off to sign in with your username and password only.</small></span></label>
       </div>
-      <div class="face-login" id="face-login-panel" aria-label="Required facial recognition login" hidden>
-        <div class="face-login__hud"><span>Biometric Entry Required</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
+      <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
+        <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
         <div class="face-login__stage">
           <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
           <div class="face-login__reticle" aria-hidden="true"></div>
@@ -2450,7 +2472,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
           <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
         </div>
-        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the required live facial scan to finish entry.</p>
+        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the live facial scan to finish entry, or turn facial recognition off above.</p>
       </div>
       <div class="actions">
         <button class="btn primary" id="login" type="button">Login</button>
@@ -3029,6 +3051,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let dropperStatus = null;
     let dropperStatusError = null;
     const auth = el('#auth');
+    const privacyChoice = el('#privacy-choice');
+    const faceChoiceOff = el('#face-choice-off');
+    const faceChoiceOn = el('#face-choice-on');
+    const facePreference = el('#face-preference');
+    const FACE_PREFERENCE_KEY = 'chaines_face_recognition_preference';
     const installAppBtn = el('#install-app-btn');
     const authInstallAppBtn = el('#auth-install-app-btn');
     const appDownloadCard = el('#app-download-card');
@@ -6574,6 +6601,39 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     }
 
+    function facialRecognitionEnabled(){
+      return facePreference?.checked === true;
+    }
+
+    function saveFacialRecognitionPreference(enabled){
+      localStorage.setItem(FACE_PREFERENCE_KEY, enabled ? 'on' : 'off');
+      if(facePreference) facePreference.checked = enabled;
+      if(!enabled){
+        concealFaceLogin();
+        stopFaceLoginCamera();
+        pendingFaceDescriptor = null;
+        pendingFaceScanImage = null;
+      }
+    }
+
+    function showStartupPrivacyChoice(){
+      const saved = localStorage.getItem(FACE_PREFERENCE_KEY);
+      if(facePreference) facePreference.checked = saved === 'on';
+      if(saved !== 'on' && saved !== 'off') privacyChoice.hidden = false;
+    }
+
+    faceChoiceOff?.addEventListener('click', () => {
+      saveFacialRecognitionPreference(false);
+      privacyChoice.hidden = true;
+      usernameInput?.focus();
+    });
+    faceChoiceOn?.addEventListener('click', () => {
+      saveFacialRecognitionPreference(true);
+      privacyChoice.hidden = true;
+      usernameInput?.focus();
+    });
+    facePreference?.addEventListener('change', () => saveFacialRecognitionPreference(facePreference.checked));
+
     function requireAuth(){
       if (store.user) {
         enterChat(store.user, store.profilePic, { verified: isUserVerified(store.user) });
@@ -6743,6 +6803,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       faceAutoScanInProgress = false;
       if(faceCaptureBtn) faceCaptureBtn.disabled = true;
       updateFaceScanHud('reset');
+    }
+    function stopFaceLoginCamera(){
+      faceStream?.getTracks?.().forEach((track) => track.stop());
+      faceStream = null;
+      if(faceLoginVideo){
+        faceLoginVideo.srcObject = null;
+        faceLoginVideo.hidden = true;
+      }
     }
     function setFaceLoginStatus(message, tone=''){
       if(!faceLoginStatus) return;
@@ -7021,7 +7089,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      if(!pendingFaceDescriptor){
+      if(facialRecognitionEnabled() && !pendingFaceDescriptor){
         const primePromise = primeFaceLoginCameraFromGesture();
         if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
       }
@@ -7034,7 +7102,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const res = await fetch('/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username: name, password: pass, faceDescriptor: pendingFaceDescriptor, faceScanImage: pendingFaceScanImage })
+        body: JSON.stringify({ username: name, password: pass, useFacialRecognition: facialRecognitionEnabled(), faceDescriptor: pendingFaceDescriptor, faceScanImage: pendingFaceScanImage })
       });
       const data = await res.json().catch(()=>null);
       if(res.ok && data && data.success){
@@ -7081,7 +7149,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       const pass = passwordInput.value;
       if(!name || !pass){ alert('Username and password required'); return; }
-      if(!pendingFaceDescriptor){
+      if(facialRecognitionEnabled() && !pendingFaceDescriptor){
         const primePromise = primeFaceLoginCameraFromGesture();
         if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
       }
@@ -7094,6 +7162,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const fd = new FormData();
       fd.append('username', name);
       fd.append('password', pass);
+      fd.append('useFacialRecognition', String(facialRecognitionEnabled()));
       if(profileInput.files[0]) fd.append('profile', profileInput.files[0]);
       if(pendingFaceDescriptor) fd.append('faceDescriptor', JSON.stringify(pendingFaceDescriptor));
       if(pendingFaceScanImage) fd.append('faceScanImage', pendingFaceScanImage);
@@ -9242,6 +9311,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // Boot
     setupCaptionLanguagePicker();
     requireAuth();
+    showStartupPrivacyChoice();
   })();
   </script>
 

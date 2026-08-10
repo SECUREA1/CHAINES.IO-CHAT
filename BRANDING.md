@@ -1,7 +1,7 @@
-# CHAINeS Composer Brand Guide
+# CHAINeS POST Brand Guide
 
 ## Identity
-- **Name**: CHAINeS Composer
+- **Name**: CHAINeS POST
 - **Tagline**: Linking conversations across the chain.
 - **Logo**: Blue-to-cobalt gradient chain-link badge in white (see `static/logo.svg`).
 - **Mascot**: Ioncore Sentinel — the blue wolf wearing the Ioncore cap and chain (`static/mascot.svg`).
