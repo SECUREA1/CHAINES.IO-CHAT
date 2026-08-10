@@ -1187,6 +1187,14 @@
     .face-preference__copy b { flex:0 1 auto; min-width:0; font-size:14px; }
     .face-preference__copy small { flex:1 1 180px; min-width:0; color:var(--muted); font-size:12px; }
     .card { width:min(520px, 100%); margin:0 auto; max-height:calc(100dvh - clamp(16px, 4vh, 36px)); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:clamp(14px, 3vw, 22px); border-radius:18px; background:color-mix(in oklab, var(--panel), transparent 25%); border:1px solid var(--lining); box-shadow:var(--shadow); backdrop-filter:blur(8px); }
+    .auth-card { width:min(960px, 100%); display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, .82fr); gap:clamp(14px, 2.4vw, 24px); align-items:start; }
+    .auth-card__intro { grid-column:1 / -1; }
+    .auth-card__intro p { margin-bottom:0; }
+    .auth-card__account, .auth-card__extras { min-width:0; display:grid; align-content:start; gap:12px; }
+    .auth-card__extras { padding:14px; border:1px solid var(--lining); border-radius:14px; background:color-mix(in oklab, var(--panel), transparent 18%); }
+    .auth-card__extras .app-download-card { margin-top:0; }
+    .auth-card__token-fields { margin-top:0; }
+    .auth-card__socket-link { margin:0; }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
@@ -1229,6 +1237,12 @@
       .actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
       .actions .btn { padding:10px 8px; }
       #token-login-validate { grid-column:1 / -1; }
+    }
+
+    @media (max-width: 760px) {
+      .auth-card { grid-template-columns:minmax(0, 1fr); gap:12px; }
+      .auth-card__intro { grid-column:auto; }
+      .auth-card__extras { padding:12px; }
     }
 
     .muted-link { color: var(--muted); text-decoration: underline; cursor: pointer; }
@@ -2464,16 +2478,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
   <!-- Auth overlay -->
   <section id="auth" class="auth" hidden>
-    <div class="card">
-      <h2>Welcome to CHAINeS POST</h2>
-      <p>Enter your username and password, then choose whether you want optional facial recognition for this account.</p>
-      <div class="fields">
-        <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-        <input id="password" type="password" placeholder="Password" />
-        <input id="profile" type="file" accept="image/*" />
-        <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" aria-describedby="face-preference-help" /><span class="face-preference__copy"><b>Use facial recognition</b><small id="face-preference-help">Optional. Turn this off to sign in with your username and password only.</small></span></label>
+    <div class="card auth-card">
+      <div class="auth-card__intro">
+        <h2>Welcome to CHAINeS POST</h2>
+        <p>Enter your username and password, then choose whether you want optional facial recognition for this account.</p>
       </div>
-      <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
+      <div class="auth-card__account">
+        <div class="fields">
+          <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
+          <input id="password" type="password" placeholder="Password" />
+          <input id="profile" type="file" accept="image/*" />
+          <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" aria-describedby="face-preference-help" /><span class="face-preference__copy"><b>Use facial recognition</b><small id="face-preference-help">Optional. Turn this off to sign in with your username and password only.</small></span></label>
+        </div>
+        <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
         <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
         <div class="face-login__stage">
           <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
@@ -2491,32 +2508,35 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
         </div>
         <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the live facial scan to finish entry, or turn facial recognition off above.</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="login" type="button">Login</button>
+          <button class="btn ghost" id="register" type="button">Register</button>
+          <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+        </div>
       </div>
-      <div class="actions">
-        <button class="btn primary" id="login" type="button">Login</button>
-        <button class="btn ghost" id="register" type="button">Register</button>
-        <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
-      </div>
-      <div id="app-download-card" class="app-download-card" aria-live="polite">
+      <div class="auth-card__extras">
+        <div id="app-download-card" class="app-download-card" aria-live="polite">
         <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
         <div class="app-download-card__copy">
           <strong>Take CHAINeS with you</strong>
           <span>Install the branded app for a focused, full-screen creator workspace.</span>
         </div>
         <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
-      </div>
-      <div class="fields" style="margin-top:8px">
+        </div>
+        <div class="fields auth-card__token-fields">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
         <select id="token-login-contract" aria-label="Token network">
           <option value="">No token validation</option>
         </select>
         <div id="token-contract-gallery" class="token-contract-gallery" aria-label="Entry validation contract previews"></div>
-      </div>
-      <p id="token-login-status" class="token-login-status" role="status" aria-live="polite"></p>
-      <p style="margin-top:10px">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
-      <div id="ws-config" class="fields" style="display:none; margin-top:8px">
-        <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
-        <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
+        </div>
+        <p id="token-login-status" class="token-login-status" role="status" aria-live="polite"></p>
+        <p class="auth-card__socket-link">Optional backend socket: <span class="muted-link" id="ws-edit">configure</span></p>
+        <div id="ws-config" class="fields" style="display:none; margin-top:8px">
+          <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
+          <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
+        </div>
       </div>
     </div>
   </section>
