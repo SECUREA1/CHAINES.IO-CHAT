@@ -685,13 +685,18 @@ function postGraphic(row) {
   ) || null;
 }
 
+function sendBrandedPostGraphic(res) {
+  res.set("Cache-Control", "public, max-age=3600");
+  return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+}
+
 app.get("/post/:id/graphic", (req, res) => {
   const row = findSharedPost(req.params.id);
   if (!row) return res.sendStatus(404);
   const graphic = postGraphic(row);
-  if (!graphic) return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+  if (!graphic) return sendBrandedPostGraphic(res);
   const match = graphic.data.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
-  if (!match) return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+  if (!match) return sendBrandedPostGraphic(res);
   res.set("Cache-Control", "public, max-age=3600");
   res.type(match[1]).send(Buffer.from(match[2], "base64"));
 });
@@ -710,6 +715,7 @@ app.get("/post/:id", (req, res) => {
     <meta property="og:type" content="article"><meta property="og:site_name" content="CHAINeS POST">
     <meta property="og:title" content="${escapeMeta(title)}"><meta property="og:description" content="${escapeMeta(summary)}">
     <meta property="og:url" content="${escapeMeta(canonical)}"><meta property="og:image" content="${escapeMeta(graphic)}">
+    <meta property="og:image:secure_url" content="${escapeMeta(graphic)}"><meta property="og:image:alt" content="Graphic shared with ${escapeMeta(title)}">
     <meta property="article:author" content="${escapeMeta(author)}"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${escapeMeta(title)}"><meta name="twitter:description" content="${escapeMeta(summary)}">
     <meta name="twitter:image" content="${escapeMeta(graphic)}"><meta http-equiv="refresh" content="0;url=/?focus=${encodeURIComponent(row.id)}">
