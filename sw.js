@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-composer-shell-v3';
+const CACHE_NAME = 'chaines-post-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
