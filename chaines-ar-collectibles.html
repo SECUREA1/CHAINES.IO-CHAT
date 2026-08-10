@@ -100,10 +100,17 @@
     .nft-image-preview{position:absolute;inset:1rem;width:calc(100% - 2rem);height:calc(100% - 2rem);object-fit:contain;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.28);z-index:2}.nft-image-preview[hidden]{display:none}model-viewer{width:100%;height:clamp(520px,68vh,780px);background:transparent;border-radius:16px;border:1px solid var(--line);--poster-color:transparent}.viewer-stage{position:relative;border-radius:22px;background:radial-gradient(ellipse at 50% 82%,rgba(102,221,255,.26),transparent 36%),radial-gradient(circle at 50% 16%,rgba(124,92,255,.12),transparent 35%),rgba(3,9,15,.64);overflow:hidden}.viewer-stage:after{content:"";position:absolute;left:20%;right:20%;bottom:2rem;height:48px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.42),transparent 70%);filter:blur(8px);pointer-events:none}.viewer-stage model-viewer{position:relative;z-index:1}.collection-navigator{display:flex;align-items:center;justify-content:center;gap:.65rem;flex-wrap:wrap;margin:.9rem 0}.collection-field{display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03)}.collection-field label{margin:0}.collection-field input{width:5.25rem;text-align:center;padding:.6rem .45rem}.ar-button{position:absolute;right:1rem;bottom:1rem;z-index:3;border:0;border-radius:999px;padding:.85rem 1.1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;font-weight:900;box-shadow:0 14px 30px rgba(55,168,255,.32)}.status-grid{display:grid;gap:.65rem}.status-grid .read{margin-top:0}.debug-path{word-break:break-all;font-size:.8rem}.thumb-badge{font-weight:900;color:white}.no-assets{border:1px solid rgba(255,190,107,.35);background:rgba(255,190,107,.08);border-radius:14px;padding:.8rem;margin-top:.8rem;color:var(--warn)}
     .read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem;margin-top:.7rem}
     .read strong{color:white}
+    .hand-controls{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.8rem;padding:.75rem;border:1px solid var(--line);border-radius:16px;background:rgba(3,9,15,.55)}
+    .hand-controls .hand-copy{flex:1 1 220px}.hand-controls .hand-copy strong{display:block}.hand-controls .hand-copy span{display:block;color:var(--muted);font-size:.82rem;margin-top:.15rem}
+    .hand-stage{position:absolute;left:1rem;top:1rem;z-index:4;width:min(34%,300px);aspect-ratio:4/3;border:1px solid var(--line-strong);border-radius:18px;overflow:hidden;background:#02080d;box-shadow:0 14px 35px rgba(0,0,0,.42)}
+    .hand-stage[hidden]{display:none}.hand-stage video,.hand-stage svg,.hand-stage canvas{position:absolute;inset:0;width:100%;height:100%}.hand-stage video{object-fit:cover;transform:scaleX(-1);opacity:.72}.hand-stage svg,.hand-stage canvas{pointer-events:none}.hand-stage svg{filter:drop-shadow(0 0 7px rgba(102,221,255,.75))}
+    .glove-palm{fill:rgba(21,45,60,.62);stroke:#66ddff;stroke-width:1.7;stroke-linejoin:round}.glove-finger{fill:none;stroke:#b9f4ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.glove-joint{fill:#07111a;stroke:#66ddff;stroke-width:1}.glove-tip{fill:#7c5cff;stroke:#eef9ff;stroke-width:1}.glove-cuff{fill:rgba(124,92,255,.75);stroke:#b9f4ff;stroke-width:1.5}
+    .hand-stage.pinching{border-color:var(--good);box-shadow:0 0 0 3px rgba(104,240,184,.16),0 14px 35px rgba(0,0,0,.42)}.hand-stage.pinching .glove-tip{fill:var(--good)}
+    .hand-label{position:absolute;left:.55rem;bottom:.5rem;z-index:3;padding:.28rem .48rem;border-radius:999px;background:rgba(2,8,13,.74);color:#dffaff;font-size:.68rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout,.collectible-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}}
+    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}.hand-stage{width:calc(100% - 2rem);max-width:260px}}
   
     .site-copyright {
       text-align: center;
@@ -151,6 +158,21 @@
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
               <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
             </model-viewer>
+            <div class="hand-stage" id="handStage" hidden aria-label="Live hand tracking preview">
+              <video id="handVideo" playsinline muted aria-hidden="true"></video>
+              <svg id="gloveOverlay" viewBox="0 0 100 75" preserveAspectRatio="none" aria-hidden="true">
+                <polygon id="glovePalm" class="glove-palm" points="35,60 30,42 42,34 62,38 68,58" />
+                <path id="gloveCuff" class="glove-cuff" d="M35 58 L68 58 L65 72 L39 72 Z" />
+                <g id="gloveFingers"></g><g id="gloveJoints"></g>
+              </svg>
+              <canvas id="slimeCanvas" aria-hidden="true"></canvas>
+              <span class="hand-label" id="handLabel">Show your hand</span>
+            </div>
+          </div>
+
+          <div class="hand-controls">
+            <div class="hand-copy"><strong>Gesture glove</strong><span>Enable the camera, then pinch thumb + index to fire slime and launch the active AR experience.</span></div>
+            <button class="btn secondary" id="handTrackingBtn" type="button" aria-pressed="false">Enable hand tracking</button>
           </div>
 
           <div class="collection-navigator" id="collectionNavigator">
@@ -207,6 +229,15 @@
       const googleArBtn = $('googleArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
+      const handTrackingBtn = $('handTrackingBtn');
+      const handStage = $('handStage');
+      const handVideo = $('handVideo');
+      const gloveFingers = $('gloveFingers');
+      const gloveJoints = $('gloveJoints');
+      const glovePalm = $('glovePalm');
+      const gloveCuff = $('gloveCuff');
+      const slimeCanvas = $('slimeCanvas');
+      const handLabel = $('handLabel');
       const SWIPE_THRESHOLD = 55;
       const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
       const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
@@ -409,6 +440,120 @@
         const urlNumber = Number.parseInt(params.get('collection'), 10);
         return Number.isFinite(urlNumber) ? urlNumber : (collectibles[collectibles.length - 1]?.number ?? 0);
       }
+      const HAND_CONNECTIONS = [[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
+      let handStream = null;
+      let handLandmarker = null;
+      let trackingFrame = 0;
+      let lastVideoTime = -1;
+      let pinchLatched = false;
+      let lastPinchAt = 0;
+      let slimeParticles = [];
+      const svgPoint = (landmark) => ({x:(1 - landmark.x) * 100, y:landmark.y * 75});
+      const pointsAttr = (landmarks, indexes) => indexes.map((index) => { const p = svgPoint(landmarks[index]); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(' ');
+      function drawGlove(landmarks){
+        glovePalm.setAttribute('points', pointsAttr(landmarks, [0,5,9,13,17]));
+        const wrist = svgPoint(landmarks[0]);
+        const pinky = svgPoint(landmarks[17]);
+        const index = svgPoint(landmarks[5]);
+        const left = {x:wrist.x + (pinky.x - index.x) * .34, y:wrist.y + 2};
+        const right = {x:wrist.x - (pinky.x - index.x) * .34, y:wrist.y + 2};
+        gloveCuff.setAttribute('d', `M${left.x} ${left.y} L${right.x} ${right.y} L${right.x} 75 L${left.x} 75 Z`);
+        gloveFingers.replaceChildren(...HAND_CONNECTIONS.map((indexes) => {
+          const line = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+          line.setAttribute('class','glove-finger');
+          line.setAttribute('points', pointsAttr(landmarks, indexes));
+          return line;
+        }));
+        gloveJoints.replaceChildren(...landmarks.map((landmark, index) => {
+          const point = svgPoint(landmark);
+          const joint = document.createElementNS('http://www.w3.org/2000/svg','circle');
+          joint.setAttribute('class', [4,8,12,16,20].includes(index) ? 'glove-tip' : 'glove-joint');
+          joint.setAttribute('cx', point.x); joint.setAttribute('cy', point.y);
+          joint.setAttribute('r', [4,8].includes(index) ? '2.25' : '1.25');
+          return joint;
+        }));
+      }
+      function fireSlime(origin){
+        const rect = slimeCanvas.getBoundingClientRect();
+        slimeCanvas.width = Math.max(1, Math.round(rect.width * devicePixelRatio));
+        slimeCanvas.height = Math.max(1, Math.round(rect.height * devicePixelRatio));
+        const x = (1 - origin.x) * slimeCanvas.width;
+        const y = origin.y * slimeCanvas.height;
+        slimeParticles = Array.from({length:34}, (_, index) => ({x,y,vx:(Math.random()-.5)*8*devicePixelRatio,vy:(-3-Math.random()*8)*devicePixelRatio,r:(3+Math.random()*7)*devicePixelRatio,life:1,delay:index*.008}));
+        const ctx = slimeCanvas.getContext('2d');
+        const animate = () => {
+          ctx.clearRect(0,0,slimeCanvas.width,slimeCanvas.height);
+          slimeParticles.forEach((particle) => {
+            particle.delay -= .016; if (particle.delay > 0) return;
+            particle.x += particle.vx; particle.y += particle.vy; particle.vy += .28 * devicePixelRatio; particle.life -= .018;
+            ctx.beginPath(); ctx.arc(particle.x,particle.y,Math.max(0,particle.r*particle.life),0,Math.PI*2);
+            ctx.fillStyle = `rgba(104,240,184,${Math.max(0,particle.life)})`; ctx.shadowColor='#68f0b8'; ctx.shadowBlur=12*devicePixelRatio; ctx.fill();
+          });
+          slimeParticles = slimeParticles.filter((particle) => particle.life > 0);
+          if (slimeParticles.length) requestAnimationFrame(animate); else ctx.clearRect(0,0,slimeCanvas.width,slimeCanvas.height);
+        };
+        requestAnimationFrame(animate);
+      }
+      async function triggerGestureAR(){
+        const collectible = collectibles[activeCollectionIndex];
+        window.dispatchEvent(new CustomEvent('chaines:ar-gesture', {detail:{collectible, gesture:'pinch'}}));
+        if (!collectible?.modelUrl && !collectible?.arModelUrl) return;
+        try {
+          await viewer.activateAR();
+          viewerStatus.textContent = 'Pinch recognized — launching AR.';
+        } catch (error) {
+          viewerStatus.textContent = 'Pinch recognized. Tap “Place NFT in AR” to confirm launch.';
+          launchArBtn.focus({preventScroll:true});
+        }
+      }
+      function processHandResult(result){
+        const landmarks = result.landmarks?.[0];
+        if (!landmarks) {
+          handLabel.textContent = 'Show your hand'; handStage.classList.remove('pinching'); pinchLatched = false; return;
+        }
+        drawGlove(landmarks);
+        const thumb = landmarks[4], index = landmarks[8], palmA = landmarks[5], palmB = landmarks[17];
+        const distance = Math.hypot(thumb.x-index.x,thumb.y-index.y,thumb.z-index.z);
+        const palmWidth = Math.max(.001, Math.hypot(palmA.x-palmB.x,palmA.y-palmB.y,palmA.z-palmB.z));
+        const ratio = distance / palmWidth;
+        if (ratio < .28 && !pinchLatched && performance.now() - lastPinchAt > 1200) {
+          pinchLatched = true; lastPinchAt = performance.now(); handStage.classList.add('pinching'); handLabel.textContent = 'Slime launched!';
+          fireSlime({x:(thumb.x+index.x)/2,y:(thumb.y+index.y)/2}); triggerGestureAR();
+        } else if (ratio > .42) {
+          pinchLatched = false; handStage.classList.remove('pinching'); handLabel.textContent = 'Pinch to launch';
+        }
+      }
+      async function trackingLoop(){
+        if (!handLandmarker || !handStream) return;
+        if (handVideo.readyState >= 2 && handVideo.currentTime !== lastVideoTime) {
+          lastVideoTime = handVideo.currentTime;
+          processHandResult(handLandmarker.detectForVideo(handVideo, performance.now()));
+        }
+        trackingFrame = requestAnimationFrame(trackingLoop);
+      }
+      async function startHandTracking(){
+        handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Loading MediaPipe…'; handStage.hidden = false;
+        try {
+          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+          const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+          handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
+          handStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+          handVideo.srcObject = handStream; await handVideo.play();
+          handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Disable hand tracking'; handTrackingBtn.setAttribute('aria-pressed','true');
+          handLabel.textContent = 'Show your hand'; trackingLoop();
+        } catch (error) {
+          console.warn('Hand tracking could not start.', error); stopHandTracking(); handStage.hidden = false; handLabel.textContent = 'Camera unavailable';
+          handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Try hand tracking again'; viewerStatus.textContent = 'Camera permission and HTTPS are required for gesture controls.';
+        }
+      }
+      function stopHandTracking(){
+        cancelAnimationFrame(trackingFrame); trackingFrame = 0;
+        handStream?.getTracks().forEach((track) => track.stop()); handStream = null;
+        handLandmarker?.close(); handLandmarker = null; handVideo.srcObject = null; handStage.hidden = true;
+        handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
+      }
+      handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
+      window.addEventListener('pagehide', stopHandTracking);
       viewer.addEventListener('progress', e => {
         const p = Math.round((e.detail?.totalProgress || 0) * 100);
         viewerStatus.textContent = `Loading NFT… ${p}%`;
