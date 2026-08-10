@@ -9019,6 +9019,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         text: [title, description].filter(Boolean).join('\n'),
         postText: summary,
         url,
+        graphicUrl: `${url}/graphic`,
         mediaData: attachment.src,
         mediaType: attachment.type,
         mediaName: attachment.name
@@ -9032,10 +9033,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     async function sharePostNative(payload){
       const shareData = { title: payload.title, text: payload.text, url: payload.url };
       try{
-        if(payload.mediaData && payload.mediaData.startsWith('data:') && navigator.canShare && navigator.share){
-          const file = dataUrlToFile(payload.mediaData, payload.mediaName, payload.mediaType);
-          if(file && navigator.canShare({ files: [file] })){
-            await navigator.share({ ...shareData, files: [file] });
+        if(navigator.canShare && navigator.share){
+          const files = await getPostShareFiles(payload);
+          const graphicOnly = files.filter(file => String(file.type || '').startsWith('image/')).slice(-1);
+          const shareableFiles = files.length && navigator.canShare({ ...shareData, files })
+            ? files
+            : (graphicOnly.length && navigator.canShare({ ...shareData, files: graphicOnly }) ? graphicOnly : []);
+          if(shareableFiles.length){
+            await navigator.share({ ...shareData, files: shareableFiles });
             hidePopup();
             return;
           }
@@ -9048,6 +9053,40 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         copySharePayload(payload);
       } catch(err){
         if(err?.name !== 'AbortError') systemNote('Share canceled or unavailable on this device.');
+      }
+    }
+
+    async function getPostShareFiles(payload){
+      const files = [];
+      const mediaFile = await shareFileFromSource(payload.mediaData, payload.mediaName, payload.mediaType);
+      if(mediaFile) files.push(mediaFile);
+
+      // An attached image is already the post graphic. All other posts receive the
+      // server-provided branded card so native shares never go out without artwork.
+      if(!mediaFile || !String(mediaFile.type || '').startsWith('image/')){
+        const graphicFile = await shareFileFromSource(
+          payload.graphicUrl,
+          `chaines-post-${Date.now()}.svg`,
+          'image/svg+xml'
+        );
+        if(graphicFile) files.push(graphicFile);
+      }
+      return files;
+    }
+
+    async function shareFileFromSource(source, suggestedName='', explicitType=''){
+      if(!source) return null;
+      if(source.startsWith('data:')) return dataUrlToFile(source, suggestedName, explicitType);
+      try{
+        const response = await fetch(source, { credentials: 'same-origin' });
+        if(!response.ok) return null;
+        const blob = await response.blob();
+        const mime = blob.type || explicitType || 'application/octet-stream';
+        const extension = (mime.split('/')[1] || 'bin').split(/[;+]/)[0].replace('svg+xml', 'svg');
+        const name = suggestedName || `chaines-share-${Date.now()}.${extension}`;
+        return new File([blob], name, { type: mime });
+      } catch {
+        return null;
       }
     }
 
