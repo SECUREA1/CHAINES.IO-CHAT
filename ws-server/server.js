@@ -641,6 +641,70 @@ app.get("/favicon.svg", (req, res) =>
 );
 
 app.get("/healthz", (req, res) => res.send("ok"));
+
+function escapeMeta(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function crispPostSummary(value = "", maxCharacters = 200) {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxCharacters) return clean;
+  const clipped = clean.slice(0, Math.max(0, maxCharacters - 1));
+  const lastSpace = clipped.lastIndexOf(" ");
+  return `${clipped.slice(0, lastSpace > maxCharacters * 0.65 ? lastSpace : clipped.length).trimEnd()}…`;
+}
+
+function findSharedPost(id) {
+  if (!/^\d+$/.test(String(id || ""))) return null;
+  return db.prepare(
+    "SELECT id, user, message, image, file, file_name, file_type, category FROM chat_messages WHERE id=? AND room IS NULL"
+  ).get(id);
+}
+
+function postGraphic(row) {
+  const candidates = [
+    { data: row?.file, type: row?.file_type },
+    { data: row?.image, type: "image/jpeg" },
+  ];
+  return candidates.find(({ data, type }) =>
+    typeof data === "string" && data.startsWith("data:image/") && (!type || String(type).startsWith("image/"))
+  ) || null;
+}
+
+app.get("/post/:id/graphic", (req, res) => {
+  const row = findSharedPost(req.params.id);
+  if (!row) return res.sendStatus(404);
+  const graphic = postGraphic(row);
+  if (!graphic) return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+  const match = graphic.data.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
+  if (!match) return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+  res.set("Cache-Control", "public, max-age=3600");
+  res.type(match[1]).send(Buffer.from(match[2], "base64"));
+});
+
+app.get("/post/:id", (req, res) => {
+  const row = findSharedPost(req.params.id);
+  if (!row) return res.status(404).send("Post not found");
+  const author = `@${row.user || "user"}`;
+  const title = `${author} on CHAINeS POST`;
+  const summary = crispPostSummary(row.message || row.category || "Shared a post on CHAINeS POST.");
+  const canonical = `${req.protocol}://${req.get("host")}/post/${row.id}`;
+  const graphic = `${canonical}/graphic`;
+  res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeMeta(title)}</title>
+    <meta name="description" content="${escapeMeta(summary)}"><link rel="canonical" href="${escapeMeta(canonical)}">
+    <meta property="og:type" content="article"><meta property="og:site_name" content="CHAINeS POST">
+    <meta property="og:title" content="${escapeMeta(title)}"><meta property="og:description" content="${escapeMeta(summary)}">
+    <meta property="og:url" content="${escapeMeta(canonical)}"><meta property="og:image" content="${escapeMeta(graphic)}">
+    <meta property="article:author" content="${escapeMeta(author)}"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${escapeMeta(title)}"><meta name="twitter:description" content="${escapeMeta(summary)}">
+    <meta name="twitter:image" content="${escapeMeta(graphic)}"><meta http-equiv="refresh" content="0;url=/?focus=${encodeURIComponent(row.id)}">
+    </head><body><main><h1>${escapeMeta(title)}</h1><p>${escapeMeta(summary)}</p><a href="/?focus=${encodeURIComponent(row.id)}">View post</a></main></body></html>`);
+});
 app.post("/api/site-opened", rateLimit("site-opened", 10), (req, res) => {
   notifySiteVisit(req, req.query.page || "/");
   res.status(202).json({ accepted: true });
