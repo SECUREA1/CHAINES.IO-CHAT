@@ -221,6 +221,9 @@ let profiles = loadProfiles();
 
 // express setup
 const app = express();
+// Render terminates TLS at one trusted proxy. Trust only that hop so req.ip
+// reflects the visitor without accepting an arbitrary forwarded-for chain.
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "75mb" }));
 app.use(express.urlencoded({ limit: "75mb", extended: true }));
 const profileDir = path.join(ROOT, "static", "profiles");
@@ -400,10 +403,14 @@ const TWILIO_FROM_PHONE = (process.env.TWILIO_FROM_PHONE || "").trim();
 const recentVisitNotifications = new Map();
 const VISIT_DEDUPE_MS = 30_000;
 
-function visitNotificationText(page = "/") {
+function visitNotificationText(req, page = "/") {
+  const username = sanitizeUsername(req.session?.user?.username || "");
   return [
     "Someone opened CHAINeS.",
     `Page: ${String(page || "/").slice(0, 200)}`,
+    `IP address: ${req.ip || req.socket?.remoteAddress || "unknown"}`,
+    `Account: ${username || "not signed in"}`,
+    `User agent: ${String(req.get("user-agent") || "unknown").slice(0, 500)}`,
     `Time: ${new Date().toISOString()}`,
   ].join("\n");
 }
@@ -450,7 +457,7 @@ function notifySiteVisit(req, page = req.path) {
   for (const [key, timestamp] of recentVisitNotifications) {
     if (now - timestamp > VISIT_DEDUPE_MS) recentVisitNotifications.delete(key);
   }
-  const text = visitNotificationText(page);
+  const text = visitNotificationText(req, page);
   Promise.allSettled([sendVisitEmail(text), sendVisitSms(text)]).then((results) => {
     results.forEach((result) => {
       if (result.status === "rejected") console.error("[visit-notification]", result.reason?.message || result.reason);

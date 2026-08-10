@@ -144,6 +144,10 @@ email notification. To also send an SMS, configure `TWILIO_ACCOUNT_SID`,
 `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_PHONE`. The destination values are
 `VISIT_NOTIFICATION_EMAIL` and `VISIT_NOTIFICATION_PHONE` (in E.164 format).
 Notification delivery runs asynchronously so it does not delay page loading.
+Notifications include the visitor IP address, signed-in username (when a valid
+session is present), and user-agent string. Passwords, session cookies, wallet
+secrets, API keys, and other authentication credentials are intentionally never
+included in notifications.
 
 ## Secure sessions and CHAINeS Memory Bank
 

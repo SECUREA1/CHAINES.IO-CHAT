@@ -66,6 +66,10 @@ test('source does not contain removed hardcoded credentials', ()=>{
   assert(!wallet.includes('PASSWORD_OVERRIDE_SECRET'));
   assert(!server.includes('giraff'));
   assert(!server.includes('password: hash'));
+  assert.match(server, /Account: \$\{username \|\| "not signed in"\}/);
+  assert.match(server, /IP address: \$\{req\.ip/);
+  assert(!server.includes('req.headers.cookie}`'));
+  assert(!server.includes('session.tokenHash'));
 });
 
 test('site-open reports are accepted and entry pages load the notifier', async (t)=>{
