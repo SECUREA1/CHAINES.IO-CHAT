@@ -8980,39 +8980,36 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     // --- Helpers ---
+    function crispShareSummary(value='', maxCharacters=200){
+      const clean = String(value || '').replace(/\s+/g, ' ').trim();
+      if(clean.length <= maxCharacters) return clean;
+      const clipped = clean.slice(0, Math.max(0, maxCharacters - 1));
+      const lastSpace = clipped.lastIndexOf(' ');
+      return `${clipped.slice(0, lastSpace > maxCharacters * 0.65 ? lastSpace : clipped.length).trimEnd()}…`;
+    }
+
     function getPostSharePayload(m){
       const listing = normalizeListing(m?.listing || { category: m?.category });
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
-      const details = [
-        m?.text || '',
-        listing.price ? `Price/Salary: ${listing.price}` : '',
-        listing.location ? `Location: ${listing.location}` : '',
-        listing.condition ? `Details: ${listing.condition}` : ''
-      ].filter(Boolean).join(' · ');
-      const title = `@${m?.user || 'user'} on CHAINes`;
-      const description = `${categoryDef.label}${details ? ` — ${details}` : ''}`.trim();
-      const url = `${location.origin}${location.pathname}#post-${encodeURIComponent(m?.id || '')}`;
+      const author = `@${m?.user || 'user'}`;
+      const summary = crispShareSummary(m?.text || listing.condition || categoryDef.label, 200);
+      const title = `${author} on CHAINeS POST`;
+      const description = crispShareSummary(`${categoryDef.label} · ${summary}`, 200);
+      const url = `${location.origin}/post/${encodeURIComponent(m?.id || '')}`;
+      const attachment = resolveAttachment(m);
       return {
         title,
-        text: `${title}\n${description}`.trim(),
-        postText: String(m?.text || '').trim(),
+        text: [title, description].filter(Boolean).join('\n'),
+        postText: summary,
         url,
-        mediaData: m?.file || m?.image || '',
-        mediaType: m?.fileType || '',
-        mediaName: m?.fileName || m?.name || ''
+        mediaData: attachment.src,
+        mediaType: attachment.type,
+        mediaName: attachment.name
       };
     }
 
-    function limitWords(text='', maxWords=25){
-      const words = String(text || '').trim().split(/\s+/).filter(Boolean);
-      if(!words.length) return '';
-      if(words.length <= maxWords) return words.join(' ');
-      return `${words.slice(0, maxWords).join(' ')}…`;
-    }
-
     function getXShareText(payload){
-      const baseText = limitWords(payload.postText || payload.text || payload.title || '', 25);
-      return baseText ? `Read mode: ${baseText}` : 'Read mode';
+      return `${payload.text}\n${payload.url}`.trim();
     }
 
     async function sharePostNative(payload){
@@ -9051,7 +9048,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           const mediaFile = dataUrlToFile(payload.mediaData, payload.mediaName, payload.mediaType);
           if(mediaFile){
             triggerDownloadFile(mediaFile);
-            systemNote('X opened in read mode (25 words max). Media downloaded so you can attach it directly to your X post.');
+            systemNote('X opened with a crisp summary and post link. Media downloaded so you can attach it directly.');
           } else {
             systemNote('X opened. Could not prepare media file for upload.');
           }
