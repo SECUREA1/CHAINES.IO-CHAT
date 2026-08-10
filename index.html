@@ -1181,11 +1181,11 @@
     .privacy-choice__actions { display:grid; gap:10px; margin-top:20px; }
     .privacy-choice__actions .btn { min-height:48px; }
     .privacy-choice__note { display:block; margin-top:14px; color:var(--muted); font-size:12px; }
-    .face-preference { display:flex; align-items:center; gap:12px; min-width:0; padding:10px 12px; border:1px solid var(--lining); border-radius:12px; color:var(--fg); background:color-mix(in oklab, var(--panel), transparent 8%); cursor:pointer; }
-    .face-preference input { flex:0 0 auto; width:42px; height:24px; margin:0; accent-color:var(--accent); cursor:pointer; }
-    .face-preference__copy { display:flex; flex:1 1 auto; min-width:0; align-items:baseline; gap:8px; line-height:1.25; }
-    .face-preference__copy b { flex:0 0 auto; font-size:14px; }
-    .face-preference__copy small { min-width:0; color:var(--muted); font-size:12px; }
+    .face-preference { display:flex; align-items:flex-start; gap:10px; width:100%; max-width:100%; min-width:0; box-sizing:border-box; padding:10px 12px; border:1px solid var(--lining); border-radius:12px; color:var(--fg); background:color-mix(in oklab, var(--panel), transparent 8%); cursor:pointer; overflow:hidden; }
+    .face-preference input { flex:0 0 18px; width:18px; height:18px; margin:1px 0 0; accent-color:var(--accent); cursor:pointer; }
+    .face-preference__copy { display:flex; flex:1 1 auto; min-width:0; max-width:100%; align-items:baseline; gap:8px; line-height:1.25; overflow-wrap:anywhere; }
+    .face-preference__copy b { flex:0 1 auto; min-width:0; font-size:14px; }
+    .face-preference__copy small { flex:1 1 180px; min-width:0; color:var(--muted); font-size:12px; }
     .card { width:min(520px, 100%); margin:0 auto; max-height:calc(100dvh - clamp(16px, 4vh, 36px)); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:clamp(14px, 3vw, 22px); border-radius:18px; background:color-mix(in oklab, var(--panel), transparent 25%); border:1px solid var(--lining); box-shadow:var(--shadow); backdrop-filter:blur(8px); }
     .card h2 { margin:0 0 8px; font-size: 22px; }
     .card p { margin: 0 0 14px; color: var(--muted); }
@@ -2471,7 +2471,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
         <input id="password" type="password" placeholder="Password" />
         <input id="profile" type="file" accept="image/*" />
-        <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" role="switch" aria-describedby="face-preference-help" /><span class="face-preference__copy"><b>Use facial recognition</b><small id="face-preference-help">Optional. Turn this off to sign in with your username and password only.</small></span></label>
+        <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" aria-describedby="face-preference-help" /><span class="face-preference__copy"><b>Use facial recognition</b><small id="face-preference-help">Optional. Turn this off to sign in with your username and password only.</small></span></label>
       </div>
       <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
         <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
