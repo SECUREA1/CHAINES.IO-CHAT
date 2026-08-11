@@ -167,7 +167,7 @@
             </button>
             <img id="nftImagePreview" class="nft-image-preview" alt="Selected CHAINeS NFT image" hidden />
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
-              <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
+              <button slot="ar-button" class="ar-button" id="viewerArButton" type="button">Place NFT in AR</button>
               <div slot="hotspot-ioncore-health" class="nft-health" id="nftHealth" data-position="0m 1m 0m" data-normal="0m 1m 0m" hidden aria-live="polite">
                 <div class="nft-health-row"><span>NFT INTEGRITY</span><span id="nftHealthValue">100%</span></div>
                 <div class="nft-health-track"><div class="nft-health-fill" id="nftHealthFill"></div></div>
@@ -248,6 +248,7 @@
       const activeModelPath = $('activeModelPath');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
+      const viewerArButton = $('viewerArButton');
       const googleArBtn = $('googleArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
@@ -272,13 +273,12 @@
       const handLabel = $('handLabel');
       const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
       function syncArGameMode(){
-        const gameActive = !ioncoreExperience.hidden;
-        // Scene Viewer and Quick Look leave this document, so neither can keep
-        // the live NFT health, hit effects, or controls. The game deliberately
-        // uses model-viewer's in-page WebXR session and its AR hotspots instead.
-        viewer.setAttribute('ar-modes', gameActive ? 'webxr' : DEFAULT_AR_MODES);
-        googleArBtn.disabled = gameActive || !viewer.hasAttribute('src');
-        googleArBtn.hidden = gameActive;
+        // Prefer in-page WebXR, where the health and slime hotspots remain live,
+        // but retain Scene Viewer and Quick Look so placement still works on
+        // Android/iOS devices without WebXR support.
+        viewer.setAttribute('ar-modes', DEFAULT_AR_MODES);
+        googleArBtn.disabled = !viewer.hasAttribute('src');
+        googleArBtn.hidden = false;
       }
       function setExperience(mode, {updateUrl=true}={}){
         const showIoncore = mode === 'ioncore';
@@ -665,7 +665,7 @@
         // ownership at the same time. Pause only the camera stream: preserve the
         // landmarker, requested tracking state, game mode, and NFT health so the
         // in-AR hotspot can keep firing and MediaPipe resumes on session exit.
-        if (handStream) suspendHandTrackingForAR();
+        prepareHandTrackingForAR();
         viewerStatus.textContent = statusMessage;
         try {
           await viewer.activateAR();
@@ -735,12 +735,19 @@
         handVideo.srcObject = null; handStage.hidden = true;
         handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Hand tracking resumes after AR';
       }
+      function prepareHandTrackingForAR(){
+        // This is intentionally synchronous. Both the page button and
+        // model-viewer's slotted AR button must release getUserMedia during the
+        // same user gesture before WebXR/native AR asks for the rear camera.
+        if (handStream) suspendHandTrackingForAR();
+      }
       async function resumeHandTrackingAfterAR(){
         if (!handTrackingSuspendedForAR || !handTrackingRequested || handStream) return;
         handTrackingSuspendedForAR = false;
         await startHandTracking();
       }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
+      viewerArButton.addEventListener('click', prepareHandTrackingForAR, {capture:true});
       combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
       arCombatFireBtn.addEventListener('click', (event) => {
         event.stopPropagation();
