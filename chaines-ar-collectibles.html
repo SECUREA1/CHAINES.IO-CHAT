@@ -550,12 +550,21 @@
         window.dispatchEvent(new CustomEvent('chaines:ar-gesture', {detail:{collectible, gesture:'pinch'}}));
         if (!collectible?.modelUrl && !collectible?.arModelUrl) return;
         try {
-          await viewer.activateAR();
-          viewerStatus.textContent = 'Pinch recognized — launching AR.';
+          await launchActiveCollectibleAR('Pinch recognized — opening the AR camera…');
         } catch (error) {
           viewerStatus.textContent = 'Pinch recognized. Tap “Place NFT in AR” to confirm launch.';
           launchArBtn.focus({preventScroll:true});
         }
+      }
+
+      async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
+        const collectible = collectibles[activeCollectionIndex];
+        if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
+        // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
+        // the glove preview before model-viewer starts its native/WebXR AR session.
+        if (handStream) stopHandTracking();
+        viewerStatus.textContent = statusMessage;
+        await viewer.activateAR();
       }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
@@ -612,6 +621,10 @@
         viewerStatus.textContent = `Loading NFT… ${p}%`;
       });
       viewer.addEventListener('load', () => { viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
+      viewer.addEventListener('ar-status', (event) => {
+        if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
+        if (event.detail.status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+      });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
       nextBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex + 1]?.number, {push:true, index:activeCollectionIndex + 1}));
@@ -623,7 +636,10 @@
           selectCollectibleByNumber(collectionNumberInput.value, {push:true});
         }
       });
-      launchArBtn.addEventListener('click', async () => { try { await viewer.activateAR(); } catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; } });
+      launchArBtn.addEventListener('click', async () => {
+        try { await launchActiveCollectibleAR(); }
+        catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; }
+      });
       googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
