@@ -5139,6 +5139,31 @@
       else arModelViewer.removeAttribute("ios-src");
     }
 
+    function applyNFTLaunchConfig(){
+      const params = new URLSearchParams(location.search);
+      const nftName = params.get("name");
+      const tokenId = params.get("tokenId");
+      const safeAssetUrl = (value) => {
+        if(!value) return "";
+        try{
+          const url = new URL(value, location.href);
+          return ["http:", "https:", "ipfs:"].includes(url.protocol) ? url.href : "";
+        }catch{
+          return "";
+        }
+      };
+      const model = safeAssetUrl(params.get("model"));
+      const iosModel = safeAssetUrl(params.get("iosModel"));
+      if(model) arModelUrl.value = model;
+      if(iosModel) arIosUrl.value = iosModel;
+      if(model || iosModel) syncModelViewer();
+      if(nftName || tokenId){
+        const label = nftName || `NFT token ${tokenId}`;
+        document.title = `IONCORE • ${label} • RAD-TOX AR`;
+        arCapabilityText.textContent = `${label} connected. Detect AR, then launch the model or enter the full AR game.`;
+      }
+    }
+
     function createFallbackARModel(){
       const group = new THREE.Group();
       const core = new THREE.Mesh(
@@ -5576,6 +5601,8 @@
     btnSpawnARWave.addEventListener("click", spawnARWave);
     btnFireARSlime.addEventListener("click", fireARSlime);
     btnClearARWorld.addEventListener("click", clearARWorld);
+
+    applyNFTLaunchConfig();
 
     arModelScale.addEventListener("input", ()=> arScaleVal.textContent = Number(arModelScale.value).toFixed(2));
     arWaveSize.addEventListener("input", ()=> arWaveVal.textContent = String(Math.round(Number(arWaveSize.value))));

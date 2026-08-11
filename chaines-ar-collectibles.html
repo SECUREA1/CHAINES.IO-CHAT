@@ -206,6 +206,7 @@
 
           <div class="row">
             <button class="btn secondary" id="googleArBtn" type="button">Open Google AR</button>
+            <button class="btn primary" id="ioncoreArBtn" type="button">Open IONCORE RAD-TOX AR</button>
           </div>
 
           <div class="status-grid" style="margin-top:.8rem">
@@ -247,6 +248,7 @@
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
       const googleArBtn = $('googleArBtn');
+      const ioncoreArBtn = $('ioncoreArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
       const ioncoreExperience = $('ioncoreExperience');
@@ -346,6 +348,15 @@
         const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}&tokenId=${collectible.tokenId}`);
         const query = new URLSearchParams({file:absolute(arFile),mode:'ar_preferred',title:`NFT #${collectible.number} · ${collectible.name}`,link:fallbackUrl,resizable:'true'});
         return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+      }
+      function buildIoncoreUrl(collectible){
+        const model = collectible.arModelUrl || collectible.modelUrl;
+        const url = new URL('/ioncore_radtox_multiplatform_ar.html', window.location.origin);
+        if (model) url.searchParams.set('model', absolute(model));
+        url.searchParams.set('name', `NFT #${collectible.number} · ${collectible.name}`);
+        url.searchParams.set('tokenId', String(collectible.tokenId));
+        url.searchParams.set('return', location.href);
+        return url.href;
       }
       function updateURL(collectible, options={}){
         if(options.skipUrl) return;
@@ -732,6 +743,14 @@
         catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; }
       });
       googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
+      ioncoreArBtn.addEventListener('click', () => {
+        const collectible = collectibles[activeCollectionIndex];
+        if (!collectible?.modelUrl && !collectible?.arModelUrl) {
+          viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in IONCORE AR.';
+          return;
+        }
+        location.href = buildIoncoreUrl(collectible);
+      });
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) { const nextIndex = activeCollectionIndex + (dx < 0 ? 1 : -1); selectCollectibleByNumber(collectibles[nextIndex]?.number, {push:true, index:nextIndex}); } }, {passive:true});
