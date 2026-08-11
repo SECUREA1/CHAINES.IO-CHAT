@@ -270,6 +270,16 @@
       const gloveCuff = $('gloveCuff');
       const slimeCanvas = $('slimeCanvas');
       const handLabel = $('handLabel');
+      const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
+      function syncArGameMode(){
+        const gameActive = !ioncoreExperience.hidden;
+        // Scene Viewer and Quick Look leave this document, so neither can keep
+        // the live NFT health, hit effects, or controls. The game deliberately
+        // uses model-viewer's in-page WebXR session and its AR hotspots instead.
+        viewer.setAttribute('ar-modes', gameActive ? 'webxr' : DEFAULT_AR_MODES);
+        googleArBtn.disabled = gameActive || !viewer.hasAttribute('src');
+        googleArBtn.hidden = gameActive;
+      }
       function setExperience(mode, {updateUrl=true}={}){
         const showIoncore = mode === 'ioncore';
         ioncoreExperience.hidden = !showIoncore;
@@ -281,6 +291,7 @@
         arCombatFireBtn.hidden = !showIoncore;
         combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
         if(!showIoncore) resetCombat();
+        syncArGameMode();
         if(updateUrl){
           const url = new URL(location.href);
           if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
@@ -442,6 +453,7 @@
           googleArBtn.disabled = true;
           launchArBtn.disabled = true;
         }
+        syncArGameMode();
         if (!options.skipMetadata) hydrateCollectibleMetadata(collectible);
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
@@ -493,6 +505,8 @@
       const HAND_CONNECTIONS = [[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
       let handStream = null;
       let handLandmarker = null;
+      let handTrackingRequested = false;
+      let handTrackingSuspendedForAR = false;
       let trackingFrame = 0;
       let lastVideoTime = -1;
       let pinchLatched = false;
@@ -647,11 +661,18 @@
       async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
         const collectible = collectibles[activeCollectionIndex];
         if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
-        // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
-        // the glove preview before model-viewer starts its native/WebXR AR session.
-        if (handStream) stopHandTracking();
+        // Mobile browsers generally will not give getUserMedia and WebXR camera
+        // ownership at the same time. Pause only the camera stream: preserve the
+        // landmarker, requested tracking state, game mode, and NFT health so the
+        // in-AR hotspot can keep firing and MediaPipe resumes on session exit.
+        if (handStream) suspendHandTrackingForAR();
         viewerStatus.textContent = statusMessage;
-        await viewer.activateAR();
+        try {
+          await viewer.activateAR();
+        } catch (error) {
+          await resumeHandTrackingAfterAR();
+          throw error;
+        }
       }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
@@ -680,11 +701,15 @@
         trackingFrame = requestAnimationFrame(trackingLoop);
       }
       async function startHandTracking(){
+        handTrackingRequested = true;
+        handTrackingSuspendedForAR = false;
         handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Loading MediaPipe…'; handStage.hidden = false;
         try {
-          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-          const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-          handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
+          if (!handLandmarker) {
+            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+            const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+            handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
+          }
           handStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
           handVideo.srcObject = handStream; await handVideo.play();
           handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Disable hand tracking'; handTrackingBtn.setAttribute('aria-pressed','true');
@@ -695,10 +720,25 @@
         }
       }
       function stopHandTracking(){
+        handTrackingRequested = false;
+        handTrackingSuspendedForAR = false;
         cancelAnimationFrame(trackingFrame); trackingFrame = 0;
         handStream?.getTracks().forEach((track) => track.stop()); handStream = null;
         handLandmarker?.close(); handLandmarker = null; handVideo.srcObject = null; handStage.hidden = true;
         handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
+      }
+      function suspendHandTrackingForAR(){
+        if (!handStream) return;
+        handTrackingSuspendedForAR = handTrackingRequested;
+        cancelAnimationFrame(trackingFrame); trackingFrame = 0;
+        handStream.getTracks().forEach((track) => track.stop()); handStream = null;
+        handVideo.srcObject = null; handStage.hidden = true;
+        handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Hand tracking resumes after AR';
+      }
+      async function resumeHandTrackingAfterAR(){
+        if (!handTrackingSuspendedForAR || !handTrackingRequested || handStream) return;
+        handTrackingSuspendedForAR = false;
+        await startHandTracking();
       }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
       combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
@@ -726,8 +766,14 @@
         const status = event.detail.status;
         viewer.classList.toggle('ar-active', status === 'session-started');
         if (status === 'session-started') viewerStatus.textContent = ioncoreExperience.hidden ? 'AR camera open — move your device to place the NFT.' : 'AR combat active — place the NFT, then pinch or tap the glove control to fire.';
-        if (status === 'not-presenting') viewerStatus.textContent = 'NFT ready for 3D and AR.';
-        if (status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+        if (status === 'not-presenting') {
+          viewerStatus.textContent = 'NFT ready for 3D and AR.';
+          resumeHandTrackingAfterAR();
+        }
+        if (status === 'failed') {
+          viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+          resumeHandTrackingAfterAR();
+        }
       });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
