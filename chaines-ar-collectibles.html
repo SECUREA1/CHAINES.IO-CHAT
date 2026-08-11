@@ -112,7 +112,6 @@
     .ioncore-game-toggle[aria-pressed="true"]{background:linear-gradient(135deg,#68f0b8,#66ddff);color:#02111b;border-color:transparent}.ioncore-game-toggle[aria-pressed="true"] .toggle-state{background:rgba(2,17,27,.16);color:#02111b}
     .ioncore-game{position:absolute;inset:0;z-index:5;pointer-events:none}.ioncore-game[hidden]{display:none}.combat-canvas{position:absolute;inset:0;width:100%;height:100%}.combat-instructions{position:absolute;left:1rem;bottom:1rem;max-width:min(28rem,calc(100% - 2rem));padding:.65rem .8rem;border:1px solid rgba(104,240,184,.48);border-radius:12px;background:rgba(2,10,12,.82);color:#dffff0;font-size:.8rem;box-shadow:0 12px 30px rgba(0,0,0,.4)}
     .nft-health{width:180px;padding:.48rem .58rem;border:1px solid rgba(104,240,184,.7);border-radius:11px;background:rgba(2,10,12,.86);color:#eafff3;font-size:.72rem;font-weight:900;box-shadow:0 0 20px rgba(104,240,184,.3);pointer-events:none}.nft-health-row{display:flex;justify-content:space-between;margin-bottom:.32rem}.nft-health-track{height:8px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.13)}.nft-health-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff5e75,#ffbe6b 38%,#68f0b8);transform-origin:left;transition:transform .28s ease,filter .28s ease}.nft-health.danger{border-color:#ff5e75;animation:healthPulse .7s infinite alternate}.nft-health.destroyed{border-color:#ff5e75;color:#ff9aaa}.combat-fire{border-color:rgba(104,240,184,.6)}.combat-fire[hidden]{display:none}model-viewer.ioncore-hit{animation:nftHit .24s ease}model-viewer.ioncore-destroyed{filter:saturate(.2) brightness(.5)}
-    .ar-combat-control{display:none;align-items:center;gap:.45rem;border:1px solid rgba(104,240,184,.8);border-radius:999px;padding:.52rem .72rem;background:rgba(2,10,12,.9);color:#eafff3;font:800 .72rem/1 Inter,system-ui,sans-serif;box-shadow:0 0 22px rgba(104,240,184,.38);cursor:pointer;white-space:nowrap}.ar-combat-control .ar-glove{font-size:1.15rem;filter:drop-shadow(0 0 7px #68f0b8)}model-viewer.ar-active .ar-combat-control:not([hidden]){display:flex}.ar-combat-control:active{transform:scale(.94)}
     .world-goop-particle{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#edff9d,#68f0b8 42%,#168b68 78%);box-shadow:0 0 16px #68f0b8;pointer-events:none;transition:opacity .18s linear}
     @keyframes healthPulse{to{box-shadow:0 0 28px rgba(255,60,90,.72)}}@keyframes nftHit{45%{filter:hue-rotate(55deg) saturate(2.8) brightness(1.6);transform:translateX(5px)}}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
@@ -167,12 +166,11 @@
             </button>
             <img id="nftImagePreview" class="nft-image-preview" alt="Selected CHAINeS NFT image" hidden />
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
-              <button slot="ar-button" class="ar-button" id="viewerArButton" type="button">Place NFT in AR</button>
+              <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
               <div slot="hotspot-ioncore-health" class="nft-health" id="nftHealth" data-position="0m 1m 0m" data-normal="0m 1m 0m" hidden aria-live="polite">
                 <div class="nft-health-row"><span>NFT INTEGRITY</span><span id="nftHealthValue">100%</span></div>
                 <div class="nft-health-track"><div class="nft-health-fill" id="nftHealthFill"></div></div>
               </div>
-              <button slot="hotspot-ioncore-fire" class="ar-combat-control" id="arCombatFireBtn" data-position="0m 0.2m 0.25m" data-normal="0m 0m 1m" type="button" hidden aria-label="Use the IONCORE glove to fire goop at this NFT"><span class="ar-glove" aria-hidden="true">🤏</span><span>PINCH · FIRE GOOP</span></button>
             </model-viewer>
             <div class="hand-stage" id="handStage" hidden aria-label="Live hand tracking preview">
               <video id="handVideo" playsinline muted aria-hidden="true"></video>
@@ -248,7 +246,6 @@
       const activeModelPath = $('activeModelPath');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
-      const viewerArButton = $('viewerArButton');
       const googleArBtn = $('googleArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
@@ -257,7 +254,6 @@
       const ioncoreToggleState = $('ioncoreToggleState');
       const combatCanvas = $('combatCanvas');
       const combatFireBtn = $('combatFireBtn');
-      const arCombatFireBtn = $('arCombatFireBtn');
       const combatInstructions = $('combatInstructions');
       const nftHealth = $('nftHealth');
       const nftHealthValue = $('nftHealthValue');
@@ -271,15 +267,6 @@
       const gloveCuff = $('gloveCuff');
       const slimeCanvas = $('slimeCanvas');
       const handLabel = $('handLabel');
-      const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
-      function syncArGameMode(){
-        // Prefer in-page WebXR, where the health and slime hotspots remain live,
-        // but retain Scene Viewer and Quick Look so placement still works on
-        // Android/iOS devices without WebXR support.
-        viewer.setAttribute('ar-modes', DEFAULT_AR_MODES);
-        googleArBtn.disabled = !viewer.hasAttribute('src');
-        googleArBtn.hidden = false;
-      }
       function setExperience(mode, {updateUrl=true}={}){
         const showIoncore = mode === 'ioncore';
         ioncoreExperience.hidden = !showIoncore;
@@ -288,10 +275,8 @@
         ioncoreGameToggle.setAttribute('aria-label', `Turn IONCORE glove game ${showIoncore ? 'off' : 'on'}`);
         nftHealth.hidden = !showIoncore;
         combatFireBtn.hidden = !showIoncore;
-        arCombatFireBtn.hidden = !showIoncore;
         combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
         if(!showIoncore) resetCombat();
-        syncArGameMode();
         if(updateUrl){
           const url = new URL(location.href);
           if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
@@ -453,7 +438,6 @@
           googleArBtn.disabled = true;
           launchArBtn.disabled = true;
         }
-        syncArGameMode();
         if (!options.skipMetadata) hydrateCollectibleMetadata(collectible);
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
@@ -505,8 +489,6 @@
       const HAND_CONNECTIONS = [[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
       let handStream = null;
       let handLandmarker = null;
-      let handTrackingRequested = false;
-      let handTrackingSuspendedForAR = false;
       let trackingFrame = 0;
       let lastVideoTime = -1;
       let pinchLatched = false;
@@ -598,8 +580,6 @@
           const dimensions = viewer.getDimensions();
           nftHealth.dataset.position = `${center.x}m ${center.y + dimensions.y * .62}m ${center.z}m`;
           viewer.updateHotspot({name:'hotspot-ioncore-health',position:nftHealth.dataset.position,normal:'0m 1m 0m'});
-          arCombatFireBtn.dataset.position = `${center.x}m ${center.y - dimensions.y * .6}m ${center.z + dimensions.z * .55}m`;
-          viewer.updateHotspot({name:'hotspot-ioncore-fire',position:arCombatFireBtn.dataset.position,normal:'0m 0m 1m'});
         }catch(error){ console.debug('Using default IONCORE health position.', error); }
       }
       function combatBurst(origin={x:.5,y:.75}, exploding=false){
@@ -661,18 +641,11 @@
       async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
         const collectible = collectibles[activeCollectionIndex];
         if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
-        // Mobile browsers generally will not give getUserMedia and WebXR camera
-        // ownership at the same time. Pause only the camera stream: preserve the
-        // landmarker, requested tracking state, game mode, and NFT health so the
-        // in-AR hotspot can keep firing and MediaPipe resumes on session exit.
-        prepareHandTrackingForAR();
+        // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
+        // the glove preview before model-viewer starts its native/WebXR AR session.
+        if (handStream) stopHandTracking();
         viewerStatus.textContent = statusMessage;
-        try {
-          await viewer.activateAR();
-        } catch (error) {
-          await resumeHandTrackingAfterAR();
-          throw error;
-        }
+        await viewer.activateAR();
       }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
@@ -701,15 +674,11 @@
         trackingFrame = requestAnimationFrame(trackingLoop);
       }
       async function startHandTracking(){
-        handTrackingRequested = true;
-        handTrackingSuspendedForAR = false;
         handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Loading MediaPipe…'; handStage.hidden = false;
         try {
-          if (!handLandmarker) {
-            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-            const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-            handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
-          }
+          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+          const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+          handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
           handStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
           handVideo.srcObject = handStream; await handVideo.play();
           handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Disable hand tracking'; handTrackingBtn.setAttribute('aria-pressed','true');
@@ -720,39 +689,13 @@
         }
       }
       function stopHandTracking(){
-        handTrackingRequested = false;
-        handTrackingSuspendedForAR = false;
         cancelAnimationFrame(trackingFrame); trackingFrame = 0;
         handStream?.getTracks().forEach((track) => track.stop()); handStream = null;
         handLandmarker?.close(); handLandmarker = null; handVideo.srcObject = null; handStage.hidden = true;
         handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
       }
-      function suspendHandTrackingForAR(){
-        if (!handStream) return;
-        handTrackingSuspendedForAR = handTrackingRequested;
-        cancelAnimationFrame(trackingFrame); trackingFrame = 0;
-        handStream.getTracks().forEach((track) => track.stop()); handStream = null;
-        handVideo.srcObject = null; handStage.hidden = true;
-        handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Hand tracking resumes after AR';
-      }
-      function prepareHandTrackingForAR(){
-        // This is intentionally synchronous. Both the page button and
-        // model-viewer's slotted AR button must release getUserMedia during the
-        // same user gesture before WebXR/native AR asks for the rear camera.
-        if (handStream) suspendHandTrackingForAR();
-      }
-      async function resumeHandTrackingAfterAR(){
-        if (!handTrackingSuspendedForAR || !handTrackingRequested || handStream) return;
-        handTrackingSuspendedForAR = false;
-        await startHandTracking();
-      }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
-      viewerArButton.addEventListener('click', prepareHandTrackingForAR, {capture:true});
       combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
-      arCombatFireBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        attackNft({x:.5,y:.72});
-      });
       ioncoreGameToggle.addEventListener('click', () => {
         const enable = ioncoreExperience.hidden;
         setExperience(enable ? 'ioncore' : 'collectibles');
@@ -770,17 +713,8 @@
       });
       viewer.addEventListener('load', () => { positionHealthHotspot(); viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
       viewer.addEventListener('ar-status', (event) => {
-        const status = event.detail.status;
-        viewer.classList.toggle('ar-active', status === 'session-started');
-        if (status === 'session-started') viewerStatus.textContent = ioncoreExperience.hidden ? 'AR camera open — move your device to place the NFT.' : 'AR combat active — place the NFT, then pinch or tap the glove control to fire.';
-        if (status === 'not-presenting') {
-          viewerStatus.textContent = 'NFT ready for 3D and AR.';
-          resumeHandTrackingAfterAR();
-        }
-        if (status === 'failed') {
-          viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
-          resumeHandTrackingAfterAR();
-        }
+        if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
+        if (event.detail.status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
       });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
