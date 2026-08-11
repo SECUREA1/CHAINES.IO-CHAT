@@ -84,6 +84,16 @@ test('site-open reports are accepted and entry pages load the notifier', async (
   assert.match(page, /\/static\/visit-notifier\.js/);
 });
 
+test('multiplatform IONCORE AR page is served by its public routes', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  for (const route of ['/ioncore_radtox_multiplatform_ar.html', '/ioncore-ar']) {
+    const response = await fetch(srv.base + route);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') || '', /text\/html/);
+    assert.match(await response.text(), /IONCORE/);
+  }
+});
+
 test('production visit notifications target the deployed backend and configured recipients', ()=>{
   const notifier = fs.readFileSync(path.join(root, 'static', 'visit-notifier.js'), 'utf8');
   const blueprint = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');

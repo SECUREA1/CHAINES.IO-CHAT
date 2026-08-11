@@ -733,6 +733,7 @@ const SITE_ENTRY_PATHS = new Set([
   "/private-chat", "/private-chat.html", "/profile", "/profile.html", "/rewards-program",
   "/rewards-program.html", "/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player",
   "/ioncore-ar-glove", "/ioncore_radtox_mediapipe_ar_glove.html",
+  "/ioncore-ar", "/ioncore_radtox_multiplatform_ar.html",
 ]);
 app.use((req, _res, next) => {
   if (req.method === "GET" && SITE_ENTRY_PATHS.has(req.path)) notifySiteVisit(req);
@@ -767,6 +768,9 @@ app.get(["/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-playe
 );
 app.get(["/ioncore-ar-glove", "/ioncore_radtox_mediapipe_ar_glove.html"], (req, res) =>
   res.sendFile(path.join(ROOT, "ioncore_radtox_mediapipe_ar_glove.html"))
+);
+app.get(["/ioncore-ar", "/ioncore_radtox_multiplatform_ar.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "ioncore_radtox_multiplatform_ar.html"))
 );
 app.get("/omconsole_render_single.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single.html"))
