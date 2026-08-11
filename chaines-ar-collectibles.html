@@ -112,6 +112,7 @@
     .ioncore-game-toggle[aria-pressed="true"]{background:linear-gradient(135deg,#68f0b8,#66ddff);color:#02111b;border-color:transparent}.ioncore-game-toggle[aria-pressed="true"] .toggle-state{background:rgba(2,17,27,.16);color:#02111b}
     .ioncore-game{position:absolute;inset:0;z-index:5;pointer-events:none}.ioncore-game[hidden]{display:none}.combat-canvas{position:absolute;inset:0;width:100%;height:100%}.combat-instructions{position:absolute;left:1rem;bottom:1rem;max-width:min(28rem,calc(100% - 2rem));padding:.65rem .8rem;border:1px solid rgba(104,240,184,.48);border-radius:12px;background:rgba(2,10,12,.82);color:#dffff0;font-size:.8rem;box-shadow:0 12px 30px rgba(0,0,0,.4)}
     .nft-health{width:180px;padding:.48rem .58rem;border:1px solid rgba(104,240,184,.7);border-radius:11px;background:rgba(2,10,12,.86);color:#eafff3;font-size:.72rem;font-weight:900;box-shadow:0 0 20px rgba(104,240,184,.3);pointer-events:none}.nft-health-row{display:flex;justify-content:space-between;margin-bottom:.32rem}.nft-health-track{height:8px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.13)}.nft-health-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff5e75,#ffbe6b 38%,#68f0b8);transform-origin:left;transition:transform .28s ease,filter .28s ease}.nft-health.danger{border-color:#ff5e75;animation:healthPulse .7s infinite alternate}.nft-health.destroyed{border-color:#ff5e75;color:#ff9aaa}.combat-fire{border-color:rgba(104,240,184,.6)}.combat-fire[hidden]{display:none}model-viewer.ioncore-hit{animation:nftHit .24s ease}model-viewer.ioncore-destroyed{filter:saturate(.2) brightness(.5)}
+    .ar-combat-control{display:none;align-items:center;gap:.45rem;border:1px solid rgba(104,240,184,.8);border-radius:999px;padding:.52rem .72rem;background:rgba(2,10,12,.9);color:#eafff3;font:800 .72rem/1 Inter,system-ui,sans-serif;box-shadow:0 0 22px rgba(104,240,184,.38);cursor:pointer;white-space:nowrap}.ar-combat-control .ar-glove{font-size:1.15rem;filter:drop-shadow(0 0 7px #68f0b8)}model-viewer.ar-active .ar-combat-control:not([hidden]){display:flex}.ar-combat-control:active{transform:scale(.94)}
     .world-goop-particle{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#edff9d,#68f0b8 42%,#168b68 78%);box-shadow:0 0 16px #68f0b8;pointer-events:none;transition:opacity .18s linear}
     @keyframes healthPulse{to{box-shadow:0 0 28px rgba(255,60,90,.72)}}@keyframes nftHit{45%{filter:hue-rotate(55deg) saturate(2.8) brightness(1.6);transform:translateX(5px)}}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
@@ -171,6 +172,7 @@
                 <div class="nft-health-row"><span>NFT INTEGRITY</span><span id="nftHealthValue">100%</span></div>
                 <div class="nft-health-track"><div class="nft-health-fill" id="nftHealthFill"></div></div>
               </div>
+              <button slot="hotspot-ioncore-fire" class="ar-combat-control" id="arCombatFireBtn" data-position="0m 0.2m 0.25m" data-normal="0m 0m 1m" type="button" hidden aria-label="Use the IONCORE glove to fire goop at this NFT"><span class="ar-glove" aria-hidden="true">🤏</span><span>PINCH · FIRE GOOP</span></button>
             </model-viewer>
             <div class="hand-stage" id="handStage" hidden aria-label="Live hand tracking preview">
               <video id="handVideo" playsinline muted aria-hidden="true"></video>
@@ -254,6 +256,7 @@
       const ioncoreToggleState = $('ioncoreToggleState');
       const combatCanvas = $('combatCanvas');
       const combatFireBtn = $('combatFireBtn');
+      const arCombatFireBtn = $('arCombatFireBtn');
       const combatInstructions = $('combatInstructions');
       const nftHealth = $('nftHealth');
       const nftHealthValue = $('nftHealthValue');
@@ -275,6 +278,7 @@
         ioncoreGameToggle.setAttribute('aria-label', `Turn IONCORE glove game ${showIoncore ? 'off' : 'on'}`);
         nftHealth.hidden = !showIoncore;
         combatFireBtn.hidden = !showIoncore;
+        arCombatFireBtn.hidden = !showIoncore;
         combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
         if(!showIoncore) resetCombat();
         if(updateUrl){
@@ -580,6 +584,8 @@
           const dimensions = viewer.getDimensions();
           nftHealth.dataset.position = `${center.x}m ${center.y + dimensions.y * .62}m ${center.z}m`;
           viewer.updateHotspot({name:'hotspot-ioncore-health',position:nftHealth.dataset.position,normal:'0m 1m 0m'});
+          arCombatFireBtn.dataset.position = `${center.x}m ${center.y - dimensions.y * .6}m ${center.z + dimensions.z * .55}m`;
+          viewer.updateHotspot({name:'hotspot-ioncore-fire',position:arCombatFireBtn.dataset.position,normal:'0m 0m 1m'});
         }catch(error){ console.debug('Using default IONCORE health position.', error); }
       }
       function combatBurst(origin={x:.5,y:.75}, exploding=false){
@@ -696,6 +702,10 @@
       }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
       combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
+      arCombatFireBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        attackNft({x:.5,y:.72});
+      });
       ioncoreGameToggle.addEventListener('click', () => {
         const enable = ioncoreExperience.hidden;
         setExperience(enable ? 'ioncore' : 'collectibles');
@@ -713,8 +723,11 @@
       });
       viewer.addEventListener('load', () => { positionHealthHotspot(); viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
       viewer.addEventListener('ar-status', (event) => {
-        if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
-        if (event.detail.status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+        const status = event.detail.status;
+        viewer.classList.toggle('ar-active', status === 'session-started');
+        if (status === 'session-started') viewerStatus.textContent = ioncoreExperience.hidden ? 'AR camera open — move your device to place the NFT.' : 'AR combat active — place the NFT, then pinch or tap the glove control to fire.';
+        if (status === 'not-presenting') viewerStatus.textContent = 'NFT ready for 3D and AR.';
+        if (status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
       });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
