@@ -18,6 +18,7 @@
 
     #app{
       height:100vh;
+      height:100dvh;
       box-sizing:border-box;
       padding:14px;
       display:grid;
@@ -302,6 +303,8 @@
       backdrop-filter: blur(12px);
       overflow:auto;
     }
+    /* Gesture authentication is no longer part of the instant-play game flow. */
+    #authOverlay{ display:none !important; }
     #authOverlay.show{
       display:flex;
       align-items:stretch;
@@ -384,10 +387,27 @@
     }
     @media (max-width: 980px){
       #app{
+        padding:8px;
+        gap:8px;
         grid-template-columns:1fr;
-        grid-template-rows: minmax(320px, 58vh) minmax(220px, 42vh);
+        grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
       }
       .authGrid{ grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px){
+      .header{ padding:8px 10px; }
+      .header .left, .header .right{ gap:6px; }
+      .header .right,
+      .header .left > .pill:not(#statusPill),
+      #btnRestart{ display:none; }
+      .brandText .sub{ display:none; }
+      button{ padding:7px 9px; font-size:12px; }
+      .pill{ padding:5px 8px; font-size:10px; }
+      .hpBar{ width:72px; }
+      #controlsBody{ padding:8px; gap:8px; }
+      .group{ padding:9px; }
+      .row{ gap:7px; margin:7px 0; }
     }
 
     .authPreview{
@@ -755,7 +775,7 @@
         </div>
 
         <div class="right">
-          <button id="btnLockTop" disabled>Lock</button>
+          <button id="btnLockTop" disabled hidden>Lock</button>
           <button id="btnMute" disabled>Sound: ON</button>
           <span class="pill">Score <b id="scoreTxt">0</b></span>
           <span class="pill">Enemies <b id="enemyTxt">0</b></span>
@@ -3195,7 +3215,8 @@
     // ---------- AUTH TEMPLATE ----------
     const TEMPLATE_KEY = "ioncore_radtox_gesture_template_v6";
     const SESSION_KEY  = "ioncore_radtox_session_v6";
-    let authed = sessionStorage.getItem(SESSION_KEY) === "1";
+    // Instant-play mode: camera permission is the only gate to starting a run.
+    let authed = true;
     let hasTemplate = false;
 
     function loadTemplate(){
@@ -3436,37 +3457,15 @@
     }
 
     function updateAuthUI(){
-      const tpl = loadTemplate();
-      hasTemplate = !!tpl;
-
-      btnAuthStop.disabled = !streamActive;
-      btnEnroll.disabled = !(streamActive && visionReady);
-      btnLogin.disabled  = !(streamActive && visionReady && hasTemplate);
-      btnLogout.disabled = !authed;
-
-      btnStart.disabled   = !authed;
-      btnStop.disabled    = !authed;
-      btnRestart.disabled = !authed;
-      btnLockTop.disabled = !authed;
-      btnMute.disabled    = !authed;
-
-      if(!authed){
-        authOverlay.classList.add("show");
-        setAuthPill(hasTemplate ? "LOCKED • TEMPLATE READY" : "LOCKED • ENROLL REQUIRED", false);
-        statusPill.textContent = visionReady ? "LOCKED — LOGIN REQUIRED" : "VISION FAILED";
-      } else {
-        authOverlay.classList.remove("show");
-        setAuthPill("UNLOCKED", true);
-        statusPill.textContent = visionReady ? "READY — ENABLE CAMERA" : "VISION FAILED";
-      }
-
-      setAuthMini(
-        visionReady
-          ? (hasTemplate
-              ? `Template: <b>FOUND</b> • Strictness: <b>${Number(authStrict.value).toFixed(2)}</b>`
-              : `Template: <b>NONE</b> • Click <b>Enroll</b>.`)
-          : `Vision: <b>NOT READY</b> • Refresh and ensure CDN access.`
-      );
+      authed = true;
+      authOverlay.classList.remove("show");
+      btnStart.disabled = !visionReady || streamActive;
+      btnStop.disabled = !streamActive;
+      btnRestart.disabled = !streamActive;
+      btnMute.disabled = !streamActive;
+      statusPill.textContent = visionReady
+        ? (streamActive ? "LINK ACTIVE" : "READY — ENABLE CAMERA")
+        : "VISION FAILED";
     }
 
     function hardStopAll(){
@@ -3476,7 +3475,7 @@
       streamActive = false;
       cachedResults = null;
       lastDetectTs = 0;
-      statusPill.textContent = authed ? "READY — ENABLE CAMERA" : "LOCKED — LOGIN REQUIRED";
+      statusPill.textContent = visionReady ? "READY — ENABLE CAMERA" : "VISION FAILED";
       overlayMsg.classList.remove("hidden");
       updateAuthUI();
       refreshAudio();
@@ -4807,12 +4806,6 @@
 
     // ---------- BUTTONS ----------
     btnStart.addEventListener("click", async () => {
-      if(!authed){
-        authOverlay.classList.add("show");
-        updateAuthUI();
-        authLoop();
-        return;
-      }
       try{
         const ok = await startStream();
         if(!ok) return;
@@ -5639,7 +5632,6 @@
       await detectARCapabilities();
       await createHandLandmarker();
       updateAuthUI();
-      authLoop();
 
       if(!CanvasRenderingContext2D.prototype.roundRect){
         CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
