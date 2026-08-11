@@ -29,6 +29,8 @@
   <meta name="theme-color" content="#0756b7" />
   <meta name="application-name" content="CHAINeS POST" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="CHAINeS" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <script type="application/ld+json">
@@ -1951,6 +1953,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     .app-download-card span { margin-top:2px; color:var(--muted); font-size:11px; }
     .app-download-card button { grid-column:1 / -1; width:100%; }
     .app-download-card.is-installed { border-color:color-mix(in oklab, #4ade80, transparent 40%); }
+    .install-help { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:18px; background:rgba(2,6,23,.78); backdrop-filter:blur(10px); }
+    .install-help[hidden] { display:none; }
+    .install-help__panel { width:min(460px, 100%); max-height:90dvh; overflow:auto; padding:22px; border:1px solid var(--lining); border-radius:20px; background:var(--panel); box-shadow:0 24px 70px rgba(0,0,0,.55); }
+    .install-help__head { display:flex; align-items:center; gap:12px; }
+    .install-help__head img { width:52px; height:52px; border-radius:13px; }
+    .install-help__head h2 { margin:0; font-size:20px; }
+    .install-help__panel p { color:var(--muted); }
+    .install-help__steps { padding-left:22px; display:grid; gap:10px; }
+    .install-help__close { width:100%; margin-top:8px; }
 
     /* ✅ make hidden actually hide, even with .auth display rules */
     [hidden] { display: none !important; }
@@ -2199,6 +2210,18 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
 </head>
 <body>
+  <div id="install-help" class="install-help" role="dialog" aria-modal="true" aria-labelledby="install-help-title" hidden>
+    <div class="install-help__panel">
+      <div class="install-help__head">
+        <img src="/static/logo.svg" alt="" aria-hidden="true" />
+        <h2 id="install-help-title">Install CHAINeS</h2>
+      </div>
+      <p id="install-help-intro">Add CHAINeS to your home screen for the same full app, account, preferences, and workspace as the desktop experience.</p>
+      <ol id="install-help-steps" class="install-help__steps"></ol>
+      <p>Keep using this browser profile so your locally saved settings remain available.</p>
+      <button id="install-help-close" class="btn primary install-help__close" type="button">Got it</button>
+    </div>
+  </div>
   <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0xEf74118D5fB730E9B2729c7303DC29980b4771f0" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
     <div class="token-gate__panel">
       <div class="token-gate__art" aria-hidden="true">
@@ -2566,7 +2589,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <strong>Take CHAINeS with you</strong>
           <span>Install the branded app for a focused, full-screen creator workspace.</span>
         </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Install on this device</button>
         </div>
         <div class="fields auth-card__token-fields">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -3141,6 +3164,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const installAppBtn = el('#install-app-btn');
     const authInstallAppBtn = el('#auth-install-app-btn');
     const appDownloadCard = el('#app-download-card');
+    const installHelp = el('#install-help');
+    const installHelpSteps = el('#install-help-steps');
+    const installHelpClose = el('#install-help-close');
     const usernameInput = el('#username');
     const passwordInput = el('#password');
     const profileInput = el('#profile');
@@ -6805,16 +6831,36 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // Keep the app shell available independently of notification preferences.
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
+    const isStandaloneApp = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isMobileBrowser = window.matchMedia?.('(max-width: 900px), (pointer: coarse)').matches;
     function setInstallAvailability(available){
       [installAppBtn, authInstallAppBtn].forEach((button) => {
         if(button) button.hidden = !available;
       });
       if(appDownloadCard){
-        appDownloadCard.classList.toggle('is-installed', !available && window.matchMedia?.('(display-mode: standalone)').matches);
+        appDownloadCard.classList.toggle('is-installed', isStandaloneApp());
       }
     }
+    function showInstallHelp(){
+      if(!installHelp || !installHelpSteps) return;
+      const steps = isAppleMobile
+        ? ['Open this page in Safari.', 'Tap the Share button in the Safari toolbar.', 'Choose “Add to Home Screen”, then tap “Add”.']
+        : ['Open the browser menu (⋮).', 'Choose “Install app” or “Add to Home screen”.', 'Confirm Install to launch CHAINeS like a native app.'];
+      installHelpSteps.replaceChildren(...steps.map((step) => {
+        const item = document.createElement('li');
+        item.textContent = step;
+        return item;
+      }));
+      installHelp.hidden = false;
+      installHelpClose?.focus();
+    }
     async function installBrandedApp(){
-      if(!deferredInstallPrompt) return;
+      if(isStandaloneApp()) return;
+      if(!deferredInstallPrompt){
+        showInstallHelp();
+        return;
+      }
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice;
       if(choice.outcome === 'accepted') setInstallAvailability(false);
@@ -6835,6 +6881,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     });
     [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
+    installHelpClose?.addEventListener('click', () => { installHelp.hidden = true; });
+    installHelp?.addEventListener('click', (event) => { if(event.target === installHelp) installHelp.hidden = true; });
+    document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && installHelp && !installHelp.hidden) installHelp.hidden = true; });
+    if(isMobileBrowser && !isStandaloneApp()) setInstallAvailability(true);
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }
