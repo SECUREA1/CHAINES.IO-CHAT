@@ -107,10 +107,15 @@
     .glove-palm{fill:rgba(21,45,60,.62);stroke:#66ddff;stroke-width:1.7;stroke-linejoin:round}.glove-finger{fill:none;stroke:#b9f4ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.glove-joint{fill:#07111a;stroke:#66ddff;stroke-width:1}.glove-tip{fill:#7c5cff;stroke:#eef9ff;stroke-width:1}.glove-cuff{fill:rgba(124,92,255,.75);stroke:#b9f4ff;stroke-width:1.5}
     .hand-stage.pinching{border-color:var(--good);box-shadow:0 0 0 3px rgba(104,240,184,.16),0 14px 35px rgba(0,0,0,.42)}.hand-stage.pinching .glove-tip{fill:var(--good)}
     .hand-label{position:absolute;left:.55rem;bottom:.5rem;z-index:3;padding:.28rem .48rem;border-radius:999px;background:rgba(2,8,13,.74);color:#dffaff;font-size:.68rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
+    .experience-switch{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:.9rem 0;padding:.75rem;border:1px solid var(--line);border-radius:18px;background:rgba(3,9,15,.55)}
+    .experience-switch-copy strong,.experience-switch-copy span{display:block}.experience-switch-copy span{margin-top:.2rem;color:var(--muted);font-size:.86rem}
+    .experience-tabs{display:flex;gap:.35rem;padding:.3rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03)}.experience-tabs .btn{border-radius:999px}.experience-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;box-shadow:0 8px 24px rgba(55,168,255,.2)}
+    .collectible-layout[hidden],.ioncore-experience[hidden]{display:none}.ioncore-experience{padding:1rem;border:1px solid var(--line);border-radius:22px;background:var(--panel-strong);box-shadow:var(--shadow)}.ioncore-experience-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem}.ioncore-experience-head p{max-width:68ch;margin:.3rem 0 0;color:var(--muted)}
+    .ioncore-frame{display:block;width:100%;height:min(78vh,900px);min-height:620px;border:1px solid var(--line);border-radius:18px;background:#020408}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout,.collectible-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}.hand-stage{width:calc(100% - 2rem);max-width:260px}}
+    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}.hand-stage{width:calc(100% - 2rem);max-width:260px}.experience-tabs{width:100%}.experience-tabs .btn{flex:1}.ioncore-frame{min-height:70vh}}
   
     .site-copyright {
       text-align: center;
@@ -143,7 +148,18 @@
         <p>The mint terminal stays open for the selected token ID, with NFTs numbered in mint order so the final NFT is the latest generated token.</p>
       </div>
 
-      <div class="collectible-layout">
+      <div class="experience-switch">
+        <div class="experience-switch-copy">
+          <strong>Choose your AR experience</strong>
+          <span>Switch between collectible placement and the interactive IONCORE RAD-TOX glove field.</span>
+        </div>
+        <div class="experience-tabs" role="tablist" aria-label="AR experience">
+          <button class="btn" id="collectiblesExperienceBtn" type="button" role="tab" aria-selected="true" aria-controls="collectiblesExperience">NFT collectibles</button>
+          <button class="btn" id="ioncoreExperienceBtn" type="button" role="tab" aria-selected="false" aria-controls="ioncoreExperience">IONCORE glove field</button>
+        </div>
+      </div>
+
+      <div class="collectible-layout" id="collectiblesExperience" role="tabpanel" aria-labelledby="collectiblesExperienceBtn">
         <div class="card" id="viewer">
           <div class="mint-head">
             <div>
@@ -207,6 +223,18 @@
           <iframe id="mintTerminalFrame" class="live" title="CHAINeS mint terminal" loading="eager" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
         </div>
       </div>
+
+      <div class="ioncore-experience" id="ioncoreExperience" role="tabpanel" aria-labelledby="ioncoreExperienceBtn" hidden>
+        <div class="ioncore-experience-head">
+          <div>
+            <span class="badge">Interactive AR field</span>
+            <h2 style="margin:.45rem 0 0">IONCORE RAD-TOX MediaPipe glove</h2>
+            <p>Use the camera-powered glove, gestures, targets, and slime controls without leaving the CHAINeS AR experience.</p>
+          </div>
+          <a class="btn secondary" href="/ioncore_radtox_mediapipe_ar_glove.html" target="_blank" rel="noopener">Open full screen</a>
+        </div>
+        <iframe id="ioncoreExperienceFrame" class="ioncore-frame" title="IONCORE RAD-TOX MediaPipe AR glove experience" data-src="/ioncore_radtox_mediapipe_ar_glove.html" allow="camera; microphone; fullscreen" allowfullscreen></iframe>
+      </div>
     </section>
 
     <div class="footer"><strong>CHAINeS</strong><br/>Polygon mint terminal and AR NFT display.</div>
@@ -229,6 +257,11 @@
       const googleArBtn = $('googleArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
+      const collectiblesExperience = $('collectiblesExperience');
+      const collectiblesExperienceBtn = $('collectiblesExperienceBtn');
+      const ioncoreExperience = $('ioncoreExperience');
+      const ioncoreExperienceBtn = $('ioncoreExperienceBtn');
+      const ioncoreExperienceFrame = $('ioncoreExperienceFrame');
       const handTrackingBtn = $('handTrackingBtn');
       const handStage = $('handStage');
       const handVideo = $('handVideo');
@@ -238,6 +271,24 @@
       const gloveCuff = $('gloveCuff');
       const slimeCanvas = $('slimeCanvas');
       const handLabel = $('handLabel');
+      function setExperience(mode, {updateUrl=true}={}){
+        const showIoncore = mode === 'ioncore';
+        collectiblesExperience.hidden = showIoncore;
+        ioncoreExperience.hidden = !showIoncore;
+        collectiblesExperienceBtn.setAttribute('aria-selected', String(!showIoncore));
+        ioncoreExperienceBtn.setAttribute('aria-selected', String(showIoncore));
+        if(showIoncore && !ioncoreExperienceFrame.hasAttribute('src')) ioncoreExperienceFrame.src = ioncoreExperienceFrame.dataset.src;
+        if(!showIoncore && ioncoreExperienceFrame.hasAttribute('src')){
+          ioncoreExperienceFrame.src = 'about:blank';
+          ioncoreExperienceFrame.removeAttribute('src');
+        }
+        if(showIoncore && handStream) stopHandTracking();
+        if(updateUrl){
+          const url = new URL(location.href);
+          if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
+          history.replaceState(history.state, '', url);
+        }
+      }
       const SWIPE_THRESHOLD = 55;
       const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
       const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
@@ -553,6 +604,8 @@
         handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
       }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
+      collectiblesExperienceBtn.addEventListener('click', () => setExperience('collectibles'));
+      ioncoreExperienceBtn.addEventListener('click', () => setExperience('ioncore'));
       window.addEventListener('pagehide', stopHandTracking);
       viewer.addEventListener('progress', e => {
         const p = Math.round((e.detail?.totalProgress || 0) * 100);
@@ -577,6 +630,7 @@
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) { const nextIndex = activeCollectionIndex + (dx < 0 ? 1 : -1); selectCollectibleByNumber(collectibles[nextIndex]?.number, {push:true, index:nextIndex}); } }, {passive:true});
       window.addEventListener('popstate', () => selectCollectibleByNumber(initialNumber(), {skipUrl:true}));
       warmFeaturedAssets();
+      setExperience(new URLSearchParams(location.search).get('experience') === 'ioncore' ? 'ioncore' : 'collectibles', {updateUrl:false});
       selectCollectibleByNumber(initialNumber(), {skipUrl:true});
       loadContractCollectibles()
         .catch((err) => {
