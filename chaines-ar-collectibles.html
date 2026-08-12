@@ -102,7 +102,9 @@
     .read strong{color:white}
     .hand-controls{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.8rem;padding:.75rem;border:1px solid var(--line);border-radius:16px;background:rgba(3,9,15,.55)}
     .hand-controls .hand-copy{flex:1 1 220px}.hand-controls .hand-copy strong{display:block}.hand-controls .hand-copy span{display:block;color:var(--muted);font-size:.82rem;margin-top:.15rem}
-    .hand-stage{position:absolute;left:1rem;top:1rem;z-index:4;width:min(34%,300px);aspect-ratio:4/3;border:1px solid var(--line-strong);border-radius:18px;overflow:hidden;background:#02080d;box-shadow:0 14px 35px rgba(0,0,0,.42)}
+    /* MediaPipe still receives video frames, but its diagnostic camera preview
+       stays out of the NFT player. */
+    .hand-stage{display:none!important}
     .hand-stage[hidden]{display:none}.hand-stage video,.hand-stage svg,.hand-stage canvas{position:absolute;inset:0;width:100%;height:100%}.hand-stage video{object-fit:cover;transform:scaleX(-1);opacity:.72}.hand-stage svg,.hand-stage canvas{pointer-events:none}.hand-stage svg{filter:drop-shadow(0 0 7px rgba(102,221,255,.75))}
     .glove-palm{fill:rgba(21,45,60,.62);stroke:#66ddff;stroke-width:1.7;stroke-linejoin:round}.glove-finger{fill:none;stroke:#b9f4ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.glove-joint{fill:#07111a;stroke:#66ddff;stroke-width:1}.glove-tip{fill:#7c5cff;stroke:#eef9ff;stroke-width:1}.glove-cuff{fill:rgba(124,92,255,.75);stroke:#b9f4ff;stroke-width:1.5}
     .hand-stage.pinching{border-color:var(--good);box-shadow:0 0 0 3px rgba(104,240,184,.16),0 14px 35px rgba(0,0,0,.42)}.hand-stage.pinching .glove-tip{fill:var(--good)}
@@ -166,7 +168,7 @@
             </button>
             <img id="nftImagePreview" class="nft-image-preview" alt="Selected CHAINeS NFT image" hidden />
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
-              <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
+              <button slot="ar-button" class="ar-button" id="viewerArButton" type="button">Place NFT in AR</button>
               <div slot="hotspot-ioncore-health" class="nft-health" id="nftHealth" data-position="0m 1m 0m" data-normal="0m 1m 0m" hidden aria-live="polite">
                 <div class="nft-health-row"><span>NFT INTEGRITY</span><span id="nftHealthValue">100%</span></div>
                 <div class="nft-health-track"><div class="nft-health-fill" id="nftHealthFill"></div></div>
@@ -206,7 +208,6 @@
 
           <div class="row">
             <button class="btn secondary" id="googleArBtn" type="button">Open Google AR</button>
-            <button class="btn primary" id="ioncoreArBtn" type="button">Open IONCORE RAD-TOX AR</button>
           </div>
 
           <div class="status-grid" style="margin-top:.8rem">
@@ -247,8 +248,8 @@
       const activeModelPath = $('activeModelPath');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
+      const viewerArButton = $('viewerArButton');
       const googleArBtn = $('googleArBtn');
-      const ioncoreArBtn = $('ioncoreArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
       const ioncoreExperience = $('ioncoreExperience');
@@ -269,6 +270,12 @@
       const gloveCuff = $('gloveCuff');
       const slimeCanvas = $('slimeCanvas');
       const handLabel = $('handLabel');
+      const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
+      function syncArMode(){
+        // Keep combat inside the player. Native viewers can treat the model as a
+        // file download and cannot preserve the live IONCORE shooting controls.
+        viewer.setAttribute('ar-modes', ioncoreExperience.hidden ? DEFAULT_AR_MODES : 'webxr');
+      }
       function setExperience(mode, {updateUrl=true}={}){
         const showIoncore = mode === 'ioncore';
         ioncoreExperience.hidden = !showIoncore;
@@ -279,6 +286,7 @@
         combatFireBtn.hidden = !showIoncore;
         combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
         if(!showIoncore) resetCombat();
+        syncArMode();
         if(updateUrl){
           const url = new URL(location.href);
           if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
@@ -348,15 +356,6 @@
         const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}&tokenId=${collectible.tokenId}`);
         const query = new URLSearchParams({file:absolute(arFile),mode:'ar_preferred',title:`NFT #${collectible.number} · ${collectible.name}`,link:fallbackUrl,resizable:'true'});
         return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
-      }
-      function buildIoncoreUrl(collectible){
-        const model = collectible.arModelUrl || collectible.modelUrl;
-        const url = new URL('/ioncore_radtox_multiplatform_ar.html', window.location.origin);
-        if (model) url.searchParams.set('model', absolute(model));
-        url.searchParams.set('name', `NFT #${collectible.number} · ${collectible.name}`);
-        url.searchParams.set('tokenId', String(collectible.tokenId));
-        url.searchParams.set('return', location.href);
-        return url.href;
       }
       function updateURL(collectible, options={}){
         if(options.skipUrl) return;
@@ -500,6 +499,8 @@
       const HAND_CONNECTIONS = [[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
       let handStream = null;
       let handLandmarker = null;
+      let handTrackingRequested = false;
+      let handTrackingSuspendedForAR = false;
       let trackingFrame = 0;
       let lastVideoTime = -1;
       let pinchLatched = false;
@@ -652,11 +653,16 @@
       async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
         const collectible = collectibles[activeCollectionIndex];
         if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
-        // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
-        // the glove preview before model-viewer starts its native/WebXR AR session.
-        if (handStream) stopHandTracking();
+        // Release MediaPipe's camera without discarding the user's tracking
+        // choice. AR can then take camera ownership and tracking resumes later.
+        prepareHandTrackingForAR();
         viewerStatus.textContent = statusMessage;
-        await viewer.activateAR();
+        try {
+          await viewer.activateAR();
+        } catch (error) {
+          await resumeHandTrackingAfterAR();
+          throw error;
+        }
       }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
@@ -685,11 +691,15 @@
         trackingFrame = requestAnimationFrame(trackingLoop);
       }
       async function startHandTracking(){
+        handTrackingRequested = true;
+        handTrackingSuspendedForAR = false;
         handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Loading MediaPipe…'; handStage.hidden = false;
         try {
-          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-          const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-          handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
+          if (!handLandmarker) {
+            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
+            const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+            handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
+          }
           handStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
           handVideo.srcObject = handStream; await handVideo.play();
           handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Disable hand tracking'; handTrackingBtn.setAttribute('aria-pressed','true');
@@ -700,12 +710,31 @@
         }
       }
       function stopHandTracking(){
+        handTrackingRequested = false;
+        handTrackingSuspendedForAR = false;
         cancelAnimationFrame(trackingFrame); trackingFrame = 0;
         handStream?.getTracks().forEach((track) => track.stop()); handStream = null;
         handLandmarker?.close(); handLandmarker = null; handVideo.srcObject = null; handStage.hidden = true;
         handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
       }
+      function suspendHandTrackingForAR(){
+        if (!handStream) return;
+        handTrackingSuspendedForAR = handTrackingRequested;
+        cancelAnimationFrame(trackingFrame); trackingFrame = 0;
+        handStream.getTracks().forEach((track) => track.stop()); handStream = null;
+        handVideo.srcObject = null;
+        handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Hand tracking resumes after AR';
+      }
+      function prepareHandTrackingForAR(){
+        if (handStream) suspendHandTrackingForAR();
+      }
+      async function resumeHandTrackingAfterAR(){
+        if (!handTrackingSuspendedForAR || !handTrackingRequested || handStream) return;
+        handTrackingSuspendedForAR = false;
+        await startHandTracking();
+      }
       handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
+      viewerArButton.addEventListener('click', prepareHandTrackingForAR, {capture:true});
       combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
       ioncoreGameToggle.addEventListener('click', () => {
         const enable = ioncoreExperience.hidden;
@@ -724,8 +753,16 @@
       });
       viewer.addEventListener('load', () => { positionHealthHotspot(); viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
       viewer.addEventListener('ar-status', (event) => {
-        if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
-        if (event.detail.status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+        const status = event.detail.status;
+        if (status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
+        if (status === 'not-presenting') {
+          viewerStatus.textContent = 'NFT ready for 3D and AR.';
+          resumeHandTrackingAfterAR();
+        }
+        if (status === 'failed') {
+          viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+          resumeHandTrackingAfterAR();
+        }
       });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
@@ -743,14 +780,6 @@
         catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; }
       });
       googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
-      ioncoreArBtn.addEventListener('click', () => {
-        const collectible = collectibles[activeCollectionIndex];
-        if (!collectible?.modelUrl && !collectible?.arModelUrl) {
-          viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in IONCORE AR.';
-          return;
-        }
-        location.href = buildIoncoreUrl(collectible);
-      });
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) { const nextIndex = activeCollectionIndex + (dx < 0 ? 1 : -1); selectCollectibleByNumber(collectibles[nextIndex]?.number, {push:true, index:nextIndex}); } }, {passive:true});
