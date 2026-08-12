@@ -269,6 +269,38 @@
       const gloveCuff = $('gloveCuff');
       const slimeCanvas = $('slimeCanvas');
       const handLabel = $('handLabel');
+      const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
+      let immersiveARSupportPromise = null;
+      let ioncoreFallbackOpening = false;
+      const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isAndroid = () => /Android/i.test(navigator.userAgent);
+      function supportsImmersiveAR(){
+        if(immersiveARSupportPromise) return immersiveARSupportPromise;
+        immersiveARSupportPromise = Promise.resolve().then(async () => {
+          if(!navigator.xr || typeof navigator.xr.isSessionSupported !== 'function') return false;
+          try { return (await navigator.xr.isSessionSupported('immersive-ar')) === true; }
+          catch(error) { console.debug('Immersive WebXR detection failed; keeping platform fallbacks.', error); return false; }
+        });
+        return immersiveARSupportPromise;
+      }
+      function openIoncoreFallback(collectible, status='Using camera AR.'){
+        if(ioncoreFallbackOpening) return;
+        ioncoreFallbackOpening = true;
+        viewerStatus.textContent = status;
+        try {
+          sessionStorage.setItem('chaines:ioncore:return-state', JSON.stringify({
+            collection:collectible.number, tokenId:collectible.tokenId, experience:'ioncore', returnUrl:location.href
+          }));
+        } catch(error) { console.debug('IONCORE state will be carried by the fallback URL.', error); }
+        location.assign(buildIoncoreUrl(collectible));
+      }
+      async function configureIoncoreARMode(showIoncore){
+        viewer.setAttribute('ar-modes', DEFAULT_AR_MODES);
+        if(!showIoncore) return false;
+        const immersive = await supportsImmersiveAR();
+        if(immersive && !ioncoreExperience.hidden) viewer.setAttribute('ar-modes', 'webxr');
+        return immersive;
+      }
       function setExperience(mode, {updateUrl=true}={}){
         const showIoncore = mode === 'ioncore';
         ioncoreExperience.hidden = !showIoncore;
@@ -279,6 +311,7 @@
         combatFireBtn.hidden = !showIoncore;
         combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
         if(!showIoncore) resetCombat();
+        configureIoncoreARMode(showIoncore);
         if(updateUrl){
           const url = new URL(location.href);
           if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
@@ -355,7 +388,9 @@
         if (model) url.searchParams.set('model', absolute(model));
         url.searchParams.set('name', `NFT #${collectible.number} · ${collectible.name}`);
         url.searchParams.set('tokenId', String(collectible.tokenId));
-        url.searchParams.set('return', location.href);
+        const returnUrl = new URL(location.href);
+        returnUrl.searchParams.set('experience', 'ioncore');
+        url.searchParams.set('return', returnUrl.href);
         return url.href;
       }
       function updateURL(collectible, options={}){
@@ -652,11 +687,24 @@
       async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
         const collectible = collectibles[activeCollectionIndex];
         if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
+        if(!ioncoreExperience.hidden){
+          const immersive = await configureIoncoreARMode(true);
+          if(!immersive){
+            const status = isIOS() ? 'Opening iOS AR.' : isAndroid() ? 'Opening Android AR.' : 'Using camera AR.';
+            openIoncoreFallback(collectible, status);
+            return;
+          }
+          viewerStatus.textContent = 'Starting WebXR.';
+        }
         // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
         // the glove preview before model-viewer starts its native/WebXR AR session.
         if (handStream) stopHandTracking();
-        viewerStatus.textContent = statusMessage;
-        await viewer.activateAR();
+        if(ioncoreExperience.hidden) viewerStatus.textContent = statusMessage;
+        try { await viewer.activateAR(); }
+        catch(error) {
+          if(!ioncoreExperience.hidden){ openIoncoreFallback(collectible, 'WebXR could not start. Using camera AR.'); return; }
+          throw error;
+        }
       }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
@@ -725,7 +773,10 @@
       viewer.addEventListener('load', () => { positionHealthHotspot(); viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
       viewer.addEventListener('ar-status', (event) => {
         if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
-        if (event.detail.status === 'failed') viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+        if (event.detail.status === 'failed') {
+          if(!ioncoreExperience.hidden) openIoncoreFallback(collectibles[activeCollectionIndex], 'WebXR could not start. Using camera AR.');
+          else viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
+        }
       });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
@@ -742,14 +793,21 @@
         try { await launchActiveCollectibleAR(); }
         catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; }
       });
-      googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
-      ioncoreArBtn.addEventListener('click', () => {
+      googleArBtn.hidden = !isAndroid();
+      googleArBtn.addEventListener('click', () => {
+        if(!isAndroid() || isIOS()) return;
+        viewerStatus.textContent = 'Opening Android AR.';
+        location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]);
+      });
+      ioncoreArBtn.addEventListener('click', async () => {
         const collectible = collectibles[activeCollectionIndex];
         if (!collectible?.modelUrl && !collectible?.arModelUrl) {
           viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in IONCORE AR.';
           return;
         }
-        location.href = buildIoncoreUrl(collectible);
+        if(ioncoreExperience.hidden) setExperience('ioncore');
+        try { await launchActiveCollectibleAR(); }
+        catch(error) { openIoncoreFallback(collectible, 'Using camera AR.'); }
       });
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
