@@ -94,6 +94,16 @@ test('multiplatform IONCORE AR page is served by its public routes', async (t)=>
   }
 });
 
+test('IONCORE launch keeps broad fallbacks until immersive WebXR is confirmed', ()=>{
+  const player = fs.readFileSync(path.join(root, 'chaines-ar-collectibles.html'), 'utf8');
+  assert.match(player, /navigator\.xr\.isSessionSupported\('immersive-ar'\)/);
+  assert.match(player, /DEFAULT_AR_MODES = 'webxr scene-viewer quick-look'/);
+  assert.match(player, /if\(immersive && !ioncoreExperience\.hidden\) viewer\.setAttribute\('ar-modes', 'webxr'\)/);
+  assert.match(player, /openIoncoreFallback\(collectible, 'WebXR could not start\. Using camera AR\.'\)/);
+  assert.match(player, /ioncore_radtox_multiplatform_ar\.html/);
+  assert.match(player, /googleArBtn\.hidden = !isAndroid\(\)/);
+});
+
 test('production visit notifications target the deployed backend and configured recipients', ()=>{
   const notifier = fs.readFileSync(path.join(root, 'static', 'visit-notifier.js'), 'utf8');
   const blueprint = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');

@@ -5091,7 +5091,8 @@
       let immersive = false;
       let xrError = "";
       try{
-        immersive = !!(navigator.xr && await navigator.xr.isSessionSupported("immersive-ar"));
+        immersive = !!(navigator.xr && typeof navigator.xr.isSessionSupported === "function" &&
+          await navigator.xr.isSessionSupported("immersive-ar"));
       }catch(err){
         xrError = String(err?.message || err);
       }
@@ -5113,6 +5114,9 @@
 
       btnEnterWebXR.disabled = !immersive || !secure;
       btnLaunchModelAR.disabled = !arModelViewer;
+      // Keep every native/camera route available by default. Restrict the
+      // launcher only after the browser has positively confirmed immersive AR.
+      arModelViewer?.setAttribute("ar-modes", immersive ? "webxr" : "webxr scene-viewer quick-look");
       arCapabilityText.innerHTML =
         `<b>WebXR immersive AR:</b> ${immersive ? "YES" : "NO"}<br/>` +
         `<b>Secure context:</b> ${secure ? "YES" : "NO — use HTTPS/localhost"}<br/>` +
@@ -5149,11 +5153,28 @@
       const iosModel = safeAssetUrl(params.get("iosModel"));
       if(model) arModelUrl.value = model;
       if(iosModel) arIosUrl.value = iosModel;
+      else if(model) arIosUrl.value = ""; // Never offer Quick Look for a GLB-only NFT.
       if(model || iosModel) syncModelViewer();
       if(nftName || tokenId){
         const label = nftName || `NFT token ${tokenId}`;
         document.title = `IONCORE • ${label} • RAD-TOX AR`;
         arCapabilityText.textContent = `${label} connected. Detect AR, then launch the model or enter the full AR game.`;
+      }
+
+      const returnValue = params.get("return");
+      if(returnValue){
+        try{
+          const returnUrl = new URL(returnValue, location.origin);
+          if(returnUrl.origin === location.origin && returnUrl.pathname !== location.pathname){
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = "Return to Game";
+            button.setAttribute("aria-label", "Return to the RAD-TOX game");
+            Object.assign(button.style, {position:"fixed",right:"14px",bottom:"14px",zIndex:"10000",padding:"12px 16px",fontWeight:"900"});
+            button.addEventListener("click", ()=>location.assign(returnUrl.href));
+            document.body.appendChild(button);
+          }
+        }catch{}
       }
     }
 
@@ -5440,7 +5461,8 @@
         return;
       }
       if(!support.immersive){
-        arCapabilityText.innerHTML = "<b>Immersive AR unavailable.</b> Use Launch Model AR or the rear-camera MediaPipe game.";
+        arCapabilityText.innerHTML = "<b>Using camera AR.</b> Immersive WebXR is unavailable; the RAD-TOX game remains here.";
+        if(!streamActive) await startStream();
         return;
       }
 
@@ -5563,6 +5585,10 @@
 
     async function launchNativeModelAR(){
       syncModelViewer();
+      const support = await detectARCapabilities();
+      arCapabilityText.innerHTML = support.immersive ? "<b>Starting WebXR.</b>" :
+        support.apple && arModelViewer?.getAttribute("ios-src") ? "<b>Opening iOS AR.</b>" :
+        support.android ? "<b>Opening Android AR.</b>" : "<b>Using camera AR.</b>";
       try{
         if(arModelViewer?.activateAR){
           await arModelViewer.activateAR();
@@ -5570,7 +5596,8 @@
           arCapabilityText.innerHTML = "<b>Model AR launcher is not ready.</b> Wait for model-viewer to finish loading.";
         }
       }catch(err){
-        arCapabilityText.innerHTML = `<b>Model AR launch failed:</b> ${String(err?.message || err)}`;
+        arCapabilityText.innerHTML = "<b>Using camera AR.</b> Native AR could not start; the interactive RAD-TOX game is still available.";
+        if(!streamActive) await startStream();
       }
     }
 
