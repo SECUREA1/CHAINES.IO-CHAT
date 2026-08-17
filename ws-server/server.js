@@ -2217,6 +2217,10 @@ wss.on("connection", (ws) => {
     }
     switch (msg?.type) {
       case "broadcaster":
+        if (broadcasters.size > 0 && ws.id !== guestApproved) {
+          ws.send(JSON.stringify({ type: "join-denied" }));
+          break;
+        }
         broadcasters.set(ws.id, ws);
         const ownRoom = ensureBroadcastRoom(ws.id, ws.id);
         ownRoom.stageMembers.set(ws.id, { id: ws.id, user: ws.username || '', role: 'host', media: { audio: true, video: true }, muted: false, live: true });
