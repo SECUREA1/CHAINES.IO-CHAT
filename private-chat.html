@@ -63,10 +63,11 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
   </form>
 </main>
 <script>
-(() => {
+(async () => {
   const params = new URLSearchParams(location.search);
   const peer = (params.get('user') || '').trim();
-  const me = localStorage.getItem('chaines_username') || '';
+  const sessionUser = await window.SessionClient?.init?.();
+  const me = sessionUser?.username || '';
   const title = document.getElementById('title');
   const statusEl = document.getElementById('status');
   const feed = document.getElementById('feed');
@@ -189,6 +190,9 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
       }
       if(data && data.type === 'dm'){
         renderMessage(data);
+      }
+      if(data && data.type === 'dm-error'){
+        statusEl.textContent = data.error || 'Unable to use private messaging.';
       }
     });
   }
