@@ -60,6 +60,32 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(aliceFace.faceScanImage, faceScanImage);
 });
 
+test('profiles expose social activity and follow actions use the signed-in user', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'profile_alice', password:'correct horse battery staple' }) }));
+  const aliceCookie = r.headers.get('set-cookie');
+  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'profile_bob', password:'correct horse battery staple' }) }));
+  const bobCookie = r.headers.get('set-cookie');
+
+  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', {
+    method:'POST', headers:{ cookie:aliceCookie, 'Content-Type':'application/json' },
+    body:JSON.stringify({ follower:'profile_bob' })
+  }));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.following, true);
+
+  r = await json(await fetch(srv.base+'/profile/profile_bob', { headers:{ cookie:aliceCookie } }));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.isFollowing, true);
+  assert.deepEqual(r.body.followers, ['profile_alice']);
+  assert.deepEqual(r.body.replies, []);
+
+  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST' }));
+  assert.equal(r.status, 401);
+  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST', headers:{ cookie:bobCookie } }));
+  assert.equal(r.status, 400);
+});
+
 test('source does not contain removed hardcoded credentials', ()=>{
   const wallet = fs.readFileSync(path.join(root,'static','wallet.js'),'utf8');
   const server = fs.readFileSync(serverFile,'utf8');

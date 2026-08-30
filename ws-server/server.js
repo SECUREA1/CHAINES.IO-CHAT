@@ -1505,15 +1505,8 @@ app.post("/receipt-email", async (req, res) => {
   });
 });
 
-app.get(["/profile.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "profile.html"))
-);
-app.get(["/private-chat.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "private-chat.html"))
-);
-
 app.get("/profile/:username", (req, res) => {
-  const viewer = req.query.viewer || "";
+  const viewer = req.session?.user?.username || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
@@ -1530,6 +1523,38 @@ app.get("/profile/:username", (req, res) => {
           "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
         .all(req.params.username)
+    : [];
+  const postIds = posts.map((post) => post.id);
+  if (postIds.length) {
+    const placeholders = postIds.map(() => "?").join(",");
+    const comments = db.prepare(
+      `SELECT id, message_id, user, text, file, file_name, file_type,
+              strftime('%s', timestamp) * 1000 AS ts
+         FROM comments WHERE message_id IN (${placeholders}) ORDER BY id`
+    ).all(...postIds);
+    const likes = db.prepare(
+      `SELECT message_id, COUNT(*) AS count FROM likes
+        WHERE message_id IN (${placeholders}) GROUP BY message_id`
+    ).all(...postIds);
+    const commentsByPost = new Map();
+    for (const comment of comments) {
+      const list = commentsByPost.get(comment.message_id) || [];
+      list.push(comment);
+      commentsByPost.set(comment.message_id, list);
+    }
+    const likesByPost = new Map(likes.map((row) => [row.message_id, row.count]));
+    for (const post of posts) {
+      post.comments = commentsByPost.get(post.id) || [];
+      post.likes = likesByPost.get(post.id) || 0;
+    }
+  }
+  const replies = dbUser
+    ? db.prepare(
+        `SELECT c.id, c.message_id, c.text, c.file, c.file_name, c.file_type,
+                m.user AS post_user, strftime('%s', c.timestamp) * 1000 AS ts
+           FROM comments c JOIN chat_messages m ON m.id=c.message_id
+          WHERE c.user=? ORDER BY c.id DESC`
+      ).all(req.params.username)
     : [];
   const followers = dbUser
     ? db
@@ -1564,11 +1589,13 @@ app.get("/profile/:username", (req, res) => {
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
     posts,
+    replies,
     followers,
     following,
     isFollowing,
     stats: {
       posts: posts.length,
+      replies: replies.length,
       followers: followers.length,
       following: following.length,
       datingLikesSent: datingLikedUsers.length,
@@ -1610,34 +1637,35 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
   res.json({ success: true, profilePic: pic });
 });
 
-app.post("/profile/:username/follow", (req, res) => {
-  const { follower } = req.body || {};
-  if (!follower) {
-    res.status(400).json({ error: "Missing follower" });
-    return;
+app.post("/profile/:username/follow", requireSession, (req, res) => {
+  const follower = req.session.user.username;
+  const target = req.params.username;
+  if (follower === target) return res.status(400).json({ error: "You cannot follow yourself" });
+  if (!db.prepare("SELECT 1 FROM users WHERE username=?").get(target)) {
+    return res.status(404).json({ error: "Profile not found" });
   }
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(follower, req.params.username);
+    .get(follower, target);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(follower, req.params.username);
+      .run(follower, target);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(follower, req.params.username);
+      .run(follower, target);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        req.params.username,
+        target,
         JSON.stringify({ from: follower })
       );
     sendPush(
-      req.params.username,
+      target,
       "New Follower",
       `${follower} started following you`,
       { url: `/profile.html?user=${encodeURIComponent(follower)}` }
@@ -2154,8 +2182,9 @@ setInterval(() => {
   broadcastSecureLiveActiveCount();
 }, 12000);
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, request) => {
   ws.id = uid();
+  ws.sessionUsername = loadSession(request)?.user?.username || "";
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
@@ -2685,9 +2714,12 @@ wss.on("connection", (ws) => {
         return;
       }
       case "dm-history": {
-        const user = ws.username || msg.user || "";
+        const user = ws.sessionUsername;
         const peer = (msg.with || "").toString().trim();
-        if (!user || !peer) return;
+        if (!user || !peer) {
+          ws.send(JSON.stringify({ type: "dm-error", error: "Authentication required" }));
+          return;
+        }
         ws.send(
           JSON.stringify({
             type: "dm-history",
@@ -2699,11 +2731,18 @@ wss.on("connection", (ws) => {
         return;
       }
       case "dm": {
-        const from = ws.username || msg.from || "";
+        const from = ws.sessionUsername;
         const to = (msg.to || "").toString().trim();
         const ciphertext = (msg.ciphertext || "").toString();
         const iv = (msg.iv || "").toString();
-        if (!from || !to || !ciphertext || !iv) return;
+        if (!from || !to || !ciphertext || !iv) {
+          ws.send(JSON.stringify({ type: "dm-error", error: "Invalid or unauthenticated message" }));
+          return;
+        }
+        if (!db.prepare("SELECT 1 FROM users WHERE username=?").get(to)) {
+          ws.send(JSON.stringify({ type: "dm-error", error: "Recipient profile not found" }));
+          return;
+        }
         const info = db
           .prepare(
             "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
