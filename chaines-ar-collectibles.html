@@ -337,6 +337,7 @@
       };
       let collectibles = Array.from(featuredCollectibles.keys()).sort((a,b)=>a-b).map(createCollectible);
       let activeCollectionIndex = Math.max(0, collectibles.length - 1);
+      let hydrateContractUri = null;
       const idle = window.requestIdleCallback || ((callback) => window.setTimeout(() => callback({timeRemaining:() => 0}), 1));
       const preloadUrl = (url, as='fetch') => {
         if (!url || document.head.querySelector(`link[data-preload-url="${CSS.escape(url)}"]`)) return;
@@ -416,6 +417,7 @@
           const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
           const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
           normalizeCollectibles(Number(nextTokenId));
+          selectCollectibleByNumber(initialNumber(), {skipUrl:true});
           const selectedTokenId = collectibles[activeCollectionIndex]?.tokenId;
           const priority = collectibles
             .map((collectible, index) => ({collectible, index, distance: Math.abs((collectible.tokenId ?? index) - (selectedTokenId ?? index))}))
@@ -434,11 +436,13 @@
               collectible.uriLoading = false;
             }
           };
+          hydrateContractUri = (collectible) => hydrateUri({collectible, index:collectibles.indexOf(collectible)});
           await Promise.all(priority.slice(0, 6).map(hydrateUri));
           idle(() => {
             priority.slice(6).reduce((chain, item) => chain.then(() => hydrateUri(item)), Promise.resolve());
           });
         } catch (err) {
+          hydrateContractUri = null;
           console.warn('Unable to load the complete contract NFT list; using featured fallback.', err);
           viewerStatus.textContent = 'Using featured NFT fallback; contract list could not load.';
         }
@@ -485,6 +489,7 @@
           launchArBtn.disabled = true;
         }
         if (!options.skipMetadata) hydrateCollectibleMetadata(collectible);
+        if (!collectible.rawUri && hydrateContractUri) hydrateContractUri(collectible);
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
       }
@@ -781,7 +786,9 @@
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
       nextBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex + 1]?.number, {push:true, index:activeCollectionIndex + 1}));
-      collectionNumberInput.addEventListener('change', () => selectCollectibleByNumber(collectionNumberInput.value, {push:true}));
+      collectionNumberInput.addEventListener('input', () => {
+        if (collectionNumberInput.value !== '') selectCollectibleByNumber(collectionNumberInput.value, {push:true});
+      });
       collectionNumberInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
