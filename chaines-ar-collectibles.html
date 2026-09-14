@@ -243,6 +243,7 @@
   </dialog>
 
   <script type="module">
+    import {detectGlbAsset, nftMetadataAssets} from '/static/nft-metadata.js';
     (() => {
       const $ = (id) => document.getElementById(id);
       const viewer = $('primary-collectible-viewer');
@@ -339,7 +340,7 @@
       const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
       const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
       const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
-      const IPFS_GATEWAYS = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
+      const IPFS_GATEWAYS = [`https://${THIRDWEB_CLIENT_ID}.ipfscdn.io/ipfs/`, 'https://ipfs.io/ipfs/', 'https://dweb.link/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
       const MODEL_EXTENSIONS = /\.(glb|gltf)(?:[?#].*)?$/i;
       const IMAGE_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i;
       const DEFAULT_CAMERA = {cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'};
@@ -530,14 +531,15 @@
             const response = await fetch(metadataUrl, {cache:'force-cache'});
             if (!response.ok) continue;
             const metadata = await response.json();
-            const animationUrl = ipfsToHttp(metadata.animation_url || metadata.animationUrl || metadata.model_url || metadata.modelUrl || '');
-            const imageUrl = ipfsToHttp(metadata.image || metadata.image_url || metadata.imageUrl || '');
+            const assets = nftMetadataAssets(metadata, metadataUrl);
+            const animationUrl = ipfsToHttp(assets.modelUrl);
+            const imageUrl = ipfsToHttp(assets.imageUrl);
             collectible.metadataLoaded = true;
             collectible.metadataUrl = metadataUrl;
             collectible.name = metadata.name || collectible.name;
             collectible.posterUrl = imageUrl || collectible.posterUrl;
-            if (isModelFile(animationUrl)) collectible.arModelUrl = animationUrl;
-            if (!collectible.arModelUrl && isModelFile(imageUrl)) collectible.arModelUrl = imageUrl;
+            if (animationUrl && (isModelFile(animationUrl) || await detectGlbAsset(animationUrl))) collectible.arModelUrl = animationUrl;
+            if (!collectible.arModelUrl && imageUrl && (isModelFile(imageUrl) || await detectGlbAsset(imageUrl))) collectible.arModelUrl = imageUrl;
             if (!collectible.arModelUrl && isImageFile(imageUrl)) collectible.posterUrl = imageUrl;
             if (collectibles[activeCollectionIndex]?.tokenId === selectedTokenId) {
               selectCollectibleByNumber(collectible.number, {skipUrl:true, skipMetadata:true});
