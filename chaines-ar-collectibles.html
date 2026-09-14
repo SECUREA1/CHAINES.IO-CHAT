@@ -385,6 +385,7 @@
       const tokenMetadataUris = (rawUri, tokenId) => {
         if (!rawUri) return [];
         const normalized = String(rawUri).replaceAll('{id}', tokenHexId(tokenId));
+        if (/^data:application\/json(?:;charset=[^;,]+)?(?:;base64)?,/i.test(normalized)) return [normalized];
         if (!normalized.startsWith('ipfs://')) return [normalized];
         return IPFS_GATEWAYS.map((gateway) => ipfsToHttp(normalized, gateway));
       };
@@ -434,7 +435,14 @@
         try {
           const client = createThirdwebClient({clientId:THIRDWEB_CLIENT_ID});
           const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
-          const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
+          let nextTokenId;
+          try {
+            nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
+          } catch {
+            // Standard ERC-721 collections commonly expose totalSupply/tokenURI
+            // rather than thirdweb's drop-specific nextTokenIdToMint/uri pair.
+            nextTokenId = await readContract({contract, method:'function totalSupply() view returns (uint256)', params:[]});
+          }
           normalizeCollectibles(Number(nextTokenId));
           selectCollectibleByNumber(initialNumber(), {skipUrl:true});
           const selectedTokenId = collectibles[activeCollectionIndex]?.tokenId;
@@ -445,7 +453,11 @@
             if (collectible.rawUri || collectible.uriLoading) return;
             collectible.uriLoading = true;
             try {
-              collectible.rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
+              try {
+                collectible.rawUri = await readContract({contract, method:'function tokenURI(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
+              } catch {
+                collectible.rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
+              }
               if (collectibles[activeCollectionIndex]?.tokenId === collectible.tokenId) {
                 selectCollectibleByNumber(collectible.number, {skipUrl:true});
               }
@@ -528,9 +540,17 @@
         const metadataUrls = tokenMetadataUris(collectible.rawUri, collectible.tokenId);
         for (const metadataUrl of metadataUrls) {
           try {
-            const response = await fetch(metadataUrl, {cache:'force-cache'});
-            if (!response.ok) continue;
-            const metadata = await response.json();
+            let metadata;
+            if (/^data:application\/json/i.test(metadataUrl)) {
+              const comma = metadataUrl.indexOf(',');
+              const encoded = metadataUrl.slice(comma + 1);
+              const json = /;base64,/i.test(metadataUrl.slice(0, comma + 1)) ? atob(encoded) : decodeURIComponent(encoded);
+              metadata = JSON.parse(json);
+            } else {
+              const response = await fetch(metadataUrl, {cache:'force-cache'});
+              if (!response.ok) continue;
+              metadata = await response.json();
+            }
             const assets = nftMetadataAssets(metadata, metadataUrl);
             const animationUrl = ipfsToHttp(assets.modelUrl);
             const imageUrl = ipfsToHttp(assets.imageUrl);

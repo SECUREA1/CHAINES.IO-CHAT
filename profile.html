@@ -2158,7 +2158,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     return outputArray;
   }
 
-  const sessionUser = await window.SessionClient?.init?.();
+  const sessionUser = await window.SessionClient?.initialize?.();
   storeUser = sessionUser?.username || '';
   if(storeUser) localStorage.setItem('chaines_username', storeUser);
   else localStorage.removeItem('chaines_username');
