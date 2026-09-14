@@ -112,6 +112,8 @@
     .ioncore-game-toggle[aria-pressed="true"]{background:linear-gradient(135deg,#68f0b8,#66ddff);color:#02111b;border-color:transparent}.ioncore-game-toggle[aria-pressed="true"] .toggle-state{background:rgba(2,17,27,.16);color:#02111b}
     .ioncore-game{position:absolute;inset:0;z-index:5;pointer-events:none}.ioncore-game[hidden]{display:none}.combat-canvas{position:absolute;inset:0;width:100%;height:100%}.combat-instructions{position:absolute;left:1rem;bottom:1rem;max-width:min(28rem,calc(100% - 2rem));padding:.65rem .8rem;border:1px solid rgba(104,240,184,.48);border-radius:12px;background:rgba(2,10,12,.82);color:#dffff0;font-size:.8rem;box-shadow:0 12px 30px rgba(0,0,0,.4)}
     .nft-health{width:180px;padding:.48rem .58rem;border:1px solid rgba(104,240,184,.7);border-radius:11px;background:rgba(2,10,12,.86);color:#eafff3;font-size:.72rem;font-weight:900;box-shadow:0 0 20px rgba(104,240,184,.3);pointer-events:none}.nft-health-row{display:flex;justify-content:space-between;margin-bottom:.32rem}.nft-health-track{height:8px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.13)}.nft-health-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff5e75,#ffbe6b 38%,#68f0b8);transform-origin:left;transition:transform .28s ease,filter .28s ease}.nft-health.danger{border-color:#ff5e75;animation:healthPulse .7s infinite alternate}.nft-health.destroyed{border-color:#ff5e75;color:#ff9aaa}.combat-fire{border-color:rgba(104,240,184,.6)}.combat-fire[hidden]{display:none}model-viewer.ioncore-hit{animation:nftHit .24s ease}model-viewer.ioncore-destroyed{filter:saturate(.2) brightness(.5)}
+    .asset-link{color:var(--accent);text-underline-offset:3px}.asset-link[hidden]{display:none}
+    .ar-preview{width:min(780px,calc(100% - 24px));padding:0;border:1px solid var(--line-strong);border-radius:22px;background:#07111a;color:var(--text);box-shadow:0 30px 90px #000;overflow:hidden}.ar-preview::backdrop{background:rgba(0,5,10,.82);backdrop-filter:blur(8px)}.ar-preview__head,.ar-preview__actions{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.8rem 1rem}.ar-preview__head{border-bottom:1px solid var(--line)}.ar-preview__head h2{font-size:1.05rem}.ar-preview__actions{border-top:1px solid var(--line);flex-wrap:wrap}.ar-preview model-viewer{height:min(66vh,620px);border:0;border-radius:0}.ar-preview__close{padding:.55rem .8rem}
     .world-goop-particle{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#edff9d,#68f0b8 42%,#168b68 78%);box-shadow:0 0 16px #68f0b8;pointer-events:none;transition:opacity .18s linear}
     @keyframes healthPulse{to{box-shadow:0 0 28px rgba(255,60,90,.72)}}@keyframes nftHit{45%{filter:hue-rotate(55deg) saturate(2.8) brightness(1.6);transform:translateX(5px)}}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
@@ -212,6 +214,7 @@
           <div class="status-grid" style="margin-top:.8rem">
             <div class="read"><span>Displayed NFT</span><strong id="viewerModelName">None selected</strong></div>
             <div class="read"><span>AR file</span><strong class="debug-path" id="activeModelPath">—</strong></div>
+            <div class="read"><span>Linked IPFS asset</span><a class="asset-link" id="activeIpfsLink" target="_blank" rel="noopener noreferrer" hidden>Open original asset</a><strong id="activeIpfsEmpty">Waiting for token metadata…</strong></div>
             <div class="read"><span>Status</span><strong id="viewerStatus">Loading NFT…</strong></div>
           </div>
         </div>
@@ -233,6 +236,12 @@
     <div class="footer"><strong>CHAINeS</strong><br/>Polygon mint terminal and AR NFT display.</div>
   </main>
 
+  <dialog class="ar-preview" id="arPreviewDialog" aria-labelledby="arPreviewTitle">
+    <div class="ar-preview__head"><h2 id="arPreviewTitle">AR collectible preview</h2><button class="btn ar-preview__close" id="closeArPreviewBtn" type="button" aria-label="Close AR preview">Close</button></div>
+    <model-viewer id="ar-preview-viewer" alt="Selected CHAINeS collectible AR preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" shadow-intensity="1" environment-image="neutral"></model-viewer>
+    <div class="ar-preview__actions"><p id="arPreviewStatus">Rotate the collectible or place it in your space.</p><button class="btn primary" id="confirmArBtn" type="button">Open AR camera</button></div>
+  </dialog>
+
   <script type="module">
     (() => {
       const $ = (id) => document.getElementById(id);
@@ -245,12 +254,20 @@
       const viewerStatus = $('viewerStatus');
       const viewerModelName = $('viewerModelName');
       const activeModelPath = $('activeModelPath');
+      const activeIpfsLink = $('activeIpfsLink');
+      const activeIpfsEmpty = $('activeIpfsEmpty');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
       const googleArBtn = $('googleArBtn');
       const ioncoreArBtn = $('ioncoreArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
+      const arPreviewDialog = $('arPreviewDialog');
+      const arPreviewViewer = $('ar-preview-viewer');
+      const arPreviewTitle = $('arPreviewTitle');
+      const arPreviewStatus = $('arPreviewStatus');
+      const closeArPreviewBtn = $('closeArPreviewBtn');
+      const confirmArBtn = $('confirmArBtn');
       const ioncoreExperience = $('ioncoreExperience');
       const ioncoreGameToggle = $('ioncoreGameToggle');
       const ioncoreToggleState = $('ioncoreToggleState');
@@ -372,6 +389,7 @@
       };
       const isModelFile = (url) => MODEL_EXTENSIONS.test(url.split('?')[0]);
       const isImageFile = (url) => IMAGE_EXTENSIONS.test(url.split('?')[0]);
+      const isIpfsAsset = (url) => /^(?:ipfs:\/\/|https:\/\/(?:[^/]+\.)?(?:ipfs\.io|dweb\.link|pinata\.cloud)\/)/i.test(url || '');
       function updateMintEmbedConfig(collectible){
         const url = new URL(mintTerminalFrame.src);
         url.searchParams.set('tokenId', String(collectible.tokenId));
@@ -467,6 +485,10 @@
         activeCollectibleTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
         viewerModelName.textContent = `NFT #${collectible.number} · Token ID ${collectible.tokenId} · ${collectible.name}`;
         activeModelPath.textContent = collectible.arModelUrl || collectible.modelUrl || collectible.metadataUrl || `Contract token ${collectible.tokenId}`;
+        const linkedAsset = collectible.arModelUrl || collectible.posterUrl || collectible.metadataUrl || '';
+        activeIpfsLink.hidden = !isIpfsAsset(linkedAsset);
+        activeIpfsEmpty.hidden = isIpfsAsset(linkedAsset);
+        if (isIpfsAsset(linkedAsset)) activeIpfsLink.href = ipfsToHttp(linkedAsset);
         viewer.setAttribute('poster', collectible.posterUrl);
         viewer.setAttribute('alt', collectible.modelUrl ? `Interactive AR preview of ${collectible.name}` : `Contract NFT ${collectible.tokenId} selected in the mint terminal`);
         viewer.setAttribute('camera-orbit', collectible.cameraOrbit);
@@ -482,6 +504,11 @@
           viewer.setAttribute('src', arFile);
           googleArBtn.disabled = false;
           launchArBtn.disabled = false;
+          if (arPreviewDialog.open) {
+            arPreviewViewer.src = arFile;
+            arPreviewViewer.poster = collectible.posterUrl || '';
+            arPreviewTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
+          }
         } else {
           viewer.removeAttribute('src');
           viewerStatus.textContent = imageFile ? 'IPFS NFT image displayed. AR launch needs a GLB/GLTF model in token metadata.' : (collectible.rawUri ? 'Preparing NFT metadata from IPFS…' : 'Contract NFT selected. Use the mint terminal to view this token.');
@@ -711,6 +738,19 @@
           throw error;
         }
       }
+      function openArPreview(){
+        const collectible = collectibles[activeCollectionIndex];
+        const arFile = collectible?.arModelUrl || collectible?.modelUrl;
+        if (!arFile) {
+          viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in AR.';
+          return;
+        }
+        arPreviewViewer.src = arFile;
+        arPreviewViewer.poster = collectible.posterUrl || '';
+        arPreviewTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
+        arPreviewStatus.textContent = 'Rotate the collectible or place it in your space.';
+        arPreviewDialog.showModal();
+      }
       function processHandResult(result){
         const landmarks = result.landmarks?.[0];
         if (!landmarks) {
@@ -796,9 +836,16 @@
           selectCollectibleByNumber(collectionNumberInput.value, {push:true});
         }
       });
-      launchArBtn.addEventListener('click', async () => {
-        try { await launchActiveCollectibleAR(); }
-        catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; }
+      launchArBtn.addEventListener('click', openArPreview);
+      closeArPreviewBtn.addEventListener('click', () => arPreviewDialog.close());
+      arPreviewDialog.addEventListener('click', (event) => {
+        if (event.target === arPreviewDialog) arPreviewDialog.close();
+      });
+      confirmArBtn.addEventListener('click', async () => {
+        if (handStream) stopHandTracking();
+        arPreviewStatus.textContent = 'Opening the AR camera…';
+        try { await arPreviewViewer.activateAR(); }
+        catch { arPreviewStatus.textContent = 'AR needs HTTPS and a supported mobile browser. The 3D preview remains available here.'; }
       });
       googleArBtn.hidden = !isAndroid();
       googleArBtn.addEventListener('click', () => {
