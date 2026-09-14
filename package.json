@@ -5,7 +5,7 @@
   "workspaces": ["ws-server"],
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/nft-metadata.test.js"
+    "test": "node --test tests/nft-metadata.test.js tests/member-client.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^9.0.0"

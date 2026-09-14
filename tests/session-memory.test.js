@@ -80,6 +80,17 @@ test('profiles expose social activity and follow actions use the signed-in user'
   assert.deepEqual(r.body.followers, ['profile_alice']);
   assert.deepEqual(r.body.replies, []);
 
+  r = await json(await fetch(srv.base+'/api/members', { headers:{ cookie:aliceCookie } }));
+  assert.equal(r.status, 200);
+  const bob = r.body.members.find(member => member.username === 'profile_bob');
+  assert.equal(bob.isFollowing, true);
+  assert.equal(bob.messageUrl, '/private-chat.html?user=profile_bob');
+
+  r = await json(await fetch(srv.base+'/api/messages/conversations'));
+  assert.equal(r.status, 401);
+  r = await json(await fetch(srv.base+'/notifications/profile_bob', { headers:{ cookie:aliceCookie } }));
+  assert.equal(r.status, 403);
+
   r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST' }));
   assert.equal(r.status, 401);
   r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST', headers:{ cookie:bobCookie } }));
