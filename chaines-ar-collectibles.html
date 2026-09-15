@@ -100,26 +100,10 @@
     .nft-image-preview{position:absolute;inset:1rem;width:calc(100% - 2rem);height:calc(100% - 2rem);object-fit:contain;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.28);z-index:2}.nft-image-preview[hidden]{display:none}model-viewer{width:100%;height:clamp(520px,68vh,780px);background:transparent;border-radius:16px;border:1px solid var(--line);--poster-color:transparent}.viewer-stage{position:relative;border-radius:22px;background:radial-gradient(ellipse at 50% 82%,rgba(102,221,255,.26),transparent 36%),radial-gradient(circle at 50% 16%,rgba(124,92,255,.12),transparent 35%),rgba(3,9,15,.64);overflow:hidden}.viewer-stage:after{content:"";position:absolute;left:20%;right:20%;bottom:2rem;height:48px;border-radius:999px;background:radial-gradient(ellipse,rgba(102,221,255,.42),transparent 70%);filter:blur(8px);pointer-events:none}.viewer-stage model-viewer{position:relative;z-index:1}.collection-navigator{display:flex;align-items:center;justify-content:center;gap:.65rem;flex-wrap:wrap;margin:.9rem 0}.collection-field{display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03)}.collection-field label{margin:0}.collection-field input{width:5.25rem;text-align:center;padding:.6rem .45rem}.ar-button{position:absolute;right:1rem;bottom:1rem;z-index:3;border:0;border-radius:999px;padding:.85rem 1.1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02111b;font-weight:900;box-shadow:0 14px 30px rgba(55,168,255,.32)}.status-grid{display:grid;gap:.65rem}.status-grid .read{margin-top:0}.debug-path{word-break:break-all;font-size:.8rem}.thumb-badge{font-weight:900;color:white}.no-assets{border:1px solid rgba(255,190,107,.35);background:rgba(255,190,107,.08);border-radius:14px;padding:.8rem;margin-top:.8rem;color:var(--warn)}
     .read{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:.8rem .9rem;border-radius:12px;color:var(--muted);font-size:.92rem;margin-top:.7rem}
     .read strong{color:white}
-    .hand-controls{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.8rem;padding:.75rem;border:1px solid var(--line);border-radius:16px;background:rgba(3,9,15,.55)}
-    .hand-controls .hand-copy{flex:1 1 220px}.hand-controls .hand-copy strong{display:block}.hand-controls .hand-copy span{display:block;color:var(--muted);font-size:.82rem;margin-top:.15rem}
-    .hand-stage{position:absolute;left:1rem;top:1rem;z-index:4;width:min(34%,300px);aspect-ratio:4/3;border:1px solid var(--line-strong);border-radius:18px;overflow:hidden;background:#02080d;box-shadow:0 14px 35px rgba(0,0,0,.42)}
-    .hand-stage[hidden]{display:none}.hand-stage video,.hand-stage svg,.hand-stage canvas{position:absolute;inset:0;width:100%;height:100%}.hand-stage video{object-fit:cover;transform:scaleX(-1);opacity:.72}.hand-stage svg,.hand-stage canvas{pointer-events:none}.hand-stage svg{filter:drop-shadow(0 0 7px rgba(102,221,255,.75))}
-    .glove-palm{fill:rgba(21,45,60,.62);stroke:#66ddff;stroke-width:1.7;stroke-linejoin:round}.glove-finger{fill:none;stroke:#b9f4ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.glove-joint{fill:#07111a;stroke:#66ddff;stroke-width:1}.glove-tip{fill:#7c5cff;stroke:#eef9ff;stroke-width:1}.glove-cuff{fill:rgba(124,92,255,.75);stroke:#b9f4ff;stroke-width:1.5}
-    .hand-stage.pinching{border-color:var(--good);box-shadow:0 0 0 3px rgba(104,240,184,.16),0 14px 35px rgba(0,0,0,.42)}.hand-stage.pinching .glove-tip{fill:var(--good)}
-    .hand-label{position:absolute;left:.55rem;bottom:.5rem;z-index:3;padding:.28rem .48rem;border-radius:999px;background:rgba(2,8,13,.74);color:#dffaff;font-size:.68rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
-    .ioncore-game-toggle{position:absolute;top:1rem;right:1rem;z-index:9;display:flex;align-items:center;gap:.55rem;padding:.55rem .7rem .55rem .85rem;border-color:rgba(104,240,184,.55);background:rgba(2,10,12,.9);box-shadow:0 12px 30px rgba(0,0,0,.45)}
-    .ioncore-game-toggle .toggle-state{min-width:2.8rem;padding:.25rem .45rem;border-radius:999px;background:rgba(255,255,255,.09);color:var(--muted);font-size:.72rem;letter-spacing:.08em;text-align:center}
-    .ioncore-game-toggle[aria-pressed="true"]{background:linear-gradient(135deg,#68f0b8,#66ddff);color:#02111b;border-color:transparent}.ioncore-game-toggle[aria-pressed="true"] .toggle-state{background:rgba(2,17,27,.16);color:#02111b}
-    .ioncore-game{position:absolute;inset:0;z-index:5;pointer-events:none}.ioncore-game[hidden]{display:none}.combat-canvas{position:absolute;inset:0;width:100%;height:100%}.combat-instructions{position:absolute;left:1rem;bottom:1rem;max-width:min(28rem,calc(100% - 2rem));padding:.65rem .8rem;border:1px solid rgba(104,240,184,.48);border-radius:12px;background:rgba(2,10,12,.82);color:#dffff0;font-size:.8rem;box-shadow:0 12px 30px rgba(0,0,0,.4)}
-    .nft-health{width:180px;padding:.48rem .58rem;border:1px solid rgba(104,240,184,.7);border-radius:11px;background:rgba(2,10,12,.86);color:#eafff3;font-size:.72rem;font-weight:900;box-shadow:0 0 20px rgba(104,240,184,.3);pointer-events:none}.nft-health-row{display:flex;justify-content:space-between;margin-bottom:.32rem}.nft-health-track{height:8px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.13)}.nft-health-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff5e75,#ffbe6b 38%,#68f0b8);transform-origin:left;transition:transform .28s ease,filter .28s ease}.nft-health.danger{border-color:#ff5e75;animation:healthPulse .7s infinite alternate}.nft-health.destroyed{border-color:#ff5e75;color:#ff9aaa}.combat-fire{border-color:rgba(104,240,184,.6)}.combat-fire[hidden]{display:none}model-viewer.ioncore-hit{animation:nftHit .24s ease}model-viewer.ioncore-destroyed{filter:saturate(.2) brightness(.5)}
-    .asset-link{color:var(--accent);text-underline-offset:3px}.asset-link[hidden]{display:none}
-    .ar-preview{width:min(780px,calc(100% - 24px));padding:0;border:1px solid var(--line-strong);border-radius:22px;background:#07111a;color:var(--text);box-shadow:0 30px 90px #000;overflow:hidden}.ar-preview::backdrop{background:rgba(0,5,10,.82);backdrop-filter:blur(8px)}.ar-preview__head,.ar-preview__actions{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.8rem 1rem}.ar-preview__head{border-bottom:1px solid var(--line)}.ar-preview__head h2{font-size:1.05rem}.ar-preview__actions{border-top:1px solid var(--line);flex-wrap:wrap}.ar-preview model-viewer{height:min(66vh,620px);border:0;border-radius:0}.ar-preview__close{padding:.55rem .8rem}
-    .world-goop-particle{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#edff9d,#68f0b8 42%,#168b68 78%);box-shadow:0 0 16px #68f0b8;pointer-events:none;transition:opacity .18s linear}
-    @keyframes healthPulse{to{box-shadow:0 0 28px rgba(255,60,90,.72)}}@keyframes nftHit{45%{filter:hue-rotate(55deg) saturate(2.8) brightness(1.6);transform:translateX(5px)}}
     .footer{padding:1.8rem 0 2.2rem;text-align:center;color:var(--muted2)}
     .footer strong{color:var(--text);text-transform:uppercase;letter-spacing:.08em}
     @media (max-width:1080px){.hero,.mint-layout,.collectible-layout{grid-template-columns:1fr}}
-    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}.hand-stage{width:calc(100% - 2rem);max-width:260px}.ioncore-game-toggle{top:.65rem;right:.65rem}.ioncore-game-toggle .toggle-label{display:none}.nft-health{width:145px}.combat-instructions{font-size:.7rem}}
+    @media (max-width:760px){.grid,.hero-stats{grid-template-columns:1fr}.read{flex-direction:column;gap:.3rem}.terminal iframe{height:520px}h1{max-width:none}model-viewer{height:min(64vh,620px);min-height:420px}.collection-navigator{gap:.45rem}.collection-navigator .btn{flex:1 1 120px}.collection-field{order:3;width:100%;justify-content:center}.topbar-inner{align-items:flex-start}}
   
     .site-copyright {
       text-align: center;
@@ -152,7 +136,7 @@
         <p>The mint terminal stays open for the selected token ID, with NFTs numbered in mint order so the final NFT is the latest generated token.</p>
       </div>
 
-      <div class="collectible-layout" id="collectiblesExperience">
+      <div class="collectible-layout">
         <div class="card" id="viewer">
           <div class="mint-head">
             <div>
@@ -163,37 +147,10 @@
           </div>
 
           <div class="viewer-stage" id="swipeNavArea" aria-label="Swipe left or right to switch NFTs">
-            <button class="btn ioncore-game-toggle" id="ioncoreGameToggle" type="button" aria-pressed="false" aria-controls="ioncoreExperience">
-              <span class="toggle-label">IONCORE glove game</span><span class="toggle-state" id="ioncoreToggleState">OFF</span>
-            </button>
             <img id="nftImagePreview" class="nft-image-preview" alt="Selected CHAINeS NFT image" hidden />
             <model-viewer id="primary-collectible-viewer" alt="CHAINeS NFT preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" loading="eager" reveal="auto" shadow-intensity="1" shadow-softness="0.8" environment-image="neutral" exposure="1" interaction-prompt="auto" touch-action="pan-y" tone-mapping="aces">
               <button slot="ar-button" class="ar-button" type="button">Place NFT in AR</button>
-              <div slot="hotspot-ioncore-health" class="nft-health" id="nftHealth" data-position="0m 1m 0m" data-normal="0m 1m 0m" hidden aria-live="polite">
-                <div class="nft-health-row"><span>NFT INTEGRITY</span><span id="nftHealthValue">100%</span></div>
-                <div class="nft-health-track"><div class="nft-health-fill" id="nftHealthFill"></div></div>
-              </div>
             </model-viewer>
-            <div class="hand-stage" id="handStage" hidden aria-label="Live hand tracking preview">
-              <video id="handVideo" playsinline muted aria-hidden="true"></video>
-              <svg id="gloveOverlay" viewBox="0 0 100 75" preserveAspectRatio="none" aria-hidden="true">
-                <polygon id="glovePalm" class="glove-palm" points="35,60 30,42 42,34 62,38 68,58" />
-                <path id="gloveCuff" class="glove-cuff" d="M35 58 L68 58 L65 72 L39 72 Z" />
-                <g id="gloveFingers"></g><g id="gloveJoints"></g>
-              </svg>
-              <canvas id="slimeCanvas" aria-hidden="true"></canvas>
-              <span class="hand-label" id="handLabel">Show your hand</span>
-            </div>
-            <div class="ioncore-game" id="ioncoreExperience" hidden>
-              <canvas class="combat-canvas" id="combatCanvas" aria-hidden="true"></canvas>
-              <div class="combat-instructions" id="combatInstructions">Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.</div>
-            </div>
-          </div>
-
-          <div class="hand-controls">
-            <div class="hand-copy"><strong>Gesture glove + 3D combat</strong><span>Turn the game on, then pinch or tap the NFT to melt its health in the live viewer or AR scene.</span></div>
-            <button class="btn secondary" id="handTrackingBtn" type="button" aria-pressed="false">Enable hand tracking</button>
-            <button class="btn combat-fire" id="combatFireBtn" type="button" hidden>Fire goop</button>
           </div>
 
           <div class="collection-navigator" id="collectionNavigator">
@@ -208,13 +165,11 @@
 
           <div class="row">
             <button class="btn secondary" id="googleArBtn" type="button">Open Google AR</button>
-            <button class="btn primary" id="ioncoreArBtn" type="button">Open IONCORE RAD-TOX AR</button>
           </div>
 
           <div class="status-grid" style="margin-top:.8rem">
             <div class="read"><span>Displayed NFT</span><strong id="viewerModelName">None selected</strong></div>
             <div class="read"><span>AR file</span><strong class="debug-path" id="activeModelPath">—</strong></div>
-            <div class="read"><span>Linked IPFS asset</span><a class="asset-link" id="activeIpfsLink" target="_blank" rel="noopener noreferrer" hidden>Open original asset</a><strong id="activeIpfsEmpty">Waiting for token metadata…</strong></div>
             <div class="read"><span>Status</span><strong id="viewerStatus">Loading NFT…</strong></div>
           </div>
         </div>
@@ -230,20 +185,12 @@
           <iframe id="mintTerminalFrame" class="live" title="CHAINeS mint terminal" loading="eager" src="https://embed.ipfscdn.io/ipfs/bafybeigdie2yyiazou7grjowoevmuip6akk33nqb55vrpezqdwfssrxyfy/erc1155.html?contract=0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0&chain=%7B%22name%22%3A%22Polygon+Mainnet%22%2C%22chain%22%3A%22Polygon%22%2C%22rpc%22%3A%5B%22https%3A%2F%2F137.rpc.thirdweb.com%2F%24%7BTHIRDWEB_API_KEY%7D%22%5D%2C%22nativeCurrency%22%3A%7B%22name%22%3A%22POL%22%2C%22symbol%22%3A%22POL%22%2C%22decimals%22%3A18%7D%2C%22shortName%22%3A%22matic%22%2C%22chainId%22%3A137%2C%22testnet%22%3Afalse%2C%22slug%22%3A%22polygon%22%7D&clientId=6e47a693e5628307b12eac3d741d94cf&tokenId=214&theme=dark&primaryColor=blue"></iframe>
         </div>
       </div>
-
     </section>
 
     <div class="footer"><strong>CHAINeS</strong><br/>Polygon mint terminal and AR NFT display.</div>
   </main>
 
-  <dialog class="ar-preview" id="arPreviewDialog" aria-labelledby="arPreviewTitle">
-    <div class="ar-preview__head"><h2 id="arPreviewTitle">AR collectible preview</h2><button class="btn ar-preview__close" id="closeArPreviewBtn" type="button" aria-label="Close AR preview">Close</button></div>
-    <model-viewer id="ar-preview-viewer" alt="Selected CHAINeS collectible AR preview" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" shadow-intensity="1" environment-image="neutral"></model-viewer>
-    <div class="ar-preview__actions"><p id="arPreviewStatus">Rotate the collectible or place it in your space.</p><button class="btn primary" id="confirmArBtn" type="button">Open AR camera</button></div>
-  </dialog>
-
   <script type="module">
-    import {detectGlbAsset, nftMetadataAssets} from '/static/nft-metadata.js';
     (() => {
       const $ = (id) => document.getElementById(id);
       const viewer = $('primary-collectible-viewer');
@@ -255,92 +202,16 @@
       const viewerStatus = $('viewerStatus');
       const viewerModelName = $('viewerModelName');
       const activeModelPath = $('activeModelPath');
-      const activeIpfsLink = $('activeIpfsLink');
-      const activeIpfsEmpty = $('activeIpfsEmpty');
       const activeCollectibleTitle = $('activeCollectibleTitle');
       const launchArBtn = $('launchArBtn');
       const googleArBtn = $('googleArBtn');
-      const ioncoreArBtn = $('ioncoreArBtn');
       const swipeNavArea = $('swipeNavArea');
       const mintTerminalFrame = $('mintTerminalFrame');
-      const arPreviewDialog = $('arPreviewDialog');
-      const arPreviewViewer = $('ar-preview-viewer');
-      const arPreviewTitle = $('arPreviewTitle');
-      const arPreviewStatus = $('arPreviewStatus');
-      const closeArPreviewBtn = $('closeArPreviewBtn');
-      const confirmArBtn = $('confirmArBtn');
-      const ioncoreExperience = $('ioncoreExperience');
-      const ioncoreGameToggle = $('ioncoreGameToggle');
-      const ioncoreToggleState = $('ioncoreToggleState');
-      const combatCanvas = $('combatCanvas');
-      const combatFireBtn = $('combatFireBtn');
-      const combatInstructions = $('combatInstructions');
-      const nftHealth = $('nftHealth');
-      const nftHealthValue = $('nftHealthValue');
-      const nftHealthFill = $('nftHealthFill');
-      const handTrackingBtn = $('handTrackingBtn');
-      const handStage = $('handStage');
-      const handVideo = $('handVideo');
-      const gloveFingers = $('gloveFingers');
-      const gloveJoints = $('gloveJoints');
-      const glovePalm = $('glovePalm');
-      const gloveCuff = $('gloveCuff');
-      const slimeCanvas = $('slimeCanvas');
-      const handLabel = $('handLabel');
-      const DEFAULT_AR_MODES = 'webxr scene-viewer quick-look';
-      let immersiveARSupportPromise = null;
-      let ioncoreFallbackOpening = false;
-      const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const isAndroid = () => /Android/i.test(navigator.userAgent);
-      function supportsImmersiveAR(){
-        if(immersiveARSupportPromise) return immersiveARSupportPromise;
-        immersiveARSupportPromise = Promise.resolve().then(async () => {
-          if(!navigator.xr || typeof navigator.xr.isSessionSupported !== 'function') return false;
-          try { return (await navigator.xr.isSessionSupported('immersive-ar')) === true; }
-          catch(error) { console.debug('Immersive WebXR detection failed; keeping platform fallbacks.', error); return false; }
-        });
-        return immersiveARSupportPromise;
-      }
-      function openIoncoreFallback(collectible, status='Using camera AR.'){
-        if(ioncoreFallbackOpening) return;
-        ioncoreFallbackOpening = true;
-        viewerStatus.textContent = status;
-        try {
-          sessionStorage.setItem('chaines:ioncore:return-state', JSON.stringify({
-            collection:collectible.number, tokenId:collectible.tokenId, experience:'ioncore', returnUrl:location.href
-          }));
-        } catch(error) { console.debug('IONCORE state will be carried by the fallback URL.', error); }
-        location.assign(buildIoncoreUrl(collectible));
-      }
-      async function configureIoncoreARMode(showIoncore){
-        viewer.setAttribute('ar-modes', DEFAULT_AR_MODES);
-        if(!showIoncore) return false;
-        const immersive = await supportsImmersiveAR();
-        if(immersive && !ioncoreExperience.hidden) viewer.setAttribute('ar-modes', 'webxr');
-        return immersive;
-      }
-      function setExperience(mode, {updateUrl=true}={}){
-        const showIoncore = mode === 'ioncore';
-        ioncoreExperience.hidden = !showIoncore;
-        ioncoreGameToggle.setAttribute('aria-pressed', String(showIoncore));
-        ioncoreToggleState.textContent = showIoncore ? 'ON' : 'OFF';
-        ioncoreGameToggle.setAttribute('aria-label', `Turn IONCORE glove game ${showIoncore ? 'off' : 'on'}`);
-        nftHealth.hidden = !showIoncore;
-        combatFireBtn.hidden = !showIoncore;
-        combatInstructions.textContent = combatHealth > 0 ? 'Pinch with the IONCORE glove or tap FIRE GOOP. Each hit melts the live 3D NFT.' : 'NFT neutralized. Select another NFT or turn the game off to reset.';
-        if(!showIoncore) resetCombat();
-        configureIoncoreARMode(showIoncore);
-        if(updateUrl){
-          const url = new URL(location.href);
-          if(showIoncore) url.searchParams.set('experience','ioncore'); else url.searchParams.delete('experience');
-          history.replaceState(history.state, '', url);
-        }
-      }
       const SWIPE_THRESHOLD = 55;
       const CONTRACT_ADDRESS = '0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0';
       const THIRDWEB_CLIENT_ID = '6e47a693e5628307b12eac3d741d94cf';
       const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
-      const IPFS_GATEWAYS = [`https://${THIRDWEB_CLIENT_ID}.ipfscdn.io/ipfs/`, 'https://ipfs.io/ipfs/', 'https://dweb.link/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
+      const IPFS_GATEWAYS = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://gateway.pinata.cloud/ipfs/'];
       const MODEL_EXTENSIONS = /\.(glb|gltf)(?:[?#].*)?$/i;
       const IMAGE_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i;
       const DEFAULT_CAMERA = {cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'};
@@ -355,7 +226,6 @@
       };
       let collectibles = Array.from(featuredCollectibles.keys()).sort((a,b)=>a-b).map(createCollectible);
       let activeCollectionIndex = Math.max(0, collectibles.length - 1);
-      let hydrateContractUri = null;
       const idle = window.requestIdleCallback || ((callback) => window.setTimeout(() => callback({timeRemaining:() => 0}), 1));
       const preloadUrl = (url, as='fetch') => {
         if (!url || document.head.querySelector(`link[data-preload-url="${CSS.escape(url)}"]`)) return;
@@ -385,13 +255,11 @@
       const tokenMetadataUris = (rawUri, tokenId) => {
         if (!rawUri) return [];
         const normalized = String(rawUri).replaceAll('{id}', tokenHexId(tokenId));
-        if (/^data:application\/json(?:;charset=[^;,]+)?(?:;base64)?,/i.test(normalized)) return [normalized];
         if (!normalized.startsWith('ipfs://')) return [normalized];
         return IPFS_GATEWAYS.map((gateway) => ipfsToHttp(normalized, gateway));
       };
       const isModelFile = (url) => MODEL_EXTENSIONS.test(url.split('?')[0]);
       const isImageFile = (url) => IMAGE_EXTENSIONS.test(url.split('?')[0]);
-      const isIpfsAsset = (url) => /^(?:ipfs:\/\/|https:\/\/(?:[^/]+\.)?(?:ipfs\.io|dweb\.link|pinata\.cloud)\/)/i.test(url || '');
       function updateMintEmbedConfig(collectible){
         const url = new URL(mintTerminalFrame.src);
         url.searchParams.set('tokenId', String(collectible.tokenId));
@@ -402,17 +270,6 @@
         const fallbackUrl = absolute(`/chaines-ar-collectibles.html?collection=${collectible.number}&tokenId=${collectible.tokenId}`);
         const query = new URLSearchParams({file:absolute(arFile),mode:'ar_preferred',title:`NFT #${collectible.number} · ${collectible.name}`,link:fallbackUrl,resizable:'true'});
         return `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
-      }
-      function buildIoncoreUrl(collectible){
-        const model = collectible.arModelUrl || collectible.modelUrl;
-        const url = new URL('/ioncore_radtox_multiplatform_ar.html', window.location.origin);
-        if (model) url.searchParams.set('model', absolute(model));
-        url.searchParams.set('name', `NFT #${collectible.number} · ${collectible.name}`);
-        url.searchParams.set('tokenId', String(collectible.tokenId));
-        const returnUrl = new URL(location.href);
-        returnUrl.searchParams.set('experience', 'ioncore');
-        url.searchParams.set('return', returnUrl.href);
-        return url.href;
       }
       function updateURL(collectible, options={}){
         if(options.skipUrl) return;
@@ -435,16 +292,8 @@
         try {
           const client = createThirdwebClient({clientId:THIRDWEB_CLIENT_ID});
           const contract = getContract({client, chain:polygon, address:CONTRACT_ADDRESS});
-          let nextTokenId;
-          try {
-            nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
-          } catch {
-            // Standard ERC-721 collections commonly expose totalSupply/tokenURI
-            // rather than thirdweb's drop-specific nextTokenIdToMint/uri pair.
-            nextTokenId = await readContract({contract, method:'function totalSupply() view returns (uint256)', params:[]});
-          }
+          const nextTokenId = await readContract({contract, method:'function nextTokenIdToMint() view returns (uint256)', params:[]});
           normalizeCollectibles(Number(nextTokenId));
-          selectCollectibleByNumber(initialNumber(), {skipUrl:true});
           const selectedTokenId = collectibles[activeCollectionIndex]?.tokenId;
           const priority = collectibles
             .map((collectible, index) => ({collectible, index, distance: Math.abs((collectible.tokenId ?? index) - (selectedTokenId ?? index))}))
@@ -453,11 +302,7 @@
             if (collectible.rawUri || collectible.uriLoading) return;
             collectible.uriLoading = true;
             try {
-              try {
-                collectible.rawUri = await readContract({contract, method:'function tokenURI(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
-              } catch {
-                collectible.rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
-              }
+              collectible.rawUri = await readContract({contract, method:'function uri(uint256) view returns (string)', params:[BigInt(collectible.tokenId)]});
               if (collectibles[activeCollectionIndex]?.tokenId === collectible.tokenId) {
                 selectCollectibleByNumber(collectible.number, {skipUrl:true});
               }
@@ -467,13 +312,11 @@
               collectible.uriLoading = false;
             }
           };
-          hydrateContractUri = (collectible) => hydrateUri({collectible, index:collectibles.indexOf(collectible)});
           await Promise.all(priority.slice(0, 6).map(hydrateUri));
           idle(() => {
             priority.slice(6).reduce((chain, item) => chain.then(() => hydrateUri(item)), Promise.resolve());
           });
         } catch (err) {
-          hydrateContractUri = null;
           console.warn('Unable to load the complete contract NFT list; using featured fallback.', err);
           viewerStatus.textContent = 'Using featured NFT fallback; contract list could not load.';
         }
@@ -487,7 +330,6 @@
         }
         const collectible = collectibles[nextIndex] || collectibles[fallbackIndex];
         if (!collectible) return;
-        if (activeCollectionIndex !== nextIndex) resetCombat();
         activeCollectionIndex = nextIndex;
         collectionNumberInput.min = String(collectibles[0]?.number ?? 0);
         collectionNumberInput.max = String(collectibles[collectibles.length - 1]?.number ?? Math.max(0, collectibles.length - 1));
@@ -498,10 +340,6 @@
         activeCollectibleTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
         viewerModelName.textContent = `NFT #${collectible.number} · Token ID ${collectible.tokenId} · ${collectible.name}`;
         activeModelPath.textContent = collectible.arModelUrl || collectible.modelUrl || collectible.metadataUrl || `Contract token ${collectible.tokenId}`;
-        const linkedAsset = collectible.arModelUrl || collectible.posterUrl || collectible.metadataUrl || '';
-        activeIpfsLink.hidden = !isIpfsAsset(linkedAsset);
-        activeIpfsEmpty.hidden = isIpfsAsset(linkedAsset);
-        if (isIpfsAsset(linkedAsset)) activeIpfsLink.href = ipfsToHttp(linkedAsset);
         viewer.setAttribute('poster', collectible.posterUrl);
         viewer.setAttribute('alt', collectible.modelUrl ? `Interactive AR preview of ${collectible.name}` : `Contract NFT ${collectible.tokenId} selected in the mint terminal`);
         viewer.setAttribute('camera-orbit', collectible.cameraOrbit);
@@ -517,11 +355,6 @@
           viewer.setAttribute('src', arFile);
           googleArBtn.disabled = false;
           launchArBtn.disabled = false;
-          if (arPreviewDialog.open) {
-            arPreviewViewer.src = arFile;
-            arPreviewViewer.poster = collectible.posterUrl || '';
-            arPreviewTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
-          }
         } else {
           viewer.removeAttribute('src');
           viewerStatus.textContent = imageFile ? 'IPFS NFT image displayed. AR launch needs a GLB/GLTF model in token metadata.' : (collectible.rawUri ? 'Preparing NFT metadata from IPFS…' : 'Contract NFT selected. Use the mint terminal to view this token.');
@@ -529,7 +362,6 @@
           launchArBtn.disabled = true;
         }
         if (!options.skipMetadata) hydrateCollectibleMetadata(collectible);
-        if (!collectible.rawUri && hydrateContractUri) hydrateContractUri(collectible);
         updateMintEmbedConfig(collectible);
         updateURL(collectible, options);
       }
@@ -540,26 +372,17 @@
         const metadataUrls = tokenMetadataUris(collectible.rawUri, collectible.tokenId);
         for (const metadataUrl of metadataUrls) {
           try {
-            let metadata;
-            if (/^data:application\/json/i.test(metadataUrl)) {
-              const comma = metadataUrl.indexOf(',');
-              const encoded = metadataUrl.slice(comma + 1);
-              const json = /;base64,/i.test(metadataUrl.slice(0, comma + 1)) ? atob(encoded) : decodeURIComponent(encoded);
-              metadata = JSON.parse(json);
-            } else {
-              const response = await fetch(metadataUrl, {cache:'force-cache'});
-              if (!response.ok) continue;
-              metadata = await response.json();
-            }
-            const assets = nftMetadataAssets(metadata, metadataUrl);
-            const animationUrl = ipfsToHttp(assets.modelUrl);
-            const imageUrl = ipfsToHttp(assets.imageUrl);
+            const response = await fetch(metadataUrl, {cache:'force-cache'});
+            if (!response.ok) continue;
+            const metadata = await response.json();
+            const animationUrl = ipfsToHttp(metadata.animation_url || metadata.animationUrl || metadata.model_url || metadata.modelUrl || '');
+            const imageUrl = ipfsToHttp(metadata.image || metadata.image_url || metadata.imageUrl || '');
             collectible.metadataLoaded = true;
             collectible.metadataUrl = metadataUrl;
             collectible.name = metadata.name || collectible.name;
             collectible.posterUrl = imageUrl || collectible.posterUrl;
-            if (animationUrl && (isModelFile(animationUrl) || await detectGlbAsset(animationUrl))) collectible.arModelUrl = animationUrl;
-            if (!collectible.arModelUrl && imageUrl && (isModelFile(imageUrl) || await detectGlbAsset(imageUrl))) collectible.arModelUrl = imageUrl;
+            if (isModelFile(animationUrl)) collectible.arModelUrl = animationUrl;
+            if (!collectible.arModelUrl && isModelFile(imageUrl)) collectible.arModelUrl = imageUrl;
             if (!collectible.arModelUrl && isImageFile(imageUrl)) collectible.posterUrl = imageUrl;
             if (collectibles[activeCollectionIndex]?.tokenId === selectedTokenId) {
               selectCollectibleByNumber(collectible.number, {skipUrl:true, skipMetadata:true});
@@ -586,271 +409,15 @@
         const urlNumber = Number.parseInt(params.get('collection'), 10);
         return Number.isFinite(urlNumber) ? urlNumber : (collectibles[collectibles.length - 1]?.number ?? 0);
       }
-      const HAND_CONNECTIONS = [[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
-      let handStream = null;
-      let handLandmarker = null;
-      let trackingFrame = 0;
-      let lastVideoTime = -1;
-      let pinchLatched = false;
-      let lastPinchAt = 0;
-      let slimeParticles = [];
-      let combatHealth = 100;
-      let audioContext = null;
-      const svgPoint = (landmark) => ({x:(1 - landmark.x) * 100, y:landmark.y * 75});
-      const pointsAttr = (landmarks, indexes) => indexes.map((index) => { const p = svgPoint(landmarks[index]); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(' ');
-      function drawGlove(landmarks){
-        glovePalm.setAttribute('points', pointsAttr(landmarks, [0,5,9,13,17]));
-        const wrist = svgPoint(landmarks[0]);
-        const pinky = svgPoint(landmarks[17]);
-        const index = svgPoint(landmarks[5]);
-        const left = {x:wrist.x + (pinky.x - index.x) * .34, y:wrist.y + 2};
-        const right = {x:wrist.x - (pinky.x - index.x) * .34, y:wrist.y + 2};
-        gloveCuff.setAttribute('d', `M${left.x} ${left.y} L${right.x} ${right.y} L${right.x} 75 L${left.x} 75 Z`);
-        gloveFingers.replaceChildren(...HAND_CONNECTIONS.map((indexes) => {
-          const line = document.createElementNS('http://www.w3.org/2000/svg','polyline');
-          line.setAttribute('class','glove-finger');
-          line.setAttribute('points', pointsAttr(landmarks, indexes));
-          return line;
-        }));
-        gloveJoints.replaceChildren(...landmarks.map((landmark, index) => {
-          const point = svgPoint(landmark);
-          const joint = document.createElementNS('http://www.w3.org/2000/svg','circle');
-          joint.setAttribute('class', [4,8,12,16,20].includes(index) ? 'glove-tip' : 'glove-joint');
-          joint.setAttribute('cx', point.x); joint.setAttribute('cy', point.y);
-          joint.setAttribute('r', [4,8].includes(index) ? '2.25' : '1.25');
-          return joint;
-        }));
-      }
-      function fireSlime(origin){
-        const rect = slimeCanvas.getBoundingClientRect();
-        slimeCanvas.width = Math.max(1, Math.round(rect.width * devicePixelRatio));
-        slimeCanvas.height = Math.max(1, Math.round(rect.height * devicePixelRatio));
-        const x = (1 - origin.x) * slimeCanvas.width;
-        const y = origin.y * slimeCanvas.height;
-        slimeParticles = Array.from({length:34}, (_, index) => ({x,y,vx:(Math.random()-.5)*8*devicePixelRatio,vy:(-3-Math.random()*8)*devicePixelRatio,r:(3+Math.random()*7)*devicePixelRatio,life:1,delay:index*.008}));
-        const ctx = slimeCanvas.getContext('2d');
-        const animate = () => {
-          ctx.clearRect(0,0,slimeCanvas.width,slimeCanvas.height);
-          slimeParticles.forEach((particle) => {
-            particle.delay -= .016; if (particle.delay > 0) return;
-            particle.x += particle.vx; particle.y += particle.vy; particle.vy += .28 * devicePixelRatio; particle.life -= .018;
-            ctx.beginPath(); ctx.arc(particle.x,particle.y,Math.max(0,particle.r*particle.life),0,Math.PI*2);
-            ctx.fillStyle = `rgba(104,240,184,${Math.max(0,particle.life)})`; ctx.shadowColor='#68f0b8'; ctx.shadowBlur=12*devicePixelRatio; ctx.fill();
-          });
-          slimeParticles = slimeParticles.filter((particle) => particle.life > 0);
-          if (slimeParticles.length) requestAnimationFrame(animate); else ctx.clearRect(0,0,slimeCanvas.width,slimeCanvas.height);
-        };
-        requestAnimationFrame(animate);
-      }
-      function sound(kind){
-        audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-        const now = audioContext.currentTime;
-        const gain = audioContext.createGain();
-        gain.connect(audioContext.destination);
-        if(kind === 'goop'){
-          const oscillator = audioContext.createOscillator();
-          oscillator.type = 'sawtooth'; oscillator.frequency.setValueAtTime(150, now); oscillator.frequency.exponentialRampToValueAtTime(48, now + .22);
-          gain.gain.setValueAtTime(.16, now); gain.gain.exponentialRampToValueAtTime(.001, now + .24);
-          oscillator.connect(gain); oscillator.start(now); oscillator.stop(now + .25);
-          return;
-        }
-        const buffer = audioContext.createBuffer(1, audioContext.sampleRate * .75, audioContext.sampleRate);
-        const data = buffer.getChannelData(0);
-        for(let index=0; index<data.length; index++) data[index] = (Math.random() * 2 - 1) * Math.pow(1 - index / data.length, 2);
-        const noise = audioContext.createBufferSource(); noise.buffer = buffer;
-        const filter = audioContext.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(900, now); filter.frequency.exponentialRampToValueAtTime(80, now + .7);
-        gain.gain.setValueAtTime(.32, now); gain.gain.exponentialRampToValueAtTime(.001, now + .75);
-        noise.connect(filter); filter.connect(gain); noise.start();
-      }
-      function updateCombatHealth(){
-        nftHealthValue.textContent = combatHealth > 0 ? `${combatHealth}%` : 'DESTROYED';
-        nftHealthFill.style.transform = `scaleX(${combatHealth / 100})`;
-        nftHealth.classList.toggle('danger', combatHealth > 0 && combatHealth <= 35);
-        nftHealth.classList.toggle('destroyed', combatHealth === 0);
-      }
-      function resetCombat(){
-        combatHealth = 100;
-        viewer.setAttribute('scale', '1 1 1');
-        viewer.classList.remove('ioncore-hit','ioncore-destroyed');
-        if(nftHealthValue) updateCombatHealth();
-      }
-      function positionHealthHotspot(){
-        try{
-          const center = viewer.getBoundingBoxCenter();
-          const dimensions = viewer.getDimensions();
-          nftHealth.dataset.position = `${center.x}m ${center.y + dimensions.y * .62}m ${center.z}m`;
-          viewer.updateHotspot({name:'hotspot-ioncore-health',position:nftHealth.dataset.position,normal:'0m 1m 0m'});
-        }catch(error){ console.debug('Using default IONCORE health position.', error); }
-      }
-      function combatBurst(origin={x:.5,y:.75}, exploding=false){
-        const rect = combatCanvas.getBoundingClientRect();
-        const ratio = window.devicePixelRatio || 1;
-        combatCanvas.width = Math.max(1, Math.round(rect.width * ratio)); combatCanvas.height = Math.max(1, Math.round(rect.height * ratio));
-        const target = {x:combatCanvas.width * .5,y:combatCanvas.height * .5};
-        const start = {x:origin.x * combatCanvas.width,y:origin.y * combatCanvas.height};
-        const ctx = combatCanvas.getContext('2d'); let frame = 0;
-        const particles = Array.from({length:exploding ? 90 : 28}, () => ({angle:Math.random()*Math.PI*2,speed:(2+Math.random()*(exploding?12:4))*ratio,size:(3+Math.random()*9)*ratio}));
-        const animate = () => {
-          frame++; ctx.clearRect(0,0,combatCanvas.width,combatCanvas.height);
-          const flight = Math.min(1,frame/18); const x=start.x+(target.x-start.x)*flight; const y=start.y+(target.y-start.y)*flight;
-          if(flight < 1){ctx.beginPath();ctx.arc(x,y,18*ratio,0,Math.PI*2);ctx.fillStyle='#68f0b8';ctx.shadowColor='#68f0b8';ctx.shadowBlur=28*ratio;ctx.fill();}
-          else particles.forEach(p=>{const age=frame-18;const alpha=Math.max(0,1-age/(exploding?58:30));ctx.beginPath();ctx.arc(target.x+Math.cos(p.angle)*p.speed*age,target.y+Math.sin(p.angle)*p.speed*age+p.speed*.08*age*age,Math.max(0,p.size*alpha),0,Math.PI*2);ctx.fillStyle=`rgba(${exploding?'190,255,90':'70,255,155'},${alpha})`;ctx.shadowColor='#68f0b8';ctx.shadowBlur=14*ratio;ctx.fill();});
-          if(frame < (exploding?78:49)) requestAnimationFrame(animate); else ctx.clearRect(0,0,combatCanvas.width,combatCanvas.height);
-        }; requestAnimationFrame(animate);
-      }
-      function worldParticles(exploding=false){
-        let center, dimensions;
-        try{ center=viewer.getBoundingBoxCenter(); dimensions=viewer.getDimensions(); }catch{return;}
-        const count = exploding ? 42 : 12;
-        const particles = Array.from({length:count}, (_,index) => {
-          const name = `hotspot-goop-${Date.now()}-${index}`;
-          const node = document.createElement('span'); node.slot=name; node.className='world-goop-particle'; node.setAttribute('aria-hidden','true'); viewer.append(node);
-          return {name,node,x:center.x,y:center.y,z:center.z,vx:(Math.random()-.5)*dimensions.x*.055,vy:(.018+Math.random()*.055)*dimensions.y,vz:(Math.random()-.5)*dimensions.z*.055};
-        });
-        const started=performance.now();
-        const animate=(now)=>{const step=Math.min(1,(now-started)/(exploding?1150:550));particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.vy-=dimensions.y*.0018;p.node.style.opacity=String(1-step);viewer.updateHotspot({name:p.name,position:`${p.x}m ${p.y}m ${p.z}m`,normal:'0m 1m 0m'});});if(step<1)requestAnimationFrame(animate);else particles.forEach(p=>p.node.remove());};
-        requestAnimationFrame(animate);
-      }
-      function destroyNft(){
-        sound('explode'); combatBurst({x:.5,y:.5}, true); worldParticles(true); viewer.classList.add('ioncore-destroyed');
-        const start = performance.now();
-        const collapse = (now) => {const progress=Math.min(1,(now-start)/900);const scale=Math.max(.001,1-progress*progress);viewer.setAttribute('scale',`${scale} ${scale} ${scale}`);if(progress<1)requestAnimationFrame(collapse);};
-        requestAnimationFrame(collapse); combatInstructions.textContent = 'NFT neutralized — goop melt complete. Select another NFT to respawn it.';
-        viewerStatus.textContent = 'IONCORE victory: the NFT melted, particulated, and disappeared.';
-      }
-      function attackNft(origin={x:.5,y:.8}){
-        if(ioncoreExperience.hidden || combatHealth <= 0) return;
-        sound('goop'); combatBurst(origin); worldParticles(false); combatHealth = Math.max(0,combatHealth - 25); updateCombatHealth();
-        viewer.classList.remove('ioncore-hit'); void viewer.offsetWidth; viewer.classList.add('ioncore-hit');
-        viewerStatus.textContent = combatHealth ? `IONCORE goop hit — NFT integrity ${combatHealth}%.` : 'Critical goop reaction!';
-        if(combatHealth === 0) setTimeout(destroyNft, 260);
-      }
-      async function triggerGestureAR(origin){
-        const collectible = collectibles[activeCollectionIndex];
-        window.dispatchEvent(new CustomEvent('chaines:ar-gesture', {detail:{collectible, gesture:'pinch'}}));
-        if(!ioncoreExperience.hidden){ attackNft(origin || {x:.5,y:.8}); return; }
-        if (!collectible?.modelUrl && !collectible?.arModelUrl) return;
-        try {
-          await launchActiveCollectibleAR('Pinch recognized — opening the AR camera…');
-        } catch (error) {
-          viewerStatus.textContent = 'Pinch recognized. Tap “Place NFT in AR” to confirm launch.';
-          launchArBtn.focus({preventScroll:true});
-        }
-      }
-
-      async function launchActiveCollectibleAR(statusMessage='Opening the AR camera…'){
-        const collectible = collectibles[activeCollectionIndex];
-        if (!collectible?.modelUrl && !collectible?.arModelUrl) throw new Error('The selected collectible has no AR model.');
-        if(!ioncoreExperience.hidden){
-          const immersive = await configureIoncoreARMode(true);
-          if(!immersive){
-            const status = isIOS() ? 'Opening iOS AR.' : isAndroid() ? 'Opening Android AR.' : 'Using camera AR.';
-            openIoncoreFallback(collectible, status);
-            return;
-          }
-          viewerStatus.textContent = 'Starting WebXR.';
-        }
-        // MediaPipe and WebXR cannot reliably own the same mobile camera. Release
-        // the glove preview before model-viewer starts its native/WebXR AR session.
-        if (handStream) stopHandTracking();
-        if(ioncoreExperience.hidden) viewerStatus.textContent = statusMessage;
-        try { await viewer.activateAR(); }
-        catch(error) {
-          if(!ioncoreExperience.hidden){ openIoncoreFallback(collectible, 'WebXR could not start. Using camera AR.'); return; }
-          throw error;
-        }
-      }
-      function openArPreview(){
-        const collectible = collectibles[activeCollectionIndex];
-        const arFile = collectible?.arModelUrl || collectible?.modelUrl;
-        if (!arFile) {
-          viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in AR.';
-          return;
-        }
-        arPreviewViewer.src = arFile;
-        arPreviewViewer.poster = collectible.posterUrl || '';
-        arPreviewTitle.textContent = `NFT #${collectible.number}: ${collectible.name}`;
-        arPreviewStatus.textContent = 'Rotate the collectible or place it in your space.';
-        arPreviewDialog.showModal();
-      }
-      function processHandResult(result){
-        const landmarks = result.landmarks?.[0];
-        if (!landmarks) {
-          handLabel.textContent = 'Show your hand'; handStage.classList.remove('pinching'); pinchLatched = false; return;
-        }
-        drawGlove(landmarks);
-        const thumb = landmarks[4], index = landmarks[8], palmA = landmarks[5], palmB = landmarks[17];
-        const distance = Math.hypot(thumb.x-index.x,thumb.y-index.y,thumb.z-index.z);
-        const palmWidth = Math.max(.001, Math.hypot(palmA.x-palmB.x,palmA.y-palmB.y,palmA.z-palmB.z));
-        const ratio = distance / palmWidth;
-        if (ratio < .28 && !pinchLatched && performance.now() - lastPinchAt > 1200) {
-          pinchLatched = true; lastPinchAt = performance.now(); handStage.classList.add('pinching'); handLabel.textContent = 'Slime launched!';
-          const origin = {x:1-(thumb.x+index.x)/2,y:(thumb.y+index.y)/2};
-          fireSlime({x:1-origin.x,y:origin.y}); triggerGestureAR(origin);
-        } else if (ratio > .42) {
-          pinchLatched = false; handStage.classList.remove('pinching'); handLabel.textContent = 'Pinch to launch';
-        }
-      }
-      async function trackingLoop(){
-        if (!handLandmarker || !handStream) return;
-        if (handVideo.readyState >= 2 && handVideo.currentTime !== lastVideoTime) {
-          lastVideoTime = handVideo.currentTime;
-          processHandResult(handLandmarker.detectForVideo(handVideo, performance.now()));
-        }
-        trackingFrame = requestAnimationFrame(trackingLoop);
-      }
-      async function startHandTracking(){
-        handTrackingBtn.disabled = true; handTrackingBtn.textContent = 'Loading MediaPipe…'; handStage.hidden = false;
-        try {
-          const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
-          const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-          handLandmarker = await vision.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.55,minTrackingConfidence:.55});
-          handStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
-          handVideo.srcObject = handStream; await handVideo.play();
-          handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Disable hand tracking'; handTrackingBtn.setAttribute('aria-pressed','true');
-          handLabel.textContent = 'Show your hand'; trackingLoop();
-        } catch (error) {
-          console.warn('Hand tracking could not start.', error); stopHandTracking(); handStage.hidden = false; handLabel.textContent = 'Camera unavailable';
-          handTrackingBtn.disabled = false; handTrackingBtn.textContent = 'Try hand tracking again'; viewerStatus.textContent = 'Camera permission and HTTPS are required for gesture controls.';
-        }
-      }
-      function stopHandTracking(){
-        cancelAnimationFrame(trackingFrame); trackingFrame = 0;
-        handStream?.getTracks().forEach((track) => track.stop()); handStream = null;
-        handLandmarker?.close(); handLandmarker = null; handVideo.srcObject = null; handStage.hidden = true;
-        handTrackingBtn.setAttribute('aria-pressed','false'); handTrackingBtn.textContent = 'Enable hand tracking';
-      }
-      handTrackingBtn.addEventListener('click', () => handStream ? stopHandTracking() : startHandTracking());
-      combatFireBtn.addEventListener('click', () => attackNft({x:.5,y:.9}));
-      ioncoreGameToggle.addEventListener('click', () => {
-        const enable = ioncoreExperience.hidden;
-        setExperience(enable ? 'ioncore' : 'collectibles');
-        if(enable && !handStream) startHandTracking();
-      });
-      viewer.addEventListener('click', (event) => {
-        if(ioncoreExperience.hidden || event.target.closest?.('[slot="ar-button"]')) return;
-        const rect = viewer.getBoundingClientRect();
-        attackNft({x:(event.clientX-rect.left)/rect.width,y:(event.clientY-rect.top)/rect.height});
-      });
-      window.addEventListener('pagehide', stopHandTracking);
       viewer.addEventListener('progress', e => {
         const p = Math.round((e.detail?.totalProgress || 0) * 100);
         viewerStatus.textContent = `Loading NFT… ${p}%`;
       });
-      viewer.addEventListener('load', () => { positionHealthHotspot(); viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
-      viewer.addEventListener('ar-status', (event) => {
-        if (event.detail.status === 'session-started') viewerStatus.textContent = 'AR camera open — move your device to place the NFT.';
-        if (event.detail.status === 'failed') {
-          if(!ioncoreExperience.hidden) openIoncoreFallback(collectibles[activeCollectionIndex], 'WebXR could not start. Using camera AR.');
-          else viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.';
-        }
-      });
+      viewer.addEventListener('load', () => { viewerStatus.textContent = 'NFT ready for 3D and AR.'; });
       viewer.addEventListener('error', () => { viewerStatus.textContent = 'NFT model file is not reachable on this host.'; launchArBtn.disabled = true; googleArBtn.disabled = true; });
       previousBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex - 1]?.number, {push:true, index:activeCollectionIndex - 1}));
       nextBtn.addEventListener('click', () => selectCollectibleByNumber(collectibles[activeCollectionIndex + 1]?.number, {push:true, index:activeCollectionIndex + 1}));
-      collectionNumberInput.addEventListener('input', () => {
-        if (collectionNumberInput.value !== '') selectCollectibleByNumber(collectionNumberInput.value, {push:true});
-      });
+      collectionNumberInput.addEventListener('change', () => selectCollectibleByNumber(collectionNumberInput.value, {push:true}));
       collectionNumberInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -858,39 +425,13 @@
           selectCollectibleByNumber(collectionNumberInput.value, {push:true});
         }
       });
-      launchArBtn.addEventListener('click', openArPreview);
-      closeArPreviewBtn.addEventListener('click', () => arPreviewDialog.close());
-      arPreviewDialog.addEventListener('click', (event) => {
-        if (event.target === arPreviewDialog) arPreviewDialog.close();
-      });
-      confirmArBtn.addEventListener('click', async () => {
-        if (handStream) stopHandTracking();
-        arPreviewStatus.textContent = 'Opening the AR camera…';
-        try { await arPreviewViewer.activateAR(); }
-        catch { arPreviewStatus.textContent = 'AR needs HTTPS and a supported mobile browser. The 3D preview remains available here.'; }
-      });
-      googleArBtn.hidden = !isAndroid();
-      googleArBtn.addEventListener('click', () => {
-        if(!isAndroid() || isIOS()) return;
-        viewerStatus.textContent = 'Opening Android AR.';
-        location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]);
-      });
-      ioncoreArBtn.addEventListener('click', async () => {
-        const collectible = collectibles[activeCollectionIndex];
-        if (!collectible?.modelUrl && !collectible?.arModelUrl) {
-          viewerStatus.textContent = 'This NFT needs a GLB or glTF model before it can open in IONCORE AR.';
-          return;
-        }
-        if(ioncoreExperience.hidden) setExperience('ioncore');
-        try { await launchActiveCollectibleAR(); }
-        catch(error) { openIoncoreFallback(collectible, 'Using camera AR.'); }
-      });
+      launchArBtn.addEventListener('click', async () => { try { await viewer.activateAR(); } catch { viewerStatus.textContent = 'AR could not launch here. Use HTTPS and a supported mobile browser.'; } });
+      googleArBtn.addEventListener('click', () => { location.href = buildSceneViewerIntent(collectibles[activeCollectionIndex]); });
       let sx = 0, sy = 0;
       swipeNavArea.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive:true});
       swipeNavArea.addEventListener('touchend', e => { const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) { const nextIndex = activeCollectionIndex + (dx < 0 ? 1 : -1); selectCollectibleByNumber(collectibles[nextIndex]?.number, {push:true, index:nextIndex}); } }, {passive:true});
       window.addEventListener('popstate', () => selectCollectibleByNumber(initialNumber(), {skipUrl:true}));
       warmFeaturedAssets();
-      setExperience(new URLSearchParams(location.search).get('experience') === 'ioncore' ? 'ioncore' : 'collectibles', {updateUrl:false});
       selectCollectibleByNumber(initialNumber(), {skipUrl:true});
       loadContractCollectibles()
         .catch((err) => {

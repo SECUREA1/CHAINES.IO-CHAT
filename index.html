@@ -1186,11 +1186,11 @@
     .face-preference__copy { min-width:0; line-height:1; white-space:nowrap; }
     .face-preference__copy b { font-size:12px; }
     .card { width:min(520px, 100%); margin:0 auto; max-height:100%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:clamp(14px, 3vw, 22px); border-radius:18px; background:color-mix(in oklab, var(--panel), transparent 25%); border:1px solid var(--lining); box-shadow:var(--shadow); backdrop-filter:blur(8px); }
-    .auth-card { width:min(760px, 100%); display:grid; grid-template-columns:minmax(0, 1fr) minmax(240px, .72fr); gap:clamp(10px, 1.8vw, 16px); align-items:start; padding:clamp(12px, 2vw, 18px); }
+    .auth-card { width:min(960px, 100%); display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, .82fr); gap:clamp(14px, 2.4vw, 24px); align-items:start; }
     .auth-card__intro { grid-column:1 / -1; }
     .auth-card__intro p { margin-bottom:0; }
-    .auth-card__account, .auth-card__extras { min-width:0; display:grid; align-content:start; gap:9px; }
-    .auth-card__extras { padding:10px; border:1px solid var(--lining); border-radius:12px; background:color-mix(in oklab, var(--panel), transparent 18%); }
+    .auth-card__account, .auth-card__extras { min-width:0; display:grid; align-content:start; gap:12px; }
+    .auth-card__extras { padding:14px; border:1px solid var(--lining); border-radius:14px; background:color-mix(in oklab, var(--panel), transparent 18%); }
     .auth-card__extras .app-download-card { margin-top:0; }
     .auth-card__token-fields { margin-top:0; }
     .auth-card__socket-link { margin:0; }
@@ -1198,8 +1198,7 @@
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
-    .actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:7px; margin-top:6px; }
-    .actions .btn { min-width:0; padding:10px 8px; }
+    .actions { display:flex; gap:10px; margin-top:12px; }
     .face-login { margin-top:12px; display:grid; gap:12px; padding:14px; border:1px solid color-mix(in oklab, var(--accent), transparent 35%); border-radius:18px; background: radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--accent), transparent 72%), transparent 34%), linear-gradient(135deg, rgba(6,11,30,.92), rgba(10,22,38,.84)); box-shadow:0 0 28px color-mix(in oklab, var(--accent), transparent 72%), inset 0 0 32px rgba(255,255,255,.04); overflow:hidden; position:relative; }
     .face-login::before { content:""; position:absolute; inset:-40%; background: repeating-linear-gradient(90deg, transparent 0 28px, rgba(255,255,255,.035) 29px 30px); animation: faceGridDrift 12s linear infinite; pointer-events:none; }
     .face-login > * { position:relative; z-index:1; }
@@ -2557,7 +2556,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="actions">
           <button class="btn primary" id="login" type="button">Login</button>
           <button class="btn ghost" id="register" type="button">Register</button>
-          <button class="btn ghost" id="skip" type="button">Continue as Guest</button>
           <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
         </div>
       </div>
@@ -3150,7 +3148,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
-    const skipBtn = el('#skip');
     const faceLoginPanel = el('#face-login-panel');
     const faceLoginVideo = el('#face-login-video');
     const faceStartBtn = el('#face-start');
@@ -7228,16 +7225,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
-
-    skipBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      pendingAuthValidation = null;
-      pendingFaceDescriptor = null;
-      pendingFaceScanImage = null;
-      store.profilePic = '';
-      sessionStorage.removeItem('chaines_session_validation');
-      enterChat('guest-' + Math.floor(1000 + Math.random() * 9000), '', { verified: false });
-    });
 
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();

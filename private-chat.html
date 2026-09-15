@@ -30,8 +30,6 @@ main{max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:colu
 button{border:0;border-radius:10px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#031623;font-weight:700;}
 #status{color:var(--muted);font-size:13px;}
 #feed{list-style:none;padding:10px;margin:0;flex:1;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);}
-.directory{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-.directory a{display:flex;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;color:var(--fg);text-decoration:none}.directory a:hover{border-color:var(--accent)}
 .msg{margin-bottom:10px;padding:8px;border-radius:10px;background:#0b1220;border:1px solid #1f2c42;}
 .msg.mine{border-color:#0ea5e9;background:#082236;}
 .meta{font-size:12px;color:var(--muted);margin-bottom:4px;}
@@ -58,7 +56,6 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
     <h2 id="title" style="margin:0"></h2>
   </div>
   <div id="status">Connecting…</div>
-  <div id="directory" class="directory" hidden></div>
   <ul id="feed"></ul>
   <form id="composer">
     <input id="text" placeholder="Send encrypted message…" autocomplete="off" />
@@ -66,18 +63,16 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
   </form>
 </main>
 <script>
-(async () => {
+(() => {
   const params = new URLSearchParams(location.search);
   const peer = (params.get('user') || '').trim();
-  const sessionUser = await window.SessionClient?.initialize?.();
-  const me = sessionUser?.username || '';
+  const me = localStorage.getItem('chaines_username') || '';
   const title = document.getElementById('title');
   const statusEl = document.getElementById('status');
   const feed = document.getElementById('feed');
   const form = document.getElementById('composer');
   const text = document.getElementById('text');
   const back = document.getElementById('back');
-  const directory = document.getElementById('directory');
 
   back.onclick = () => history.length > 1 ? history.back() : (location.href = '/');
 
@@ -87,34 +82,8 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
     return;
   }
   if(!peer || peer === me){
-    title.textContent = 'Member messages';
-    feed.hidden = true;
-    form.hidden = true;
-    directory.hidden = false;
-    statusEl.textContent = 'Choose a member or reopen a recent conversation.';
-    try {
-      const [conversationResponse, memberResponse] = await Promise.all([
-        fetch('/api/messages/conversations', {credentials:'include'}),
-        fetch('/api/members', {credentials:'include'})
-      ]);
-      const conversations = conversationResponse.ok ? (await conversationResponse.json()).conversations || [] : [];
-      const members = memberResponse.ok ? (await memberResponse.json()).members || [] : [];
-      const recent = new Set(conversations.map(item => item.peer));
-      const entries = [
-        ...conversations.map(item => ({username:item.peer, messageUrl:item.messageUrl, label:'Recent conversation'})),
-        ...members.filter(item => !recent.has(item.username)).map(item => ({...item, label:item.isFollowing ? 'Following' : `${item.followerCount} followers`}))
-      ];
-      if(!entries.length) directory.textContent = 'No other member profiles are available yet.';
-      entries.forEach(item => {
-        const link = document.createElement('a');
-        link.href = item.messageUrl;
-        const name = document.createElement('strong'); name.textContent = `@${item.username}`;
-        const label = document.createElement('span'); label.textContent = item.label;
-        link.append(name, label); directory.append(link);
-      });
-    } catch {
-      directory.textContent = 'Member directory is temporarily unavailable.';
-    }
+    alert('Select another user profile to message.');
+    location.href = '/';
     return;
   }
 
@@ -207,7 +176,7 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
     socket = new WebSocket(wsURL());
     socket.addEventListener('open', () => {
       statusEl.textContent = `Encrypted channel ready: ${channel}`;
-      socket.send(JSON.stringify({ type:'join' }));
+      socket.send(JSON.stringify({ type:'join', user: me }));
       socket.send(JSON.stringify({ type:'dm-history', with: peer, user: me }));
     });
     socket.addEventListener('close', () => { statusEl.textContent = 'Disconnected. Reconnecting…'; setTimeout(connect, 1200); });
@@ -220,9 +189,6 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
       }
       if(data && data.type === 'dm'){
         renderMessage(data);
-      }
-      if(data && data.type === 'dm-error'){
-        statusEl.textContent = data.error || 'Unable to use private messaging.';
       }
     });
   }

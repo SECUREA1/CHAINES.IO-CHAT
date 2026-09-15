@@ -7,7 +7,7 @@
     return res.json();
   }
   function notify(){ listeners.forEach(fn => { try{ fn(user); }catch(e){ console.error('[SessionClient] listener failed', e); } }); }
-  const client = {
+  window.SessionClient = {
     async initialize(){
       if(initialized) return user;
       initialized = true;
@@ -22,9 +22,4 @@
     async refresh(){ const data = await request('/api/session/refresh', { method:'POST' }); user = data.user || user; expiresAt = data.expiresAt || expiresAt; notify(); return user; },
     async logout(){ try{ await request('/logout', { method:'POST' }); } finally { user = null; expiresAt = null; try{ await window.MemoryBank?.clearLocalUser?.(); }catch{} notify(); location.href = '/'; } }
   };
-  // Older member pages called `init()`. Keep one shared initialization promise
-  // so every page resolves the server-backed session rather than trusting a
-  // username left in localStorage.
-  client.init = client.initialize;
-  window.SessionClient = client;
 })();
