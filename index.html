@@ -1198,7 +1198,9 @@
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
-    .actions { display:flex; gap:10px; margin-top:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .actions .btn { flex:1 1 150px; min-width:0; }
+    .guest-entry-note { flex:1 0 100%; margin:0 !important; font-size:12px; text-align:center; }
     .face-login { margin-top:12px; display:grid; gap:12px; padding:14px; border:1px solid color-mix(in oklab, var(--accent), transparent 35%); border-radius:18px; background: radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--accent), transparent 72%), transparent 34%), linear-gradient(135deg, rgba(6,11,30,.92), rgba(10,22,38,.84)); box-shadow:0 0 28px color-mix(in oklab, var(--accent), transparent 72%), inset 0 0 32px rgba(255,255,255,.04); overflow:hidden; position:relative; }
     .face-login::before { content:""; position:absolute; inset:-40%; background: repeating-linear-gradient(90deg, transparent 0 28px, rgba(255,255,255,.035) 29px 30px); animation: faceGridDrift 12s linear infinite; pointer-events:none; }
     .face-login > * { position:relative; z-index:1; }
@@ -2556,7 +2558,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="actions">
           <button class="btn primary" id="login" type="button">Login</button>
           <button class="btn ghost" id="register" type="button">Register</button>
+          <button class="btn ghost" id="guest-login" type="button">Continue as Guest</button>
           <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+          <p class="guest-entry-note">Guests get a session-backed profile with messaging, follows, and wallet connections.</p>
         </div>
       </div>
       <div class="auth-card__extras">
@@ -3148,6 +3152,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const guestLoginBtn = el('#guest-login');
     const faceLoginPanel = el('#face-login-panel');
     const faceLoginVideo = el('#face-login-video');
     const faceStartBtn = el('#face-start');
@@ -7226,6 +7231,24 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
 
+    guestLoginBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      guestLoginBtn.disabled = true;
+      guestLoginBtn.textContent = 'Creating guest profile…';
+      try {
+        const res = await fetch('/guest', { method:'POST', credentials:'include', headers:{'Accept':'application/json'} });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok || !data?.session?.user) throw new Error(data.error || 'Guest login failed');
+        const guest = data.session.user;
+        enterChat(guest.username, guest.profilePic, { verified:false });
+      } catch(error) {
+        alert(error?.message || 'Guest login failed. Please try again.');
+      } finally {
+        guestLoginBtn.disabled = false;
+        guestLoginBtn.textContent = 'Continue as Guest';
+      }
+    });
+
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
@@ -9426,10 +9449,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
 
-    // Boot
+    // Boot from the authoritative cookie session. Browser storage is only a UI cache.
     setupCaptionLanguagePicker();
-    requireAuth();
-    showStartupPrivacyChoice();
+    (async () => {
+      const sessionUser = await window.SessionClient?.initialize?.();
+      if(sessionUser){
+        store.user = sessionUser.username;
+        store.profilePic = sessionUser.profilePic || '';
+      } else {
+        store.user = '';
+        store.profilePic = '';
+      }
+      requireAuth();
+      if(!sessionUser) showStartupPrivacyChoice();
+    })();
   })();
   </script>
 
