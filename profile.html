@@ -2052,10 +2052,13 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         const form = new FormData();
         form.append('description', descInput.value);
         if (picInput.files[0]) form.append('profile', picInput.files[0]);
-        await fetch('/profile/' + encodeURIComponent(storeUser), {
+        const response = await fetch('/profile/' + encodeURIComponent(storeUser), {
           method:'POST',
           body: form
         });
+        const saved = await response.json().catch(() => ({}));
+        if(!response.ok){ alert(saved.error || 'Unable to save profile.'); return; }
+        window.SessionClient?.updateUser?.(saved.user || { profilePic:saved.profilePic, description:saved.description });
         if (picInput.files[0]) {
           const reader = new FileReader();
           reader.onload = (e) => {
