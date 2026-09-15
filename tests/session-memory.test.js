@@ -32,6 +32,15 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.match(cookie, /SameSite=Lax/);
   r = await json(await fetch(srv.base+'/api/session', { headers:{ cookie } }));
   assert.equal(r.status, 200); assert.equal(r.body.user.username, 'alice'); assert.equal(typeof r.body.user.id, 'number');
+  r = await json(await fetch(srv.base+'/profile/alice', {
+    method:'POST', headers:{ cookie, 'Content-Type':'application/x-www-form-urlencoded' }, body:new URLSearchParams({ description:'Alice profile' })
+  }));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.user.description, 'Alice profile');
+  r = await json(await fetch(srv.base+'/api/members'));
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.members.map(member => member.username), ['alice']);
+  assert.equal(r.body.members[0].profileUrl, '/profile.html?user=alice');
   r = await json(await fetch(srv.base+'/api/memory/feed-draft', { method:'PUT', headers:{ cookie, 'Content-Type':'application/json' }, body:JSON.stringify({ data:{ text:'draft A' } }) }));
   assert.equal(r.status, 200);
   r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'bob', password:'correct horse battery staple', faceDescriptor, faceScanImage }) }));
@@ -42,6 +51,7 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(r.body.data.text, 'draft A');
   r = await json(await fetch(srv.base+'/logout', { method:'POST', headers:{ cookie } }));
   assert.equal(r.status, 200);
+  assert.match(r.headers.get('set-cookie'), /chaines_session=;/);
   r = await json(await fetch(srv.base+'/api/session', { headers:{ cookie } }));
   assert.equal(r.status, 401);
 

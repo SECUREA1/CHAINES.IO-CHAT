@@ -1416,6 +1416,17 @@ app.get("/api/session", (req, res) => {
   if (!session) return res.status(401).json({ error: "No valid session" });
   res.json(session);
 });
+app.get("/api/members", (_req, res) => {
+  const members = db.prepare("SELECT username, profile_pic, description, is_guest FROM users ORDER BY username COLLATE NOCASE").all();
+  res.json({ members: members.map((row) => ({
+    username: row.username,
+    profilePic: row.profile_pic || profiles[row.username]?.profilePic || null,
+    description: row.description || profiles[row.username]?.description || null,
+    verified: !row.is_guest,
+    guest: !!row.is_guest,
+    profileUrl: `/profile.html?user=${encodeURIComponent(row.username)}`,
+  })) });
+});
 app.post("/api/session/refresh", rateLimit("session-refresh", 20), requireSession, (req, res) => {
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
   db.prepare("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?").run(new Date().toISOString(), expires.toISOString(), req.session.id);
@@ -1539,13 +1550,15 @@ app.get(["/private-chat.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
+  const username = sanitizeUsername(req.params.username);
+  if (!username) return res.status(400).json({ error: "Invalid username" });
   const viewer = req.session?.user?.username || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
     )
-    .get(req.params.username);
-  const memUser = profiles[req.params.username] || {};
+    .get(username);
+  const memUser = profiles[username] || {};
   if (!dbUser && !memUser.password) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -1555,18 +1568,18 @@ app.get("/profile/:username", (req, res) => {
         .prepare(
           "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
-        .all(req.params.username)
+        .all(username)
     : [];
   const followers = dbUser
     ? db
         .prepare("SELECT follower FROM follows WHERE following=?")
-        .all(req.params.username)
+        .all(username)
         .map((r) => r.follower)
     : [];
   const following = dbUser
     ? db
         .prepare("SELECT following FROM follows WHERE follower=?")
-        .all(req.params.username)
+        .all(username)
         .map((r) => r.following)
     : [];
   const isFollowing = viewer
@@ -1575,18 +1588,18 @@ app.get("/profile/:username", (req, res) => {
           .prepare(
             "SELECT 1 FROM follows WHERE follower=? AND following=?"
           )
-          .get(viewer, req.params.username)
+          .get(viewer, username)
       : false
     : false;
   const datingLikes = dbUser
     ? db
         .prepare("SELECT liked, matched FROM dating_likes WHERE liker=? ORDER BY id DESC")
-        .all(req.params.username)
+        .all(username)
     : [];
   const datingLikedUsers = datingLikes.map((row) => row.liked);
   const datingMatchedUsers = [...new Set(datingLikes.filter((row) => row.matched).map((row) => row.liked))];
   res.json({
-    username: req.params.username,
+    username,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
     posts,
@@ -1636,7 +1649,9 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
     profilePic: pic,
   };
   saveProfiles();
-  res.json({ success: true, profilePic: pic });
+  req.session.user.profilePic = pic;
+  req.session.user.description = description || null;
+  res.json({ success: true, user: req.session.user, profilePic: pic, description: description || null });
 });
 
 app.post("/profile/:username/follow", requireSession, (req, res) => {

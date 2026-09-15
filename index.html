@@ -6744,6 +6744,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
+      if(opts.session) window.SessionClient?.accept?.(opts.session);
       applyVerificationToProfile(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
@@ -7204,7 +7205,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         playFaceScanSound('success');
         updateFaceScanHud('validated', pendingFaceDescriptor);
-        enterChat(data.username, data.profilePic, { verified: verification });
+        enterChat(data.username, data.profilePic, { verified: verification, session: data.session });
       } else {
         if(data?.faceRequired && !pendingFaceDescriptor){
           pendingAuthAction = 'login';
@@ -7240,7 +7241,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const data = await res.json().catch(() => ({}));
         if(!res.ok || !data?.session?.user) throw new Error(data.error || 'Guest login failed');
         const guest = data.session.user;
-        enterChat(guest.username, guest.profilePic, { verified:false });
+        enterChat(guest.username, guest.profilePic, { verified:false, session:data.session });
       } catch(error) {
         alert(error?.message || 'Guest login failed. Please try again.');
       } finally {
@@ -7273,6 +7274,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(pendingFaceScanImage) fd.append('faceScanImage', pendingFaceScanImage);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
+        const data = await res.json().catch(()=>({}));
         if(chain){
           const verification = evaluateValidationForUser(name, validation);
           if(!verification){
@@ -7282,7 +7284,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           }
           applyVerificationToProfile(name, verification);
         }
-        await doLogin(validation);
+        enterChat(data.session?.user?.username || name, data.session?.user?.profilePic || null, {
+          verified: chain ? evaluateValidationForUser(name, validation) : false,
+          session: data.session
+        });
       }
       else {
         const data = await res.json().catch(()=>({}));
@@ -7399,13 +7404,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', (e) => {
+    logoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       setUserValidationActiveState(store.user, false);
-      store.user='';
-      store.profilePic='';
-      sessionStorage.removeItem('chaines_session_validation');
-      location.reload();
+      logoutBtn.disabled = true;
+      try { await window.SessionClient.logout(); }
+      catch(error) { console.error('Logout failed', error); logoutBtn.disabled = false; }
     });
 
     wsEdit.addEventListener('click', () => {
