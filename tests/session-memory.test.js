@@ -60,43 +60,6 @@ test('register/login/session/memory are user scoped and cookie backed', async (t
   assert.equal(aliceFace.faceScanImage, faceScanImage);
 });
 
-test('profiles expose social activity and follow actions use the signed-in user', async (t)=>{
-  const srv = await startServer(); t.after(()=>srv.child.kill());
-  let r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'profile_alice', password:'correct horse battery staple' }) }));
-  const aliceCookie = r.headers.get('set-cookie');
-  r = await json(await fetch(srv.base+'/register', { method:'POST', body:new URLSearchParams({ username:'profile_bob', password:'correct horse battery staple' }) }));
-  const bobCookie = r.headers.get('set-cookie');
-
-  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', {
-    method:'POST', headers:{ cookie:aliceCookie, 'Content-Type':'application/json' },
-    body:JSON.stringify({ follower:'profile_bob' })
-  }));
-  assert.equal(r.status, 200);
-  assert.equal(r.body.following, true);
-
-  r = await json(await fetch(srv.base+'/profile/profile_bob', { headers:{ cookie:aliceCookie } }));
-  assert.equal(r.status, 200);
-  assert.equal(r.body.isFollowing, true);
-  assert.deepEqual(r.body.followers, ['profile_alice']);
-  assert.deepEqual(r.body.replies, []);
-
-  r = await json(await fetch(srv.base+'/api/members', { headers:{ cookie:aliceCookie } }));
-  assert.equal(r.status, 200);
-  const bob = r.body.members.find(member => member.username === 'profile_bob');
-  assert.equal(bob.isFollowing, true);
-  assert.equal(bob.messageUrl, '/private-chat.html?user=profile_bob');
-
-  r = await json(await fetch(srv.base+'/api/messages/conversations'));
-  assert.equal(r.status, 401);
-  r = await json(await fetch(srv.base+'/notifications/profile_bob', { headers:{ cookie:aliceCookie } }));
-  assert.equal(r.status, 403);
-
-  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST' }));
-  assert.equal(r.status, 401);
-  r = await json(await fetch(srv.base+'/profile/profile_bob/follow', { method:'POST', headers:{ cookie:bobCookie } }));
-  assert.equal(r.status, 400);
-});
-
 test('source does not contain removed hardcoded credentials', ()=>{
   const wallet = fs.readFileSync(path.join(root,'static','wallet.js'),'utf8');
   const server = fs.readFileSync(serverFile,'utf8');
@@ -119,26 +82,6 @@ test('site-open reports are accepted and entry pages load the notifier', async (
 
   const page = await (await fetch(srv.base+'/')).text();
   assert.match(page, /\/static\/visit-notifier\.js/);
-});
-
-test('multiplatform IONCORE AR page is served by its public routes', async (t)=>{
-  const srv = await startServer(); t.after(()=>srv.child.kill());
-  for (const route of ['/ioncore_radtox_multiplatform_ar.html', '/ioncore-ar']) {
-    const response = await fetch(srv.base + route);
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get('content-type') || '', /text\/html/);
-    assert.match(await response.text(), /IONCORE/);
-  }
-});
-
-test('IONCORE launch keeps broad fallbacks until immersive WebXR is confirmed', ()=>{
-  const player = fs.readFileSync(path.join(root, 'chaines-ar-collectibles.html'), 'utf8');
-  assert.match(player, /navigator\.xr\.isSessionSupported\('immersive-ar'\)/);
-  assert.match(player, /DEFAULT_AR_MODES = 'webxr scene-viewer quick-look'/);
-  assert.match(player, /if\(immersive && !ioncoreExperience\.hidden\) viewer\.setAttribute\('ar-modes', 'webxr'\)/);
-  assert.match(player, /openIoncoreFallback\(collectible, 'WebXR could not start\. Using camera AR\.'\)/);
-  assert.match(player, /ioncore_radtox_multiplatform_ar\.html/);
-  assert.match(player, /googleArBtn\.hidden = !isAndroid\(\)/);
 });
 
 test('production visit notifications target the deployed backend and configured recipients', ()=>{

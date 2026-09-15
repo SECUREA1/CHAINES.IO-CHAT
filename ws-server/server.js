@@ -732,8 +732,6 @@ const SITE_ENTRY_PATHS = new Set([
   "/marketplace", "/marketplace.html", "/delivery-services", "/delivery-services.html",
   "/private-chat", "/private-chat.html", "/profile", "/profile.html", "/rewards-program",
   "/rewards-program.html", "/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player",
-  "/ioncore-ar-glove", "/ioncore_radtox_mediapipe_ar_glove.html",
-  "/ioncore-ar", "/ioncore_radtox_multiplatform_ar.html",
 ]);
 app.use((req, _res, next) => {
   if (req.method === "GET" && SITE_ENTRY_PATHS.has(req.path)) notifySiteVisit(req);
@@ -766,12 +764,6 @@ app.get(["/rewards-program", "/rewards-program.html"], (req, res) =>
 app.get(["/chaines-ar-collectibles", "/chaines-ar-collectibles.html", "/ar-player"], (req, res) =>
   res.sendFile(path.join(ROOT, "chaines-ar-collectibles.html"))
 );
-app.get(["/ioncore-ar-glove", "/ioncore_radtox_mediapipe_ar_glove.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "ioncore_radtox_mediapipe_ar_glove.html"))
-);
-app.get(["/ioncore-ar", "/ioncore_radtox_multiplatform_ar.html"], (req, res) =>
-  res.sendFile(path.join(ROOT, "ioncore_radtox_multiplatform_ar.html"))
-);
 app.get("/omconsole_render_single.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single.html"))
 );
@@ -779,10 +771,9 @@ app.get("/omconsole_render_single_games_ROUTING.html", (req, res) =>
   res.sendFile(path.join(ROOT, "omconsole_render_single_games_ROUTING.html"))
 );
 app.get("/push/key", (req, res) => res.json({ key: VAPID_PUBLIC_KEY }));
-app.post("/push/subscribe", requireSession, (req, res) => {
-  const { subscription } = req.body || {};
-  const username = req.session.user.username;
-  if (!subscription) {
+app.post("/push/subscribe", (req, res) => {
+  const { username, subscription } = req.body || {};
+  if (!username || !subscription) {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
@@ -791,8 +782,12 @@ app.post("/push/subscribe", requireSession, (req, res) => {
   ).run(username, JSON.stringify(subscription));
   res.json({ success: true });
 });
-app.post("/push/unsubscribe", requireSession, (req, res) => {
-  const username = req.session.user.username;
+app.post("/push/unsubscribe", (req, res) => {
+  const { username } = req.body || {};
+  if (!username) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
   db.prepare("DELETE FROM push_subscriptions WHERE username = ?").run(username);
   res.json({ success: true });
 });
@@ -1199,13 +1194,11 @@ app.post("/api/hologhosts/dispense", async (req, res) => {
   });
 });
 
-app.get("/notification-settings/:username", requireSession, (req, res) => {
-  if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot read another member's settings" });
+app.get("/notification-settings/:username", (req, res) => {
   res.json(getNotifSettings(req.params.username));
 });
 
-app.post("/notification-settings/:username", requireSession, (req, res) => {
-  if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot edit another member's settings" });
+app.post("/notification-settings/:username", (req, res) => {
   const settings = setNotifSettings(req.params.username, req.body || {});
   res.json(settings);
 });
@@ -1218,10 +1211,6 @@ app.post("/register", rateLimit("register", 5), upload.single("profile"), async 
     return;
   }
   const cleanUsername = sanitizeUsername(username);
-  if (cleanUsername !== String(username).trim() || cleanUsername.length < 3 || String(password).length < 8) {
-    res.status(400).json({ error: "Username must be 3-24 letters, numbers, dots, underscores, or hyphens; password must be at least 8 characters" });
-    return;
-  }
   const existingUser = db.prepare("SELECT 1 FROM users WHERE username=?").get(cleanUsername);
   if (!cleanUsername || existingUser) {
     res.status(400).json({ error: "User exists" });
@@ -1275,8 +1264,12 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   }
   const hasExplicitFacePreference = typeof useFacialRecognition === "boolean";
   const faceAuthEnabled = hasExplicitFacePreference ? useFacialRecognition : !!dbUser.face_auth_enabled;
-  if (hasExplicitFacePreference && !faceAuthEnabled && dbUser.face_auth_enabled) {
+  if (hasExplicitFacePreference && Number(faceAuthEnabled) !== Number(!!dbUser.face_auth_enabled)) {
+    if (faceAuthEnabled) {
+      db.prepare("UPDATE users SET face_auth_enabled=1 WHERE id=?").run(dbUser.id);
+    } else {
       db.prepare("UPDATE users SET face_auth_enabled=0, face_descriptor=NULL, face_scan_image=NULL WHERE id=?").run(dbUser.id);
+    }
   }
   if (!faceAuthEnabled) {
     const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
@@ -1317,7 +1310,7 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
     }
   }
   db.prepare(
-    "UPDATE users SET face_auth_enabled=1, face_descriptor=COALESCE(face_descriptor, ?), face_scan_image=COALESCE(?, face_scan_image) WHERE id=?"
+    "UPDATE users SET face_descriptor=COALESCE(face_descriptor, ?), face_scan_image=COALESCE(?, face_scan_image) WHERE id=?"
   ).run(JSON.stringify(incomingDescriptor), scanImage, dbUser.id);
   const profilePic = dbUser?.profile_pic || memUser?.profilePic || null;
   profiles[dbUser.username] = { ...(memUser || {}), profilePic };
@@ -1504,8 +1497,15 @@ app.post("/receipt-email", async (req, res) => {
   });
 });
 
+app.get(["/profile.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "profile.html"))
+);
+app.get(["/private-chat.html"], (req, res) =>
+  res.sendFile(path.join(ROOT, "private-chat.html"))
+);
+
 app.get("/profile/:username", (req, res) => {
-  const viewer = req.session?.user?.username || "";
+  const viewer = req.query.viewer || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
@@ -1522,38 +1522,6 @@ app.get("/profile/:username", (req, res) => {
           "SELECT id, message, image, file, file_name, file_type, strftime('%s', timestamp) * 1000 as ts FROM chat_messages WHERE user=? ORDER BY id DESC"
         )
         .all(req.params.username)
-    : [];
-  const postIds = posts.map((post) => post.id);
-  if (postIds.length) {
-    const placeholders = postIds.map(() => "?").join(",");
-    const comments = db.prepare(
-      `SELECT id, message_id, user, text, file, file_name, file_type,
-              strftime('%s', timestamp) * 1000 AS ts
-         FROM comments WHERE message_id IN (${placeholders}) ORDER BY id`
-    ).all(...postIds);
-    const likes = db.prepare(
-      `SELECT message_id, COUNT(*) AS count FROM likes
-        WHERE message_id IN (${placeholders}) GROUP BY message_id`
-    ).all(...postIds);
-    const commentsByPost = new Map();
-    for (const comment of comments) {
-      const list = commentsByPost.get(comment.message_id) || [];
-      list.push(comment);
-      commentsByPost.set(comment.message_id, list);
-    }
-    const likesByPost = new Map(likes.map((row) => [row.message_id, row.count]));
-    for (const post of posts) {
-      post.comments = commentsByPost.get(post.id) || [];
-      post.likes = likesByPost.get(post.id) || 0;
-    }
-  }
-  const replies = dbUser
-    ? db.prepare(
-        `SELECT c.id, c.message_id, c.text, c.file, c.file_name, c.file_type,
-                m.user AS post_user, strftime('%s', c.timestamp) * 1000 AS ts
-           FROM comments c JOIN chat_messages m ON m.id=c.message_id
-          WHERE c.user=? ORDER BY c.id DESC`
-      ).all(req.params.username)
     : [];
   const followers = dbUser
     ? db
@@ -1588,13 +1556,11 @@ app.get("/profile/:username", (req, res) => {
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
     posts,
-    replies,
     followers,
     following,
     isFollowing,
     stats: {
       posts: posts.length,
-      replies: replies.length,
       followers: followers.length,
       following: following.length,
       datingLikesSent: datingLikedUsers.length,
@@ -1605,50 +1571,6 @@ app.get("/profile/:username", (req, res) => {
       matchedUsers: datingMatchedUsers,
     },
   });
-});
-
-app.get("/api/members", requireSession, (req, res) => {
-  const query = String(req.query.q || "").trim().slice(0, 24);
-  const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
-  const rows = db.prepare(
-    `SELECT u.username, u.profile_pic, u.description,
-            COUNT(DISTINCT f.follower) AS follower_count,
-            CASE WHEN mine.following IS NULL THEN 0 ELSE 1 END AS is_following
-       FROM users u
-       LEFT JOIN follows f ON f.following=u.username
-       LEFT JOIN follows mine ON mine.follower=? AND mine.following=u.username
-      WHERE u.username != ? AND u.username LIKE ? ESCAPE '\\'
-      GROUP BY u.id
-      ORDER BY is_following DESC, follower_count DESC, u.username COLLATE NOCASE
-      LIMIT 50`
-  ).all(req.session.user.username, req.session.user.username, pattern);
-  res.json({ members: rows.map((row) => ({
-    username: row.username,
-    profilePic: row.profile_pic || null,
-    description: row.description || null,
-    followerCount: Number(row.follower_count || 0),
-    isFollowing: Boolean(row.is_following),
-    profileUrl: `/profile.html?user=${encodeURIComponent(row.username)}`,
-    messageUrl: `/private-chat.html?user=${encodeURIComponent(row.username)}`,
-  })) });
-});
-
-app.get("/api/messages/conversations", requireSession, (req, res) => {
-  const username = req.session.user.username;
-  const rows = db.prepare(
-    `SELECT p.id, p.sender, p.recipient, strftime('%s', p.timestamp) * 1000 AS ts
-       FROM private_messages p
-       JOIN (
-         SELECT MAX(id) AS id FROM private_messages
-          WHERE sender=? OR recipient=?
-          GROUP BY CASE WHEN sender=? THEN recipient ELSE sender END
-       ) latest ON latest.id=p.id
-      ORDER BY p.id DESC`
-  ).all(username, username, username);
-  res.json({ conversations: rows.map((row) => {
-    const peer = row.sender === username ? row.recipient : row.sender;
-    return { peer, ts: row.ts, messageUrl: `/private-chat.html?user=${encodeURIComponent(peer)}` };
-  }) });
 });
 
 app.post("/profile/:username", requireSession, upload.single("profile"), (req, res) => {
@@ -1680,35 +1602,34 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
   res.json({ success: true, profilePic: pic });
 });
 
-app.post("/profile/:username/follow", requireSession, (req, res) => {
-  const follower = req.session.user.username;
-  const target = req.params.username;
-  if (follower === target) return res.status(400).json({ error: "You cannot follow yourself" });
-  if (!db.prepare("SELECT 1 FROM users WHERE username=?").get(target)) {
-    return res.status(404).json({ error: "Profile not found" });
+app.post("/profile/:username/follow", (req, res) => {
+  const { follower } = req.body || {};
+  if (!follower) {
+    res.status(400).json({ error: "Missing follower" });
+    return;
   }
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(follower, target);
+    .get(follower, req.params.username);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(follower, target);
+      .run(follower, req.params.username);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(follower, target);
+      .run(follower, req.params.username);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        target,
+        req.params.username,
         JSON.stringify({ from: follower })
       );
     sendPush(
-      target,
+      req.params.username,
       "New Follower",
       `${follower} started following you`,
       { url: `/profile.html?user=${encodeURIComponent(follower)}` }
@@ -1717,8 +1638,8 @@ app.post("/profile/:username/follow", requireSession, (req, res) => {
   }
 });
 
-app.post("/dating/interactions/toggle-like", requireSession, (req, res) => {
-  const actor = req.session.user.username;
+app.post("/dating/interactions/toggle-like", (req, res) => {
+  const actor = ensureUserProfile(req.body?.actor || "");
   const target = ensureUserProfile(req.body?.target || "");
   const messageId = String(req.body?.messageId || "").trim().slice(0, 64);
   const liked = !!req.body?.liked;
@@ -1787,8 +1708,8 @@ app.post("/dating/interactions/toggle-like", requireSession, (req, res) => {
   });
 });
 
-app.post("/notifications/emit", requireSession, (req, res) => {
-  const actor = req.session.user.username;
+app.post("/notifications/emit", (req, res) => {
+  const actor = sanitizeUsername(req.body?.actor || "");
   const target = sanitizeUsername(req.body?.target || "");
   const type = String(req.body?.type || "").trim().toLowerCase();
   const messageId = String(req.body?.messageId || "").trim().slice(0, 64);
@@ -1820,8 +1741,7 @@ app.post("/notifications/emit", requireSession, (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/notifications/:username", requireSession, (req, res) => {
-  if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot read another member's notifications" });
+app.get("/notifications/:username", (req, res) => {
   const rows = db
     .prepare(
       "SELECT id, type, data, read, strftime('%s', timestamp) * 1000 as ts FROM notifications WHERE username=? ORDER BY id DESC"
@@ -1837,8 +1757,7 @@ app.get("/notifications/:username", requireSession, (req, res) => {
   res.json(rows);
 });
 
-app.post("/notifications/:username/read", requireSession, (req, res) => {
-  if (req.session.user.username !== req.params.username) return res.status(403).json({ error: "Cannot edit another member's notifications" });
+app.post("/notifications/:username/read", (req, res) => {
   db.prepare("UPDATE notifications SET read=1 WHERE username=?").run(
     req.params.username
   );
@@ -2227,9 +2146,8 @@ setInterval(() => {
   broadcastSecureLiveActiveCount();
 }, 12000);
 
-wss.on("connection", (ws, request) => {
+wss.on("connection", (ws) => {
   ws.id = uid();
-  ws.sessionUsername = loadSession(request)?.user?.username || "";
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
@@ -2281,11 +2199,7 @@ wss.on("connection", (ws, request) => {
   ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     if (msg?.type === "join") {
-      ws.username = ws.sessionUsername;
-      if (!ws.username) {
-        ws.send(JSON.stringify({ type: "auth-error", error: "Sign in to join member messaging and live features." }));
-        return;
-      }
+      ws.username = msg.user || "";
       const u = db
         .prepare("SELECT profile_pic FROM users WHERE username=?")
         .get(ws.username);
@@ -2543,7 +2457,6 @@ wss.on("connection", (ws, request) => {
         return;
       }
       case "comment": {
-        if (!ws.sessionUsername) return ws.send(JSON.stringify({ type: "auth-error", error: "Authentication required" }));
         const text = String(msg.text || "").trim();
         const file = typeof msg.file === "string" ? msg.file : null;
         const fileName = msg.file_name || msg.fileName || null;
@@ -2554,12 +2467,12 @@ wss.on("connection", (ws, request) => {
           .prepare(
             "INSERT INTO comments (message_id, user, text, file, file_name, file_type) VALUES (?, ?, ?, ?, ?, ?)"
           )
-          .run(msg.messageId, ws.sessionUsername, text, file, fileName, fileType);
+          .run(msg.messageId, msg.user || "", text, file, fileName, fileType);
         const out = {
           type: "comment",
           id: info.lastInsertRowid,
           messageId: msg.messageId,
-          user: ws.sessionUsername,
+          user: msg.user || "",
           text,
           file,
           fileName,
@@ -2572,30 +2485,29 @@ wss.on("connection", (ws, request) => {
         return;
       }
       case "like": {
-        if (!ws.sessionUsername) return ws.send(JSON.stringify({ type: "auth-error", error: "Authentication required" }));
         if (!msg.messageId) return;
         const info = db
           .prepare(
             "INSERT OR IGNORE INTO likes (message_id, user) VALUES (?, ?)"
           )
-          .run(msg.messageId, ws.sessionUsername);
+          .run(msg.messageId, msg.user || "");
         if (info.changes) {
           const owner = db
             .prepare("SELECT user FROM chat_messages WHERE id=?")
             .get(msg.messageId)?.user;
-          if (owner && owner !== ws.sessionUsername) {
+          if (owner && owner !== (msg.user || "")) {
             db
               .prepare(
                 "INSERT INTO notifications (username, type, data) VALUES (?, 'like', ?)"
               )
               .run(
                 owner,
-                JSON.stringify({ from: ws.sessionUsername, messageId: msg.messageId })
+                JSON.stringify({ from: msg.user || "", messageId: msg.messageId })
               );
             sendPush(
               owner,
               "New Like",
-              `${ws.sessionUsername} liked your post #${msg.messageId}`,
+              `${msg.user || "Someone"} liked your post #${msg.messageId}`,
               { url: `/?focus=${encodeURIComponent(String(msg.messageId))}` }
             );
           }
@@ -2611,7 +2523,7 @@ wss.on("connection", (ws, request) => {
       }
       case "repost": {
         if (!msg.messageId) return;
-        const actor = ws.sessionUsername;
+        const actor = sanitizeUsername(msg.user || ws.username || "");
         if (!actor) return;
         const quoteText = String(msg.quoteText || "").trim().slice(0, 280);
         const source = db
@@ -2765,12 +2677,9 @@ wss.on("connection", (ws, request) => {
         return;
       }
       case "dm-history": {
-        const user = ws.sessionUsername;
+        const user = ws.username || msg.user || "";
         const peer = (msg.with || "").toString().trim();
-        if (!user || !peer) {
-          ws.send(JSON.stringify({ type: "dm-error", error: "Authentication required" }));
-          return;
-        }
+        if (!user || !peer) return;
         ws.send(
           JSON.stringify({
             type: "dm-history",
@@ -2782,18 +2691,11 @@ wss.on("connection", (ws, request) => {
         return;
       }
       case "dm": {
-        const from = ws.sessionUsername;
+        const from = ws.username || msg.from || "";
         const to = (msg.to || "").toString().trim();
         const ciphertext = (msg.ciphertext || "").toString();
         const iv = (msg.iv || "").toString();
-        if (!from || !to || !ciphertext || !iv) {
-          ws.send(JSON.stringify({ type: "dm-error", error: "Invalid or unauthenticated message" }));
-          return;
-        }
-        if (!db.prepare("SELECT 1 FROM users WHERE username=?").get(to)) {
-          ws.send(JSON.stringify({ type: "dm-error", error: "Recipient profile not found" }));
-          return;
-        }
+        if (!from || !to || !ciphertext || !iv) return;
         const info = db
           .prepare(
             "INSERT INTO private_messages (sender, recipient, ciphertext, iv) VALUES (?, ?, ?, ?)"
@@ -2841,10 +2743,6 @@ wss.on("connection", (ws, request) => {
       }
     }
     if (msg?.type !== "chat") return;
-    if (!ws.sessionUsername) {
-      ws.send(JSON.stringify({ type: "auth-error", error: "Authentication required to post." }));
-      return;
-    }
     // Allow larger uploads so mobile devices can share photos and videos
     // Data URLs grow ~33% over the original binary size, so these limits are
     // higher than the desired byte thresholds.
@@ -2873,8 +2771,6 @@ wss.on("connection", (ws, request) => {
     const listing = normalizeListingPayload(msg.listing || {}, msg.category || "general");
     msg.category = listing.category;
     msg.listing = listing;
-    msg.user = ws.sessionUsername;
-    msg.verified = true;
     const u = db
       .prepare("SELECT profile_pic FROM users WHERE username=?")
       .get(msg.user || "");
