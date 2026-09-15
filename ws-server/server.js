@@ -80,7 +80,8 @@ db.exec(`
     description TEXT,
     face_descriptor TEXT,
     face_scan_image TEXT,
-    face_auth_enabled INTEGER DEFAULT 0
+    face_auth_enabled INTEGER DEFAULT 0,
+    is_guest INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS follows (
     follower TEXT,
@@ -143,6 +144,17 @@ db.exec(`
     iv TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS profile_wallets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    chain TEXT NOT NULL,
+    address TEXT NOT NULL,
+    wallet_name TEXT,
+    purpose TEXT NOT NULL DEFAULT 'entry',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, chain, address, purpose),
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
   CREATE TABLE IF NOT EXISTS marketplace_listings (
     id TEXT PRIMARY KEY,
     user TEXT,
@@ -195,6 +207,7 @@ try {
   db.exec("UPDATE users SET face_auth_enabled=1 WHERE face_descriptor IS NOT NULL AND face_descriptor != ''");
 } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN face_scan_image TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN is_guest INTEGER DEFAULT 0"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_name TEXT"); } catch {}
 try { db.exec("ALTER TABLE comments ADD COLUMN file_type TEXT"); } catch {}
@@ -246,7 +259,7 @@ function hashToken(token) { return crypto.createHash("sha256").update(String(tok
 function rateLimit(name, max = 12, windowMs = 60_000) { return (req, res, next) => { const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "local"; const key = `${name}:${ip}`; const now = Date.now(); const bucket = (rateBuckets.get(key) || []).filter(t => now - t < windowMs); if (bucket.length >= max) return res.status(429).json({ error: "Too many requests" }); bucket.push(now); rateBuckets.set(key, bucket); next(); }; }
 function sessionCookie(value = "", expires) { return [`${SESSION_COOKIE}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "SameSite=Lax", process.env.NODE_ENV === "production" ? "Secure" : "", expires ? `Expires=${expires.toUTCString()}` : ""].filter(Boolean).join("; "); }
 function createSession(res, userId) { const token = crypto.randomBytes(32).toString("base64url"); const now = new Date(); const expires = new Date(now.getTime() + SESSION_DAYS * 86400_000); db.prepare("INSERT INTO sessions (user_id, token_hash, created_at, last_seen_at, expires_at) VALUES (?, ?, ?, ?, ?)").run(userId, hashToken(token), now.toISOString(), now.toISOString(), expires.toISOString()); res.setHeader("Set-Cookie", sessionCookie(token, expires)); return { token, expires }; }
-function loadSession(req) { const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE]; if (!token) return null; const row = db.prepare(`SELECT s.*, u.username, u.profile_pic, u.description FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL`).get(hashToken(token)); if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null; const last = new Date(row.last_seen_at).getTime() || 0; if (Date.now() - last > SESSION_REFRESH_MS) db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), row.id); return { id: row.id, user: { id: row.user_id, username: row.username, profilePic: row.profile_pic || null, verified: true, description: row.description || null }, expiresAt: row.expires_at, tokenHash: row.token_hash }; }
+function loadSession(req) { const token = parseCookies(req.headers.cookie || "")[SESSION_COOKIE]; if (!token) return null; const row = db.prepare(`SELECT s.*, u.username, u.profile_pic, u.description, u.is_guest FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL`).get(hashToken(token)); if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null; const last = new Date(row.last_seen_at).getTime() || 0; if (Date.now() - last > SESSION_REFRESH_MS) db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), row.id); return { id: row.id, user: { id: row.user_id, username: row.username, profilePic: row.profile_pic || null, verified: !row.is_guest, guest: !!row.is_guest, description: row.description || null }, expiresAt: row.expires_at, tokenHash: row.token_hash }; }
 function attachSession(req, _res, next) { req.session = loadSession(req); next(); }
 function requireSession(req, res, next) { if (!req.session) return res.status(401).json({ error: "Authentication required" }); next(); }
 function requireAdminSession(req, res, next) {
@@ -1319,6 +1332,27 @@ app.post("/login", rateLimit("login", 8), async (req, res) => {
   res.json({ success: true, username: dbUser.username, profilePic, session: { user: { id: dbUser.id, username: dbUser.username, profilePic, verified: true }, expiresAt: session.expires.toISOString() } });
 });
 
+app.post("/guest", rateLimit("guest", 12), async (_req, res) => {
+  // Guests are real, session-backed users so social features and messages have
+  // one authoritative identity instead of trusting an editable localStorage key.
+  let username;
+  do {
+    username = `guest-${crypto.randomBytes(4).toString("hex")}`;
+  } while (db.prepare("SELECT 1 FROM users WHERE username=?").get(username));
+  const password = await bcrypt.hash(crypto.randomBytes(32).toString("base64url"), 10);
+  const info = db.prepare(
+    "INSERT INTO users (username, password, description, is_guest) VALUES (?, ?, ?, 1)"
+  ).run(username, password, "Guest member");
+  const session = createSession(res, Number(info.lastInsertRowid));
+  res.status(201).json({
+    success: true,
+    session: {
+      user: { id: Number(info.lastInsertRowid), username, profilePic: null, verified: false, guest: true },
+      expiresAt: session.expires.toISOString(),
+    },
+  });
+});
+
 
 
 app.post("/api/face/failed-confirmation", rateLimit("face-failed-confirmation", 6), async (req, res) => {
@@ -1505,7 +1539,7 @@ app.get(["/private-chat.html"], (req, res) =>
 );
 
 app.get("/profile/:username", (req, res) => {
-  const viewer = req.query.viewer || "";
+  const viewer = req.session?.user?.username || "";
   const dbUser = db
     .prepare(
       "SELECT username, profile_pic, description FROM users WHERE username=?"
@@ -1570,6 +1604,9 @@ app.get("/profile/:username", (req, res) => {
       likedUsers: datingLikedUsers,
       matchedUsers: datingMatchedUsers,
     },
+    wallets: dbUser
+      ? db.prepare("SELECT chain, address, wallet_name AS walletName, purpose FROM profile_wallets WHERE user_id=? ORDER BY created_at DESC").all(dbUser.id)
+      : [],
   });
 });
 
@@ -1602,40 +1639,52 @@ app.post("/profile/:username", requireSession, upload.single("profile"), (req, r
   res.json({ success: true, profilePic: pic });
 });
 
-app.post("/profile/:username/follow", (req, res) => {
-  const { follower } = req.body || {};
-  if (!follower) {
-    res.status(400).json({ error: "Missing follower" });
-    return;
-  }
+app.post("/profile/:username/follow", requireSession, (req, res) => {
+  const follower = req.session.user.username;
+  const target = sanitizeUsername(req.params.username);
+  if (!target || !db.prepare("SELECT 1 FROM users WHERE username=?").get(target)) return res.status(404).json({ error: "Profile not found" });
+  if (follower === target) return res.status(400).json({ error: "You cannot follow yourself" });
   const exists = db
     .prepare("SELECT 1 FROM follows WHERE follower=? AND following=?")
-    .get(follower, req.params.username);
+    .get(follower, target);
   if (exists) {
     db
       .prepare("DELETE FROM follows WHERE follower=? AND following=?")
-      .run(follower, req.params.username);
+      .run(follower, target);
     res.json({ following: false });
   } else {
     db
       .prepare("INSERT INTO follows (follower, following) VALUES (?, ?)")
-      .run(follower, req.params.username);
+      .run(follower, target);
     db
       .prepare(
         "INSERT INTO notifications (username, type, data) VALUES (?, 'follow', ?)"
       )
       .run(
-        req.params.username,
+        target,
         JSON.stringify({ from: follower })
       );
     sendPush(
-      req.params.username,
+      target,
       "New Follower",
       `${follower} started following you`,
       { url: `/profile.html?user=${encodeURIComponent(follower)}` }
     );
     res.json({ following: true });
   }
+});
+
+app.put("/api/profile/wallets", requireSession, (req, res) => {
+  const chain = String(req.body?.chain || "").trim().toLowerCase();
+  const address = String(req.body?.address || "").trim();
+  const walletName = String(req.body?.walletName || "").trim().slice(0, 80);
+  const purpose = req.body?.purpose === "airdrop" ? "airdrop" : "entry";
+  if (!/^(cardano|ethereum|polygon|solana)$/.test(chain) || address.length < 8 || address.length > 256) {
+    return res.status(400).json({ error: "Invalid wallet connection" });
+  }
+  db.prepare("INSERT OR IGNORE INTO profile_wallets (user_id, chain, address, wallet_name, purpose) VALUES (?, ?, ?, ?, ?)")
+    .run(req.session.user.id, chain, address, walletName || null, purpose);
+  res.json({ success: true, wallets: db.prepare("SELECT chain, address, wallet_name AS walletName, purpose FROM profile_wallets WHERE user_id=? ORDER BY created_at DESC").all(req.session.user.id) });
 });
 
 app.post("/dating/interactions/toggle-like", (req, res) => {
@@ -2146,8 +2195,9 @@ setInterval(() => {
   broadcastSecureLiveActiveCount();
 }, 12000);
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   ws.id = uid();
+  ws.session = loadSession(req);
   clients.set(ws.id, ws);
   ws.send(JSON.stringify({ type: "system", text: "Connected to CHAINeS WS" }));
   ws.send(JSON.stringify({ type: "history", messages: loadHistory() }));
@@ -2199,7 +2249,12 @@ wss.on("connection", (ws) => {
   ws.on("message", async (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     if (msg?.type === "join") {
-      ws.username = msg.user || "";
+      // Never allow a socket payload to impersonate another profile.
+      ws.username = ws.session?.user?.username || "";
+      if (!ws.username) {
+        ws.send(JSON.stringify({ type: "auth-required", text: "Sign in before joining." }));
+        return;
+      }
       const u = db
         .prepare("SELECT profile_pic FROM users WHERE username=?")
         .get(ws.username);
