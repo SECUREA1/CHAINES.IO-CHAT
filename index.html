@@ -1198,9 +1198,7 @@
     .card p { margin: 0 0 14px; color: var(--muted); }
     .fields { display:grid; gap:10px; }
     .fields input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--lining); background: var(--panel); color: var(--fg); font: inherit; font-size:16px; }
-    .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
-    .actions .btn { flex:1 1 150px; min-width:0; }
-    .guest-entry-note { flex:1 0 100%; margin:0 !important; font-size:12px; text-align:center; }
+    .actions { display:flex; gap:10px; margin-top:12px; }
     .face-login { margin-top:12px; display:grid; gap:12px; padding:14px; border:1px solid color-mix(in oklab, var(--accent), transparent 35%); border-radius:18px; background: radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--accent), transparent 72%), transparent 34%), linear-gradient(135deg, rgba(6,11,30,.92), rgba(10,22,38,.84)); box-shadow:0 0 28px color-mix(in oklab, var(--accent), transparent 72%), inset 0 0 32px rgba(255,255,255,.04); overflow:hidden; position:relative; }
     .face-login::before { content:""; position:absolute; inset:-40%; background: repeating-linear-gradient(90deg, transparent 0 28px, rgba(255,255,255,.035) 29px 30px); animation: faceGridDrift 12s linear infinite; pointer-events:none; }
     .face-login > * { position:relative; z-index:1; }
@@ -2295,7 +2293,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   <details class="toolbar-overflow-group" open>
                     <summary>Cloud Links</summary>
                     <ul class="toolbar-overflow-list">
-                      <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/home.html" target="_blank" rel="noopener noreferrer" title="Open Watchtower Shop" aria-label="Open Watchtower Shop"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower Shop</span><span class="menu-link-description">Shop Watchtower products and gear.</span></span></a></li>
+                      <li><a id="watchtower-cloud-link" class="chip" href="https://watchtower1-qfrz.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Watchtower cloud app" aria-label="Open Watchtower cloud app"><img src="static/camera.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Watchtower</span><span class="menu-link-description">Launch the cloud Watchtower app.</span></span></a></li>
                       <li><a id="ioncore-store-link" class="chip" href="https://ioncorestore.onrender.com/ioncore_website_package/market.html" target="_blank" rel="noopener noreferrer" title="Open Ioncore Store" aria-label="Open Ioncore Store"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Ioncore Store</span><span class="menu-link-description">Shop Ioncore gear and energy products.</span></span></a></li>
                       <li><a id="muzikaz-house-link" class="chip" href="https://muzikazmodelmarket.onrender.com/" target="_blank" rel="noopener noreferrer" title="Open Muzikaz House" aria-label="Open Muzikaz House"><img src="static/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Muzikaz House</span><span class="menu-link-description">Open the Muzikaz model market.</span></span></a></li>
                       <li><button id="ioncore-btn" class="chip" type="button" title="Open ION Core Energy page"><img src="static/ioncore.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">ION Core Energy</span><span class="menu-link-description">Open the ION Core Energy website.</span></span></button></li>
@@ -2558,9 +2556,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="actions">
           <button class="btn primary" id="login" type="button">Login</button>
           <button class="btn ghost" id="register" type="button">Register</button>
-          <button class="btn ghost" id="guest-login" type="button">Continue as Guest</button>
           <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
-          <p class="guest-entry-note">Guests get a session-backed profile with messaging, follows, and wallet connections.</p>
         </div>
       </div>
       <div class="auth-card__extras">
@@ -3152,7 +3148,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
-    const guestLoginBtn = el('#guest-login');
     const faceLoginPanel = el('#face-login-panel');
     const faceLoginVideo = el('#face-login-video');
     const faceStartBtn = el('#face-start');
@@ -6744,7 +6739,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function enterChat(name, profilePic, opts = {}){
       const cleaned = (name || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
       store.user = cleaned || ('guest-' + Math.floor(Math.random()*9999));
-      if(opts.session) window.SessionClient?.accept?.(opts.session);
       applyVerificationToProfile(store.user, opts.verified || null);
       if(profilePic) store.profilePic = profilePic; else if(!store.profilePic) store.profilePic = '';
       if(profileLink){
@@ -7205,7 +7199,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
         playFaceScanSound('success');
         updateFaceScanHud('validated', pendingFaceDescriptor);
-        enterChat(data.username, data.profilePic, { verified: verification, session: data.session });
+        enterChat(data.username, data.profilePic, { verified: verification });
       } else {
         if(data?.faceRequired && !pendingFaceDescriptor){
           pendingAuthAction = 'login';
@@ -7232,24 +7226,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
 
-    guestLoginBtn?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      guestLoginBtn.disabled = true;
-      guestLoginBtn.textContent = 'Creating guest profile…';
-      try {
-        const res = await fetch('/guest', { method:'POST', credentials:'include', headers:{'Accept':'application/json'} });
-        const data = await res.json().catch(() => ({}));
-        if(!res.ok || !data?.session?.user) throw new Error(data.error || 'Guest login failed');
-        const guest = data.session.user;
-        enterChat(guest.username, guest.profilePic, { verified:false, session:data.session });
-      } catch(error) {
-        alert(error?.message || 'Guest login failed. Please try again.');
-      } finally {
-        guestLoginBtn.disabled = false;
-        guestLoginBtn.textContent = 'Continue as Guest';
-      }
-    });
-
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const name = (usernameInput.value || '').replace(/[^a-zA-Z0-9_\-.]/g,'').slice(0,24);
@@ -7274,7 +7250,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(pendingFaceScanImage) fd.append('faceScanImage', pendingFaceScanImage);
       const res = await fetch('/register', { method:'POST', body: fd });
       if(res.ok){
-        const data = await res.json().catch(()=>({}));
         if(chain){
           const verification = evaluateValidationForUser(name, validation);
           if(!verification){
@@ -7284,10 +7259,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           }
           applyVerificationToProfile(name, verification);
         }
-        enterChat(data.session?.user?.username || name, data.session?.user?.profilePic || null, {
-          verified: chain ? evaluateValidationForUser(name, validation) : false,
-          session: data.session
-        });
+        await doLogin(validation);
       }
       else {
         const data = await res.json().catch(()=>({}));
@@ -7404,12 +7376,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
     }));
 
-    logoutBtn.addEventListener('click', async (e) => {
+    logoutBtn.addEventListener('click', (e) => {
       e.preventDefault();
       setUserValidationActiveState(store.user, false);
-      logoutBtn.disabled = true;
-      try { await window.SessionClient.logout(); }
-      catch(error) { console.error('Logout failed', error); logoutBtn.disabled = false; }
+      store.user='';
+      store.profilePic='';
+      sessionStorage.removeItem('chaines_session_validation');
+      location.reload();
     });
 
     wsEdit.addEventListener('click', () => {
@@ -9453,20 +9426,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
 
-    // Boot from the authoritative cookie session. Browser storage is only a UI cache.
+    // Boot
     setupCaptionLanguagePicker();
-    (async () => {
-      const sessionUser = await window.SessionClient?.initialize?.();
-      if(sessionUser){
-        store.user = sessionUser.username;
-        store.profilePic = sessionUser.profilePic || '';
-      } else {
-        store.user = '';
-        store.profilePic = '';
-      }
-      requireAuth();
-      if(!sessionUser) showStartupPrivacyChoice();
-    })();
+    requireAuth();
+    showStartupPrivacyChoice();
   })();
   </script>
 
