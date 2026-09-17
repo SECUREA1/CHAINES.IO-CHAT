@@ -159,8 +159,6 @@ included in notifications.
 CHAINeS now uses a server-backed authenticated session and a per-user Memory Bank.
 
 - Authentication endpoints: `POST /register`, `POST /login`, `GET /api/session`, `POST /api/session/refresh`, and `POST /logout`.
-- `POST /guest` creates a unique, session-backed guest profile. Guests can use the feed, profiles, follows, private messaging, and saved profile wallet connections without sharing or spoofing another user's identity.
-- Profile relationships use the authenticated session as the actor, WebSocket joins use the session cookie as their identity, and `PUT /api/profile/wallets` saves entry or airdrop wallet connections for display from any browser.
 - Session identifiers are cryptographically random. Only a SHA-256 hash is stored in SQLite; the original identifier is sent in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` is enabled when `NODE_ENV=production`).
 - User-scoped memory endpoints: `GET /api/memory`, `GET/PUT/PATCH/DELETE /api/memory/:namespace`.
 - Client pages load `/static/session-client.js`, `/static/memory-bank.js`, and `/static/memory-autosave.js` to resolve the active server session before restoring drafts or preferences.

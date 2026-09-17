@@ -63,11 +63,10 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
   </form>
 </main>
 <script>
-(async () => {
+(() => {
   const params = new URLSearchParams(location.search);
   const peer = (params.get('user') || '').trim();
-  const sessionUser = await window.SessionClient?.initialize?.();
-  const me = sessionUser?.username || '';
+  const me = localStorage.getItem('chaines_username') || '';
   const title = document.getElementById('title');
   const statusEl = document.getElementById('status');
   const feed = document.getElementById('feed');
@@ -78,7 +77,7 @@ input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);backgr
   back.onclick = () => history.length > 1 ? history.back() : (location.href = '/');
 
   if(!me){
-    alert('Please sign in first. Guest profiles can also use private chat.');
+    alert('Please sign in first.');
     location.href = '/';
     return;
   }

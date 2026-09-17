@@ -483,7 +483,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
-  let storeUser = '';
+  const storeUser = localStorage.getItem('chaines_username') || '';
   const fallbackUser = (params.get('user') || storeUser || '').trim();
   let currentUser = fallbackUser;
   const avatar = document.getElementById('p-avatar');
@@ -1556,9 +1556,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
   }
 
   function renderProfileWalletSections(username, isOwner){
-    const remoteWallets = profileData?.username === username && Array.isArray(profileData.wallets) ? profileData.wallets : [];
-    const entryWallets = remoteWallets.filter((wallet) => wallet.purpose === 'entry');
-    if(!entryWallets.length) entryWallets.push(...getWalletsForUser(PROFILE_ENTRY_WALLETS_KEY, username));
+    const entryWallets = getWalletsForUser(PROFILE_ENTRY_WALLETS_KEY, username);
     const verifiedRecord = verifiedUsers()[username];
     if(verifiedRecord){
       const verifiedWallet = normalizeWalletEntry(
@@ -1582,8 +1580,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       airdropWalletSection.hidden = true;
       return;
     }
-    const airdropWallets = remoteWallets.filter((wallet) => wallet.purpose === 'airdrop');
-    if(!airdropWallets.length) airdropWallets.push(...getWalletsForUser(PROFILE_AIRDROP_WALLETS_KEY, username));
+    const airdropWallets = getWalletsForUser(PROFILE_AIRDROP_WALLETS_KEY, username);
     renderWalletTags(airdropWalletList, airdropWallets, 'No airdrop wallet added yet. Connect a wallet to add one.');
     airdropWalletSection.hidden = false;
   }
@@ -1607,13 +1604,6 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       }
       upsertWallet(PROFILE_ENTRY_WALLETS_KEY, storeUser, walletEntry);
       upsertWallet(PROFILE_AIRDROP_WALLETS_KEY, storeUser, walletEntry);
-      for(const purpose of ['entry', 'airdrop']){
-        const response = await fetch('/api/profile/wallets', {
-          method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ ...walletEntry, purpose })
-        });
-        if(!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Unable to save wallet connection.');
-      }
       addRewardPoints(storeUser, 'wallet-connected', 1, `${walletEntry.chain.toUpperCase()} wallet connected`, {
         onceKey: `wallet:${walletEntry.chain}:${walletEntry.address.toLowerCase()}`
       });
@@ -1873,7 +1863,6 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
       },
       followerCount: Number.isFinite(data.followerCount) ? data.followerCount : undefined,
       followingCount: Number.isFinite(data.followingCount) ? data.followingCount : undefined,
-      wallets: Array.isArray(data.wallets) ? data.wallets : [],
       stats: data.stats || {},
       isFollowing: !!data.isFollowing
     };
@@ -2052,13 +2041,10 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
         const form = new FormData();
         form.append('description', descInput.value);
         if (picInput.files[0]) form.append('profile', picInput.files[0]);
-        const response = await fetch('/profile/' + encodeURIComponent(storeUser), {
+        await fetch('/profile/' + encodeURIComponent(storeUser), {
           method:'POST',
           body: form
         });
-        const saved = await response.json().catch(() => ({}));
-        if(!response.ok){ alert(saved.error || 'Unable to save profile.'); return; }
-        window.SessionClient?.updateUser?.(saved.user || { profilePic:saved.profilePic, description:saved.description });
         if (picInput.files[0]) {
           const reader = new FileReader();
           reader.onload = (e) => {
@@ -2167,12 +2153,7 @@ textarea,.reply-input{width:100%;min-height:80px;border-radius:8px;border:1px so
     return outputArray;
   }
 
-  (async () => {
-    const sessionUser = await window.SessionClient?.initialize?.();
-    storeUser = sessionUser?.username || '';
-    currentUser = (params.get('user') || storeUser || fallbackUser || '').trim();
-    load(currentUser);
-  })();
+  load(currentUser);
 })();
 </script>
 
