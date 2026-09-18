@@ -2306,7 +2306,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 </div>
               </div>
               <div class="toolbar-primary">
-                <button id="conn-chip" class="chip" title="Toggle connection"><img id="conn-icon" src="static/cloud.svg" alt="Connection" /><span id="conn-label">Offline</span></button>
+                <button id="conn-chip" class="chip" type="button" title="Switch to cloud mode" aria-label="Switch to cloud mode" aria-pressed="false"><img id="conn-icon" src="static/cloud.svg" alt="" aria-hidden="true" /><span id="conn-label">Offline</span></button>
                 <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/home.svg" alt="" aria-hidden="true" /></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/hologhost.svg" alt="" aria-hidden="true" /></button>
@@ -2556,6 +2556,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div class="actions">
           <button class="btn primary" id="login" type="button">Login</button>
           <button class="btn ghost" id="register" type="button">Register</button>
+          <button class="btn ghost" id="guest-login" type="button">Continue as Guest</button>
           <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
         </div>
       </div>
@@ -3148,6 +3149,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     const authCurrencySelect = el('#auth-currency');
     const loginBtn = el('#login');
     const registerBtn = el('#register');
+    const guestLoginBtn = el('#guest-login');
     const faceLoginPanel = el('#face-login-panel');
     const faceLoginVideo = el('#face-login-video');
     const faceStartBtn = el('#face-start');
@@ -4881,11 +4883,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     liveChip.addEventListener('click', () => { userList.hidden = !userList.hidden; });
     connChip.addEventListener('click', () => {
       if (onlineMode === 'cloud') {
+        connectionPreference = 'local';
+        localStorage.setItem(CONNECTION_PREFERENCE_KEY, connectionPreference);
+        if(wsReconnectTimer){
+          clearTimeout(wsReconnectTimer);
+          wsReconnectTimer = null;
+        }
         try { socket && socket.close(); } catch {}
         socket = null;
         if(!bc) setupLocal();
         setStatus(bc ? 'local' : 'off');
       } else {
+        connectionPreference = 'cloud';
+        localStorage.setItem(CONNECTION_PREFERENCE_KEY, connectionPreference);
         if(!bc) setupLocal();
         connectWS();
       }
@@ -4981,6 +4991,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let socket = null;
     let bc = null;
     let onlineMode = 'off'; // 'cloud' | 'local' | 'off'
+    const CONNECTION_PREFERENCE_KEY = 'chaines_connection_preference';
+    let connectionPreference = localStorage.getItem(CONNECTION_PREFERENCE_KEY) === 'local' ? 'local' : 'cloud';
     const pendingCloudMessages = [];
     const pendingSignals = [];
     let wsReconnectTimer = null;
@@ -5954,13 +5966,22 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(mode === 'cloud'){
         connLabel.textContent = 'Cloud';
         connIcon.src = 'static/cloud.svg';
+        connChip.title = 'Switch to local mode';
+        connChip.setAttribute('aria-label', 'Cloud mode active. Switch to local mode');
+        connChip.setAttribute('aria-pressed', 'true');
       } else if(mode === 'local'){
         connLabel.textContent = 'Local';
         connIcon.src = 'static/home.svg';
+        connChip.title = 'Switch to cloud mode';
+        connChip.setAttribute('aria-label', 'Local mode active. Switch to cloud mode');
+        connChip.setAttribute('aria-pressed', 'false');
         updateUsers([]);
       } else {
         connLabel.textContent = 'Offline';
         connIcon.src = 'static/home.svg';
+        connChip.title = 'Switch to cloud mode';
+        connChip.setAttribute('aria-label', 'Offline. Switch to cloud mode');
+        connChip.setAttribute('aria-pressed', 'false');
         updateUsers([]);
       }
       if(mode !== 'cloud') renderHistory();
@@ -5991,7 +6012,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     function scheduleWSReconnect(delay){
-      if(!store.user) return;
+      if(!store.user || connectionPreference !== 'cloud') return;
       if(socket && (socket.readyState === 0 || socket.readyState === 1)) return;
       if(wsReconnectTimer) return;
       const wait = Number.isFinite(delay) ? delay : wsReconnectDelay;
@@ -6013,6 +6034,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     function sendCloudMessage(msg){
+      if(connectionPreference !== 'cloud') return false;
       if(socket && socket.readyState === 1){
         try { socket.send(JSON.stringify(msg)); return true; } catch {}
       }
@@ -6038,6 +6060,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     function connectWS(){
+      if(connectionPreference !== 'cloud'){
+        if(!bc) setupLocal();
+        setStatus(bc ? 'local' : 'off');
+        return;
+      }
       const url = store.wsURL;
       if(!('WebSocket' in window)) return setStatus('off');
       if(socket && (socket.readyState === 0 || socket.readyState === 1)) return;
@@ -6050,6 +6077,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
 
       socket.addEventListener('open', () => {
+        if(connectionPreference !== 'cloud'){
+          socket.close();
+          return;
+        }
         setStatus('cloud');
         wsReconnectDelay = 1000;
         sendJoin();
@@ -6058,11 +6089,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
       socket.addEventListener('close', () => {
         setStatus(bc? 'local' : 'off');
-        scheduleWSReconnect();
+        if(connectionPreference === 'cloud') scheduleWSReconnect();
       });
       socket.addEventListener('error', () => {
         setStatus(bc? 'local' : 'off');
-        scheduleWSReconnect();
+        if(connectionPreference === 'cloud') scheduleWSReconnect();
       });
       socket.addEventListener('message', ev => {
         try {
@@ -6764,9 +6795,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       renderHistory();
       hydrateMarketplacePostsIntoFeed();
-      if (!socket || socket.readyState > 1) connectWS();
-      else sendJoin();
+      if(connectionPreference === 'cloud'){
+        if(!socket || socket.readyState > 1) connectWS();
+        else sendJoin();
+      }
       if (!bc) setupLocal();
+      if(connectionPreference === 'local') setStatus(bc ? 'local' : 'off');
       input && input.focus();
       const record = verifiedRecordFor(store.user);
       const badgeText = record && record.badge ? ` (${record.badge})` : '';
@@ -7225,6 +7259,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+
+    guestLoginBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      stopFaceLoginCamera();
+      const guestName = `guest-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).slice(0, 6)}`;
+      enterChat(guestName, '', { verified: false });
+    });
 
     registerBtn.addEventListener('click', async (e) => {
       e.preventDefault();
