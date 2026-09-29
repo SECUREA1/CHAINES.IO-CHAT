@@ -85,6 +85,93 @@ html::after {
   box-shadow: 0 8px 26px rgba(148, 103, 29, 0.36);
 }
 
+/* Carry the same metalwork into account entry instead of stopping at the
+   viewport edge. These surfaces intentionally use explicit RGB values so a
+   user-selected theme cannot wash the gold grade into an unrelated hue. */
+.auth-card,
+.privacy-choice__card {
+  position: relative;
+  border: 2px solid transparent !important;
+  background:
+    linear-gradient(145deg, rgba(13, 24, 54, 0.98), rgba(7, 14, 34, 0.98)) padding-box,
+    var(--chaines-gilded-grade) border-box !important;
+  box-shadow:
+    0 26px 80px rgba(0, 0, 0, 0.66),
+    0 0 0 1px rgba(226, 232, 240, 0.12),
+    0 0 42px rgba(229, 179, 92, 0.2) !important;
+}
+
+.auth-card::before,
+.privacy-choice__card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(245, 212, 139, 0.13);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.auth-card > *,
+.privacy-choice__card > * {
+  position: relative;
+}
+
+.auth-card__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px !important;
+  color: var(--chaines-champagne) !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.auth-card__eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--chaines-gilded-grade);
+  box-shadow: 0 0 12px rgba(229, 179, 92, 0.48);
+}
+
+.auth-card__intro h2,
+.privacy-choice__card h2 {
+  color: var(--chaines-silver);
+  text-shadow: 0 0 24px rgba(245, 212, 139, 0.2);
+}
+
+.auth-card__account input:focus,
+.auth-card__account select:focus {
+  border-color: var(--chaines-gold) !important;
+  outline: 2px solid rgba(229, 179, 92, 0.18);
+  outline-offset: 1px;
+}
+
+.auth-card #login,
+.privacy-choice__actions .primary {
+  color: rgb(20, 15, 7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.38) !important;
+  background: var(--chaines-gilded-grade) !important;
+  box-shadow: 0 9px 24px rgba(148, 103, 29, 0.34);
+}
+
+.auth-card__extras {
+  border-color: rgba(229, 179, 92, 0.32) !important;
+  background: rgba(4, 10, 27, 0.54) !important;
+}
+
+.face-preference {
+  border-color: rgba(229, 179, 92, 0.38) !important;
+}
+
+@media (max-width: 560px), (max-height: 700px) {
+  .auth-card::before { inset: 5px; }
+  .auth-card__eyebrow { margin-bottom: 3px !important; font-size: 9px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .token-gate__button { transition: none !important; }
 }
