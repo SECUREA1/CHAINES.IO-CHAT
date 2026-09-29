@@ -84,6 +84,30 @@ test('site-open reports are accepted and entry pages load the notifier', async (
   assert.match(page, /\/static\/visit-notifier\.js/);
 });
 
+test('marketplace sync keeps active listings from every seller', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  const listing = (id, user, text) => ({
+    id, user, text, ts: Date.now(), category:'for-sale',
+    listing:{ category:'for-sale', price:'10' }
+  });
+
+  let r = await json(await fetch(srv.base+'/api/marketplace/listings', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ items:[listing('alice-item', 'alice', 'Alice listing')] })
+  }));
+  assert.equal(r.status, 200);
+
+  r = await json(await fetch(srv.base+'/api/marketplace/listings', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ items:[listing('bob-item', 'bob', 'Bob listing')] })
+  }));
+  assert.equal(r.status, 200);
+
+  r = await json(await fetch(srv.base+'/api/marketplace/listings'));
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.items.map(item=>item.id).sort(), ['alice-item', 'bob-item']);
+});
+
 test('production visit notifications target the deployed backend and configured recipients', ()=>{
   const notifier = fs.readFileSync(path.join(root, 'static', 'visit-notifier.js'), 'utf8');
   const blueprint = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');

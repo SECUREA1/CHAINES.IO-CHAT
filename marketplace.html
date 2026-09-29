@@ -163,8 +163,8 @@
     <section class="panel" aria-label="Marketplace listings">
       <div class="market-heading">
         <div>
-          <h2>Discover something exceptional</h2>
-          <p>A trusted place for local offers, services, and community connections.</p>
+          <h2>All active sellers</h2>
+          <p>Every active item listed by every MUZIKAZ member appears here together.</p>
         </div>
         <span class="live-pill">Live marketplace</span>
       </div>
@@ -456,6 +456,23 @@
           } catch {}
           render();
         } catch {}
+      };
+      const refreshListings = async ({ announce = false } = {}) => {
+        if (announce) setPostStatus('Refreshing listings…', 'success');
+        try {
+          const res = await fetch('/api/marketplace/listings', { cache: 'no-store' });
+          if (!res.ok) throw new Error('marketplace refresh failed');
+          const data = await res.json();
+          if (!Array.isArray(data?.items)) throw new Error('invalid marketplace response');
+          listingCache = cloneItems(data.items);
+          try {
+            localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
+          } catch {}
+          render();
+          if (announce) setPostStatus('Showing the latest listings from all sellers.', 'success');
+        } catch {
+          if (announce) setPostStatus('Could not refresh listings right now. Please try again.', 'error');
+        }
       };
       const loadLikedMap = () => {
         try { return JSON.parse(localStorage.getItem(likedKey) || '{}'); }
@@ -968,6 +985,7 @@
           });
           try {
             await saveNow(items);
+            await refreshListings();
           } catch {
             setPostStatus(
               'Could not sync listing to marketplace storage right now. Please retry in a moment.',
@@ -1025,7 +1043,7 @@
       postCategory.addEventListener('change', () => {
         syncPostFieldsByCategory();
       });
-      controls.refresh.addEventListener('click', render);
+      controls.refresh.addEventListener('click', () => refreshListings({ announce: true }));
       list.addEventListener('click', (ev) => {
         const button = ev.target.closest('[data-like-id]');
         if (button) {
@@ -1139,6 +1157,10 @@
       syncPostFieldsByCategory();
       postForm.addEventListener('submit', postListing);
       hydrateListings();
+      window.setInterval(() => refreshListings(), 30000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshListings();
+      });
       loadNotifications();
     })();
   </script>
