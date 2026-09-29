@@ -1896,10 +1896,18 @@ app.put("/api/marketplace/listings", (req, res) => {
   }
   const cleaned = payloadItems.map((item) => normalizeMarketplaceItem(item));
   const writeTxn = db.transaction((items) => {
-    db.prepare("DELETE FROM marketplace_listings").run();
     const insert = db.prepare(
       `INSERT INTO marketplace_listings (id, user, text, ts, likes, comments_json, category, listing_json, boosted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         user = excluded.user,
+         text = excluded.text,
+         ts = excluded.ts,
+         likes = excluded.likes,
+         comments_json = excluded.comments_json,
+         category = excluded.category,
+         listing_json = excluded.listing_json,
+         boosted_at = excluded.boosted_at`
     );
     for (const item of items) {
       insert.run(
