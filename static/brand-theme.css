@@ -226,3 +226,37 @@ header .toolbar-overflow-list .chip { white-space: normal; }
   .composer .send { background: linear-gradient(145deg, #245ee8, #253fba) !important; border-color: #4776d6 !important; }
   .composer, .bubble, .post-actions { border-color: #38578f; box-shadow: 0 0 16px #2165ff22; }
 }
+
+/* Two complete mobile header rows, matching the reference graphics. */
+@media (max-width: 900px) {
+  body header { flex-direction: column; flex-wrap: nowrap; gap: 8px; padding: 10px; }
+  header > .bar, header > #toolbar-shell { flex: 0 0 auto; width: 100%; }
+  header .bar { display: flex; flex-wrap: nowrap; gap: 4px; align-items: center; }
+  header .bar > .brand { flex: 1 1 0; min-width: 0; gap: 5px; }
+  header .brand .logo { width: 30px; height: 30px; flex-shrink: 0; }
+  header .brand-lockup { min-width: 0; }
+  header .brand h1 { font-size: 12px; letter-spacing: 0; white-space: nowrap; }
+  header .brand-kicker, header .brand-signals { display: none; }
+  header .bar-right { flex: 0 0 auto; flex-wrap: nowrap; gap: 5px; margin-left: 0; }
+  header #install-app-btn { display: none !important; }
+  header .self-destruct { display: inline-flex; flex-direction: row; align-items: center; gap: 4px; width: auto; min-height: 40px; font-size: 10px; white-space: nowrap; }
+  header .self-destruct::after { content: none; }
+  header .self-destruct input { width: 16px; height: 16px; margin: 0; accent-color: #38aaff; }
+  header #logout-btn { width: 30px; min-width: 30px; height: 40px; padding: 0; }
+  header .toolbar { flex-wrap: nowrap; align-items: center; gap: 3px; padding: 5px; }
+  header .toolbar-overflow { flex: 0 0 30px; margin: 0; }
+  header #toolbar-overflow-toggle { width: 30px; min-width: 30px; height: 44px; padding: 0; }
+  header .toolbar-primary { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); flex: 1 1 0; gap: 3px; min-width: 0; overflow: visible; }
+  header .toolbar-primary .chip, header .toolbar-primary .chip.action-chip {
+    display: flex !important; width: 100%; min-width: 0; max-width: none; height: 44px; min-height: 44px; padding: 0; border-radius: 9px;
+  }
+  header .toolbar-primary .chip img { width: min(24px, 100%); height: 24px; object-fit: contain; }
+  header #conn-label { display: none; }
+  header .toolbar-additional-desktop { display: none; }
+}
+@media (max-width: 360px) {
+  header .brand .logo { width: 26px; height: 26px; }
+  header .brand h1 { font-size: 10px; }
+  header .self-destruct { font-size: 9px; }
+  header .toolbar-primary { gap: 2px; }
+}
