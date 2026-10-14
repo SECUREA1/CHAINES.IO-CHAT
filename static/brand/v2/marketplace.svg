@@ -1,0 +1,14 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <defs>
+    <linearGradient id="marketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef3ff" />
+      <stop offset="100%" stop-color="#e5b35c" />
+    </linearGradient>
+  </defs>
+
+  <path d="M4 9h16" stroke="url(#marketGrad)" stroke-width="1.8" />
+  <path d="M5 9.2L6.3 5.8A1.2 1.2 0 0 1 7.42 5h9.16a1.2 1.2 0 0 1 1.12.8L19 9.2" stroke="url(#marketGrad)" stroke-width="1.8" />
+  <path d="M5.2 9.2h13.6v8.6A1.2 1.2 0 0 1 17.6 19H6.4a1.2 1.2 0 0 1-1.2-1.2V9.2Z" stroke="url(#marketGrad)" stroke-width="1.8" />
+  <path d="M9 19v-4.1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V19" stroke="url(#marketGrad)" stroke-width="1.8" />
+  <path d="M9.2 5 8.2 9.1M12 5v4.1M14.8 5l1 4.1" stroke="url(#marketGrad)" stroke-width="1.5" />
+</svg>

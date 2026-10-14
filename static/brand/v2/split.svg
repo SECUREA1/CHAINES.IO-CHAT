@@ -1,0 +1,10 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="url(#chaines)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <defs>
+    <linearGradient id="chaines" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef3ff" />
+      <stop offset="100%" stop-color="#e5b35c" />
+    </linearGradient>
+  </defs>
+  <rect x="3" y="5" width="8" height="14" rx="1" ry="1" />
+  <rect x="13" y="5" width="8" height="14" rx="1" ry="1" />
+</svg>

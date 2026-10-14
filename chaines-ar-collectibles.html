@@ -7,20 +7,20 @@
   <meta name="keywords" content="CHAINeS, Polygon NFT, AR collectible, NFT mint, WebXR, model-viewer" />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#091427" />
-  <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="/static/brand/v2/logo.svg" />
   <link rel="canonical" href="/chaines-ar-collectibles.html" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
   <meta property="og:description" content="A single branded page to mint Polygon NFTs, browse token IDs, and launch AR previews." />
   <meta property="og:url" content="/chaines-ar-collectibles.html" />
-  <meta property="og:image" content="https://chaines.io/static/social-card.svg" />
+  <meta property="og:image" content="https://chaines.io/static/brand/v2/social-card.svg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="CHAINeS POST logo and slogan: Create. Share. Stream. Discover." />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="CHAINeS AR Collectibles — Polygon NFT Player &amp; Minter" />
   <meta name="twitter:description" content="Unified CHAINeS mint + AR viewer experience for Polygon collectibles." />
-  <meta name="twitter:image" content="https://chaines.io/static/social-card.svg" />
+  <meta name="twitter:image" content="https://chaines.io/static/brand/v2/social-card.svg" />
   <meta name="twitter:image:alt" content="CHAINeS POST logo and slogan: Create. Share. Stream. Discover." />
   <title>CHAINeS AR Collectibles — Polygon NFT Player & Minter</title>
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
@@ -43,7 +43,7 @@
         "name": "CHAINeS",
         "logo": {
           "@type": "ImageObject",
-          "url": "/static/logo.svg"
+          "url": "/static/brand/v2/logo.svg"
         }
       }
     }
@@ -118,15 +118,15 @@
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
-<link rel="apple-touch-icon" sizes="180x180" href="/static/logo-180.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/static/brand/v2/logo-180.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
-<link rel="stylesheet" href="/static/brand-theme.css" />
-<script src="/static/app-install.js" defer></script>
+<link rel="stylesheet" href="/static/brand-theme.css?brand=v2" />
+<script src="/static/app-install.js?brand=v2" defer></script>
 </head>
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
-      <a href="#top" class="brand"><span class="mark"><img src="/static/logo.svg" alt="CHAINeS logo" loading="eager" /></span><span><strong>CHAINeS</strong><span>Polygon AR NFT Player + Minter</span></span></a>
+      <a href="#top" class="brand"><span class="mark"><img src="/static/brand/v2/logo.svg" alt="CHAINeS logo" loading="eager" /></span><span><strong>CHAINeS</strong><span>Polygon AR NFT Player + Minter</span></span></a>
       <a class="btn" href="/index.html">Back to CHAINeS POST</a>
     </div>
   </header>
@@ -221,13 +221,13 @@
       const IMAGE_EXTENSIONS = /\.(png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i;
       const DEFAULT_CAMERA = {cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'};
       const featuredCollectibles = new Map([
-        [214, {name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'}],
-        [222, {name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}],
+        [214, {name:'CHAINeS Crystal',modelUrl:'/static/models/chaines-crystal.gltf',posterUrl:'/static/brand/v2/logo.svg',cameraOrbit:'0deg 70deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'30deg'}],
+        [222, {name:'Polygon Vault',modelUrl:'/static/models/polygon-vault.gltf',posterUrl:'/static/brand/v2/logo.svg',cameraOrbit:'18deg 72deg 150%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}],
         [224, {name:'Doge Core',modelUrl:'/static/models/doge-core.gltf',posterUrl:'/cryo.png',cameraOrbit:'-12deg 72deg 145%',cameraTarget:'0m 0m 0m',fieldOfView:'31deg'}]
       ]);
       const createCollectible = (tokenId) => {
         const featured = featuredCollectibles.get(tokenId) || {};
-        return {number:tokenId, tokenId, name:featured.name || `Token ID ${tokenId}`, modelUrl:featured.modelUrl || '', posterUrl:featured.posterUrl || '/static/logo.svg', ...DEFAULT_CAMERA, ...featured};
+        return {number:tokenId, tokenId, name:featured.name || `Token ID ${tokenId}`, modelUrl:featured.modelUrl || '', posterUrl:featured.posterUrl || '/static/brand/v2/logo.svg', ...DEFAULT_CAMERA, ...featured};
       };
       let collectibles = Array.from(featuredCollectibles.keys()).sort((a,b)=>a-b).map(createCollectible);
       let activeCollectionIndex = Math.max(0, collectibles.length - 1);
@@ -351,7 +351,7 @@
         viewer.setAttribute('camera-target', collectible.cameraTarget);
         viewer.setAttribute('field-of-view', collectible.fieldOfView);
         const arFile = collectible.arModelUrl || collectible.modelUrl;
-        const imageFile = !arFile && collectible.posterUrl && collectible.posterUrl !== '/static/logo.svg' ? collectible.posterUrl : '';
+        const imageFile = !arFile && collectible.posterUrl && collectible.posterUrl !== '/static/brand/v2/logo.svg' ? collectible.posterUrl : '';
         nftImagePreview.hidden = !imageFile;
         if (imageFile) nftImagePreview.src = imageFile;
         if (arFile) {

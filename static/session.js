@@ -18,7 +18,7 @@
       try{ Object.assign(context, JSON.parse(saved)); } catch {}
     }
     if(context.username){
-      const chatBtn = createIconButton('chat-toggle-btn', '/static/chat.svg');
+      const chatBtn = createIconButton('chat-toggle-btn', '/static/brand/v2/chat.svg');
       if(container) container.appendChild(chatBtn);
       // Inject live chat for logged-in users
       const sio = document.createElement('script');

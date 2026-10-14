@@ -1,27 +1,27 @@
-const CACHE_NAME = 'chaines-post-shell-v5';
-const APP_SHELL = [
+const CACHE_NAME = 'chaines-post-shell-v6';
+const APP_SHELL = [...new Set([
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/static/logo.svg',
-  '/static/wallet.svg',
-  '/static/screen.svg',
-  '/static/mascot.svg',
-  '/static/logo-180.png',
-  '/static/logo-192.png',
-  '/static/logo-512.png',
-  '/static/logo-maskable-512.png',
+  '/static/brand/v2/logo.svg',
+  '/static/brand/v2/wallet.svg',
+  '/static/brand/v2/screen.svg',
+  '/static/brand/v2/logo.svg',
+  '/static/brand/v2/logo-180.png',
+  '/static/brand/v2/logo-192.png',
+  '/static/brand/v2/logo-512.png',
+  '/static/brand/v2/logo-maskable-512.png',
   '/static/brand-theme.css',
   '/static/auth-welcome.css',
   '/static/gilded-framework.css',
   '/static/app-install.js',
-  '/static/marketplace.svg',
-  '/static/user.svg',
+  '/static/brand/v2/marketplace.svg',
+  '/static/brand/v2/user.svg',
   '/static/session-client.js',
   '/static/memory-bank.js',
   '/static/memory-autosave.js',
   '/static/copywriter.js'
-];
+])];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -41,13 +41,13 @@ self.addEventListener('fetch', (event) => {
   if(requestUrl.origin !== self.location.origin) return;
 
   if(event.request.mode === 'navigate'){
-    event.respondWith(fetch(event.request).catch(() => caches.match('/index.html')));
+    event.respondWith(fetch(event.request, { cache: 'no-cache' }).catch(() => caches.match('/index.html')));
     return;
   }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const network = fetch(event.request).then((response) => {
+      const network = fetch(event.request, { cache: 'no-cache' }).then((response) => {
         if(response.ok){
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
@@ -64,8 +64,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'CHAINeS';
   const options = {
     body: data.body || '',
-    icon: '/static/logo-192.png',
-    badge: '/static/logo-192.png',
+    icon: '/static/brand/v2/logo-192.png',
+    badge: '/static/brand/v2/logo-192.png',
     data: data
   };
   event.waitUntil(self.registration.showNotification(title, options));
