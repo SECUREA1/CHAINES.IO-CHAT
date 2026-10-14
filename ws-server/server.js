@@ -647,7 +647,8 @@ app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
   res
     .type("image/svg+xml")
-    .sendFile(path.join(ROOT, "static", "logo.svg"))
+    .set("Cache-Control", "no-cache")
+    .sendFile(path.join(ROOT, "static", "brand", "v2", "logo.svg"))
 );
 
 app.get("/healthz", (req, res) => res.send("ok"));
@@ -687,7 +688,7 @@ function postGraphic(row) {
 
 function sendBrandedPostGraphic(res) {
   res.set("Cache-Control", "public, max-age=3600");
-  return res.sendFile(path.join(ROOT, "static", "social-card.svg"));
+  return res.sendFile(path.join(ROOT, "static", "brand", "v2", "social-card.svg"));
 }
 
 app.get("/post/:id/graphic", (req, res) => {

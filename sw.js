@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-v6';
+const CACHE_NAME = 'chaines-post-shell-v7';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [...new Set([
   '/static/brand/v2/screen.svg',
   '/static/brand/v2/logo.svg',
   '/static/brand/v2/logo-180.png',
+  '/static/brand/v2/logo-badge-96.png',
   '/static/brand/v2/logo-192.png',
   '/static/brand/v2/logo-512.png',
   '/static/brand/v2/logo-maskable-512.png',
@@ -65,7 +66,7 @@ self.addEventListener('push', event => {
   const options = {
     body: data.body || '',
     icon: '/static/brand/v2/logo-192.png',
-    badge: '/static/brand/v2/logo-192.png',
+    badge: '/static/brand/v2/logo-badge-96.png',
     data: data
   };
   event.waitUntil(self.registration.showNotification(title, options));

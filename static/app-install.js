@@ -16,7 +16,8 @@
       const heading = document.createElement('div'); heading.className = 'brand-dialog__heading';
       const title = document.createElement('h2'); title.id = 'install-guide-title'; title.textContent = 'Install CHAINeS POST';
       const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Close'; close.addEventListener('click', () => dialog.close());
-      heading.append(title, close); dialog.append(heading);
+      const mark = document.createElement('img'); mark.src = '/static/brand/v2/logo.svg'; mark.alt = ''; mark.width = 36; mark.height = 36;
+      heading.append(mark, title, close); dialog.append(heading);
       const note = document.createElement('p'); note.textContent = 'Add the CHAINeS web app with its new logo to your device. Installation requires a secure HTTPS connection.'; dialog.append(note);
       const steps = document.createElement('ol');
       const instructions = isAppleMobile ? ['Open this site in Safari on your iPhone or iPad.', 'Tap Share (the square with an arrow), then Add to Home Screen. You may need to scroll the Share menu.', 'Keep Open as Web App enabled if shown, then tap Add. Launch CHAINeS from its home screen icon.'] : isMac ? ['Open this site in Safari on macOS Sonoma or later.', 'Choose File → Add to Dock, then click Add.', 'Open CHAINeS from the Dock. In Chrome or Edge, use the browser’s Install app option instead.'] : ['Open this site in Chrome or Edge.', 'Choose Install app or Add to Home screen from the browser menu or address bar.', 'Confirm installation and open CHAINeS from your device’s apps.'];

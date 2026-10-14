@@ -1,28 +1,33 @@
-# CHAINeS POST Brand Guide
+# CHAINeS POST brand guide
 
-## Identity
-- **Name**: CHAINeS POST
-- **Tagline**: Linking conversations across the chain.
-- **Logo**: Blue-to-cobalt gradient chain-link badge in white (see `static/logo.svg`).
-- **Mascot**: Ioncore Sentinel — the blue wolf wearing the Ioncore cap and chain (`static/mascot.svg`).
+The master logo is `static/brand/v2/logo.svg`: interlocking silver and gold links
+on a midnight blue badge. Use this SVG for page headers, login, desktop console
+launchers, wallet branding, favicons, and install dialogs. The files at
+`static/logo.svg` and `static/mascot.svg` are compatibility copies of this master.
 
-## Color Palette
-| Role | Hex |
+The tagline is “Create. Share. Stream. Discover.” The community description is
+“Connected creator network.”
+
+| Role | Color |
 | --- | --- |
-| Background | `#0F172A` |
-| Panel | `#1E293B` |
-| Text | `#F1F5F9` |
-| Muted Text | `#94A3B8` |
-| Accent | `#00C6FF` |
-| Accent 2 | `#0072FF` |
-| Danger | `#EF4444` |
+| Background | `#091427` |
+| Panel | `#101d35` |
+| Text / silver | `#eef3ff` |
+| Muted text | `#acb9d0` |
+| Blue accent | `#76b9eb` |
+| Gold | `#e5b35c` |
+| Light gold | `#f5d48b` |
+| Border | `#344765` |
 
-## Typography
-- **Primary font**: [Poppins](https://fonts.google.com/specimen/Poppins)
-- Weights 400 and 600 for body and headings, respectively.
+Use `static/brand-theme.css` for shared colors and surfaces. Preserve accessible
+light-mode alternatives and user-selected themes. Poppins is the primary font.
 
-## Usage Notes
-- The logo should appear at 32×32px in the header and as a favicon. Use the blue-and-white `static/logo.svg` asset in all cases to avoid binary formats.
-- Use the Ioncore Sentinel art (`static/mascot.svg`) for hero/login moments and wallet windows to keep the experience cohesive.
-- Accent colors should be used for call-to-action buttons and links.
-- Maintain generous whitespace and rounded corners (16px radius) for a friendly, modern feel.
+Installed-app assets are exports of the same master SVG, rather than separate
+artwork: `logo-180.png` for Apple, `logo-192.png` and `logo-512.png` for install
+fallbacks, and `logo-maskable-512.png` with safe padding for Android. The SVG is
+also declared in the manifest. Regenerate these exports whenever the master changes.
+Notifications use the PNG logo; `logo-badge-96.png` contains its white chain mark
+on transparency for notification badges. All published icon URLs are versioned.
+
+Keep action icons recognizable in the silver-and-gold family. Brand launchers
+use the full master logo. Do not restore the earlier neon-blue mark or wolf mascot.
