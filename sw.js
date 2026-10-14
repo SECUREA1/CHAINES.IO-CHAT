@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-updated-login-blue-v4';
+const CACHE_NAME = 'chaines-post-shell-cb536235-model-v5';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',

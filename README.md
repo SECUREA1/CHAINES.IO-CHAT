@@ -175,3 +175,10 @@ The compact branded login and optional face settings use the updated design. The
 The original Download App button appears when the browser supplies its native
 install prompt. On iPhone/iPad, use Safari Share → Add to Home Screen.
 Shared colors are applied by `static/brand-theme.css`.
+
+### Browser installation model
+
+The install manifest uses commit `cb5362354f622ef81761903633af56f5ec5ad138`
+as its reference: app ID `/`, launch page `/index.html`, scope `/`, and standard
+standalone display. The current logo and PNG exports replace the reference artwork.
+The updated login and existing custom panels remain part of the same app.

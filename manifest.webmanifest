@@ -3,17 +3,12 @@
   "name": "CHAINeS POST",
   "short_name": "CHAINeS",
   "description": "The CHAINeS creator network for posts, live moments, marketplace drops, and community conversations.",
-  "start_url": "/",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "background_color": "#091427",
   "theme_color": "#091427",
   "orientation": "any",
-  "prefer_related_applications": false,
   "categories": [
     "social",
     "productivity",
