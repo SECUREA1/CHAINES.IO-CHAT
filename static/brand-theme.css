@@ -91,3 +91,10 @@ html[data-app-mode='installed'] .feed { border: 1px solid var(--lining); backgro
 html[data-app-mode='installed'] .bubble { border-radius: 18px; box-shadow: 0 10px 24px #0002; }
 html[data-app-mode='installed'] header .brand::after { content: 'APP'; color: #f5d48b; font: 600 9px system-ui; letter-spacing: 1px; border: 1px solid #56708f; border-radius: 5px; padding: 3px 5px; }
 @media(max-width:680px) { html[data-app-mode='installed'] header .brand::after { display: none; } .install-preview { padding: 14px; } .install-preview strong { font-size: 18px; } }
+.app-titlebar { display: none; }
+html[data-window-controls='visible'] .app-titlebar { display: flex; align-items: center; gap: 10px; position: fixed; z-index: 3000; top: env(titlebar-area-y, 0px); left: env(titlebar-area-x, 0px); width: env(titlebar-area-width, 100%); height: env(titlebar-area-height, 36px); padding: 0 12px; background: #091427; color: #f5d48b; font: 600 12px system-ui; -webkit-app-region: drag; app-region: drag; }
+.app-titlebar nav { display: flex; gap: 12px; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+.app-titlebar a { color: #eef3ff; text-decoration: none; border-radius: 5px; padding: 4px 6px; }
+.app-titlebar a:focus-visible { outline: 2px solid #f5d48b; }
+html[data-window-controls='visible'] body { padding-top: calc(env(titlebar-area-height, 36px) + env(safe-area-inset-top)); }
+html[data-window-controls='visible'] .auth { top: env(titlebar-area-height, 36px) !important; }

@@ -9,9 +9,10 @@
   function buttons() { return [...document.querySelectorAll('#install-app-btn, #auth-install-app-btn, [data-install-app]')]; }
   function update() {
     document.documentElement.dataset.appMode = standalone() ? 'installed' : 'browser';
+    document.documentElement.dataset.windowControls = navigator.windowControlsOverlay?.visible ? 'visible' : 'hidden';
     buttons().forEach(button => {
       button.hidden = standalone();
-      const label = isAppleMobile ? 'Add to Home Screen' : isMac ? 'Install on Mac' : 'Install app';
+      const label = isAppleMobile ? 'Add to Home Screen' : isMac ? 'Install on Mac' : 'Download app';
       button.replaceChildren();
       const icon = document.createElement('img'); icon.src = '/static/brand/v2/logo.svg'; icon.alt = ''; icon.width = 24; icon.height = 24;
       const copy = document.createElement('span'); copy.textContent = label;
@@ -49,7 +50,15 @@
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); promptEvent = event; update(); });
   window.addEventListener('appinstalled', () => { promptEvent = null; buttons().forEach(button => button.hidden = true); document.querySelector('#app-download-card')?.classList.add('is-installed'); });
   appDisplay.addEventListener?.('change', update);
+  navigator.windowControlsOverlay?.addEventListener('geometrychange', update);
   function init() {
+    // A title bar for the existing desktop app when native window controls are overlaid.
+    const titlebar = document.createElement('div'); titlebar.className = 'app-titlebar';
+    const mark = document.createElement('img'); mark.src = '/static/brand/v2/logo.svg'; mark.alt = ''; mark.width = 22; mark.height = 22;
+    const name = document.createElement('span'); name.textContent = 'CHAINeS POST';
+    const nav = document.createElement('nav'); nav.setAttribute('aria-label', 'App panels');
+    [['Feed', '/'], ['Marketplace', '/marketplace.html'], ['OMConsole', '/omconsole_render_single.html']].forEach(([label, href]) => { const link = document.createElement('a'); link.href = href; link.textContent = label; nav.append(link); });
+    titlebar.append(mark, name, nav); document.body.prepend(titlebar);
     // Pages without a toolbar install button still expose the same guide.
     if (!buttons().length) {
       const button = document.createElement('button'); button.type = 'button'; button.dataset.installApp = ''; button.className = 'install-app-btn';
