@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-responsive-download-v7';
+const CACHE_NAME = 'chaines-post-shell-compact-header-v8';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',

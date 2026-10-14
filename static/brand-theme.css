@@ -123,3 +123,31 @@ header .toolbar-overflow-panel { max-width: min(320px, calc(100vw - 32px)); }
   header > .bar, header > #toolbar-shell { flex: 0 0 auto; width: 100%; }
   header .bar { flex-direction: row; align-items: center; }
 }
+
+/* Keep mobile navigation to one brand row and one quick-action row.
+   Duplicate secondary shortcuts remain available in the Additional menu. */
+@media (max-width: 900px) {
+  header .bar { flex-wrap: nowrap; gap: 8px; }
+  header .bar > .brand { flex: 1 1 0; gap: 8px; }
+  header .brand .logo { width: 32px; height: 32px; }
+  header .brand-kicker, header .self-destruct { display: none; }
+  header .brand h1 { font-size: 14px; }
+  header .bar-right { flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+  header .toolbar { flex-wrap: nowrap; padding: 4px; gap: 4px; }
+  header .toolbar-primary { flex: 1 1 0; flex-wrap: nowrap; gap: 4px; overflow: visible; }
+  header .toolbar-primary .chip, header .toolbar-primary .chip.action-chip, header #toolbar-overflow-toggle {
+    flex: 0 0 40px; width: 40px; min-width: 40px; height: 44px; min-height: 44px; padding: 0;
+  }
+  header #conn-chip #conn-label { display: none; }
+  header #feed-btn { display: flex; }
+  header #streams-fit-btn-mobile, header #theme-toggle-mobile,
+  header #watchtower-btn-mobile, header #chaines-ar-btn-mobile { display: none; }
+  header .toolbar-overflow { margin-right: 0; }
+  header .toolbar-overflow-panel { max-height: min(60dvh, 420px); overscroll-behavior: contain; }
+  header #logout-btn { width: 40px; min-width: 40px; height: 40px; padding: 0; }
+}
+@media (max-width: 600px) {
+  header .install-app-btn { width: 40px; min-width: 40px; height: 40px; padding: 0; justify-content: center; }
+  header .install-app-btn span { display: none; }
+  header .install-app-btn img { width: 24px; height: 24px; }
+}
