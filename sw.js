@@ -1,9 +1,12 @@
-const CACHE_NAME = 'chaines-post-shell-v4';
+const CACHE_NAME = 'chaines-post-shell-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/static/logo.svg',
+  '/static/wallet.svg',
+  '/static/screen.svg',
+  '/static/mascot.svg',
   '/static/logo-180.png',
   '/static/logo-192.png',
   '/static/logo-512.png',

@@ -69,3 +69,9 @@ header .brand, header a { color: #eef3ff; }
 :root[data-theme='light']:root { --line: #c6d1df; --panel-strong: #e9eff7; --bg2: #e9eff7; }
 body footer { background: var(--panel); color: var(--fg); border-color: var(--lining); }
 footer .chip { background: var(--panel); color: var(--fg); border-color: var(--lining); }
+/* Every page-level mark uses the master emblem without an older neon backing. */
+.brand-mark, header .logo, header .mark { background: transparent !important; box-shadow: none !important; padding: 0; }
+header .logo img, header .brand-mark { object-fit: contain; border-radius: 10px; }
+header .logo { display: grid; place-items: center; }
+header .sub, header .brand small { color: #acb9d0; }
+.brand-banner, .brand-kpi { background: var(--panel); border-color: var(--lining); }
