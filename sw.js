@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-original-brand-v1';
+const CACHE_NAME = 'chaines-post-shell-original-blue-v2';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',

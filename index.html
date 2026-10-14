@@ -2198,7 +2198,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=original-v1" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=original-blue-v2" />
 </head>
 <body>
   <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0xEf74118D5fB730E9B2729c7303DC29980b4771f0" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
@@ -2264,7 +2264,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             </div>
           </div>
           <div class="bar-right">
-            <button id="install-app-btn" class="install-app-btn" type="button" hidden>Download app</button>
+            <button id="install-app-btn" class="install-app-btn" type="button" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2446,6 +2446,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       </form>
       <span class="legal footer-copyright">© <span id="year"></span> CHAINeS. All rights reserved.</span>
       <div class="status bottom">
+        <button id="footer-install-app-btn" class="chip" type="button" title="Download CHAINeS app" aria-label="Download CHAINeS app" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /></button>
         <button class="chip" id="message-btn" title="Message" aria-label="Message"><img src="static/brand/v2/chat.svg" alt="Message" /></button>
         <button class="chip live-btn" id="broadcast-btn" title="Go live">
           <img src="static/brand/v2/go-live.svg" alt="Go Live" />
@@ -2571,7 +2572,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <strong>Take CHAINeS with you</strong>
           <span>Install the branded app for a focused, full-screen creator workspace.</span>
         </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download CHAINeS app</span></button>
         </div>
         <div class="fields auth-card__token-fields">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
@@ -6844,7 +6845,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
     function setInstallAvailability(available){
-      [installAppBtn, authInstallAppBtn].forEach((button) => {
+      [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn')].forEach((button) => {
         if(button) button.hidden = !available;
       });
       if(appDownloadCard){
@@ -6872,7 +6873,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(copy) copy.textContent = 'CHAINeS is installed and ready from your home screen.';
       }
     });
-    [installAppBtn, authInstallAppBtn].forEach((button) => button?.addEventListener('click', installBrandedApp));
+    [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn')].forEach((button) => button?.addEventListener('click', installBrandedApp));
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
     }

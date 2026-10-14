@@ -29,5 +29,5 @@ also declared in the manifest. Regenerate these exports whenever the master chan
 Notifications use the PNG logo; `logo-badge-96.png` contains its white chain mark
 on transparency for notification badges. All published icon URLs are versioned.
 
-Keep action icons recognizable in the silver-and-gold family. Brand launchers
+Keep action icons recognizable in the glossy cyan-and-cobalt blue family (`#00c6ff` to `#0072ff`). The master logo retains its silver-and-gold links. Brand launchers
 use the full master logo. Do not restore the earlier neon-blue mark or wolf mascot.

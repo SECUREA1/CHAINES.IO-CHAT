@@ -31,3 +31,18 @@ body footer { background: var(--panel); color: var(--fg); border-color: var(--li
 footer .chip { background: var(--panel); color: var(--fg); border-color: var(--lining); }
 .brand-mark, header .logo, header .mark { background: transparent !important; box-shadow: none !important; }
 header .logo img { object-fit: contain; }
+/* Glossy blue controls around the unchanged silver-and-gold master logo. */
+body header, .profile-header, .marketplace-header { background: linear-gradient(120deg, #06265d, #0756b7 65%, #007fac) !important; border-color: #5ccfff66 !important; box-shadow: inset 0 1px 0 #cceeff44, 0 12px 30px #002b6a55; }
+header .toolbar, header .const-buttons { background: linear-gradient(180deg, #123966cc, #071d3dcc) !important; border-color: #71cfff55 !important; }
+header .chip, footer .chip { background: linear-gradient(180deg, #153c69, #0a2448); border-color: #58bfff66; color: #eef7ff; box-shadow: inset 0 1px 0 #b5eaff22; }
+header .chip:hover, footer .chip:hover { background: linear-gradient(180deg, #1a5088, #0e3262); border-color: #79deff; }
+header .chip img, footer .chip img { filter: drop-shadow(0 1px 4px #0072ff66); }
+img[src$='/logo.svg'] { filter: none !important; }
+.btn.primary, .send, .install-app-btn { background: linear-gradient(120deg, #0072ff, #00bfff) !important; border-color: #7edfff !important; color: #fff !important; box-shadow: inset 0 1px 0 #ffffff55, 0 5px 16px #0072ff33; }
+.install-app-btn, #auth-install-app-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.install-app-btn[hidden], #auth-install-app-btn[hidden], #footer-install-app-btn[hidden] { display: none !important; }
+.install-app-btn img, #auth-install-app-btn img { flex-shrink: 0; border-radius: 6px; }
+#footer-install-app-btn { min-width: 38px; cursor: pointer; }
+footer .status.bottom { gap: 5px; }
+@media(max-width:560px) { .install-app-btn { gap: 5px; padding: 6px 8px; } .install-app-btn img { width: 20px; height: 20px; } #footer-install-app-btn img { width: 22px; height: 22px; } }
+footer .status.bottom:has(#footer-install-app-btn:not([hidden])) { grid-template-columns: repeat(7, minmax(0, 1fr)); }
