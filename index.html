@@ -2199,7 +2199,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=updated-login-blue-v1" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=responsive-blue-v2" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body>
@@ -4405,13 +4405,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       });
     }
     const mobileToolbarMedia = window.matchMedia('(max-width: 600px)');
-    const desktopToolbarMedia = window.matchMedia('(min-width: 901px)');
+    const desktopToolbarMedia = window.matchMedia('(min-width: 1280px)');
     function syncAdditionalButtonsLayout(){
       if(!toolbarAdditionalDesktop || !additionalList || !additionalButtons.length) return;
       const useDesktopHeader = desktopToolbarMedia.matches;
       additionalButtons.forEach((btn) => {
         if(useDesktopHeader){
-          if(btn.parentElement !== toolbarAdditionalDesktop) toolbarAdditionalDesktop.appendChild(btn);
+          if(btn.parentElement !== toolbarAdditionalDesktop){
+            const oldItem = btn.closest('li');
+            toolbarAdditionalDesktop.appendChild(btn);
+            if(oldItem?.parentElement === additionalList && !oldItem.children.length) oldItem.remove();
+          }
         } else {
           const existingListItem = btn.closest('li');
           if(existingListItem && existingListItem.parentElement === additionalList) return;
@@ -6890,7 +6894,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const info = document.createElement('p'); info.textContent = 'Install this same CHAINeS app with its new logo, full custom panels, and account features.'; browserInstallHelp.append(info);
         const steps = document.createElement('ol');
         const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const instructions = appleMobile ? ['Open this site in Safari.', 'Tap Share, then Add to Home Screen.', 'Leave Open as Web App enabled if shown, then tap Add.'] : ['Use Chrome or Edge in a regular browser window.', 'Click the install icon beside the address bar, or use the browser menu: Install CHAINeS POST / Install page as app. On Safari for Mac, choose File → Add to Dock.', 'Confirm installation. If already installed, use the browser’s Open in app control.'];
+        const ua = navigator.userAgent;
+        const android = /Android/i.test(ua);
+        const firefox = /Firefox|FxiOS/i.test(ua);
+        const safariMac = /Mac/i.test(navigator.platform) && /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR/i.test(ua);
+        const instructions = appleMobile
+          ? ['Tap your browser’s Share button and choose Add to Home Screen.', 'If that option is missing, open this same site in Safari and use Share → Add to Home Screen.', 'Leave Open as Web App enabled if shown, then tap Add.']
+          : android
+          ? ['Open the browser menu and choose Install app or Add to Home screen.', 'Confirm installation of CHAINeS POST with the new logo.', 'Launch it from your Home Screen. If your browser offers only a shortcut, use Chrome or another browser with web app installation support.']
+          : safariMac
+          ? ['In Safari on macOS Sonoma or later, choose File → Add to Dock.', 'Confirm the CHAINeS POST name and icon, then click Add.', 'Launch the same full app from your Dock.']
+          : firefox
+          ? ['Open the Firefox menu and look for Install web app. Availability depends on your version and operating system.', 'If installation is unavailable, open this same site in Chrome or Edge, or Safari on Mac, to install it.', 'The full CHAINeS app remains available in Firefox as a website.']
+          : ['Click the install icon beside the address bar, or open the browser menu and choose Install app / Install page as app.', 'Confirm installation of CHAINeS POST with the new logo.', 'If already installed, use the browser’s Open in app control.'];
         instructions.forEach(text => { const item = document.createElement('li'); item.textContent = text; steps.append(item); });
         browserInstallHelp.append(steps); document.body.append(browserInstallHelp);
       }

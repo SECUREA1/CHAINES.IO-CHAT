@@ -89,3 +89,37 @@ footer .status.bottom:has(#footer-install-app-btn:not([hidden])) { grid-template
 .brand-dialog .face-login__reticle { border-color: #e5b35c; box-shadow: 0 0 16px #e5b35c33; }
 .brand-dialog .face-login__bar span { background: linear-gradient(90deg, #76b9eb, #f5d48b); box-shadow: none; }
 .brand-dialog .face-login__capture { color: #eef3ff; border-color: #56708f; }
+/* Fit the existing header controls instead of allowing them to collide. */
+body header { flex-wrap: wrap; }
+header > .bar { flex: 1 1 440px; width: auto; min-width: 0; flex-wrap: wrap; gap: 8px; }
+header .bar > .brand { flex: 1 1 180px; min-width: 0; }
+header .brand .logo { flex-shrink: 0; }
+header .brand-lockup { min-width: 0; }
+header .brand h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header .bar-right { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; gap: 6px; max-width: 100%; }
+header > #toolbar-shell { flex: 1 1 440px; width: auto; min-width: 0; }
+header .toolbar { flex-wrap: wrap; gap: 6px; }
+header .toolbar-primary { flex: 1 1 220px; flex-wrap: wrap; overflow: visible; min-width: 0; gap: 6px; }
+header .toolbar-primary .chip { flex: 0 0 auto; min-width: 36px; }
+header .toolbar-additional-desktop { flex: 0 1 auto; flex-wrap: wrap; gap: 6px; }
+header .toolbar-additional-desktop:empty { display: none; }
+header .toolbar-overflow-panel { max-width: min(320px, calc(100vw - 32px)); }
+@media(max-width:1279px) { header .brand-signals { display: none; } }
+@media(max-width:760px) {
+  header .self-destruct { display: none; }
+  header .brand-kicker { display: none; }
+  header .brand h1 { font-size: 14px; }
+  header .bar-right { gap: 5px; }
+  header .toolbar-primary { flex-basis: 180px; }
+  header .toolbar .chip { min-height: 36px; }
+}
+@media(max-width:380px) {
+  header .bar > .brand { flex-basis: 145px; }
+  header .install-app-btn { font-size: 10px; }
+  header .install-app-btn img { width: 18px; height: 18px; }
+  header .toolbar-primary { gap: 4px; }
+}
+@media(max-width:900px) {
+  header > .bar, header > #toolbar-shell { flex: 0 0 auto; width: 100%; }
+  header .bar { flex-direction: row; align-items: center; }
+}
