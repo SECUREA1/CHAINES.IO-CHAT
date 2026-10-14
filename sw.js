@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-v7';
+const CACHE_NAME = 'chaines-post-shell-v8';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
@@ -40,6 +40,25 @@ self.addEventListener('fetch', (event) => {
   if(event.request.method !== 'GET') return;
   const requestUrl = new URL(event.request.url);
   if(requestUrl.origin !== self.location.origin) return;
+
+  // Installed-app identity must refresh before cached metadata is returned.
+  if(['/manifest.webmanifest', '/favicon.svg', '/favicon.ico'].includes(requestUrl.pathname) || requestUrl.pathname.startsWith('/static/brand/')){
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(event.request, { cache: 'no-cache' });
+        if(response.ok){
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch(error){
+        const cached = await caches.match(event.request);
+        if(cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
 
   if(event.request.mode === 'navigate'){
     event.respondWith(fetch(event.request, { cache: 'no-cache' }).catch(() => caches.match('/index.html')));

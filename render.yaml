@@ -20,6 +20,19 @@ services:
       - type: rewrite
         source: /profile
         destination: /profile.html
+    headers:
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /favicon.svg
+        name: Cache-Control
+        value: no-cache
+      - path: /favicon.ico
+        name: Cache-Control
+        value: no-cache
     previews:
       generation: automatic
 

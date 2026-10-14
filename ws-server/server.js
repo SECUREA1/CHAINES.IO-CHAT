@@ -306,7 +306,7 @@ app.use("/static", express.static(path.join(ROOT, "static")));
 app.get("/manifest.webmanifest", (req, res) =>
   res
     .type("application/manifest+json")
-    .set("Cache-Control", "public, max-age=3600")
+    .set("Cache-Control", "no-cache")
     .sendFile(path.join(ROOT, "manifest.webmanifest"))
 );
 app.get("/sw.js", (req, res) =>
