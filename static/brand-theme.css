@@ -75,3 +75,19 @@ header .logo img, header .brand-mark { object-fit: contain; border-radius: 10px;
 header .logo { display: grid; place-items: center; }
 header .sub, header .brand small { color: #acb9d0; }
 .brand-banner, .brand-kpi { background: var(--panel); border-color: var(--lining); }
+/* The browser install control previews the actual app icon. */
+.install-app-btn, #auth-install-app-btn, [data-install-app]:not(.auth-install-short) { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 40px; padding: 7px 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; cursor: pointer; }
+.install-app-btn img, #auth-install-app-btn img, [data-install-app] img { display: block; flex-shrink: 0; border-radius: 6px; }
+.install-app-btn[hidden], #auth-install-app-btn[hidden], [data-install-app][hidden] { display: none !important; }
+.install-preview { display: flex; gap: 16px; align-items: center; padding: 20px; margin: 16px 0; border-radius: 16px; border: 1px solid #425675; background: radial-gradient(ellipse at top left, #244769, #091427); }
+.install-preview strong { font-size: 21px; color: #f5d48b; }
+.install-preview p { margin: 6px 0 0; font-size: 12px; }
+.brand-dialog .install-features { font-size: 12px; color: #f5d48b; text-align: center; }
+/* Installed mode retains the complete site in a quieter, dedicated app shell. */
+html[data-app-mode='installed'] { background: #091427; }
+html[data-app-mode='installed'] body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); background: radial-gradient(ellipse at top left, #18365155, transparent 60%), var(--bg); }
+html[data-app-mode='installed'] header { border-bottom-color: #e5b35c !important; box-shadow: 0 10px 36px #0004, 0 1px 0 #e5b35c33; }
+html[data-app-mode='installed'] .feed { border: 1px solid var(--lining); background: var(--panel); }
+html[data-app-mode='installed'] .bubble { border-radius: 18px; box-shadow: 0 10px 24px #0002; }
+html[data-app-mode='installed'] header .brand::after { content: 'APP'; color: #f5d48b; font: 600 9px system-ui; letter-spacing: 1px; border: 1px solid #56708f; border-radius: 5px; padding: 3px 5px; }
+@media(max-width:680px) { html[data-app-mode='installed'] header .brand::after { display: none; } .install-preview { padding: 14px; } .install-preview strong { font-size: 18px; } }

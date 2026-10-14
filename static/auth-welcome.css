@@ -178,3 +178,8 @@ body.auth-lock header,body.auth-lock footer{visibility:hidden}
 .auth .auth-face-controls .face-preference input:checked { background: #e5b35c; border-color: #f5d48b; }
 .auth .auth-face-controls .face-preference input:checked::before { left: 12px; background: #091427; }
 .auth .auth-face-controls .face-preference input:focus-visible { outline: 2px solid #f5d48b; outline-offset: 3px; }
+.auth .auth-install-short { display: inline-flex; align-items: center; justify-content: center; }
+.auth .auth-install-short::after { content: none; }
+.auth .auth-install-short img { width: 24px; height: 24px; }
+.auth .auth-install-short span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.auth .auth-install-short[hidden] { display: none; }
