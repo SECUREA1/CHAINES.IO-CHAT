@@ -2266,7 +2266,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             </div>
           </div>
           <div class="bar-right">
-            <button id="install-app-btn" class="install-app-btn" type="button" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button>
+            <button id="install-app-btn" class="install-app-btn" type="button"><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button>
             <label class="self-destruct" title="Auto-delete your posts after 5 minutes">
               <input type="checkbox" id="auto-delete" />
               Self-destruct in 5m
@@ -2518,7 +2518,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <section id="auth" class="auth" aria-labelledby="auth-title" hidden>
     <div class="card auth-card">
       <div class="auth-card__intro">
-        <div class="auth-brand"><img src="/static/brand/v2/logo.svg" width="56" height="56" alt="" /><span>CHAINeS <b>POST</b><small>Create. Share. Stream. Discover.</small></span><button id="auth-quick-install" type="button" class="auth-install-short" title="Download CHAINeS app" aria-label="Download CHAINeS app" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button></div>
+        <div class="auth-brand"><img src="/static/brand/v2/logo.svg" width="56" height="56" alt="" /><span>CHAINeS <b>POST</b><small>Create. Share. Stream. Discover.</small></span><button id="auth-quick-install" type="button" class="auth-install-short" title="Download CHAINeS app" aria-label="Download CHAINeS app"><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button></div>
         <p class="auth-card__eyebrow">Your community. Connected.</p>
         <h2 id="auth-title">One place.<br /> Every side of you.</h2>
         <p class="auth-lead">A home for your conversations, live moments, creative work, and discoveries. Find your people, share what matters, and explore the CHAINeS world.</p>
@@ -6874,16 +6874,38 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // Keep the app shell available independently of notification preferences.
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
+    let browserInstallHelp = null;
+    const appDisplayMode = window.matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)');
+    const runningAsApp = () => appDisplayMode.matches || navigator.standalone === true;
+    function showBrowserInstallHelp(){
+      if(!browserInstallHelp){
+        browserInstallHelp = document.createElement('dialog');
+        browserInstallHelp.className = 'brand-dialog';
+        browserInstallHelp.setAttribute('aria-labelledby', 'browser-install-help-title');
+        const heading = document.createElement('div'); heading.className = 'brand-dialog__heading';
+        const logo = document.createElement('img'); logo.src = '/static/brand/v2/logo.svg'; logo.alt = ''; logo.width = 32; logo.height = 32;
+        const title = document.createElement('h2'); title.id = 'browser-install-help-title'; title.textContent = 'Download CHAINeS app';
+        const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Close'; close.addEventListener('click', () => browserInstallHelp.close());
+        heading.append(logo, title, close); browserInstallHelp.append(heading);
+        const info = document.createElement('p'); info.textContent = 'Install this same CHAINeS app with its new logo, full custom panels, and account features.'; browserInstallHelp.append(info);
+        const steps = document.createElement('ol');
+        const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const instructions = appleMobile ? ['Open this site in Safari.', 'Tap Share, then Add to Home Screen.', 'Leave Open as Web App enabled if shown, then tap Add.'] : ['Use Chrome or Edge in a regular browser window.', 'Click the install icon beside the address bar, or use the browser menu: Install CHAINeS POST / Install page as app. On Safari for Mac, choose File → Add to Dock.', 'Confirm installation. If already installed, use the browser’s Open in app control.'];
+        instructions.forEach(text => { const item = document.createElement('li'); item.textContent = text; steps.append(item); });
+        browserInstallHelp.append(steps); document.body.append(browserInstallHelp);
+      }
+      if(!browserInstallHelp.open) browserInstallHelp.showModal();
+    }
     function setInstallAvailability(available){
       [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn'), document.getElementById('auth-quick-install')].forEach((button) => {
-        if(button) button.hidden = !available;
+        if(button){ button.hidden = runningAsApp(); button.dataset.nativeInstall = available ? 'ready' : 'browser-menu'; }
       });
       if(appDownloadCard){
         appDownloadCard.classList.toggle('is-installed', !available && window.matchMedia?.('(display-mode: standalone)').matches);
       }
     }
     async function installBrandedApp(){
-      if(!deferredInstallPrompt) return;
+      if(!deferredInstallPrompt){ showBrowserInstallHelp(); return; }
       const prompt = deferredInstallPrompt;
       deferredInstallPrompt = null;
       // A native prompt is single-use. Wait for a fresh event before offering another.
@@ -6916,6 +6938,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(() => {}), { once:true });
     }
+
+    setInstallAvailability(false);
+    appDisplayMode.addEventListener?.('change', () => setInstallAvailability(!!deferredInstallPrompt));
 
     const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
     let faceModelsReady = false;
