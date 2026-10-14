@@ -2198,6 +2198,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
+  <link rel="stylesheet" href="static/auth-welcome.css" />
 </head>
 <body>
   <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0xEf74118D5fB730E9B2729c7303DC29980b4771f0" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
@@ -2510,32 +2511,35 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     </div>
   </div>
 
-  <section id="privacy-choice" class="privacy-choice" aria-labelledby="privacy-choice-title" aria-modal="true" role="dialog" hidden>
-    <div class="privacy-choice__card">
-      <h2 id="privacy-choice-title">Choose how you sign in</h2>
-      <p>CHAINeS POST lets you decide whether to use facial recognition. Standard sign-in uses only your username and password; facial recognition uses your camera and stores a face template with your account. Choosing standard sign-in removes any saved face template after your password is verified.</p>
-      <div class="privacy-choice__actions">
-        <button id="face-choice-off" class="btn primary" type="button">Use username and password</button>
-        <button id="face-choice-on" class="btn ghost" type="button">Use facial recognition</button>
-      </div>
-      <small class="privacy-choice__note">You can change this choice on the sign-in screen before entering your account.</small>
-    </div>
-  </section>
-
   <!-- Auth overlay -->
-  <section id="auth" class="auth" hidden>
+  <section id="auth" class="auth" aria-labelledby="auth-title" hidden>
     <div class="card auth-card">
       <div class="auth-card__intro">
-        <p class="auth-card__eyebrow">Secure member entry</p>
-        <h2>Welcome to CHAINeS POST</h2>
-        <p>Enter your username and password, then choose whether you want optional facial recognition for this account.</p>
+        <div class="auth-brand"><img src="/static/logo.svg" width="56" height="56" alt="" /><span>CHAINeS <b>POST</b><small>Create. Share. Stream. Discover.</small></span></div>
+        <p class="auth-card__eyebrow">Your community. Connected.</p>
+        <h2 id="auth-title">One place.<br /> Every side of you.</h2>
+        <p class="auth-lead">A home for your conversations, live moments, creative work, and discoveries. Find your people, share what matters, and explore the CHAINeS world.</p>
+      </div>
+      <div class="auth-discover">
+        <div class="auth-overview" aria-label="Explore CHAINeS POST">
+          <article><img src="/static/chat.svg" alt="" /><div><h3>Post &amp; connect</h3><p>Share posts, photos, videos, and files. Follow creators, join the community feed, and continue conversations in private chat.</p></div></article>
+          <article><img src="/static/camera.svg" alt="" /><div><h3>Go live &amp; create</h3><p>Broadcast your camera or screen, bring guests on stage, and use captions. Explore OMConsole tools and gaming demos.</p></div></article>
+          <article><img src="/static/marketplace.svg" alt="" /><div><h3>Discover &amp; exchange</h3><p>Browse marketplace listings, creator drops, and dating profiles. Find concierge delivery, local services, and community offers.</p></div></article>
+          <article><img src="/static/hologhost.svg" alt="" /><div><h3>Collect &amp; grow</h3><p>Explore Ghost Coin rewards, wallet connections, NFT staging, and AR collectibles. Your profile and Memory Bank keep your account experience together.</p></div></article>
+        </div>
+        <details class="auth-world"><summary>Explore the wider CHAINeS world <span aria-hidden="true">+</span></summary><p>Connected experiences include Clubhouse Sentinel camera security, Sentinel Multi-cam AI, Watchtower live monitoring and shop, Ioncore energy and gear, Muzikaz House, Rednode AI, Voice3 audio, and the Drone Engine investor model. Find them in the site menu after entering. External services may have their own accounts and requirements.</p></details>
       </div>
       <div class="auth-card__account">
+        <div class="auth-account-heading"><span class="auth-card__eyebrow">Make yourself at home</span><h3>Sign in to your space</h3><p>Use your account for saved memory, profile settings, and private conversations.</p></div>
         <div class="fields">
-          <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-          <input id="password" type="password" placeholder="Password" />
-          <input id="profile" type="file" accept="image/*" />
-          <label class="face-preference" for="face-preference" title="Optional. Leave unchecked to use only your username and password."><input id="face-preference" type="checkbox" /><span class="face-preference__copy"><b>Facial recognition</b></span></label>
+          <label for="username">Username</label>
+          <input id="username" placeholder="Your username" autocomplete="username" maxlength="24" autocapitalize="none" spellcheck="false" />
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Your password" autocomplete="current-password" />
+          <details class="auth-profile"><summary>Add a profile photo <span>Optional</span></summary><label for="profile">Choose an image for your profile</label><input id="profile" type="file" accept="image/*" /></details>
+          <label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" aria-describedby="auth-face-note" /><span class="face-preference__copy"><b>Use facial recognition</b></span><span class="auth-optional">Optional</span></label>
+          <p id="auth-face-note" class="auth-help">Off by default. Turning this on uses your camera and saves a face template with your account.</p>
+          <details id="privacy-choice" class="auth-privacy"><summary>Your sign-in privacy choices</summary><p>Standard sign-in uses your username and password. Switching back to standard sign-in removes a saved face template after your password is verified. You can change your choice before signing in.</p><div class="privacy-choice__actions"><button id="face-choice-off" class="btn ghost" type="button">Use username and password</button><button id="face-choice-on" class="btn ghost" type="button">Use facial recognition</button></div></details>
         </div>
         <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
         <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
@@ -2557,21 +2561,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the live facial scan to finish entry, or turn facial recognition off above.</p>
         </div>
         <div class="actions">
-          <button class="btn primary" id="login" type="button">Login</button>
-          <button class="btn ghost" id="register" type="button">Register</button>
-          <button class="btn ghost" id="guest-login" type="button">Continue as Guest</button>
-          <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+          <button class="btn primary" id="login" type="button">Sign in <span aria-hidden="true">&rarr;</span></button>
+          <button class="btn ghost" id="register" type="button">Create an account</button>
         </div>
+        <div class="auth-guest"><span class="auth-divider">Or get to know CHAINeS first</span><button class="btn ghost" id="guest-login" type="button" aria-describedby="auth-guest-note">Continue as guest <span aria-hidden="true">&rarr;</span></button><p id="auth-guest-note">No account or camera needed. Enter with a guest name; account memory and private messages require sign-in.</p></div>
       </div>
       <div class="auth-card__extras">
-        <div id="app-download-card" class="app-download-card" aria-live="polite">
-        <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
-        <div class="app-download-card__copy">
-          <strong>Take CHAINeS with you</strong>
-          <span>Install the branded app for a focused, full-screen creator workspace.</span>
-        </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
-        </div>
+        <details class="auth-tools"><summary>Wallet access &amp; connection settings <span>Optional</span></summary><p class="auth-help">An entry token is not required for standard sign-in or guest access. Connect a supported wallet to validate token ownership.</p><button class="btn ghost" id="token-login-validate" type="button">Validate entry token</button>
         <div class="fields auth-card__token-fields">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
         <select id="token-login-contract" aria-label="Token network">
@@ -2584,6 +2580,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         <div id="ws-config" class="fields" style="display:none; margin-top:8px">
           <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
           <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
+        </div>
+        </details>
+        <div id="app-download-card" class="app-download-card" aria-live="polite">
+        <img class="app-download-card__mark" src="/static/logo.svg" alt="" aria-hidden="true" />
+        <div class="app-download-card__copy">
+          <strong>Take CHAINeS with you</strong>
+          <span>Install the branded app for a focused, full-screen creator workspace.</span>
+        </div>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden>Download CHAINeS app</button>
         </div>
       </div>
     </div>
@@ -6735,17 +6740,17 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function showStartupPrivacyChoice(){
       const saved = localStorage.getItem(FACE_PREFERENCE_KEY);
       if(facePreference) facePreference.checked = saved === 'on';
-      if(saved !== 'on' && saved !== 'off') privacyChoice.hidden = false;
+      privacyChoice.hidden = false;
     }
 
     faceChoiceOff?.addEventListener('click', () => {
       saveFacialRecognitionPreference(false);
-      privacyChoice.hidden = true;
+      privacyChoice.open = false;
       usernameInput?.focus();
     });
     faceChoiceOn?.addEventListener('click', () => {
       saveFacialRecognitionPreference(true);
-      privacyChoice.hidden = true;
+      privacyChoice.open = false;
       usernameInput?.focus();
     });
     facePreference?.addEventListener('change', () => saveFacialRecognitionPreference(facePreference.checked));
@@ -6765,8 +6770,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const authCard = auth.querySelector('.card');
         if(authCard) authCard.scrollTop = 0;
         document.body.classList.add('auth-lock');
+        document.querySelector('main')?.setAttribute('inert', '');
         setTokenLoginStatus('');
-        setTimeout(() => usernameInput && usernameInput.focus(), 50);
+        setTimeout(() => usernameInput && usernameInput.focus({ preventScroll: true }), 50);
       }
     }
 
@@ -6788,6 +6794,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
 
       document.body.classList.remove('auth-lock');
+      document.querySelector('main')?.removeAttribute('inert');
       document.documentElement.style.zoom = '1';
       window.scrollTo(0,0);
 
@@ -7262,6 +7269,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
 
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+    [usernameInput, passwordInput].forEach((input) => input?.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); doLogin(); }
+    }));
 
     guestLoginBtn?.addEventListener('click', (e) => {
       e.preventDefault();
