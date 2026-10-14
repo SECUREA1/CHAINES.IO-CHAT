@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-original-mobile-header-v10';
+const CACHE_NAME = 'chaines-post-shell-filled-mobile-panels-v11';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
