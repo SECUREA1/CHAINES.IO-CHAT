@@ -5,11 +5,25 @@ persistent chat history.
 
 ## Sign-in privacy
 
-On first launch, CHAINeS POST presents an on-screen privacy choice between
-standard username/password sign-in and optional facial recognition. The choice
-can be changed from the sign-in screen. Selecting standard sign-in after using
-facial recognition disables biometric authentication and removes the saved face
-template after the account password has been verified.
+The sign-in screen has an explicit facial recognition switch and a shared Settings
+panel on mobile and desktop. Recognition is optional; username and password are
+still required. Camera access begins only after choosing Start scan or signing in
+with recognition enabled. Closing settings cancels scanning and releases the camera.
+Choose Password only to disable recognition; any enrolled face template is removed
+after your password is verified. The scanner offers an explicit retry on errors.
+
+## Install the CHAINeS web app
+
+Use the install button beside the login logo or in the site toolbar. On Android,
+Chrome and Edge offer their native install prompt when the site is eligible. The
+fallback guide also explains browser-menu installation.
+
+On iPhone or iPad, open the HTTPS site in Safari, choose Share → Add to Home Screen,
+leave Open as Web App enabled if shown, and tap Add. On macOS Sonoma or later, use
+Safari's File → Add to Dock. These install the web app, not an App Store binary.
+The manifest includes 192px and 512px PNG icons, a separate maskable icon, and a
+180px Apple touch icon, all using the current CHAINeS logo. Service worker updates
+refresh the shared app-shell assets; live chat and account services require a connection.
 
 ## Deploying on Render
 

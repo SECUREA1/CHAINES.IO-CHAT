@@ -1,0 +1,71 @@
+/* CHAINeS identity shared by the feed, account pages, and connected experiences. */
+:root:root {
+  --bg: #091427; --panel: #101d35; --fg: #eef3ff; --muted: #acb9d0;
+  --accent: #76b9eb; --accent-2: #e5b35c; --gold: #e5b35c; --gold-2: #f5d48b;
+  --lining: #344765; --border: #344765; --card: #101d35; --text: #eef3ff;
+  --shadow: 0 12px 32px #0003;
+  color-scheme: dark;
+}
+:root[data-theme='light']:root {
+  --bg: #f1f5fa; --panel: #ffffff; --fg: #15243d; --text: #15243d;
+  --muted: #52627b; --accent: #245b88; --accent-2: #9b681c;
+  --lining: #c6d1df; --border: #c6d1df; --card: #ffffff;
+  color-scheme: light;
+}
+body { background: radial-gradient(ellipse at 0 0, #16395a33, transparent 65%), var(--bg); color: var(--fg); }
+body header, .profile-header, .marketplace-header {
+  background: linear-gradient(120deg, #142d52, #091427) !important;
+  color: #eef3ff; border-color: #344765 !important; box-shadow: 0 12px 32px #0003;
+}
+header .toolbar, header .const-buttons { background: #101d35 !important; border-color: #344765 !important; }
+header .chip { background: #172945; color: #eef3ff; border-color: #425675; }
+header .brand, header a { color: #eef3ff; }
+.feed, .bubble, .post-card, .section-card, .marketplace-card { border-color: var(--lining); box-shadow: 0 8px 24px #0002; }
+.msg.mine .bubble { background: color-mix(in srgb, var(--panel), #76b9eb 10%); border-color: #567c9e; }
+.post-actions { background: var(--panel); border-color: var(--lining); }
+.btn.primary, .send, .install-app-btn { background: linear-gradient(110deg, #e5b35c, #f5d48b) !important; color: #172238 !important; border: 1px solid #f5d48b !important; }
+.brand-dialog { width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 22px; border: 1px solid #56708f; border-radius: 20px; background: #101d35; color: #eef3ff; overflow-y: auto; box-sizing: border-box; font: 14px/1.6 system-ui, sans-serif; }
+.brand-dialog::backdrop { background: #020813cc; backdrop-filter: blur(5px); }
+.brand-dialog__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand-dialog h2 { font-size: 20px; margin: 0; }
+.brand-dialog p { color: #acb9d0; }
+.brand-dialog button { min-height: 40px; padding: 8px 12px; border: 1px solid #56708f; border-radius: 9px; background: #172945; color: #eef3ff; cursor: pointer; }
+.brand-dialog summary { cursor: pointer; padding: 10px 0; }
+.brand-dialog input { max-width: 100%; }
+.brand-dialog .face-login { margin-top: 14px; padding: 12px; border: 1px solid #56708f; background: #091427; box-shadow: none; }
+.brand-dialog .face-login::before { display: none; }
+.brand-dialog .face-login__stage { min-height: 0; height: 160px; }
+.brand-dialog .face-login__preview { height: 160px; max-height: 160px; }
+.brand-dialog .face-login__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.brand-dialog .face-login__actions button { flex: 1; }
+.brand-dialog .face-login__status { font-size: 12px; line-height: 1.5; }
+.brand-dialog .auth-help { font-size: 12px; }
+.brand-dialog .auth-profile input { display: block; }
+.brand-dialog .privacy-choice__actions { display: grid; gap: 8px; }
+.brand-dialog .face-login__reticle::after { content: 'LIVE CAMERA SCAN'; }
+.brand-dialog .face-login__badge { box-shadow: none; color: #f5d48b; }
+.brand-dialog button:focus-visible, .brand-dialog summary:focus-visible { outline: 2px solid #f5d48b; outline-offset: 3px; }
+@media (max-width: 560px) {
+  .brand-dialog { padding: 16px; }
+  .brand-dialog__heading { align-items: start; }
+  .brand-dialog h2 { font-size: 18px; }
+  .brand-dialog .face-login { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .brand-dialog .face-login > * { grid-column: 1; grid-row: auto; }
+  .brand-dialog .face-login__stage { width: 100%; aspect-ratio: auto; }
+  .brand-dialog .face-login__metric { grid-template-columns: 85px 1fr 40px; font-size: 11px; }
+  .brand-dialog .face-login__actions { flex-wrap: wrap; }
+  .brand-dialog .face-login__actions .btn { font-size: 12px; min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .brand-dialog *, .brand-dialog *::before { animation: none !important; } }
+.brand-dialog [aria-pressed='true'] { border-color: #f5d48b; background: #e5b35c; color: #15243d; }
+.brand-dialog .auth-privacy h3 { font-size: 14px; }
+.brand-dialog__heading { position: sticky; top: -22px; padding: 12px 0; background: #101d35; z-index: 2; }
+.brand-dialog .face-login__actions .btn:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 560px) { .brand-dialog__heading { top: -16px; } }
+.brand-dialog .face-login__reticle { border-color: #e5b35c; box-shadow: 0 0 16px #e5b35c33; }
+.brand-dialog .face-login__bar span { background: linear-gradient(90deg, #76b9eb, #f5d48b); box-shadow: none; }
+.brand-dialog .face-login__capture { color: #eef3ff; border-color: #56708f; }
+:root:root { --line: #344765; --panel-strong: #172945; --bg2: #101d35; }
+:root[data-theme='light']:root { --line: #c6d1df; --panel-strong: #e9eff7; --bg2: #e9eff7; }
+body footer { background: var(--panel); color: var(--fg); border-color: var(--lining); }
+footer .chip { background: var(--panel); color: var(--fg); border-color: var(--lining); }

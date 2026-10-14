@@ -1,9 +1,17 @@
-const CACHE_NAME = 'chaines-post-shell-v3';
+const CACHE_NAME = 'chaines-post-shell-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/static/logo.svg',
+  '/static/logo-180.png',
+  '/static/logo-192.png',
+  '/static/logo-512.png',
+  '/static/logo-maskable-512.png',
+  '/static/brand-theme.css',
+  '/static/auth-welcome.css',
+  '/static/gilded-framework.css',
+  '/static/app-install.js',
   '/static/marketplace.svg',
   '/static/user.svg',
   '/static/session-client.js',
@@ -53,8 +61,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'CHAINeS';
   const options = {
     body: data.body || '',
-    icon: '/static/logo.svg',
-    badge: '/static/logo.svg',
+    icon: '/static/logo-192.png',
+    badge: '/static/logo-192.png',
     data: data
   };
   event.waitUntil(self.registration.showNotification(title, options));
