@@ -124,30 +124,49 @@ header .toolbar-overflow-panel { max-width: min(320px, calc(100vw - 32px)); }
   header .bar { flex-direction: row; align-items: center; }
 }
 
-/* Keep mobile navigation to one brand row and one quick-action row.
-   Duplicate secondary shortcuts remain available in the Additional menu. */
+/* Restore the complete mobile toolbar with the original blue panel treatment. */
+body header, .profile-header, .marketplace-header {
+  background: linear-gradient(145deg, #101a39, #0c1430) !important;
+  border-color: #38578f !important;
+  box-shadow: inset 0 1px 0 #8bbcff22, 0 0 24px #2464ff33;
+}
+header .toolbar, header .const-buttons {
+  background: #101a35 !important; border-color: #38578f !important;
+  box-shadow: inset 0 1px 0 #8bbcff22, 0 0 14px #2464ff22;
+}
+header .chip, footer .chip {
+  background: linear-gradient(160deg, #15203f, #0e1730); border-color: #38578f;
+  box-shadow: inset 0 1px 0 #9fc9ff22, 0 0 10px #2464ff22;
+}
+header .toolbar-overflow-panel { background: #101a35; border-color: #38578f; }
+header .toolbar-overflow-list .chip { white-space: normal; }
 @media (max-width: 900px) {
-  header .bar { flex-wrap: nowrap; gap: 8px; }
-  header .bar > .brand { flex: 1 1 0; gap: 8px; }
+  header .bar { flex-wrap: nowrap; gap: 6px; }
+  header .bar > .brand { flex: 1 1 0; gap: 6px; }
   header .brand .logo { width: 32px; height: 32px; }
-  header .brand-kicker, header .self-destruct { display: none; }
+  header .brand-kicker { display: none; }
   header .brand h1 { font-size: 14px; }
-  header .bar-right { flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
-  header .toolbar { flex-wrap: nowrap; padding: 4px; gap: 4px; }
-  header .toolbar-primary { flex: 1 1 0; flex-wrap: nowrap; gap: 4px; overflow: visible; }
+  header .bar-right { flex: 0 0 auto; flex-wrap: nowrap; gap: 4px; }
+  header .self-destruct { display: inline-flex; align-items: center; gap: 4px; }
+  header .toolbar { flex-wrap: nowrap; padding: 5px; gap: 4px; align-items: flex-start; }
+  header .toolbar-primary { flex: 1 1 0; flex-wrap: wrap; gap: 4px; overflow: visible; }
   header .toolbar-primary .chip, header .toolbar-primary .chip.action-chip, header #toolbar-overflow-toggle {
-    flex: 0 0 40px; width: 40px; min-width: 40px; height: 44px; min-height: 44px; padding: 0;
+    flex: 0 0 36px; width: 36px; min-width: 36px; height: 44px; min-height: 44px; padding: 0;
   }
   header #conn-chip #conn-label { display: none; }
-  header #feed-btn { display: flex; }
-  header #streams-fit-btn-mobile, header #theme-toggle-mobile,
-  header #watchtower-btn-mobile, header #chaines-ar-btn-mobile { display: none; }
+  header #feed-btn, header .toolbar-primary .mobile-only-chip { display: flex !important; }
   header .toolbar-overflow { margin-right: 0; }
   header .toolbar-overflow-panel { max-height: min(60dvh, 420px); overscroll-behavior: contain; }
-  header #logout-btn { width: 40px; min-width: 40px; height: 40px; padding: 0; }
+  header #logout-btn { width: 36px; min-width: 36px; height: 40px; padding: 0; }
 }
 @media (max-width: 600px) {
-  header .install-app-btn { width: 40px; min-width: 40px; height: 40px; padding: 0; justify-content: center; }
-  header .install-app-btn span { display: none; }
+  header .install-app-btn { width: 36px; min-width: 36px; height: 40px; padding: 0; justify-content: center; }
+  header .install-app-btn span, header .self-destruct span { display: none; }
   header .install-app-btn img { width: 24px; height: 24px; }
+  header .self-destruct { width: 24px; min-height: 44px; justify-content: center; }
+  header .self-destruct input { margin: 0; width: 20px; height: 20px; accent-color: #36a9ff; }
+}
+@media (max-width: 600px) {
+  header .self-destruct { flex-direction: column; gap: 1px; }
+  header .self-destruct::after { content: '5m'; font-size: 9px; line-height: 1; color: #b8cbee; }
 }
