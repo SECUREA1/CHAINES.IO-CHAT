@@ -169,8 +169,8 @@ See `docs/memory-bank-audit.md` for the page audit, namespace mapping, legacy-ke
 ## Current branding
 
 The application and native browser install flow are restored from the last revision
-before October 14, 2026 (`1a351dc`). Page structure, custom panels, application logic,
-and existing app identity are preserved. The new master logo is
+before October 14, 2026 (`1a351dc`). The original custom panels, native installer, and existing app identity are preserved.
+The compact branded login and optional face settings use the updated design. The new master logo is
 `static/brand/v2/logo.svg`; installed-app PNG icons are exports of this SVG.
 The original Download App button appears when the browser supplies its native
 install prompt. On iPhone/iPad, use Safari Share → Add to Home Screen.

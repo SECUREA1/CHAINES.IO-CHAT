@@ -46,3 +46,46 @@ img[src$='/logo.svg'] { filter: none !important; }
 footer .status.bottom { gap: 5px; }
 @media(max-width:560px) { .install-app-btn { gap: 5px; padding: 6px 8px; } .install-app-btn img { width: 20px; height: 20px; } #footer-install-app-btn img { width: 22px; height: 22px; } }
 footer .status.bottom:has(#footer-install-app-btn:not([hidden])) { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+/* Settings for the updated login; the original installer remains in use. */
+.brand-dialog { width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 22px; border: 1px solid #56708f; border-radius: 20px; background: #101d35; color: #eef3ff; overflow-y: auto; box-sizing: border-box; font: 14px/1.6 system-ui, sans-serif; }
+.brand-dialog::backdrop { background: #020813cc; backdrop-filter: blur(5px); }
+.brand-dialog__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand-dialog h2 { font-size: 20px; margin: 0; }
+.brand-dialog p { color: #acb9d0; }
+.brand-dialog button { min-height: 40px; padding: 8px 12px; border: 1px solid #56708f; border-radius: 9px; background: #172945; color: #eef3ff; cursor: pointer; }
+.brand-dialog summary { cursor: pointer; padding: 10px 0; }
+.brand-dialog input { max-width: 100%; }
+.brand-dialog .face-login { margin-top: 14px; padding: 12px; border: 1px solid #56708f; background: #091427; box-shadow: none; }
+.brand-dialog .face-login::before { display: none; }
+.brand-dialog .face-login__stage { min-height: 0; height: 160px; }
+.brand-dialog .face-login__preview { height: 160px; max-height: 160px; }
+.brand-dialog .face-login__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.brand-dialog .face-login__actions button { flex: 1; }
+.brand-dialog .face-login__status { font-size: 12px; line-height: 1.5; }
+.brand-dialog .auth-help { font-size: 12px; }
+.brand-dialog .auth-profile input { display: block; }
+.brand-dialog .privacy-choice__actions { display: grid; gap: 8px; }
+.brand-dialog .face-login__reticle::after { content: 'LIVE CAMERA SCAN'; }
+.brand-dialog .face-login__badge { box-shadow: none; color: #f5d48b; }
+.brand-dialog button:focus-visible, .brand-dialog summary:focus-visible { outline: 2px solid #f5d48b; outline-offset: 3px; }
+@media (max-width: 560px) {
+  .brand-dialog { padding: 16px; }
+  .brand-dialog__heading { align-items: start; }
+  .brand-dialog h2 { font-size: 18px; }
+  .brand-dialog .face-login { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .brand-dialog .face-login > * { grid-column: 1; grid-row: auto; }
+  .brand-dialog .face-login__stage { width: 100%; aspect-ratio: auto; }
+  .brand-dialog .face-login__metric { grid-template-columns: 85px 1fr 40px; font-size: 11px; }
+  .brand-dialog .face-login__actions { flex-wrap: wrap; }
+  .brand-dialog .face-login__actions .btn { font-size: 12px; min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .brand-dialog *, .brand-dialog *::before { animation: none !important; } }
+.brand-dialog [aria-pressed='true'] { border-color: #f5d48b; background: #e5b35c; color: #15243d; }
+.brand-dialog .auth-privacy h3 { font-size: 14px; }
+.brand-dialog__heading { position: sticky; top: -22px; padding: 12px 0; background: #101d35; z-index: 2; }
+.brand-dialog .face-login__actions .btn:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 560px) { .brand-dialog__heading { top: -16px; } }
+.brand-dialog .face-login__reticle { border-color: #e5b35c; box-shadow: 0 0 16px #e5b35c33; }
+.brand-dialog .face-login__bar span { background: linear-gradient(90deg, #76b9eb, #f5d48b); box-shadow: none; }
+.brand-dialog .face-login__capture { color: #eef3ff; border-color: #56708f; }

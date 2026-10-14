@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-original-blue-v3';
+const CACHE_NAME = 'chaines-post-shell-updated-login-blue-v4';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
@@ -25,6 +25,7 @@ const APP_SHELL = [...new Set([
   '/static/brand/v2/logo-512.png',
   '/static/brand/v2/logo-maskable-512.png',
   '/static/brand-theme.css',
+  '/static/auth-welcome.css',
   '/static/gilded-framework.css',
   '/static/brand/v2/marketplace.svg',
   '/static/brand/v2/user.svg',

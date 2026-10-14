@@ -2198,7 +2198,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=original-blue-v2" />
+  <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=updated-login-blue-v1" />
+<meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body>
   <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0xEf74118D5fB730E9B2729c7303DC29980b4771f0" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
@@ -2512,68 +2514,41 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     </div>
   </div>
 
-  <section id="privacy-choice" class="privacy-choice" aria-labelledby="privacy-choice-title" aria-modal="true" role="dialog" hidden>
-    <div class="privacy-choice__card">
-      <h2 id="privacy-choice-title">Choose how you sign in</h2>
-      <p>CHAINeS POST lets you decide whether to use facial recognition. Standard sign-in uses only your username and password; facial recognition uses your camera and stores a face template with your account. Choosing standard sign-in removes any saved face template after your password is verified.</p>
-      <div class="privacy-choice__actions">
-        <button id="face-choice-off" class="btn primary" type="button">Use username and password</button>
-        <button id="face-choice-on" class="btn ghost" type="button">Use facial recognition</button>
-      </div>
-      <small class="privacy-choice__note">You can change this choice on the sign-in screen before entering your account.</small>
-    </div>
-  </section>
-
   <!-- Auth overlay -->
-  <section id="auth" class="auth" hidden>
+  <section id="auth" class="auth" aria-labelledby="auth-title" hidden>
     <div class="card auth-card">
       <div class="auth-card__intro">
-        <p class="auth-card__eyebrow">Secure member entry</p>
-        <h2>Welcome to CHAINeS POST</h2>
-        <p>Enter your username and password, then choose whether you want optional facial recognition for this account.</p>
+        <div class="auth-brand"><img src="/static/brand/v2/logo.svg" width="56" height="56" alt="" /><span>CHAINeS <b>POST</b><small>Create. Share. Stream. Discover.</small></span><button id="auth-quick-install" type="button" class="auth-install-short" title="Download CHAINeS app" aria-label="Download CHAINeS app" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download app</span></button></div>
+        <p class="auth-card__eyebrow">Your community. Connected.</p>
+        <h2 id="auth-title">One place.<br /> Every side of you.</h2>
+        <p class="auth-lead">A home for your conversations, live moments, creative work, and discoveries. Find your people, share what matters, and explore the CHAINeS world.</p>
       </div>
+      <details class="auth-discover"><summary>Explore everything in CHAINeS POST</summary>
+        <div class="auth-overview" aria-label="Explore CHAINeS POST">
+          <article><img src="/static/brand/v2/chat.svg" alt="" /><div><h3>Post &amp; connect</h3><p>Share posts, photos, videos, and files. Follow creators, join the community feed, and continue conversations in private chat.</p></div></article>
+          <article><img src="/static/brand/v2/camera.svg" alt="" /><div><h3>Go live &amp; create</h3><p>Broadcast your camera or screen, bring guests on stage, and use captions. Explore OMConsole tools and gaming demos.</p></div></article>
+          <article><img src="/static/brand/v2/marketplace.svg" alt="" /><div><h3>Discover &amp; exchange</h3><p>Browse marketplace listings, creator drops, and dating profiles. Find concierge delivery, local services, and community offers.</p></div></article>
+          <article><img src="/static/brand/v2/hologhost.svg" alt="" /><div><h3>Collect &amp; grow</h3><p>Explore Ghost Coin rewards, wallet connections, NFT staging, and AR collectibles. Your profile and Memory Bank keep your account experience together.</p></div></article>
+        </div>
+        <details class="auth-world"><summary>Explore the wider CHAINeS world <span aria-hidden="true">+</span></summary><p>Connected experiences include Clubhouse Sentinel camera security, Sentinel Multi-cam AI, Watchtower live monitoring and shop, Ioncore energy and gear, Muzikaz House, Rednode AI, Voice3 audio, and the Drone Engine investor model. Find them in the site menu after entering. External services may have their own accounts and requirements.</p></details>
+      </details>
       <div class="auth-card__account">
+        <div class="auth-account-heading"><span class="auth-card__eyebrow">Make yourself at home</span><h3>Sign in to your space</h3><p>Use your account for saved memory, profile settings, and private conversations.</p></div>
         <div class="fields">
-          <input id="username" placeholder="Username (e.g., jodel)" maxlength="24" />
-          <input id="password" type="password" placeholder="Password" />
-          <input id="profile" type="file" accept="image/*" />
-          <label class="face-preference" for="face-preference" title="Optional. Leave unchecked to use only your username and password."><input id="face-preference" type="checkbox" /><span class="face-preference__copy"><b>Facial recognition</b></span></label>
-        </div>
-        <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
-        <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
-        <div class="face-login__stage">
-          <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
-          <div class="face-login__reticle" aria-hidden="true"></div>
-        </div>
-        <div class="face-login__metrics" aria-label="Facial scan progress">
-          <div class="face-login__metric"><span>Geometry</span><div class="face-login__bar"><span id="face-scan-geometry"></span></div><b id="face-scan-geometry-value">0%</b></div>
-          <div class="face-login__metric"><span>Landmarks</span><div class="face-login__bar"><span id="face-scan-landmarks"></span></div><b id="face-scan-landmarks-value">0%</b></div>
-          <div class="face-login__metric"><span>Account</span><div class="face-login__bar"><span id="face-scan-account"></span></div><b id="face-scan-account-value">0%</b></div>
-        </div>
-        <div id="face-capture-data" class="face-login__capture">Captured tech: waiting for live camera vectors…</div>
-        <div class="face-login__actions">
-          <button class="btn ghost" id="face-start" type="button">Start / Rescan Face</button>
-          <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
-          <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
-        </div>
-        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the live facial scan to finish entry, or turn facial recognition off above.</p>
+          <label for="username">Username</label>
+          <input id="username" placeholder="Your username" autocomplete="username" maxlength="24" autocapitalize="none" spellcheck="false" />
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Your password" autocomplete="current-password" />
+          <div class="auth-face-controls"><label class="face-preference" for="face-preference"><input id="face-preference" type="checkbox" role="switch" aria-describedby="auth-face-note" /><span class="face-preference__copy"><b>Use facial recognition</b></span><span id="face-mode-status" class="auth-optional" aria-live="polite">Off</span></label><button id="auth-settings-open" type="button" class="auth-settings-button" aria-haspopup="dialog">Settings</button></div>
         </div>
         <div class="actions">
-          <button class="btn primary" id="login" type="button">Login</button>
-          <button class="btn ghost" id="register" type="button">Register</button>
-          <button class="btn ghost" id="guest-login" type="button">Continue as Guest</button>
-          <button class="btn ghost" id="token-login-validate" type="button">Validate Entry Token</button>
+          <button class="btn primary" id="login" type="button">Sign in <span aria-hidden="true">&rarr;</span></button>
+          <button class="btn ghost" id="register" type="button">Create account</button>
         </div>
+        <div class="auth-guest"><span class="auth-divider">Or get to know CHAINeS first</span><button class="btn ghost" id="guest-login" type="button" aria-describedby="auth-guest-note">Continue as guest <span aria-hidden="true">&rarr;</span></button><p id="auth-guest-note">No account or camera needed. Saved memory and private messages require sign-in.</p></div>
       </div>
-      <div class="auth-card__extras">
-        <div id="app-download-card" class="app-download-card" aria-live="polite">
-        <img class="app-download-card__mark" src="/static/brand/v2/logo.svg" alt="" aria-hidden="true" />
-        <div class="app-download-card__copy">
-          <strong>Take CHAINeS with you</strong>
-          <span>Install the branded app for a focused, full-screen creator workspace.</span>
-        </div>
-        <button id="auth-install-app-btn" class="btn primary" type="button" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download CHAINeS app</span></button>
-        </div>
+      <details class="auth-card__extras"><summary>Wallet, app &amp; connection options</summary>
+        <details class="auth-tools"><summary>Wallet access &amp; connection settings <span>Optional</span></summary><p class="auth-help">An entry token is not required for standard sign-in or guest access. Connect a supported wallet to validate token ownership.</p><button class="btn ghost" id="token-login-validate" type="button">Validate entry token</button>
         <div class="fields auth-card__token-fields">
         <label for="token-login-contract" style="font-size:12px;color:var(--muted);margin-bottom:4px;">Contract used for entry validation</label>
         <select id="token-login-contract" aria-label="Token network">
@@ -2587,9 +2562,42 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <input id="ws-url" placeholder="wss://chaines-io-chat.onrender.com/ws (optional)" />
           <button class="btn ghost" id="save-ws" type="button">Save Socket URL</button>
         </div>
-      </div>
+        </details>
+        <div id="app-download-card" class="app-download-card" aria-live="polite">
+        <img class="app-download-card__mark" src="/static/brand/v2/logo.svg" alt="" aria-hidden="true" />
+        <div class="app-download-card__copy">
+          <strong>Take CHAINeS with you</strong>
+          <span>Install the branded app for a focused, full-screen creator workspace.</span>
+        </div>
+        <button id="auth-install-app-btn" class="btn primary" type="button" hidden><img src="/static/brand/v2/logo.svg" width="24" height="24" alt="" /><span>Download CHAINeS app</span></button>
+        </div>
+      </details>
     </div>
   </section>
+
+  <dialog id="signin-settings" class="brand-dialog" aria-labelledby="signin-settings-title">
+    <div class="brand-dialog__heading"><h2 id="signin-settings-title">Sign-in &amp; facial recognition</h2><button id="signin-settings-close" class="btn ghost" type="button" aria-label="Close sign-in settings">Close</button></div>
+    <p>Facial recognition is optional. Your password is still required; camera access starts only when you choose to scan or sign in with facial recognition enabled.</p>
+<p id="auth-face-note" class="auth-help">Off by default. Turning this on uses your camera and saves a face template with your account.</p><section id="privacy-choice" class="auth-privacy"><h3>Your sign-in method</h3><p>Standard sign-in uses your username and password. Switching back to standard sign-in removes a saved face template after your password is verified. You can change your choice before signing in.</p><div class="privacy-choice__actions"><button id="face-choice-off" class="btn ghost" type="button">Password only</button><button id="face-choice-on" class="btn ghost" type="button">Enable facial recognition</button></div></section><details class="auth-profile"><summary>Add a profile photo <span>Optional</span></summary><label for="profile">Choose an image for your profile</label><input id="profile" type="file" accept="image/*" /></details>        <div class="face-login" id="face-login-panel" aria-label="Optional facial recognition login" hidden>
+        <div class="face-login__hud"><span>Biometric Entry Enabled</span><span class="face-login__badge" id="face-lock-badge">LOCKED</span></div>
+        <div class="face-login__stage">
+          <video id="face-login-video" class="face-login__preview" autoplay muted playsinline hidden></video>
+          <div class="face-login__reticle" aria-hidden="true"></div>
+        </div>
+        <div class="face-login__metrics" aria-label="Facial scan progress">
+          <div class="face-login__metric"><span>Geometry</span><div class="face-login__bar"><span id="face-scan-geometry"></span></div><b id="face-scan-geometry-value">0%</b></div>
+          <div class="face-login__metric"><span>Landmarks</span><div class="face-login__bar"><span id="face-scan-landmarks"></span></div><b id="face-scan-landmarks-value">0%</b></div>
+          <div class="face-login__metric"><span>Account</span><div class="face-login__bar"><span id="face-scan-account"></span></div><b id="face-scan-account-value">0%</b></div>
+        </div>
+        <div id="face-capture-data" class="face-login__capture">Captured tech: waiting for live camera vectors…</div>
+        <div class="face-login__actions">
+          <button class="btn ghost" id="face-start" type="button">Start scan / Rescan</button>
+          <button class="btn ghost" id="face-capture" type="button" disabled>Capture Face</button>
+          <button class="btn primary" id="face-signin" type="button" disabled>Verify &amp; sign in</button>
+          <button class="btn ghost" id="face-enroll" type="button" disabled hidden>Enroll Face</button>
+        </div>
+        <p id="face-login-status" class="face-login__status" role="status" aria-live="polite">Username and password accepted. Complete the live facial scan to finish entry, or turn facial recognition off above.</p>
+        </div>  </dialog>
 
   <!-- Thumbnail chooser overlay -->
   <div id="thumb-chooser" hidden>
@@ -4759,8 +4767,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     });
 
     const themePalettes = [
-      { key: 'light', label: 'Light', vars: { '--bg':'#f1f5fa','--panel':'#ffffff','--fg':'#15243d','--muted':'#52627b','--accent':'#245b88','--accent-2':'#9b681c','--gold':'#f5d48b','--gold-2':'#c28a2a','--shadow':'0 0 20px rgba(0,114,255,.4)','--lining':'#94a3b8','--caption-color':'#15243d' } },
-      { key: 'dark', label: 'Dark', vars: { '--bg':'#091427','--panel':'#101d35','--fg':'#eef3ff','--muted':'#acb9d0','--accent':'#76b9eb','--accent-2':'#e5b35c','--gold':'#e5b35c','--gold-2':'#c28a2a','--shadow':'0 0 12px rgba(0,114,255,.35)','--lining':'#334155','--caption-color':'#ffffff' } },
+      { key: 'light', label: 'Light', vars: { '--bg':'#f1f5fa', '--panel':'#ffffff', '--fg':'#15243d', '--muted':'#52627b', '--accent':'#245b88', '--accent-2':'#9b681c', '--gold':'#e5b35c', '--gold-2':'#f5d48b', '--shadow':'0 12px 32px #0003', '--lining':'#c6d1df', '--caption-color':'#15243d' } },
+      { key: 'dark', label: 'Dark', vars: { '--bg':'#091427', '--panel':'#101d35', '--fg':'#eef3ff', '--muted':'#acb9d0', '--accent':'#76b9eb', '--accent-2':'#e5b35c', '--gold':'#e5b35c', '--gold-2':'#f5d48b', '--shadow':'0 12px 32px #0003', '--lining':'#344765', '--caption-color':'#eef3ff' } },
       { key: 'ocean', label: 'Ocean', vars: { '--bg':'#041625','--panel':'#0b2b3f','--fg':'#dff6ff','--muted':'#8ac6d8','--accent':'#0ea5e9','--accent-2':'#0284c7','--gold':'#67e8f9','--gold-2':'#0ea5e9','--shadow':'0 0 16px rgba(14,165,233,.45)','--lining':'#155e75','--caption-color':'#dff6ff' } },
       { key: 'forest', label: 'Forest', vars: { '--bg':'#081b12','--panel':'#123025','--fg':'#ecfff4','--muted':'#9ad5b4','--accent':'#16a34a','--accent-2':'#15803d','--gold':'#86efac','--gold-2':'#22c55e','--shadow':'0 0 16px rgba(34,197,94,.32)','--lining':'#2f6e4f','--caption-color':'#ecfff4' } },
       { key: 'sunset', label: 'Sunset', vars: { '--bg':'#2a1120','--panel':'#3f1f31','--fg':'#fff4eb','--muted':'#f5b8a5','--accent':'#f97316','--accent-2':'#ea580c','--gold':'#fdba74','--gold-2':'#f97316','--shadow':'0 0 16px rgba(249,115,22,.4)','--lining':'#7f3b3b','--caption-color':'#fff4eb' } },
@@ -4844,7 +4852,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     function applyTheme(themeKey){
       const root = document.documentElement;
-      const fallback = themePaletteMap.get('light');
+      const fallback = themePaletteMap.get('dark');
       const nextPalette = themePaletteMap.get(themeKey) || fallback;
       root.dataset.theme = nextPalette.key;
       if(nextPalette.animated){
@@ -4870,7 +4878,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       return nextPalette.key;
     }
-    const initialTheme = applyTheme(store.theme || 'light');
+    const initialTheme = applyTheme(store.theme || 'dark');
     store.theme = initialTheme;
     function cycleTheme(){
       const current = document.documentElement.dataset.theme || initialTheme;
@@ -6726,6 +6734,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function saveFacialRecognitionPreference(enabled){
       localStorage.setItem(FACE_PREFERENCE_KEY, enabled ? 'on' : 'off');
       if(facePreference) facePreference.checked = enabled;
+      const modeStatus = el('#face-mode-status');
+      if(modeStatus) modeStatus.textContent = enabled ? 'On' : 'Off';
+      faceChoiceOff?.setAttribute('aria-pressed', String(!enabled));
+      faceChoiceOn?.setAttribute('aria-pressed', String(enabled));
       if(!enabled){
         concealFaceLogin();
         stopFaceLoginCamera();
@@ -6737,20 +6749,34 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     function showStartupPrivacyChoice(){
       const saved = localStorage.getItem(FACE_PREFERENCE_KEY);
       if(facePreference) facePreference.checked = saved === 'on';
-      if(saved !== 'on' && saved !== 'off') privacyChoice.hidden = false;
+      el('#face-mode-status').textContent = saved === 'on' ? 'On' : 'Off';
+      privacyChoice.hidden = false;
+      faceChoiceOff?.setAttribute('aria-pressed', String(saved !== 'on'));
+      faceChoiceOn?.setAttribute('aria-pressed', String(saved === 'on'));
     }
 
     faceChoiceOff?.addEventListener('click', () => {
       saveFacialRecognitionPreference(false);
-      privacyChoice.hidden = true;
+      privacyChoice.open = false;
       usernameInput?.focus();
     });
     faceChoiceOn?.addEventListener('click', () => {
       saveFacialRecognitionPreference(true);
-      privacyChoice.hidden = true;
+      revealFaceLogin('Facial recognition is on. Choose Start scan when you are ready.', '');
+      privacyChoice.open = false;
       usernameInput?.focus();
     });
-    facePreference?.addEventListener('change', () => saveFacialRecognitionPreference(facePreference.checked));
+    const signInSettings = el('#signin-settings');
+    el('#auth-settings-open')?.addEventListener('click', () => {
+      signInSettings.showModal();
+      if(facialRecognitionEnabled()) revealFaceLogin('Facial recognition is on. Enter your username and password, then sign in, or choose Start scan to check your camera.', '');
+    });
+    el('#signin-settings-close')?.addEventListener('click', () => signInSettings.close());
+    signInSettings.addEventListener('close', () => { stopFaceLoginCamera(); concealFaceLogin(); });
+    facePreference?.addEventListener('change', () => {
+      saveFacialRecognitionPreference(facePreference.checked);
+      if(facePreference.checked) revealFaceLogin('Facial recognition is on. Camera access starts when you choose Start scan or sign in.', '');
+    });
 
     function requireAuth(){
       if (store.user) {
@@ -6767,8 +6793,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         const authCard = auth.querySelector('.card');
         if(authCard) authCard.scrollTop = 0;
         document.body.classList.add('auth-lock');
+        document.querySelector('main')?.setAttribute('inert', '');
         setTokenLoginStatus('');
-        setTimeout(() => usernameInput && usernameInput.focus(), 50);
+        setTimeout(() => usernameInput && usernameInput.focus({ preventScroll: true }), 50);
       }
     }
 
@@ -6789,7 +6816,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         }
       }
 
+      if(signInSettings.open) signInSettings.close();
+      stopFaceLoginCamera();
       document.body.classList.remove('auth-lock');
+      document.querySelector('main')?.removeAttribute('inert');
       document.documentElement.style.zoom = '1';
       window.scrollTo(0,0);
 
@@ -6845,7 +6875,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     // The browser only exposes the install prompt after a PWA is registered.
     let deferredInstallPrompt = null;
     function setInstallAvailability(available){
-      [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn')].forEach((button) => {
+      [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn'), document.getElementById('auth-quick-install')].forEach((button) => {
         if(button) button.hidden = !available;
       });
       if(appDownloadCard){
@@ -6882,7 +6912,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(copy) copy.textContent = 'CHAINeS is installed and ready from your home screen.';
       }
     });
-    [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn')].forEach((button) => button?.addEventListener('click', installBrandedApp));
+    [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn'), document.getElementById('auth-quick-install')].forEach((button) => button?.addEventListener('click', installBrandedApp));
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(() => {}), { once:true });
     }
@@ -6896,6 +6926,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     let pendingAuthValidation = null;
     let faceScanAttempts = 0;
     let faceAutoScanInProgress = false;
+    let faceScanGeneration = 0;
     let faceCameraPrimePromise = null;
     const FACE_SCAN_MAX_ATTEMPTS = 15;
     const faceLoginMobileMedia = window.matchMedia?.('(max-width: 760px), (pointer: coarse)');
@@ -6920,10 +6951,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     installFaceCameraCompat();
     function revealFaceLogin(message, tone='error'){
+      if(!signInSettings.open) signInSettings.showModal();
       if(faceLoginPanel) faceLoginPanel.hidden = false;
       if(message) setFaceLoginStatus(message, tone);
+      requestAnimationFrame(() => { if(signInSettings.open && !faceLoginPanel.hidden) faceLoginPanel.scrollIntoView({ block: 'nearest' }); });
     }
     function concealFaceLogin(){
+      faceScanGeneration += 1;
       if(faceLoginPanel) faceLoginPanel.hidden = true;
       pendingFaceDescriptor = null;
       pendingFaceScanImage = null;
@@ -6932,6 +6966,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       faceScanAttempts = 0;
       faceAutoScanInProgress = false;
       if(faceCaptureBtn) faceCaptureBtn.disabled = true;
+      el('#face-signin').disabled = true;
       updateFaceScanHud('reset');
     }
     function stopFaceLoginCamera(){
@@ -6965,11 +7000,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(faceLockBadge) faceLockBadge.textContent = 'SCANNING';
         setFaceCaptureData('Captured tech: camera online, mapping facial geometry and lighting depth…');
       } else if(stage === 'captured'){
-        setFaceScanMeter('geometry', 100); setFaceScanMeter('landmarks', 100); setFaceScanMeter('account', 72);
+        setFaceScanMeter('geometry', 100); setFaceScanMeter('landmarks', 100); setFaceScanMeter('account', 0);
         if(faceLockBadge) faceLockBadge.textContent = 'VECTOR CAPTURED';
-        const confidence = Math.min(99.8, 92 + (seed % 780) / 100).toFixed(1);
-        const checksum = Math.abs(Math.floor(seed * 100000)).toString(16).toUpperCase().slice(0, 8).padStart(8, '0');
-        setFaceCaptureData(`Captured tech: 128D face vector • ${confidence}% scan confidence • encrypted account checksum ${checksum}`);
+        setFaceCaptureData(`Face template captured: ${descriptor?.length || 0} dimensions. Account verification is still required.`);
       } else if(stage === 'validated'){
         setFaceScanMeter('account', 100);
         if(faceLockBadge) faceLockBadge.textContent = 'VALIDATED';
@@ -7062,6 +7095,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           return await navigator.mediaDevices.getUserMedia(constraints);
         } catch(error){
           lastError = error;
+          if(error?.name === 'NotAllowedError' || error?.name === 'SecurityError') throw new Error('Camera permission was denied. Allow camera access in your browser settings or use Password only.');
           console.warn('Face login camera getUserMedia failed for constraints', constraints, error?.name || error?.message || error);
         }
       }
@@ -7089,27 +7123,25 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     async function runAutomaticFaceScan(reason='Touch-free scan starting. Center your face in the pop-up scanner.'){
       if(faceAutoScanInProgress) return;
       faceAutoScanInProgress = true;
+      const generation = faceScanGeneration;
       try {
         revealFaceLogin(reason, 'success');
         if(faceCameraPrimePromise) await faceCameraPrimePromise.catch(() => {});
         await startFaceLoginCamera();
+        if(generation !== faceScanGeneration || !facialRecognitionEnabled() || !signInSettings.open){ stopFaceLoginCamera(); return; }
         playFaceScanSound('scan');
         await waitForFaceVideoFrame();
         await new Promise(resolve => setTimeout(resolve, 700));
+        if(generation !== faceScanGeneration || !signInSettings.open) return;
         faceScanAttempts += 1;
         setFaceLoginStatus(`Scan ${faceScanAttempts}/${FACE_SCAN_MAX_ATTEMPTS}: validating live face vector…`, 'success');
         await captureFaceDescriptor();
       } catch(error){
+        if(generation !== faceScanGeneration || !signInSettings.open) return;
+        stopFaceLoginCamera();
         playFaceScanSound('reject');
         const message = error?.message || 'Face capture failed.';
-        if(faceScanAttempts < FACE_SCAN_MAX_ATTEMPTS){
-          setFaceLoginStatus(`${message} Reopening scanner for scan ${faceScanAttempts + 1}/${FACE_SCAN_MAX_ATTEMPTS}…`, 'error');
-          faceAutoScanInProgress = false;
-          setTimeout(() => runAutomaticFaceScan('Scan rejected. Touch-free rescan starting now.'), 900);
-          return;
-        }
-        setFaceLoginStatus(`${message} ${FACE_SCAN_MAX_ATTEMPTS} scans failed. Sending confirmation email and waiting for a new scan.`, 'error');
-        await sendFaceScanFailureConfirmation(message);
+        setFaceLoginStatus(`${message} Check camera permission and choose Start scan to retry, or switch to Password only.`, 'error');
       } finally {
         faceAutoScanInProgress = false;
       }
@@ -7129,10 +7161,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       faceModelsReady = true;
     }
     async function startFaceLoginCamera({ primeOnly=false } = {}){
+      const generation = faceScanGeneration;
       await loadFaceLoginModels();
+      if(generation !== faceScanGeneration || !facialRecognitionEnabled()) throw new Error('Face scan cancelled.');
       installFaceCameraCompat();
       if(!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser. Use Firefox, Edge, Chrome, Safari, or the installed app with camera permission enabled.');
       if(!faceStream || !faceStream.getVideoTracks().some((track) => track.readyState === 'live')) faceStream = await requestFaceLoginStream();
+      if(generation !== faceScanGeneration || !facialRecognitionEnabled()){ stopFaceLoginCamera(); throw new Error('Face scan cancelled.'); }
       faceLoginVideo.setAttribute('autoplay', '');
       faceLoginVideo.setAttribute('muted', '');
       faceLoginVideo.setAttribute('playsinline', '');
@@ -7141,7 +7176,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       faceLoginVideo.srcObject = faceStream;
       faceLoginVideo.hidden = false;
       await faceLoginVideo.play().catch((error) => {
-        throw new Error(error?.message || 'Tap Start / Rescan Face to allow the mobile camera to begin.');
+        throw new Error(error?.message || 'Tap Start scan / Rescan to allow the mobile camera to begin.');
       });
       await waitForFaceVideoFrame();
       faceCaptureBtn.disabled = false;
@@ -7149,7 +7184,9 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(!primeOnly) revealFaceLogin('Camera ready. Center your face inside the scanner while CHAINeS auto-scans.', 'success');
     }
     async function captureFaceDescriptor(){
+      const generation = faceScanGeneration;
       await startFaceLoginCamera();
+      if(generation !== faceScanGeneration || !signInSettings.open){ stopFaceLoginCamera(); return null; }
       let detection = null;
       for(let attempt = 0; attempt < 5 && !detection; attempt += 1){
         await waitForFaceVideoFrame(2200);
@@ -7157,12 +7194,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         detection = await faceapi.detectSingleFace(faceLoginVideo, options).withFaceLandmarks().withFaceDescriptor();
         if(!detection) await new Promise(resolve => setTimeout(resolve, 450));
       }
+      if(generation !== faceScanGeneration || !signInSettings.open) return null;
       if(!detection) throw new Error('No face detected. Improve lighting, face the camera, and try again.');
       pendingFaceDescriptor = Array.from(detection.descriptor).map((value) => Number(value.toFixed(6)));
       pendingFaceScanImage = captureFaceScanImage();
       faceEnrollBtn.disabled = !store.user;
       updateFaceScanHud('captured', pendingFaceDescriptor);
-      setFaceLoginStatus('Face vector captured. Finishing your credential-approved entry now…', 'success');
+      el('#face-signin').disabled = !(usernameInput.value && passwordInput.value);
+      setFaceLoginStatus(pendingAuthAction ? 'Face captured. Verifying your account…' : usernameInput.value && passwordInput.value ? 'Face captured. Choose Verify & sign in to confirm your account.' : 'Camera scan captured. Close settings, enter your username and password, then sign in to verify your account.', 'success');
       if(pendingAuthAction === 'register') registerBtn?.click();
       else if(pendingAuthAction === 'login') loginBtn?.click();
       return pendingFaceDescriptor;
@@ -7222,6 +7261,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(facialRecognitionEnabled() && !pendingFaceDescriptor){
         const primePromise = primeFaceLoginCameraFromGesture();
         if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
+        else primePromise.catch(() => {});
       }
       const chain = selectedValidationChain();
       const validation = prevalidated === undefined ? (pendingAuthValidation || await ensureTokenValidated()) : prevalidated;
@@ -7272,7 +7312,11 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
     }
 
+    el('#face-signin')?.addEventListener('click', () => doLogin());
     loginBtn.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+    [usernameInput, passwordInput].forEach((input) => input?.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); doLogin(); }
+    }));
 
     guestLoginBtn?.addEventListener('click', (e) => {
       e.preventDefault();
@@ -7289,6 +7333,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(facialRecognitionEnabled() && !pendingFaceDescriptor){
         const primePromise = primeFaceLoginCameraFromGesture();
         if(shouldPrimeFaceCameraSynchronously()) await primePromise.catch(() => {});
+        else primePromise.catch(() => {});
       }
       const chain = selectedValidationChain();
       const validation = pendingAuthValidation || await ensureTokenValidated();
