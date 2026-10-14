@@ -2,7 +2,7 @@
   "id": "/",
   "name": "CHAINeS POST",
   "short_name": "CHAINeS",
-  "description": "The full CHAINeS POST app: custom panels, community feed, live broadcasting, wallets, marketplace, OMConsole, and AR collectibles.",
+  "description": "The CHAINeS creator network for posts, live moments, marketplace drops, and community conversations.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -52,14 +52,9 @@
       "url": "/marketplace.html",
       "icons": [
         {
-          "src": "/static/brand/v2/logo.svg",
+          "src": "/static/brand/v2/marketplace.svg",
           "sizes": "any",
           "type": "image/svg+xml"
-        },
-        {
-          "src": "/static/brand/v2/logo-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
         }
       ]
     },
@@ -69,57 +64,11 @@
       "url": "/profile.html",
       "icons": [
         {
-          "src": "/static/brand/v2/logo.svg",
+          "src": "/static/brand/v2/user.svg",
           "sizes": "any",
           "type": "image/svg+xml"
-        },
-        {
-          "src": "/static/brand/v2/logo-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
         }
       ]
-    },
-    {
-      "name": "OMConsole",
-      "url": "/omconsole_render_single.html",
-      "icons": [
-        {
-          "src": "/static/brand/v2/logo-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "AR Collectibles",
-      "url": "/chaines-ar-collectibles.html",
-      "icons": [
-        {
-          "src": "/static/brand/v2/logo-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
-  ],
-  "launch_handler": {
-    "client_mode": "navigate-existing"
-  },
-  "screenshots": [
-    {
-      "src": "/static/brand/v2/app-preview-desktop.png",
-      "sizes": "1280x800",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "CHAINeS POST full app with the new branding"
-    },
-    {
-      "src": "/static/brand/v2/app-preview-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "CHAINeS POST mobile account and guest entry"
     }
   ]
 }

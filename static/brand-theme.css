@@ -24,77 +24,10 @@ header .brand, header a { color: #eef3ff; }
 .msg.mine .bubble { background: color-mix(in srgb, var(--panel), #76b9eb 10%); border-color: #567c9e; }
 .post-actions { background: var(--panel); border-color: var(--lining); }
 .btn.primary, .send, .install-app-btn { background: linear-gradient(110deg, #e5b35c, #f5d48b) !important; color: #172238 !important; border: 1px solid #f5d48b !important; }
-.brand-dialog { width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 22px; border: 1px solid #56708f; border-radius: 20px; background: #101d35; color: #eef3ff; overflow-y: auto; box-sizing: border-box; font: 14px/1.6 system-ui, sans-serif; }
-.brand-dialog::backdrop { background: #020813cc; backdrop-filter: blur(5px); }
-.brand-dialog__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.brand-dialog h2 { font-size: 20px; margin: 0; }
-.brand-dialog p { color: #acb9d0; }
-.brand-dialog button { min-height: 40px; padding: 8px 12px; border: 1px solid #56708f; border-radius: 9px; background: #172945; color: #eef3ff; cursor: pointer; }
-.brand-dialog summary { cursor: pointer; padding: 10px 0; }
-.brand-dialog input { max-width: 100%; }
-.brand-dialog .face-login { margin-top: 14px; padding: 12px; border: 1px solid #56708f; background: #091427; box-shadow: none; }
-.brand-dialog .face-login::before { display: none; }
-.brand-dialog .face-login__stage { min-height: 0; height: 160px; }
-.brand-dialog .face-login__preview { height: 160px; max-height: 160px; }
-.brand-dialog .face-login__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.brand-dialog .face-login__actions button { flex: 1; }
-.brand-dialog .face-login__status { font-size: 12px; line-height: 1.5; }
-.brand-dialog .auth-help { font-size: 12px; }
-.brand-dialog .auth-profile input { display: block; }
-.brand-dialog .privacy-choice__actions { display: grid; gap: 8px; }
-.brand-dialog .face-login__reticle::after { content: 'LIVE CAMERA SCAN'; }
-.brand-dialog .face-login__badge { box-shadow: none; color: #f5d48b; }
-.brand-dialog button:focus-visible, .brand-dialog summary:focus-visible { outline: 2px solid #f5d48b; outline-offset: 3px; }
-@media (max-width: 560px) {
-  .brand-dialog { padding: 16px; }
-  .brand-dialog__heading { align-items: start; }
-  .brand-dialog h2 { font-size: 18px; }
-  .brand-dialog .face-login { display: grid; grid-template-columns: 1fr; gap: 8px; }
-  .brand-dialog .face-login > * { grid-column: 1; grid-row: auto; }
-  .brand-dialog .face-login__stage { width: 100%; aspect-ratio: auto; }
-  .brand-dialog .face-login__metric { grid-template-columns: 85px 1fr 40px; font-size: 11px; }
-  .brand-dialog .face-login__actions { flex-wrap: wrap; }
-  .brand-dialog .face-login__actions .btn { font-size: 12px; min-height: 40px; }
-}
-@media (prefers-reduced-motion: reduce) { .brand-dialog *, .brand-dialog *::before { animation: none !important; } }
-.brand-dialog [aria-pressed='true'] { border-color: #f5d48b; background: #e5b35c; color: #15243d; }
-.brand-dialog .auth-privacy h3 { font-size: 14px; }
-.brand-dialog__heading { position: sticky; top: -22px; padding: 12px 0; background: #101d35; z-index: 2; }
-.brand-dialog .face-login__actions .btn:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 560px) { .brand-dialog__heading { top: -16px; } }
-.brand-dialog .face-login__reticle { border-color: #e5b35c; box-shadow: 0 0 16px #e5b35c33; }
-.brand-dialog .face-login__bar span { background: linear-gradient(90deg, #76b9eb, #f5d48b); box-shadow: none; }
-.brand-dialog .face-login__capture { color: #eef3ff; border-color: #56708f; }
+
 :root:root { --line: #344765; --panel-strong: #172945; --bg2: #101d35; }
 :root[data-theme='light']:root { --line: #c6d1df; --panel-strong: #e9eff7; --bg2: #e9eff7; }
 body footer { background: var(--panel); color: var(--fg); border-color: var(--lining); }
 footer .chip { background: var(--panel); color: var(--fg); border-color: var(--lining); }
-/* Every page-level mark uses the master emblem without an older neon backing. */
-.brand-mark, header .logo, header .mark { background: transparent !important; box-shadow: none !important; padding: 0; }
-header .logo img, header .brand-mark { object-fit: contain; border-radius: 10px; }
-header .logo { display: grid; place-items: center; }
-header .sub, header .brand small { color: #acb9d0; }
-.brand-banner, .brand-kpi { background: var(--panel); border-color: var(--lining); }
-/* The browser install control previews the actual app icon. */
-.install-app-btn, #auth-install-app-btn, [data-install-app]:not(.auth-install-short) { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 40px; padding: 7px 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; cursor: pointer; }
-.install-app-btn img, #auth-install-app-btn img, [data-install-app] img { display: block; flex-shrink: 0; border-radius: 6px; }
-.install-app-btn[hidden], #auth-install-app-btn[hidden], [data-install-app][hidden] { display: none !important; }
-.install-preview { display: flex; gap: 16px; align-items: center; padding: 20px; margin: 16px 0; border-radius: 16px; border: 1px solid #425675; background: radial-gradient(ellipse at top left, #244769, #091427); }
-.install-preview strong { font-size: 21px; color: #f5d48b; }
-.install-preview p { margin: 6px 0 0; font-size: 12px; }
-.brand-dialog .install-features { font-size: 12px; color: #f5d48b; text-align: center; }
-/* Installed mode retains the complete site in a quieter, dedicated app shell. */
-html[data-app-mode='installed'] { background: #091427; }
-html[data-app-mode='installed'] body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); background: radial-gradient(ellipse at top left, #18365155, transparent 60%), var(--bg); }
-html[data-app-mode='installed'] header { border-bottom-color: #e5b35c !important; box-shadow: 0 10px 36px #0004, 0 1px 0 #e5b35c33; }
-html[data-app-mode='installed'] .feed { border: 1px solid var(--lining); background: var(--panel); }
-html[data-app-mode='installed'] .bubble { border-radius: 18px; box-shadow: 0 10px 24px #0002; }
-html[data-app-mode='installed'] header .brand::after { content: 'APP'; color: #f5d48b; font: 600 9px system-ui; letter-spacing: 1px; border: 1px solid #56708f; border-radius: 5px; padding: 3px 5px; }
-@media(max-width:680px) { html[data-app-mode='installed'] header .brand::after { display: none; } .install-preview { padding: 14px; } .install-preview strong { font-size: 18px; } }
-.app-titlebar { display: none; }
-html[data-window-controls='visible'] .app-titlebar { display: flex; align-items: center; gap: 10px; position: fixed; z-index: 3000; top: env(titlebar-area-y, 0px); left: env(titlebar-area-x, 0px); width: env(titlebar-area-width, 100%); height: env(titlebar-area-height, 36px); padding: 0 12px; background: #091427; color: #f5d48b; font: 600 12px system-ui; -webkit-app-region: drag; app-region: drag; }
-.app-titlebar nav { display: flex; gap: 12px; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
-.app-titlebar a { color: #eef3ff; text-decoration: none; border-radius: 5px; padding: 4px 6px; }
-.app-titlebar a:focus-visible { outline: 2px solid #f5d48b; }
-html[data-window-controls='visible'] body { padding-top: calc(env(titlebar-area-height, 36px) + env(safe-area-inset-top)); }
-html[data-window-controls='visible'] .auth { top: env(titlebar-area-height, 36px) !important; }
+.brand-mark, header .logo, header .mark { background: transparent !important; box-shadow: none !important; }
+header .logo img { object-fit: contain; }

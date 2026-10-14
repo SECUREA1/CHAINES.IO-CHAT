@@ -647,7 +647,6 @@ app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
 app.get("/favicon.svg", (req, res) =>
   res
     .type("image/svg+xml")
-    .set("Cache-Control", "no-cache")
     .sendFile(path.join(ROOT, "static", "brand", "v2", "logo.svg"))
 );
 
