@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-two-full-rows-v12';
+const CACHE_NAME = 'chaines-post-shell-reference-header-v13';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
