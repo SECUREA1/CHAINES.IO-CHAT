@@ -285,3 +285,12 @@ header .toolbar-overflow-panel #ghost-btn { font-size: 12px; gap: 8px; }
 @media (min-width: 901px) {
   header .toolbar-primary { max-width: 560px; }
 }
+
+/* The first header shortcut switches the actual live transport. */
+header .toolbar-primary #conn-chip { position: relative; }
+header .toolbar-primary #conn-label { display: none; }
+header .toolbar-primary #conn-chip[aria-pressed="true"] { background: linear-gradient(145deg, #145d99, #103965); border-color: #43ceff; }
+header .header-live-count { position: absolute; top: 2px; right: 2px; min-width: 13px; padding: 0 2px; border-radius: 6px; background: #70e4ff; color: #071b38; font-size: 9px; line-height: 13px; font-weight: 800; }
+header .header-live-count[hidden] { display: none; }
+header .toolbar-overflow-panel #feed-btn { width: 100%; min-height: 44px; height: auto; padding: 6px 10px; justify-content: flex-start; font-size: 12px; gap: 8px; }
+header .toolbar-overflow-panel #feed-btn { display: flex; }

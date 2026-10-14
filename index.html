@@ -2199,7 +2199,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=reference-header-v8" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=live-header-v9" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body>
@@ -2283,7 +2283,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                   <details class="toolbar-overflow-group" open>
                     <summary>Additional</summary>
                     <ul class="toolbar-overflow-list">
-                      <li><button id="conn-chip" class="chip" type="button" title="Switch to cloud mode" aria-label="Switch to cloud mode" aria-pressed="false"><img id="conn-icon" src="static/brand/v2/cloud.svg" alt="" aria-hidden="true" /><span id="conn-label">Offline</span></button></li>
+                      <li><button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/brand/v2/home.svg" alt="" aria-hidden="true" /><span>Main feed</span></button></li>
+
                       <li><button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/brand/v2/hologhost.svg" alt="" aria-hidden="true" /><span>Hologhost</span></button></li>
                       <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/brand/v2/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
                       <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/brand/v2/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
@@ -2313,7 +2314,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                 </div>
               </div>
               <div class="toolbar-primary">
-                <button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/brand/v2/home.svg" alt="" aria-hidden="true" /></button>
+                <button id="conn-chip" class="chip" type="button" title="Switch to cloud mode" aria-label="Switch to cloud mode" aria-pressed="false"><img id="conn-icon" src="static/brand/v2/cloud.svg" alt="" aria-hidden="true" /><span id="conn-label">Offline</span><span id="header-live-count" class="header-live-count" aria-label="0 users online" hidden>0</span></button>
                 <button id="marketplace-feed-btn" class="chip action-chip" type="button" title="Open marketplace posts in feed" aria-label="Open marketplace posts in feed"><img src="static/brand/v2/wallet.svg" alt="" aria-hidden="true" /></button>
                 <button id="streams-fit-btn-mobile" class="chip action-chip mobile-only-chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/brand/v2/split.svg" alt="" aria-hidden="true" /></button>
                 <button id="theme-toggle-mobile" class="chip action-chip mobile-only-chip" type="button" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/brand/v2/sun.svg" alt="" aria-hidden="true" /></button>
@@ -5676,9 +5677,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       document.documentElement.style.setProperty('--footer-height', footerBar.offsetHeight + 'px');
     });
 
+      function updateLiveCount(count){
+        const total = Math.max(0, Number(count) || 0);
+        liveCount.textContent = total;
+        const badge = el('#header-live-count');
+        if(badge){
+          badge.textContent = total;
+          badge.setAttribute('aria-label', `${total} users online`);
+          badge.title = `${total} users online`;
+          badge.hidden = onlineMode !== 'cloud';
+        }
+      }
       function updateUsers(list){
         userCache = list;
-        liveCount.textContent = list.length;
+        updateLiveCount(list.length);
         usersEl.innerHTML = '';
         const liveIds = new Set();
         list.forEach(u => {
@@ -5954,6 +5966,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
     function setStatus(mode){
       onlineMode = mode;
+      updateLiveCount(mode === 'cloud' ? userCache.length : 0);
       if(mode === 'cloud'){
         connLabel.textContent = 'Cloud';
         connIcon.src = 'static/brand/v2/cloud.svg';
@@ -6095,7 +6108,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           if(data && data.type === 'caption') handleCaption(data);
           if(data && data.type === 'system') systemNote(data.text);
           if(data && data.type === 'users') updateUsers(data.users || []);
-          if(data && data.type === 'count') liveCount.textContent = data.count;
+          if(data && data.type === 'count') updateLiveCount(data.count);
           if(data && data.type === 'history') {
             const msgs = data.messages || [];
             if(msgs.some(m => m.room)){
