@@ -6854,10 +6854,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     }
     async function installBrandedApp(){
       if(!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      if(choice.outcome === 'accepted') setInstallAvailability(false);
+      const prompt = deferredInstallPrompt;
       deferredInstallPrompt = null;
+      // A native prompt is single-use. Wait for a fresh event before offering another.
+      setInstallAvailability(false);
+      try {
+        await prompt.prompt();
+        const choice = await prompt.userChoice;
+        const copy = appDownloadCard?.querySelector('.app-download-card__copy span');
+        if(copy && choice.outcome === 'dismissed') copy.textContent = 'Installation cancelled. You can install CHAINeS from your browser’s install menu when ready.';
+      } catch(error){
+        const copy = appDownloadCard?.querySelector('.app-download-card__copy span');
+        if(copy) copy.textContent = 'The browser could not complete installation. Try its install menu again.';
+      }
     }
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
@@ -6875,7 +6884,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     });
     [installAppBtn, authInstallAppBtn, document.getElementById('footer-install-app-btn')].forEach((button) => button?.addEventListener('click', installBrandedApp));
     if('serviceWorker' in navigator){
-      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once:true });
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(() => {}), { once:true });
     }
 
     const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';

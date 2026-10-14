@@ -1,7 +1,19 @@
-const CACHE_NAME = 'chaines-post-shell-original-blue-v2';
+const CACHE_NAME = 'chaines-post-shell-original-blue-v3';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
+  '/marketplace.html',
+  '/profile.html',
+  '/private-chat.html',
+  '/secure.html',
+  '/delivery-services.html',
+  '/rewards-program.html',
+  '/chaines-ar-collectibles.html',
+  '/omconsole_render_single.html',
+  '/omconsole_render_single_games_ROUTING.html',
+  '/static/wallet.js',
+  '/static/chat.js',
+  '/static/visit-notifier.js',
   '/manifest.webmanifest',
   '/static/brand/v2/logo.svg',
   '/static/brand/v2/wallet.svg',
@@ -59,7 +71,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if(event.request.mode === 'navigate'){
-    event.respondWith(fetch(event.request, { cache: 'no-cache' }).catch(() => caches.match('/index.html')));
+    event.respondWith(fetch(event.request, { cache: 'no-cache' }).catch(async () => (await caches.match(event.request)) || (await caches.match(requestUrl.pathname)) || caches.match('/index.html')));
     return;
   }
 
