@@ -1,6 +1,7 @@
-const CACHE_NAME = 'chaines-post-shell-explorer-desktop-v16';
+const CACHE_NAME = 'chaines-post-shell-ontario-delivery-v17';
 const APP_SHELL = [...new Set([
   '/',
+  '/static/delivery-pricing.js',
   '/index.html',
   '/marketplace.html',
   '/profile.html',

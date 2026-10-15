@@ -305,7 +305,7 @@
       </div>
       <div class="hero-content">
         <div class="hero-copy">
-          <p class="eyebrow">Concierge dispatch is live</p>
+          <p class="eyebrow">Free to start · Ontario, CAD</p>
           <h1 class="headline">Every request, <em>handled with care.</em></h1>
           <p class="sub">Build one polished request for meals, groceries, packages, and custom errands. Set preferences, choose a fulfillment tier, and receive a clear, receipt-ready delivery record.</p>
         </div>
@@ -334,6 +334,12 @@
           <div class="row">
             <input id="pickup" name="pickup" type="text" maxlength="120" required placeholder="Pickup address" />
             <input id="dropoff" name="dropoff" type="text" maxlength="120" required placeholder="Dropoff address" />
+          </div>
+          <label class="small" for="customer-email">Email for an optional receipt copy</label>
+          <input id="customer-email" name="customer-email" type="email" placeholder="Optional email address" />
+          <div class="row">
+            <label class="small">Estimated route distance (km)<input id="distance-km" name="distance-km" type="number" min="0" max="1000" step="0.1" value="0" /></label>
+            <label class="small">Parcel weight (kg, packages only)<input id="parcel-kg" name="parcel-kg" type="number" min="0" max="1000" step="0.1" value="0" /></label>
           </div>
         </section>
 
@@ -377,7 +383,7 @@
             <div class="row3">
               <select id="quick-item-select" aria-label="Quick meal item selection"></select>
               <select id="quick-variant-select" aria-label="Quick item type or flavor selection"></select>
-              <input id="quick-price-adjust" type="number" min="-10" step="0.25" value="0" aria-label="Quick price adjustment" placeholder="Price adjustment" />
+              <input id="quick-price-adjust" type="number" min="-10" step="0.01" value="0" aria-label="Quick price adjustment" placeholder="Price adjustment" />
             </div>
             <div class="row3">
               <button id="quick-add-item" type="button" class="mini-btn alt">Add selected item</button>
@@ -478,6 +484,7 @@
                   <option value="">Select standard grocery item</option>
                 </select>
                 <input id="grocery-custom-item" maxlength="80" placeholder="Or add custom grocery item" />
+                <input id="grocery-unit-price" type="number" min="0" step="0.01" aria-label="Custom grocery unit price in CAD" placeholder="Custom unit price (CAD)" />
                 <input id="grocery-item-qty" type="number" min="1" step="1" value="1" aria-label="Grocery item quantity" />
                 <button id="grocery-add-item" type="button" class="mini-btn">Add</button>
               </div>
@@ -550,8 +557,8 @@
               <option value="express">Express ETA (20-35 mins)</option>
               <option value="priority">Priority ETA (fastest available)</option>
             </select>
-            <input id="tip" name="tip" type="number" min="0" step="0.01" value="5" placeholder="Custom tip amount" />
-            <input id="budget" name="budget" type="number" min="5" step="1" value="35" placeholder="Item budget" />
+            <input id="tip" name="tip" type="number" min="0" step="0.01" value="0" aria-label="Optional driver tip in CAD" placeholder="Optional tip (CAD)" />
+            <input id="budget" name="budget" type="number" min="0" step="0.01" value="0" aria-label="Purchase budget limit, not a charge" placeholder="Budget limit (not charged)" />
           </div>
           <textarea id="notes" name="notes" maxlength="450" placeholder="Gate code, call on arrival, handoff instructions, other custom requests"></textarea>
         </section>
@@ -559,19 +566,26 @@
 
       <aside class="panel summary">
         <div class="summary-head">
-          <h2>Live Delivery Summary</h2>
+          <h2>Delivery Estimate · CAD</h2>
+          <button id="save-receipt-btn" class="mini-btn" type="button">Save receipt</button>
           <button id="print-receipt-btn" class="mini-btn alt" type="button">Print receipt</button>
         </div>
+        <p class="small">Start free at CA$0.00. Items and optional upgrades cost extra. No payment is collected here.</p>
+        <p class="small">Planning rates: Core standard service CA$0; first 5 km included, then CA$0.75/km. Packages over 5 kg add CA$1/kg. Pro +CA$3, Elite +CA$6; Express +CA$3, Priority +CA$6. Merchant purchases and carrier postage require confirmation.</p>
+        <p class="small">Ontario estimates, not live store quotes. Basic grocery staples are zero-rated; most other items and delivery use 13% HST. Eligible prepared-food orders up to CA$4 use a 5% estimate. Merchant tax classification controls final tax.</p>
         <div id="summary-lines"></div>
-        <div class="cost-line"><span>Delivery base</span><span id="base-fee">$6.00</span></div>
+        <div class="cost-line"><span>Delivery base</span><span id="base-fee">CA$0.00</span></div>
+        <div class="cost-line"><span>Optional tier upgrade</span><span id="tier-fee">CA$0.00</span></div>
         <div class="cost-line"><span>Speed surcharge</span><span id="speed-fee">$0.00</span></div>
         <div class="cost-line"><span>Customization add-ons</span><span id="addon-fee">$0.00</span></div>
         <div class="cost-line"><span>Items subtotal</span><span id="items-subtotal-fee">$0.00</span></div>
         <div class="cost-line"><span>Menu price adjustments</span><span id="menu-adjust-fee">$0.00</span></div>
         <div class="cost-line"><span>Driver tip</span><span id="tip-fee">$0.00</span></div>
-        <div class="cost-line"><span>Purchase budget</span><span id="budget-fee">$0.00</span></div>
+        <div class="cost-line"><span>Purchase budget limit (not charged)</span><span id="budget-fee">$0.00</span></div>
+        <div class="cost-line"><span>Distance / parcel estimate</span><span id="shipping-fee">CA$0.00</span></div>
+        <div class="cost-line"><span>Estimated Ontario tax</span><span id="tax-fee">CA$0.00</span></div>
         <div class="cost-line total"><span>Estimated total</span><span id="total-fee">$0.00</span></div>
-        <label class="receipt-toggle"><input id="email-receipt-to-customer" type="checkbox" checked /> Send customer receipt email from server during checkout</label>
+        <label class="receipt-toggle"><input id="email-receipt-to-customer" type="checkbox" /> Email a customer copy when an email address is provided</label>
         <textarea id="receipt-comment" maxlength="260" placeholder="Receipt communication comment for admin + customer (order context, substitutions, handoff notes)"></textarea>
         <button id="book-btn" class="book-btn" type="button">Confirm Delivery Request</button>
         <div id="status" class="status" aria-live="polite"></div>
@@ -601,24 +615,33 @@
         </section>
         <section class="section-shell">
           <p class="section-title">Delivery Pricing Strategy</p>
-          <p class="admin-note">Keep pricing below average competitor pricing while preserving a healthy margin.</p>
+          <p class="admin-note">Published delivery estimate schedule, read only. Item prices remain editable in the builder; no competitor comparison is claimed.</p>
           <div class="row3">
-            <input id="admin-base-fee" type="number" min="3" step="0.25" />
-            <input id="admin-competitor-fee" type="number" min="3" step="0.25" />
-            <input id="admin-target-margin" type="number" min="8" max="40" step="1" />
+            <input id="admin-base-fee" readonly type="number" min="0" step="0.01" />
+            <input id="admin-competitor-fee" hidden type="number" min="0" step="0.01" />
+            <input id="admin-target-margin" hidden type="number" min="8" max="40" step="1" />
           </div>
           <div class="row3">
-            <input id="admin-express-fee" type="number" min="0" step="0.25" />
-            <input id="admin-priority-fee" type="number" min="0" step="0.25" />
-            <input id="admin-addon-fee" type="number" min="0" step="0.25" />
+            <input id="admin-express-fee" readonly type="number" min="0" step="0.01" />
+            <input id="admin-priority-fee" readonly type="number" min="0" step="0.01" />
+            <input id="admin-addon-fee" readonly type="number" min="0" step="0.01" />
           </div>
-          <button id="save-pricing" type="button" class="mini-btn">Apply Pricing Configuration</button>
+          <button id="save-pricing" type="button" class="mini-btn">Restore Published Schedule</button>
         </section>
       </div>
     </section>
   </main>
 
-  <script>
+  <style>
+    .summary-head { flex-wrap:wrap; gap:8px; }
+    .cost-line { gap:12px; }
+    .cost-line span:last-child { white-space:nowrap; flex-shrink:0; }
+    .summary .small { line-height:1.6; }
+    .summary input, .summary textarea { max-width:100%; }
+    .row > label { min-width:0; }
+  </style>
+  <script type="module">
+    import { calculateDeliveryQuote, deliveryReceiptLines, estimateItem, GROCERY_ESTIMATES, GROCERY_UNITS, DELIVERY_RATES, money } from '/static/delivery-pricing.js';
     (() => {
       const sourceKey = 'chaines_messages';
       const requestsKey = 'chaines_delivery_requests';
@@ -819,20 +842,20 @@
           drinks: ['Coca-Cola Classic', "Bae's Special Cloud Coffee", 'Vanilla Bean Milkshake', 'Blue Raspberry Slurpy', 'Mango Pineapple Smoothie', 'Iced Caramel Latte']
         },
         pricing: {
-          baseFee: 5.75,
+          baseFee: 0,
           competitorFee: 6.5,
           targetMargin: 18,
-          expressFee: 6,
-          priorityFee: 11,
-          addonFee: 1.5
+          expressFee: 3,
+          priorityFee: 6,
+          addonFee: 0
         }
       };
       const partners = [
         { id: 'core', name: 'Core Delivery', style: 'Balanced speed and care', eta: '35-55 min', fee: 0 },
-        { id: 'pro', name: 'Pro Courier', style: 'Priority handling + updates', eta: '25-40 min', fee: 4 },
-        { id: 'elite', name: 'Elite Concierge', style: 'White-glove fulfillment', eta: '20-35 min', fee: 8 }
+        { id: 'pro', name: 'Pro Courier', style: 'Priority handling + updates', eta: '25-40 min', fee: 3 },
+        { id: 'elite', name: 'Elite Concierge', style: 'White-glove fulfillment', eta: '20-35 min', fee: 6 }
       ];
-      let speedFeeMap = { standard: 0, express: 7, priority: 14 };
+      let speedFeeMap = { standard: 0, express: 3, priority: 6 };
 
       const form = document.querySelector('#delivery-form');
       const summaryLines = document.querySelector('#summary-lines');
@@ -889,6 +912,9 @@
         addonFee: document.querySelector('#admin-addon-fee')
       };
       let selectedPartner = partners[0];
+      let bookingInFlight = false;
+      let latestQuote = calculateDeliveryQuote();
+      let lastConfirmedRequest = null;
       let lastQuickSelection = null;
       let isAdminAuthed = false;
       let finalizedOrderItems = [];
@@ -977,29 +1003,15 @@
         ]
       };
       const menuBasePriceByGroup = {
-        breakfast: 9.25,
-        lunch: 12.75,
-        dinner: 15.25,
-        dessert: 6.5,
-        pringles: 4.75,
-        drinks: 3.95
+        breakfast: 8.99,
+        lunch: 12.99,
+        dinner: 16.99,
+        dessert: 5.49,
+        pringles: 3.49,
+        drinks: 3.49
       };
-      const groceryBasePrices = {
-        Milk: 4.25,
-        Eggs: 3.75,
-        Bread: 3.45,
-        Bananas: 2.5,
-        'Chicken breast': 8.75,
-        'Ground turkey': 7.8,
-        Rice: 3.2,
-        Pasta: 2.95,
-        'Olive oil': 8.5,
-        Spinach: 3.8,
-        Tomatoes: 3.95,
-        'Cheddar cheese': 5.5
-      };
-
-      const toMoney = (num) => `$${Number(num || 0).toFixed(2)}`;
+      const groceryBasePrices = GROCERY_ESTIMATES;
+      const toMoney = money;
       const normalizeCurrency = (num, fallback = 0) => {
         const parsed = Number(num);
         return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : Number(fallback || 0);
@@ -1025,12 +1037,7 @@
       }
 
       function getBasePriceForItem({ name = '', group = '' } = {}) {
-        if (!name) return normalizeCurrency(menuBasePriceByGroup[group] || menuBasePriceByGroup.breakfast, 0);
-        const option = optionLookup.get(name);
-        if (typeof option?.price === 'number') return normalizeCurrency(option.price, menuBasePriceByGroup[group] || menuBasePriceByGroup.breakfast);
-        if (group && typeof menuBasePriceByGroup[group] === 'number') return normalizeCurrency(menuBasePriceByGroup[group], menuBasePriceByGroup.breakfast);
-        const inferredGroup = inferGroupFromItemName(name);
-        return normalizeCurrency(menuBasePriceByGroup[inferredGroup], menuBasePriceByGroup.breakfast);
+        return name ? estimateItem(name, group || inferGroupFromItemName(name)) : 0;
       }
 
       function safeParse(raw, fallback) {
@@ -1132,7 +1139,7 @@
           .map((item) => ({
             ...item,
             group: type,
-            price: normalizeCurrency(item.price, menuBasePriceByGroup[type] || menuBasePriceByGroup.breakfast)
+            price: normalizeCurrency(item.price, estimateItem(item.name, type))
           }));
       }
 
@@ -1230,27 +1237,12 @@
 
       function savePricingConfig() {
         if (!isAdminAuthed) return;
-        const operatingCostFloor = 4.25;
-        const baseInput = Number(pricingInputs.baseFee.value || defaultAdminConfig.pricing.baseFee);
-        const competitorFee = Number(pricingInputs.competitorFee.value || defaultAdminConfig.pricing.competitorFee);
-        const targetMargin = Math.min(40, Math.max(8, Number(pricingInputs.targetMargin.value || defaultAdminConfig.pricing.targetMargin)));
-        const minimumProfitable = operatingCostFloor / (1 - targetMargin / 100);
-        const competitiveCap = competitorFee - 0.25;
-        const recommendedBase = Math.max(minimumProfitable, Math.min(baseInput, competitiveCap));
-
-        adminConfig.pricing = {
-          baseFee: Number(recommendedBase.toFixed(2)),
-          competitorFee,
-          targetMargin,
-          expressFee: Number(pricingInputs.expressFee.value || defaultAdminConfig.pricing.expressFee),
-          priorityFee: Number(pricingInputs.priorityFee.value || defaultAdminConfig.pricing.priorityFee),
-          addonFee: Number(pricingInputs.addonFee.value || defaultAdminConfig.pricing.addonFee)
-        };
+        adminConfig.pricing = { ...adminConfig.pricing, ...DELIVERY_RATES };
         localStorage.setItem(adminConfigKey, JSON.stringify(adminConfig));
         syncQuickMenuFromAdmin();
         updateSummary();
         mountAdminControls();
-        setAdminState(true, `Pricing saved. Base fee set to ${toMoney(adminConfig.pricing.baseFee)} for competitive margin coverage.`);
+        setAdminState(true, 'Published Ontario estimate schedule restored: free standard service; optional upgrades remain itemized.');
       }
 
       function loadMarketplaceServices() {
@@ -1312,8 +1304,8 @@
           <input type="text" class="menu-name" maxlength="120" placeholder="Item name" value="${initial.name || ''}" />
           <select class="menu-variant" aria-label="Item variant">${variantOptions}</select>
           <input type="number" class="menu-qty" min="1" step="1" value="${initial.qty || 1}" aria-label="Quantity" />
-          <input type="number" class="menu-base-price" min="0" step="0.25" value="${normalizeCurrency(initial.basePrice, basePrice)}" aria-label="Base price" />
-          <input type="number" class="menu-price-adjust" min="-10" step="0.25" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
+          <input type="number" class="menu-base-price" min="0" step="0.01" value="${normalizeCurrency(initial.basePrice, basePrice)}" aria-label="Base price" />
+          <input type="number" class="menu-price-adjust" min="-10" step="0.01" value="${Number(initial.priceAdjust || 0)}" aria-label="Price adjustment" />
           <span class="small menu-line-total">${toMoney((Number(initial.qty || 1) * (normalizeCurrency(initial.basePrice, basePrice) + Number(initial.priceAdjust || 0))))}</span>
           <label class="menu-toggle"><input type="checkbox" class="menu-fast-add" ${initial.fastAdd ? 'checked' : ''} />Fast +1</label>
           <button type="button" class="mini-btn menu-breakdown">Break down combo</button>
@@ -1419,7 +1411,7 @@
           name: row.querySelector('.menu-name')?.value.trim() || '',
           group: row.dataset.itemGroup || 'breakfast'
         }));
-        const priceAdjust = normalizeCurrency(row.querySelector('.menu-price-adjust')?.value, 0);
+        const priceAdjust = Math.max(-basePrice, normalizeCurrency(row.querySelector('.menu-price-adjust')?.value, 0));
         return {
           name: row.querySelector('.menu-name')?.value.trim() || '',
           variant: row.querySelector('.menu-variant')?.value || 'Standard',
@@ -1717,7 +1709,7 @@
         standardizedGroceries.forEach((itemName) => {
           const option = document.createElement('option');
           option.value = itemName;
-          option.textContent = `${itemName} • ${toMoney(groceryBasePrices[itemName] || 3.5)}`;
+          option.textContent = `${itemName} (${GROCERY_UNITS[itemName]}) • ${toMoney(groceryBasePrices[itemName] || 0)}`;
           groceryStandardItem.append(option);
         });
       }
@@ -1727,7 +1719,7 @@
           name: row.dataset.itemName || '',
           qty: Number(row.dataset.itemQty || 1),
           variant: 'Grocery',
-          basePrice: normalizeCurrency(row.dataset.itemPrice || 3.5, 3.5),
+          basePrice: normalizeCurrency(row.dataset.itemPrice, 0),
           priceAdjust: 0,
           fastAdd: false,
           note: row.dataset.itemSource || 'Custom'
@@ -1745,7 +1737,7 @@
           row.dataset.itemName = item.name;
           row.dataset.itemQty = String(item.qty || 1);
           row.dataset.itemSource = item.note || 'Custom';
-          row.dataset.itemPrice = String(normalizeCurrency(item.basePrice, item.note === 'Custom' ? 3.5 : groceryBasePrices[item.name] || 3.5));
+          row.dataset.itemPrice = String(normalizeCurrency(item.basePrice, groceryBasePrices[item.name] || 0));
           row.innerHTML = `<span class="grocery-log-item-copy">${item.qty}× ${item.name} <small>(${item.note || 'Custom'} • ${toMoney(row.dataset.itemPrice)})</small></span><button type="button" class="mini-btn danger grocery-remove">Remove</button>`;
           row.querySelector('.grocery-remove')?.addEventListener('click', () => {
             row.remove();
@@ -1767,12 +1759,19 @@
         }
         const qtyValue = Math.max(1, Number(groceryItemQty.value || 1));
         const source = customName ? 'Custom' : 'Standardized';
-        const basePrice = customName ? 3.5 : normalizeCurrency(groceryBasePrices[itemName], 3.5);
+        const customPrice = document.querySelector('#grocery-unit-price');
+        if (customName && (!customPrice.value || Number(customPrice.value) <= 0)) {
+          status.textContent = 'Enter a unit price greater than CA$0 for the custom grocery item.';
+          status.classList.add('error');
+          return;
+        }
+        const basePrice = customName ? normalizeCurrency(customPrice.value, 0) : groceryBasePrices[itemName];
         const existing = getGroceryItems();
         existing.push({ name: itemName, qty: qtyValue, basePrice, note: source });
         renderGroceryItems(existing);
         groceryStandardItem.value = '';
         groceryCustomItem.value = '';
+        document.querySelector('#grocery-unit-price').value = '';
         groceryItemQty.value = '1';
         status.classList.remove('error');
         status.textContent = `Added grocery item: ${qtyValue}× ${itemName}.`;
@@ -1822,6 +1821,7 @@
       }
 
       function updateSummary() {
+        lastConfirmedRequest = null;
         const data = new FormData(form);
         const deliveryType = data.get('delivery-type') || 'meal';
         const deliveryTypeDetails = getDeliveryTypeDetails(data, deliveryType);
@@ -1833,16 +1833,10 @@
           const lineTotalNode = row.querySelector('.menu-line-total');
           if (lineTotalNode) lineTotalNode.textContent = toMoney(item.lineTotal || 0);
         });
-        const speedFee = speedFeeMap[speed.value] || 0;
-        const addOnFee = selectedPrefs.length * Number(adminConfig.pricing.addonFee || 0);
-        const itemsSubtotal = menuItems.reduce((sum, item) => sum + (Number(item.basePrice || 0) * Number(item.qty || 1)), 0);
-        const menuAdjustFee = menuItems.reduce((sum, item) => sum + (Number(item.priceAdjust || 0) * Number(item.qty || 1)), 0);
-        const partnerFee = selectedPartner.fee || 0;
-        const tipFee = getNormalizedTip();
-        const budgetFee = Number(budget.value || 0);
-        const baseFee = Number(adminConfig.pricing.baseFee || 0);
-        const total = baseFee + partnerFee + speedFee + addOnFee + itemsSubtotal + menuAdjustFee + tipFee + budgetFee;
-
+        latestQuote = calculateDeliveryQuote({ items: menuItems, service: { deliveryType }, partnerTier: selectedPartner,
+          speed: speed.value, tip: getNormalizedTip(), budget: budget.value,
+          distanceKm: data.get('distance-km'), parcelKg: data.get('parcel-kg') });
+        const q = latestQuote;
         const menuSummary = menuItems.length
           ? menuItems.map((item) => `${item.qty}× ${item.name}${item.variant ? ` [${item.variant}]` : ''} @ ${toMoney(item.basePrice || 0)}${item.priceAdjust ? ` (${toMoney(item.priceAdjust)} adj)` : ''}`).join('; ')
           : (deliveryType === 'groceries' ? 'No grocery items added' : (activeDraftItems.length ? `${activeDraftItems.length} active draft item${activeDraftItems.length === 1 ? '' : 's'} pending finalization` : 'No menu items added'));
@@ -1860,78 +1854,42 @@
           data.get('beverage')
         ].filter(Boolean).join(' • ') || 'Not specified';
 
-        summaryLines.innerHTML = `
-          <div class="small"><strong>Customer:</strong> ${data.get('customer-name') || '—'}</div>
-          <div class="small"><strong>Route:</strong> ${data.get('pickup') || '—'} → ${data.get('dropoff') || '—'}</div>
-          <div class="small"><strong>Service:</strong> ${data.get('service-name') || 'Custom request'} (${data.get('service-category') || 'General'})</div>
-          <div class="small"><strong>Linked menu listing:</strong> ${data.get('marketplace-menu') ? 'Marketplace connected' : 'Not linked'}</div>
-          <div class="small"><strong>Meal package:</strong> ${data.get('meal-package') || 'Custom build'}</div>
-          <div class="small"><strong>Delivery type:</strong> ${deliveryType}</div>
-          <div class="small"><strong>Type details:</strong> ${deliveryTypeDetails}</div>
-          <div class="small"><strong>Partner tier:</strong> ${selectedPartner.name}</div>
-          <div class="small"><strong>Pricing target:</strong> ${adminConfig.pricing.targetMargin}% margin vs ${toMoney(adminConfig.pricing.competitorFee)} avg competitor fee</div>
-          <div class="small"><strong>Menu:</strong> ${menuSummary}</div>
-          <div class="small"><strong>Package breakdown:</strong> ${packageBreakdown}</div>
-          <div class="small"><strong>Meal profile:</strong> ${mealDetails}</div>
-          <div class="small"><strong>Customizations:</strong> ${selectedPrefs.length ? selectedPrefs.join(', ') : 'Standard handling'}</div>
-        `;
-
-        document.querySelector('#base-fee').textContent = toMoney(baseFee + partnerFee);
-        document.querySelector('#speed-fee').textContent = toMoney(speedFee);
-        document.querySelector('#addon-fee').textContent = toMoney(addOnFee);
-        document.querySelector('#items-subtotal-fee').textContent = toMoney(itemsSubtotal);
-        document.querySelector('#menu-adjust-fee').textContent = toMoney(menuAdjustFee);
-        document.querySelector('#tip-fee').textContent = toMoney(tipFee);
-        document.querySelector('#budget-fee').textContent = toMoney(budgetFee);
-        document.querySelector('#total-fee').textContent = toMoney(total);
+        summaryLines.innerHTML = [
+          ['Customer', data.get('customer-name') || '—'],
+          ['Route', `${data.get('pickup') || '—'} → ${data.get('dropoff') || '—'}`],
+          ['Service', data.get('service-name') || deliveryType],
+          ['Partner tier', selectedPartner.name], ['Items', menuSummary],
+          ['Budget', q.overBudget ? 'Items exceed your budget limit. Increase it or remove items before submitting.' : 'Optional spending limit; not added to the total.']
+        ].map(([label, value]) => `<div class="small"><strong>${label}:</strong> ${escapeHtml(value)}</div>`).join('');
+        document.querySelector('#base-fee').textContent = toMoney(q.baseFee);
+        document.querySelector('#tier-fee').textContent = toMoney(q.tierFee);
+        document.querySelector('#speed-fee').textContent = toMoney(q.speedFee);
+        document.querySelector('#addon-fee').textContent = toMoney(q.addonFee);
+        document.querySelector('#items-subtotal-fee').textContent = toMoney(q.itemsSubtotal);
+        document.querySelector('#menu-adjust-fee').textContent = toMoney(q.adjustments);
+        document.querySelector('#tip-fee').textContent = toMoney(q.tip);
+        document.querySelector('#budget-fee').textContent = toMoney(q.budget);
+        document.querySelector('#shipping-fee').textContent = toMoney(q.distanceFee + q.parcelFee);
+        document.querySelector('#tax-fee').textContent = toMoney(q.tax);
+        document.querySelector('#total-fee').textContent = toMoney(q.total);
       }
 
-      function sendReceiptEmail(request) {
-        return fetch('/receipt-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            request,
-            to: receiptEmail,
-            sendCustomerCopy: Boolean(emailReceiptToCustomer?.checked)
-          })
-        }).then((res) => res.ok).catch(() => false);
+      async function loadConfirmedReceipts() {
+        try {
+          const response = await fetch('/delivery-orders', { cache: 'no-store' });
+          if (!response.ok) return;
+          const data = await response.json();
+          if (!Array.isArray(data.items)) return;
+          localStorage.setItem(requestsKey, JSON.stringify(data.items));
+          renderAdminOrderReceipts();
+        } catch {}
       }
 
-      function buildReceiptLines(request) {
-        const itemSummary = (request.items || [])
-          .map((item) => {
-            const qty = Math.max(1, Number(item.qty || 1));
-            const basePrice = Number(item.basePrice || 0);
-            const priceAdjust = Number(item.priceAdjust || 0);
-            const lineTotal = qty * (basePrice + priceAdjust);
-            return `${qty}x ${item.name || 'Item'} @ ${toMoney(basePrice)}${priceAdjust ? ` (${toMoney(priceAdjust)} adj)` : ''} = ${toMoney(lineTotal)}`;
-          })
-          .join(', ') || 'No items listed';
-        return [
-          `Receipt ID: ${request.id}`,
-          `Created: ${new Date(request.createdAt).toLocaleString()}`,
-          `Customer: ${request.customer?.name || ''}`,
-          `Phone: ${request.customer?.phone || ''}`,
-          `Pickup: ${request.route?.pickup || ''}`,
-          `Dropoff: ${request.route?.dropoff || ''}`,
-          `Service: ${request.service?.name || 'Custom request'} (${request.service?.category || 'General'})`,
-          `Delivery Type: ${request.service?.deliveryType || 'meal'}`,
-          `Type Details: ${request.deliveryTypeDetails || 'N/A'}`,
-          `Partner Tier: ${request.partnerTier?.name || ''}`,
-          `Speed: ${request.speed || 'standard'}`,
-          `Tip: ${toMoney(Number(request.tip || 0))}`,
-          `Budget: ${toMoney(Number(request.budget || 0))}`,
-          `Delivery Total: ${toMoney(Number(request.total || 0))}`,
-          `Items: ${itemSummary}`,
-          `Receipt Comment: ${request.receiptComment || 'None'}`,
-          `Notes: ${request.notes || 'None'}`
-        ];
-      }
+      function buildReceiptLines(request) { return deliveryReceiptLines(request); }
 
       function printReceipt(request) {
-        const lines = buildReceiptLines(request).map((line) => `<div>${line.replaceAll('<', '&lt;')}</div>`).join('');
-        const html = `<html><head><title>Receipt ${request.id}</title><style>body{font-family:ui-monospace,Menlo,monospace;padding:24px;color:#111}.r{max-width:560px;margin:auto;border:1px dashed #333;padding:14px}.h{display:flex;justify-content:space-between;font-weight:800;border-bottom:1px solid #aaa;padding-bottom:8px;margin-bottom:8px}</style></head><body><section class="r"><div class="h"><span>CHAINeS DELIVERY RECEIPT</span><span>${request.id}</span></div>${lines}</section></body></html>`;
+        const lines = buildReceiptLines(request).map((line) => `<div>${escapeHtml(line)}</div>`).join('');
+        const html = `<html><head><title>Receipt ${escapeHtml(request.id)}</title><style>body{font-family:ui-monospace,Menlo,monospace;padding:24px;color:#111}.r{max-width:560px;margin:auto;border:1px dashed #333;padding:14px}.h{display:flex;justify-content:space-between;font-weight:800;border-bottom:1px solid #aaa;padding-bottom:8px;margin-bottom:8px}</style></head><body><section class="r"><div class="h"><span>CHAINeS DELIVERY RECEIPT</span><span>${escapeHtml(request.id)}</span></div>${lines}</section></body></html>`;
         const printWindow = window.open('', '_blank', 'width=860,height=900');
         if (!printWindow) return;
         printWindow.document.write(html);
@@ -1954,7 +1912,7 @@
 
       function showOrderConfirmationPopup(request) {
         const nextStep = window.prompt(
-          `✅ Order ${request.id} confirmed.\nType PRINT to print receipt, SAVE to download receipt, or CLOSE to finish.\nFor comments or help, message @${adminSupportUsername} in the admin account.`,
+          `✅ Request ${request.id} confirmed. No payment collected.\nType PRINT to print receipt, SAVE to download receipt, or CLOSE to finish.\nFor comments or help, message @${adminSupportUsername} in the admin account.`,
           'PRINT'
         );
         const normalized = String(nextStep || '').trim().toUpperCase();
@@ -1977,12 +1935,13 @@
         }
         adminOrderReceipts.innerHTML = requests.slice(0, 8).map((request) => {
           const comments = Array.isArray(request.receiptComments) ? request.receiptComments : [];
-          const commentHtml = comments.map((comment) => `<div class="receipt-comment-item">${comment.author || 'user'}: ${String(comment.text || '').replaceAll('<', '&lt;')}</div>`).join('');
-          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${request.id}</span><button type="button" class="mini-btn alt" data-admin-print="${request.id}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${request.customer?.name || '—'}</strong></div><div class="receipt-row"><span>Route</span><strong>${request.route?.pickup || '—'} → ${request.route?.dropoff || '—'}</strong></div><div class="receipt-row"><span>Service</span><strong>${request.service?.name || 'Custom request'}</strong></div><div class="receipt-row"><span>Tip</span><strong>${toMoney(Number(request.tip || 0))}</strong></div><div class="receipt-row receipt-total"><span>Delivery total</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
+          const commentHtml = comments.map((comment) => `<div class="receipt-comment-item">${escapeHtml(comment.author || 'user')}: ${String(comment.text || '').replaceAll('<', '&lt;')}</div>`).join('');
+          return `<article class="receipt-sheet"><div class="receipt-header"><span class="receipt-id">${escapeHtml(request.id)}</span><button type="button" class="mini-btn alt" data-admin-print="${escapeHtml(request.id)}">Print</button></div><div class="receipt-row"><span>Customer</span><strong>${escapeHtml(request.customer?.name || '—')}</strong></div><div class="receipt-row"><span>Route</span><strong>${escapeHtml(request.route?.pickup || '—')} → ${escapeHtml(request.route?.dropoff || '—')}</strong></div><div class="receipt-row"><span>Service</span><strong>${escapeHtml(request.service?.name || 'Custom request')}</strong></div><div class="receipt-row"><span>Tip</span><strong>${toMoney(Number(request.tip || 0))}</strong></div><div class="receipt-row receipt-total"><span>Estimate (CAD)</span><strong>${toMoney(Number(request.total || 0))}</strong></div><div class="small"><strong>Communication channel:</strong> receipt comments</div>${commentHtml || '<div class="receipt-comment-item">No comments on this receipt.</div>'}</article>`;
         }).join('');
       }
 
       async function bookRequest() {
+        if (bookingInFlight) return;
         const normalizedTip = getNormalizedTip();
         updateSummary();
         const data = new FormData(form);
@@ -1996,7 +1955,7 @@
 
         const deliveryType = String(data.get('delivery-type') || 'meal');
         const orderItems = deliveryType === 'groceries' ? getGroceryItems() : getMenuItems();
-        if (!orderItems.length) {
+        if (['meal', 'groceries'].includes(deliveryType) && !orderItems.length) {
           status.textContent = deliveryType === 'groceries'
             ? 'Add at least one grocery log item before submitting.'
             : 'Finalize at least one menu or service item to the order receipt before submitting.';
@@ -2004,12 +1963,16 @@
           return;
         }
 
+        if (latestQuote.overBudget) { status.textContent = 'Items exceed your purchase budget limit.'; status.classList.add('error'); return; }
+        if (emailReceiptToCustomer.checked && !String(data.get('customer-email') || '').trim()) { status.textContent = 'Enter an email address for your requested receipt copy.'; status.classList.add('error'); return; }
+        if (!form.reportValidity()) return;
         const selectedPrefs = getSelected('#service-preferences input[type="checkbox"]');
         const request = {
           id: `DLV-${Date.now().toString(36).toUpperCase()}`,
           createdAt: new Date().toISOString(),
           customer: {
             name: String(data.get('customer-name')).trim(),
+            email: String(data.get('customer-email') || '').trim(),
             phone: String(data.get('customer-phone')).trim()
           },
           route: {
@@ -2047,8 +2010,13 @@
           budget: Number(data.get('budget') || 0),
           notes: String(data.get('notes') || '').trim()
         };
-        const computedTotal = Number((document.querySelector('#total-fee').textContent || '').replace(/[^0-9.-]/g, '')) || 0;
-        request.total = computedTotal;
+        request.distanceKm = Number(data.get('distance-km') || 0);
+        request.parcelKg = Number(data.get('parcel-kg') || 0);
+        request.sendCustomerCopy = Boolean(emailReceiptToCustomer.checked);
+        request.pricing = calculateDeliveryQuote(request);
+        request.total = request.pricing.total;
+        request.currency = 'CAD';
+        request.paymentStatus = 'not-collected';
         request.receiptComment = String(receiptCommentInput?.value || '').trim();
         request.receiptComments = request.receiptComment
           ? [{ author: 'user', text: request.receiptComment, timestamp: new Date().toISOString() }]
@@ -2058,9 +2026,31 @@
         const requests = safeParse(localStorage.getItem(requestsKey) || '[]', []);
         request.assignedAccount = adminSupportUsername;
         request.requesterUsername = actor || sanitizeUser(request.customer?.name || '');
+
+        let deliveryResult;
+        bookingInFlight = true;
+        document.querySelector('#book-btn').disabled = true;
+        try {
+          const relay = await fetch('/delivery-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+          });
+          if (!relay.ok) throw new Error(`Delivery relay failed (${relay.status})`);
+          deliveryResult = await relay.json();
+          if (deliveryResult.pricing) { request.pricing = deliveryResult.pricing; request.total = request.pricing.total; }
+          request.receiptEmail = deliveryResult.receiptTargetEmail || receiptEmail;
+        } catch (error) {
+          status.classList.add('error');
+          status.textContent = 'Request was not confirmed. Sign in to your account and retry; no payment was collected.';
+          return;
+        } finally {
+          bookingInFlight = false;
+          document.querySelector('#book-btn').disabled = false;
+        }
         requests.unshift(request);
         localStorage.setItem(requestsKey, JSON.stringify(requests));
-        renderAdminOrderReceipts();
+        lastConfirmedRequest = request;
         const linkedService = safeParse(marketplaceService.value, null);
         const targetUser = sanitizeUser(linkedService?.user || '');
         if (targetUser && actor && targetUser !== actor) {
@@ -2073,23 +2063,12 @@
           });
         }
 
-        try {
-          const relay = await fetch('/delivery-orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request)
-          });
-          if (!relay.ok) throw new Error(`Delivery relay failed (${relay.status})`);
-        } catch (error) {
-          status.classList.add('error');
-          status.textContent = `Request ${request.id} saved locally, but routing to @admin failed. Please retry.`;
-          return;
-        }
 
-        const emailSent = await sendReceiptEmail(request);
+        renderAdminOrderReceipts();
+        const emailSent = deliveryResult.receiptDelivery?.admin?.success === true;
         const receiptAction = showOrderConfirmationPopup(request);
         status.classList.remove('error');
-        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${receiptEmail}. ${emailSent ? 'Email sent from server.' : 'Email dispatch queued on server.'} Receipt action: ${receiptAction}. Need help or comments? Reach @${adminSupportUsername}.`;
+        status.textContent = `Request ${request.id} confirmed and routed to @${adminSupportUsername}. Receipt prepared for ${request.receiptEmail}. ${emailSent ? 'Admin receipt email sent.' : 'Email delivery unavailable; use Save or Print for your receipt.'} No payment was collected. Receipt action: ${receiptAction}. Need help or comments? Reach @${adminSupportUsername}.`;
         const profileUser = sanitizeUser(localStorage.getItem('chaines_username') || actor || '');
         if (profileUser) {
           window.open(`/profile.html?user=${encodeURIComponent(profileUser)}&delivery=1`, '_blank', 'noopener');
@@ -2099,6 +2078,7 @@
       document.querySelector('#delivery-types').addEventListener('change', toggleChipState);
       document.querySelector('#service-preferences').addEventListener('change', toggleChipState);
       form.addEventListener('input', updateSummary);
+      receiptCommentInput.addEventListener('input', () => { lastConfirmedRequest = null; });
       finalizedItemsHost.addEventListener('click', (event) => {
         const control = event.target.closest('button[data-finalized-up], button[data-finalized-down], button[data-finalized-remove]');
         if (!control) return;
@@ -2113,7 +2093,7 @@
         addGroceryLogItem();
       });
       document.querySelector('#book-btn').addEventListener('click', bookRequest);
-      printReceiptBtn.addEventListener('click', () => {
+      function buildPreview() {
         const preview = {
           id: 'PREVIEW-RECEIPT',
           createdAt: new Date().toISOString(),
@@ -2134,13 +2114,17 @@
           partnerTier: selectedPartner,
           speed: speed.value,
           tip: getNormalizedTip(),
+          distanceKm: Number(form.querySelector('#distance-km').value || 0),
+          parcelKg: Number(form.querySelector('#parcel-kg').value || 0),
           budget: Number(budget.value || 0),
           items: getDeliveryType() === 'groceries' ? getGroceryItems() : getMenuItems(),
           notes: form.querySelector('#notes').value.trim(),
           receiptComment: String(receiptCommentInput?.value || '').trim()
         };
-        printReceipt(preview);
-      });
+        return preview;
+      }
+      printReceiptBtn.addEventListener('click', () => printReceipt(lastConfirmedRequest || buildPreview()));
+      document.querySelector('#save-receipt-btn').addEventListener('click', () => saveReceipt(lastConfirmedRequest || buildPreview()));
       marketplaceService.addEventListener('change', syncServiceFromMarketplace);
       marketplaceMenu.addEventListener('change', syncMenuFromMarketplace);
       applyPackageBtn.addEventListener('click', applyMealPackage);
@@ -2176,10 +2160,11 @@
       quickAddMoreBtn.addEventListener('click', () => addQuickSelectedItem(true));
 
       adminConfig = mergeAdminConfig(adminConfig);
+      adminConfig.pricing = { ...adminConfig.pricing, ...DELIVERY_RATES };
       syncQuickMenuFromAdmin();
       populateStandardizedGroceries();
       loadMarketplaceServices();
-      addMenuItemRow({ qty: 1 });
+      addMenuItemRow({ qty: 1, basePrice: 0 });
       renderFinalizedItems();
       mountPartners();
       mountQuickMenu();
@@ -2187,6 +2172,7 @@
       renderDailyLineup();
       renderAdminOrderReceipts();
       updateSummary();
+      loadConfirmedReceipts();
       notifPanel.hidden = true;
       notifBell?.addEventListener('click', async () => {
         const willOpen = notifPanel.hidden;

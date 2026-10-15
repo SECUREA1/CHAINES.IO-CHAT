@@ -1,3 +1,4 @@
+import { calculateDeliveryQuote, deliveryReceiptLines } from '../static/delivery-pricing.js';
 // server.js
 import http from "http";
 import crypto from "crypto";
@@ -33,6 +34,10 @@ if (!process.env.DB_PATH) {
 }
 const db = new Database(DB_PATH);
 db.exec(`
+  CREATE TABLE IF NOT EXISTS delivery_orders (
+    id TEXT PRIMARY KEY, username TEXT NOT NULL, request_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
@@ -536,31 +541,7 @@ function ensureAdminAccount() {
   saveProfiles();
 }
 
-function buildReceiptText(request = {}) {
-  const itemSummary = Array.isArray(request.items)
-    ? request.items.map((item) => `${Number(item?.qty || 1)}x ${String(item?.name || "Item").trim()}`).join(", ")
-    : "";
-  return [
-    "CHAINeS Delivery Receipt",
-    `Receipt ID: ${request.id || `DLV-${Date.now().toString(36).toUpperCase()}`}`,
-    `Created: ${request.createdAt || new Date().toISOString()}`,
-    `Customer: ${request.customer?.name || ""}`,
-    `Phone: ${request.customer?.phone || ""}`,
-    `Pickup: ${request.route?.pickup || ""}`,
-    `Dropoff: ${request.route?.dropoff || ""}`,
-    `Service: ${request.service?.name || "Custom request"} (${request.service?.category || "General"})`,
-    `Delivery Type: ${request.service?.deliveryType || "meal"}`,
-    `Type Details: ${request.deliveryTypeDetails || "N/A"}`,
-    `Partner Tier: ${request.partnerTier?.name || ""}`,
-    `Speed: ${request.speed || "standard"}`,
-    `Tip: $${Number(request.tip || 0).toFixed(2)}`,
-    `Budget: $${Number(request.budget || 0).toFixed(2)}`,
-    `Total: $${Number(request.total || 0).toFixed(2)}`,
-    `Items: ${itemSummary || "No items listed"}`,
-    `Receipt Comment: ${request.receiptComment || "None"}`,
-    `Notes: ${request.notes || "None"}`,
-  ].join("\n");
-}
+function buildReceiptText(request = {}) { return deliveryReceiptLines(request).join('\n'); }
 
 
 function buildFaceScanFailureText({ username = "", reason = "", attempts = 0 } = {}) {
@@ -610,14 +591,15 @@ async function sendFaceScanFailureEmail(payload = {}, to = DEFAULT_RECEIPT_EMAIL
 async function sendDeliveryReceiptEmail(request = {}, to = DEFAULT_RECEIPT_EMAIL) {
   const target = String(to || DEFAULT_RECEIPT_EMAIL).trim() || DEFAULT_RECEIPT_EMAIL;
   if (!RESEND_API_KEY) {
-    console.warn(`[delivery-receipt] RESEND_API_KEY missing. Receipt ${request.id || "N/A"} queued for ${target}.`);
-    return { success: false, queued: true, reason: "missing_resend_api_key", to: target };
+    console.warn(`[delivery-receipt] RESEND_API_KEY missing. Receipt ${request.id || "N/A"} unavailable for ${target}.`);
+    return { success: false, queued: false, reason: "missing_resend_api_key", to: target };
   }
   const subject = `Delivery Receipt ${request.id || `DLV-${Date.now().toString(36).toUpperCase()}`}`;
   const text = buildReceiptText(request);
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(10000),
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
@@ -637,7 +619,7 @@ async function sendDeliveryReceiptEmail(request = {}, to = DEFAULT_RECEIPT_EMAIL
     return { success: true, to: target };
   } catch (error) {
     console.error(`[delivery-receipt] Email error for ${target}:`, error);
-    return { success: false, queued: true, reason: "network_error", to: target };
+    return { success: false, queued: false, reason: "network_error", to: target };
   }
 }
 
@@ -1423,11 +1405,46 @@ app.patch("/api/memory/:namespace", requireSession, (req, res) => {
 });
 app.delete("/api/memory/:namespace", requireSession, (req, res) => { const ns=req.params.namespace; if (!validNamespace(ns)) return res.status(400).json({ error: "Invalid namespace" }); db.prepare("DELETE FROM user_memory WHERE user_id=? AND namespace=?").run(req.session.user.id, ns); res.json({ success: true }); });
 
-app.post("/delivery-orders", requireSession, (req, res) => {
+app.get("/delivery-orders", requireSession, (req, res) => {
+  const username = req.session.user.username;
+  const rows = username === ADMIN_ACCOUNT.username
+    ? db.prepare("SELECT request_json FROM delivery_orders ORDER BY created_at DESC LIMIT 100").all()
+    : db.prepare("SELECT request_json FROM delivery_orders WHERE username=? ORDER BY created_at DESC LIMIT 100").all(username);
+  res.json({items: rows.map(row => JSON.parse(row.request_json))});
+});
+
+app.post("/delivery-orders", requireSession, async (req, res) => {
   ensureAdminAccount();
   const adminUsername = ADMIN_ACCOUNT.username;
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const deliveryId = String(payload.id || `DLV-${Date.now().toString(36).toUpperCase()}`);
+  const requester = req.session.user.username;
+  const existing = db.prepare("SELECT username, request_json FROM delivery_orders WHERE id=?").get(deliveryId);
+  if (existing) {
+    if (existing.username !== requester) return res.status(409).json({error: "Request ID is already in use"});
+    const saved = JSON.parse(existing.request_json);
+    return res.json({success: true, id: deliveryId, adminUsername, pricing: saved.pricing, duplicate: true});
+  }
+  if (!payload.customer?.name || !payload.customer?.phone || !payload.route?.pickup || !payload.route?.dropoff) {
+    return res.status(400).json({error: "Customer name, phone, pickup and dropoff are required"});
+  }
+  if (!Array.isArray(payload.items) || payload.items.length > 200) return res.status(400).json({error: "Invalid item list"});
+  if (payload.items.some(item => !item || typeof item !== 'object' || !String(item.name || '').trim()
+      || !Number.isFinite(Number(item.basePrice ?? 0)) || Number(item.basePrice ?? 0) < 0
+      || !Number.isFinite(Number(item.qty ?? 1)) || Number(item.qty ?? 1) < 1
+      || !Number.isFinite(Number(item.priceAdjust ?? 0)))) {
+    return res.status(400).json({error: "Invalid item details"});
+  }
+
+  if (['meal', 'groceries'].includes(payload.service?.deliveryType || 'meal') && !payload.items.length) return res.status(400).json({error: "Add at least one item"});
+  payload.pricing = calculateDeliveryQuote(payload);
+  if (payload.pricing.overBudget) return res.status(400).json({error: "Items exceed purchase budget limit"});
+  payload.items = payload.pricing.items;
+  payload.total = payload.pricing.total;
+  payload.id = deliveryId;
+  payload.currency = 'CAD';
+  payload.paymentStatus = 'not-collected';
+
   const customerName = String(payload.customer?.name || "Customer").trim() || "Customer";
   const serviceName = String(payload.service?.name || "Delivery request").trim() || "Delivery request";
   const deliveryType = String(payload.service?.deliveryType || "meal").trim() || "meal";
@@ -1440,14 +1457,9 @@ app.post("/delivery-orders", requireSession, (req, res) => {
     : "";
   const message = `Delivery ${deliveryId} | ${customerName} | ${serviceName} (${deliveryType}) | ${routeSummary}${itemSummary ? ` | ${itemSummary}` : ""}`;
 
-  const notifPayload = {
-    id: deliveryId,
-    customer: payload.customer || {},
-    route: payload.route || {},
-    service: payload.service || {},
-    items: Array.isArray(payload.items) ? payload.items : [],
-    createdAt: payload.createdAt || new Date().toISOString(),
-  };
+  const notifPayload = { ...payload, createdAt: payload.createdAt || new Date().toISOString() };
+  db.prepare("INSERT INTO delivery_orders (id, username, request_json) VALUES (?, ?, ?)")
+    .run(deliveryId, requester, JSON.stringify(notifPayload));
 
   const notifResult = db
     .prepare("INSERT INTO notifications (username, type, data) VALUES (?, 'delivery-order', ?)")
@@ -1472,16 +1484,16 @@ app.post("/delivery-orders", requireSession, (req, res) => {
     url: "/delivery-services.html",
   });
 
-  const receiptTargetEmail = String(payload.receiptEmail || DEFAULT_RECEIPT_EMAIL || "").trim() || DEFAULT_RECEIPT_EMAIL;
-  console.log(`[delivery-orders] ${deliveryId} confirmed and routed to @admin. Receipt target: ${receiptTargetEmail}`);
-  sendDeliveryReceiptEmail({ ...payload, id: deliveryId }, receiptTargetEmail).catch(() => {});
-
+  const receiptTargetEmail = DEFAULT_RECEIPT_EMAIL;
+  const adminReceipt = await sendDeliveryReceiptEmail(payload, receiptTargetEmail);
+  const customerEmail = String(payload.customer?.email || '').trim();
+  const customerReceipt = payload.sendCustomerCopy && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)
+    ? await sendDeliveryReceiptEmail(payload, customerEmail) : null;
   res.json({
-    success: true,
-    adminUsername,
-    notificationId: notifResult.lastInsertRowid,
-    messageId: messageResult.lastInsertRowid,
-    receiptTargetEmail,
+    success: true, id: deliveryId, adminUsername,
+    notificationId: notifResult.lastInsertRowid, messageId: messageResult.lastInsertRowid,
+    receiptTargetEmail, pricing: payload.pricing,
+    receiptDelivery: {admin: adminReceipt, customer: customerReceipt}
   });
 });
 

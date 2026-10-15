@@ -142,3 +142,30 @@ test('facial recognition is an explicit, reversible sign-in choice', async (t)=>
   assert.equal(r.status, 401);
   assert.equal(r.body.faceRequired, true);
 });
+
+test('delivery receipts use server totals, persist once, and report unavailable email honestly', async (t)=>{
+  const srv = await startServer(); t.after(()=>srv.child.kill());
+  const registered = await json(await fetch(srv.base+'/register', {method:'POST',body:new URLSearchParams({username:'delivery_customer',password:'correct horse battery staple',useFacialRecognition:'false'})}));
+  assert.equal(registered.status,200);
+  const headers={'Content-Type':'application/json',cookie:registered.headers.get('set-cookie')};
+  const order={id:'DLV-test-1',customer:{name:'Test Customer',phone:'555-0100'},route:{pickup:'Toronto',dropoff:'Toronto'},service:{deliveryType:'meal'},items:[{name:'Lunch',group:'lunch',qty:1,basePrice:12.99}],budget:20,total:999};
+  let result=await json(await fetch(srv.base+'/delivery-orders',{method:'POST',headers,body:JSON.stringify(order)}));
+  assert.equal(result.status,200);assert.equal(result.body.pricing.total,14.68);
+  assert.equal(result.body.receiptDelivery.admin.success,false);assert.equal(result.body.receiptDelivery.admin.queued,false);
+  assert.equal(result.body.pricing.paymentStatus,'not-collected');
+  result=await json(await fetch(srv.base+'/delivery-orders',{method:'POST',headers,body:JSON.stringify(order)}));
+  assert.equal(result.body.duplicate,true);assert.equal(result.body.pricing.total,14.68);
+  const Database=(await import('better-sqlite3')).default;
+  const database=new Database(srv.db);t.after(()=>database.close());
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM delivery_orders').get().n,1);
+  const saved=JSON.parse(database.prepare('SELECT request_json FROM delivery_orders').get().request_json);
+  assert.equal(saved.total,14.68);assert.equal(saved.currency,'CAD');
+  const history=await json(await fetch(srv.base+'/delivery-orders',{headers}));
+  assert.equal(history.body.items.length,1);assert.equal(history.body.items[0].total,14.68);
+  const other=await json(await fetch(srv.base+'/register',{method:'POST',body:new URLSearchParams({username:'other_delivery_user',password:'correct horse battery staple',useFacialRecognition:'false'})}));
+  const privateHistory=await json(await fetch(srv.base+'/delivery-orders',{headers:{cookie:other.headers.get('set-cookie')}}));
+  assert.deepEqual(privateHistory.body.items,[]);
+
+  const rejected=await fetch(srv.base+'/delivery-orders',{method:'POST',headers,body:JSON.stringify({...order,id:'DLV-over',budget:1})});
+  assert.equal(rejected.status,400);
+});
