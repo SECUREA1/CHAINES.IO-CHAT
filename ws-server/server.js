@@ -936,7 +936,9 @@ app.post("/api/nft-dropper/mint", async (req, res) => {
 
   let { fileDataUrl, fileName, fileType, metadata } = req.body || {};
   if(typeof fileDataUrl === 'string' && fileDataUrl.startsWith('/media/')) {
-    const stored=db.prepare('SELECT mime,bytes FROM media_assets WHERE id=?').get(fileDataUrl.slice(7));
+    const stored=db.prepare('SELECT mime,bytes,disk_id,file_size FROM media_assets WHERE id=?').get(fileDataUrl.slice(7));
+    if(stored?.file_size>100*1024*1024) return res.status(413).json({error:'Minting supports files up to 100 MB. The original remains available in the feed.'});
+    if(stored?.disk_id) stored.bytes=fs.readFileSync(path.join(process.env.MEDIA_STORAGE_DIR || path.resolve(path.dirname(process.env.DB_PATH || 'app.db'),'media-assets'),stored.disk_id));
     if(stored) fileDataUrl=`data:${stored.mime};base64,${stored.bytes.toString('base64')}`;
   }
   if (!fileDataUrl || !fileName) {

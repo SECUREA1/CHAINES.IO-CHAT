@@ -1,7 +1,8 @@
 (() => {
   const kind=type=>type?.startsWith('video/')?'video':type?.startsWith('audio/')?'audio':type?.startsWith('image/')?'image':'attachment';
   async function upload(blob){
-    if(blob.size>100*1024*1024) throw new Error('Files must be 100 MB or smaller.');
+    const video=String(blob.type).startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|avi|ogv|mpeg|mpg|3gp)$/i.test(blob.name||'');
+    if(!video && blob.size>100*1024*1024) throw new Error('Non-video files must be 100 MB or smaller.');
     const body=new FormData();
     // Only a safe format extension leaves the browser, never the original basename.
     const type=String(blob.type||'application/octet-stream').split(';')[0].trim();

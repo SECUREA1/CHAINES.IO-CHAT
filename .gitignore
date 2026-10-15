@@ -8,3 +8,6 @@ nft-dropper-work/
 *.skeys
 *.id
 .env
+
+# Streamed cloud media (runtime data)
+media-assets/

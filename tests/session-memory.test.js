@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 const root = path.resolve(import.meta.dirname, '..');
 const serverFile = path.join(root, 'ws-server', 'server.js');
@@ -172,7 +172,19 @@ test('delivery receipts use server totals, persist once, and report unavailable 
 
 test('cloud media preserves original bytes and supports seeking without exposing source filenames',async(t)=>{
   const srv=await startServer();t.after(()=>srv.child.kill());
-  const bytes=Buffer.from('0123456789abcdef');
+  const fixture=path.join(os.tmpdir(),'chaines-video-'+Date.now()+'.mp4');
+  execFileSync('ffmpeg',['-v','error','-f','lavfi','-i','color=size=16x16:rate=1','-t','60','-c:v','libx264','-pix_fmt','yuv420p','-y',fixture]);
+  t.after(()=>fs.rmSync(fixture,{force:true}));
+  // Above the former 100 MB cap, while remaining a valid 60-second video.
+  const bytes=Buffer.concat([fs.readFileSync(fixture),Buffer.alloc(101*1024*1024)]);
+  const invalid=new FormData();invalid.append('file',new Blob(['not video'],{type:'video/mp4'}),'private.mp4');
+  assert.equal((await fetch(srv.base+'/api/media',{method:'POST',body:invalid})).status,422);
+  const long=fixture+'.long.mp4';
+  execFileSync('ffmpeg',['-v','error','-f','lavfi','-i','color=size=16x16:rate=1','-t','61','-c:v','libx264','-y',long]);
+  t.after(()=>fs.rmSync(long,{force:true}));
+  const over=new FormData();over.append('file',new Blob([fs.readFileSync(long)],{type:'video/mp4'}),'private.mp4');
+  const rejected=await json(await fetch(srv.base+'/api/media',{method:'POST',body:over}));
+  assert.equal(rejected.status,422);assert.match(rejected.body.error,/60 seconds/);
   const form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'private-source-name.mp4');
   const uploaded=await json(await fetch(srv.base+'/api/media',{method:'POST',body:form,headers:{Origin:'https://www.chaines.io'}}));
   assert.equal(uploaded.status,201);assert.equal(uploaded.headers.get('access-control-allow-origin'),'https://www.chaines.io');
@@ -186,10 +198,10 @@ test('cloud media preserves original bytes and supports seeking without exposing
   assert.equal(await otherDownload.text(),'format-specific bytes');
 
   const full=await fetch(url);assert.deepEqual(Buffer.from(await full.arrayBuffer()),bytes);
-  const ranged=await fetch(url,{headers:{Range:'bytes=2-5'}});assert.equal(ranged.status,206);assert.equal(ranged.headers.get('content-range'),'bytes 2-5/16');assert.equal(await ranged.text(),'2345');
+  const ranged=await fetch(url,{headers:{Range:'bytes=2-5'}});assert.equal(ranged.status,206);assert.equal(ranged.headers.get('content-range'),'bytes 2-5/'+bytes.length);assert.deepEqual(Buffer.from(await ranged.arrayBuffer()),bytes.subarray(2,6));
   assert(!ranged.headers.get('content-disposition').includes('private-source-name'));
-  assert.equal((await fetch(url,{headers:{Range:'bytes=999-'}})).status,416);
-  const suffix=await fetch(url,{headers:{Range:'bytes=-3'}});assert.equal(await suffix.text(),'def');
+  assert.equal((await fetch(url,{headers:{Range:'bytes='+bytes.length+'-'}})).status,416);
+  const suffix=await fetch(url,{headers:{Range:'bytes=-3'}});assert.deepEqual(Buffer.from(await suffix.arrayBuffer()),bytes.subarray(-3));
   const download=await fetch(url+'?download=1');assert.match(download.headers.get('content-disposition'),/^attachment/);
   const WebSocket=(await import('ws')).default;
   const socket=new WebSocket(srv.base.replace('http','ws')+'/ws');t.after(()=>socket.close());
@@ -203,7 +215,7 @@ test('cloud media preserves original bytes and supports seeking without exposing
   await wait(30);
   const Database=(await import('better-sqlite3')).default;const database=new Database(srv.db);t.after(()=>database.close());
   assert.equal(database.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE file=?').get(uploaded.body.url).n,1);
-  const stored=database.prepare('SELECT bytes FROM media_assets WHERE id=?').get(uploaded.body.url.split('/').pop());assert.deepEqual(stored.bytes,bytes);
+  const stored=database.prepare('SELECT disk_id,file_size FROM media_assets WHERE id=?').get(uploaded.body.url.split('/').pop());assert.equal(stored.file_size,bytes.length);assert.deepEqual(fs.readFileSync(path.join(path.dirname(srv.db),'media-assets',stored.disk_id)),bytes);
   socket.close();srv.child.kill();
   const restarted=spawn(process.execPath,[serverFile],{cwd:path.join(root,'ws-server'),env:{...process.env,PORT:new URL(srv.base).port,DB_PATH:srv.db,RESEND_API_KEY:'',TWILIO_ACCOUNT_SID:'',TWILIO_AUTH_TOKEN:'',TWILIO_FROM_PHONE:''},stdio:'ignore'});t.after(()=>restarted.kill());
   let recovered;for(let i=0;i<80;i++){try{const r=await fetch(url);if(r.ok){recovered=Buffer.from(await r.arrayBuffer());break;}}catch{}await wait(50);}
