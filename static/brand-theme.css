@@ -363,16 +363,33 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 .chaines-index footer #profile-link::before,
 .chaines-index footer #profile-pic { transform: translateY(-5px); }
 
-/* A complete, balanced desktop identity row and uniformly sized shortcuts. */
+/* Desktop stays on one row; mobile retains the two-row reference layout. */
 @media (min-width: 901px) {
-  .chaines-index header { padding: 16px; gap: 14px; }
-  .chaines-index header .toolbar { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 8px; }
-  .chaines-index header .toolbar-primary { width: 100%; max-width: none; gap: 10px; }
-  .chaines-index header #toolbar-overflow-toggle { width: 64px; height: 60px; }
-  .chaines-index header .toolbar-primary .chip { height: 60px; min-height: 60px; border-radius: 14px; }
-  .chaines-index header .brand .logo { width: 44px; height: 44px; }
-  .chaines-index header .bar-right { gap: 12px; }
-  .chaines-index header .install-app-btn { min-height: 44px; padding: 8px 14px; border-radius: 12px; }
+  .chaines-index header { flex-direction: row; align-items: center; padding: 10px; gap: 12px; }
+  .chaines-index header > .bar { width: auto; flex: 0 0 auto; gap: 12px; }
+  .chaines-index header > #toolbar-shell { width: auto; flex: 1 1 0; min-width: 0; }
+  .chaines-index header .bar > .brand { flex: 0 0 auto; gap: 8px; }
+  .chaines-index header .brand .logo { width: 36px; height: 36px; }
+  .chaines-index header .brand h1 { font-size: clamp(14px, 1.4vw, 22px); }
+  .chaines-index header .bar-right { gap: 8px; }
+  .chaines-index header .self-destruct { font-size: clamp(11px, 1vw, 16px); }
+  .chaines-index header .self-destruct input { width: 18px; height: 18px; }
+  .chaines-index header #logout-btn { width: 44px; min-width: 44px; height: 44px; }
+  .chaines-index header .install-app-btn { min-height: 44px; padding: 6px 10px; border-radius: 12px; }
+  .chaines-index header .toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 6px; padding: 6px; width: 100%; }
+  .chaines-index header .toolbar-primary { width: 100%; max-width: none; gap: 6px; }
+  .chaines-index header #toolbar-overflow-toggle { width: 44px; min-width: 44px; height: 44px; }
+  .chaines-index header .toolbar-primary #conn-chip { width: 100%; min-width: 0; max-width: none; }
+  .chaines-index header .toolbar-primary .chip { height: 44px; min-height: 44px; border-radius: 12px; }
+  .chaines-index header .toolbar-primary .chip img { width: 28px; height: 28px; }
+  .chaines-index header .toolbar-overflow-panel { left: auto; right: 0; }
+}
+@media (min-width: 901px) and (max-width: 1199px) {
+  .chaines-index header { gap: 8px; }
+  .chaines-index header > .bar { gap: 8px; }
+  .chaines-index header .bar-right { gap: 6px; }
+  .chaines-index header .install-app-btn { width: 44px; padding: 6px; }
+  .chaines-index header .install-app-btn > span { display: none; }
 }
 /* Explorer shares the navy frame, cyan accents, and tactile navigation. */
 .marketplace-explorer .wrap { gap: 20px; }

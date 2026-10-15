@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-60-second-video-v19';
+const CACHE_NAME = 'chaines-post-shell-desktop-one-row-v20';
 const APP_SHELL = [...new Set([
   '/',
   '/static/media-client.js',
