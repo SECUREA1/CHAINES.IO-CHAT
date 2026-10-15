@@ -362,3 +362,73 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 .chaines-index footer .status.bottom #profile-name { position: absolute; bottom: 3px; left: 3px; right: 3px; }
 .chaines-index footer #profile-link::before,
 .chaines-index footer #profile-pic { transform: translateY(-5px); }
+
+/* A complete, balanced desktop identity row and uniformly sized shortcuts. */
+@media (min-width: 901px) {
+  .chaines-index header { padding: 16px; gap: 14px; }
+  .chaines-index header .toolbar { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 8px; }
+  .chaines-index header .toolbar-primary { width: 100%; max-width: none; gap: 10px; }
+  .chaines-index header #toolbar-overflow-toggle { width: 64px; height: 60px; }
+  .chaines-index header .toolbar-primary .chip { height: 60px; min-height: 60px; border-radius: 14px; }
+  .chaines-index header .brand .logo { width: 44px; height: 44px; }
+  .chaines-index header .bar-right { gap: 12px; }
+  .chaines-index header .install-app-btn { min-height: 44px; padding: 8px 14px; border-radius: 12px; }
+}
+/* Explorer shares the navy frame, cyan accents, and tactile navigation. */
+.marketplace-explorer .wrap { gap: 20px; }
+.marketplace-explorer header.panel { align-items: stretch; gap: 16px; }
+.marketplace-explorer header .brand { justify-content: flex-start; }
+.marketplace-explorer header .brand-mark { width: 44px; height: 44px; padding: 0; }
+.marketplace-explorer header .title { font-size: clamp(19px, 3vw, 27px); white-space: normal; }
+.marketplace-explorer .top-actions { display: flex; align-items: stretch; gap: 8px; padding: 8px; border: 1px solid #38578f; border-radius: 16px; background: #0d172f; }
+.marketplace-explorer :is(.top-link,.notif-btn,.market-control-bar button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 9px 14px; border: 1px solid #38578f; border-radius: 11px; background: linear-gradient(145deg,#14203e,#0d152c); color: #eef3ff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.marketplace-explorer .top-actions .notif-wrap { display: flex; }
+.marketplace-explorer .primary-action, .marketplace-explorer .market-control-bar button[aria-pressed='true'] { background: linear-gradient(130deg,#145a9c,#19447e); border-color: #64cfff; }
+.marketplace-explorer :is(button,a,input,select,textarea):focus-visible { outline: 2px solid #64cfff; outline-offset: 3px; }
+.marketplace-explorer .market-control-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 18px 22px 0; }
+.marketplace-explorer :is(.category-shortcuts,.market-view-controls) { display: flex; flex-wrap: wrap; gap: 6px; }
+.marketplace-explorer .tools { grid-template-columns: minmax(180px,2fr) repeat(3,minmax(120px,1fr)) auto; align-items: center; }
+.marketplace-explorer .tools > * { min-width: 0; }
+.marketplace-explorer .tools button, .marketplace-explorer .post-grid button { background: linear-gradient(130deg,#156cae,#1552a0); border-color: #4fa5d9; }
+.marketplace-explorer button:disabled { opacity: .55; cursor: wait; }
+.marketplace-explorer select:disabled { opacity: .45; }
+.marketplace-explorer .live-pill[data-state='loading']::before { background: #64cfff; }
+.marketplace-explorer .live-pill[data-state='offline'] { color: #ffd38b; border-color: #80602c; }
+.marketplace-explorer .live-pill[data-state='offline']::before { background: #ffd38b; box-shadow: none; }
+.marketplace-explorer .post-wrap { display: block; margin: 4px 22px 16px; padding: 16px; border-color: #38578f; background: #0d1830; }
+.marketplace-explorer .post-wrap summary { cursor: pointer; color: #e7f1ff; font-weight: 800; min-height: 32px; }
+.marketplace-explorer .post-wrap summary span { margin-left: 10px; font-size: 12px; font-weight: 400; color: #acb9d0; }
+.marketplace-explorer .post-wrap[open] .post-brand { margin-top: 16px; }
+.marketplace-explorer .post-grid { margin-top: 12px; }
+.marketplace-explorer .grid { padding: 8px 22px 22px; grid-template-columns: repeat(auto-fill,minmax(min(100%,290px),1fr)); gap: 16px; }
+.marketplace-explorer .grid[data-view='list'] { grid-template-columns: 1fr; }
+.marketplace-explorer .card { border-color: #344d76; background: linear-gradient(145deg,#13213d,#101a31); padding: 18px; overflow-wrap: anywhere; }
+.marketplace-explorer .card h3 { margin: 0; }
+.marketplace-explorer .comment-form, .marketplace-explorer .contact-form { flex-wrap: wrap; }
+.marketplace-explorer .comment-form input, .marketplace-explorer .contact-form input { min-width: 0; }
+@media (max-width: 900px) {
+  .marketplace-explorer .tools { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .marketplace-explorer .tools #search { grid-column: 1/-1; }
+  .marketplace-explorer .tools #refresh { grid-column: auto; }
+  .marketplace-explorer .top-actions > * { flex: 1 1 140px; }
+  .marketplace-explorer .notif-btn { width: 100%; }
+}
+@media (max-width: 600px) {
+  .marketplace-explorer .wrap { padding: 12px; gap: 12px; }
+  .marketplace-explorer .market-heading { flex-wrap: wrap; padding: 16px; }
+  .marketplace-explorer .market-control-bar { margin: 0 16px; }
+  .marketplace-explorer .tools { padding: 16px; }
+  .marketplace-explorer .post-wrap { margin: 0 16px 16px; padding: 12px; }
+  .marketplace-explorer .post-wrap summary span { display: block; margin: 6px 0 0; }
+  .marketplace-explorer .grid { padding: 0 16px 16px; }
+  .marketplace-explorer .post-grid { grid-template-columns: minmax(0,1fr); }
+}
+
+@media (max-width: 900px) {
+  .marketplace-explorer .tools { display: grid; }
+  .marketplace-explorer #dating-match:disabled { display: none; }
+  .marketplace-explorer .tools #refresh { grid-column: 1/-1; }
+}
+@media (max-width: 600px) {
+  .marketplace-explorer .post-grid { display: grid; }
+}

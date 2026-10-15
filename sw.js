@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-unified-dock-posts-v15';
+const CACHE_NAME = 'chaines-post-shell-explorer-desktop-v16';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',

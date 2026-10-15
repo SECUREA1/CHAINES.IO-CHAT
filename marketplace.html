@@ -135,10 +135,10 @@
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=unified-dock-posts-v10" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=explorer-desktop-v11" />
 <link rel="apple-touch-icon" sizes="180x180" href="/static/brand/v2/logo-180.png" />
 </head>
-<body>
+<body class="marketplace-explorer">
   <div class="wrap">
     <header class="panel">
       <div class="brand">
@@ -148,7 +148,8 @@
           <h1 class="title">Marketplace Explorer</h1>
         </div>
       </div>
-      <div class="top-actions">
+      <nav class="top-actions" aria-label="Marketplace navigation">
+        <button class="top-link primary-action" id="new-listing" type="button">+ Create listing</button>
         <div class="notif-wrap">
           <button id="notif-bell" class="notif-btn" type="button">🔔 Notifications <span id="notif-dot" class="notif-dot"></span></button>
           <div id="notif-panel" class="notif-panel" hidden></div>
@@ -159,20 +160,34 @@
         </a>
         <a class="top-link" href="/delivery-services.html">Delivery Requests</a>
         <a class="top-link" href="/index.html">← Back to feed</a>
-      </div>
+      </nav>
     </header>
 
     <section class="panel" aria-label="Marketplace listings">
       <div class="market-heading">
         <div>
           <h2>All active sellers</h2>
-          <p>Every active item listed by every MUZIKAZ member appears here together.</p>
+          <p>Discover offers from CHAINeS sellers. Find a service, connect, or publish your own listing.</p>
         </div>
-        <span class="live-pill">Live marketplace</span>
+        <span id="market-sync-status" class="live-pill" role="status" aria-live="polite">Connecting…</span>
+      </div>
+      <div class="market-control-bar">
+        <div class="category-shortcuts" role="group" aria-label="Quick category filters">
+          <button type="button" data-market-category="all" aria-pressed="true">All listings</button>
+          <button type="button" data-market-category="for-sale" aria-pressed="false">For sale</button>
+          <button type="button" data-market-category="services" aria-pressed="false">Services</button>
+          <button type="button" data-market-category="jobs" aria-pressed="false">Jobs</button>
+          <button type="button" data-market-category="dating" aria-pressed="false">Dating</button>
+        </div>
+        <div class="market-view-controls" role="group" aria-label="Listing layout">
+          <button type="button" data-market-view="grid" aria-pressed="true">Grid</button>
+          <button type="button" data-market-view="list" aria-pressed="false">List</button>
+          <button type="button" id="clear-filters">Reset filters</button>
+        </div>
       </div>
       <div class="tools">
         <input id="search" type="search" aria-label="Search marketplace" placeholder="Search listings, people, locations…" />
-        <select id="category">
+        <select id="category" aria-label="Listing category">
           <option value="all">All Categories</option>
           <option value="jobs">Jobs</option>
           <option value="for-sale">Items for sale</option>
@@ -191,12 +206,12 @@
           <option value="ads">Ads</option>
           <option value="general">General</option>
         </select>
-        <select id="sort">
+        <select id="sort" aria-label="Sort listings">
           <option value="value">Top posts first</option>
           <option value="new">Newest first</option>
           <option value="old">Oldest first</option>
         </select>
-        <select id="dating-match">
+        <select id="dating-match" aria-label="Dating search field">
           <option value="all">Dating: All</option>
           <option value="likes">Search in likes</option>
           <option value="dislikes">Search in dislikes</option>
@@ -205,10 +220,11 @@
         <button id="refresh" type="button">Refresh results</button>
       </div>
       <div class="meta">
-        <span id="count">0 listings</span>
+        <span id="count" role="status" aria-live="polite">0 listings</span>
         <span>Use filters to find the right offer, service, or connection.</span>
       </div>
-      <div class="post-wrap">
+      <details class="post-wrap" id="listing-composer">
+        <summary>Create a listing <span>Offer an item, a service, or an opportunity</span></summary>
         <div class="post-brand">
           <div>
             <h2 class="post-title">Create a listing</h2>
@@ -279,7 +295,7 @@
           <button type="submit">Publish Listing</button>
         </form>
         <div id="post-status" class="post-status" aria-live="polite"></div>
-      </div>
+      </details>
       <div id="listings" class="grid"></div>
       <div class="inbox">
         <strong>Contact Inbox</strong>
@@ -433,11 +449,12 @@
         persistRemoteListings(listingCache).catch(() => {});
       };
       const saveNow = async (items) => {
-        listingCache = cloneItems(items);
+        const next = cloneItems(items);
+        await persistRemoteListings(next);
+        listingCache = next;
         try {
           localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
         } catch {}
-        await persistRemoteListings(listingCache);
       };
       const hydrateListings = async () => {
         try {
@@ -447,33 +464,38 @@
           listingCache = [];
         }
         render();
-        try {
-          const res = await fetch('/api/marketplace/listings');
-          if (!res.ok) return;
-          const data = await res.json().catch(() => ({}));
-          if (!Array.isArray(data?.items)) return;
-          listingCache = cloneItems(data.items);
-          try {
-            localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
-          } catch {}
-          render();
-        } catch {}
+        await refreshListings();
       };
+      let refreshInFlight = false;
+      const syncStatus = $('#market-sync-status');
       const refreshListings = async ({ announce = false } = {}) => {
-        if (announce) setPostStatus('Refreshing listings…', 'success');
+        if (refreshInFlight) return;
+        refreshInFlight = true;
+        controls.refresh.disabled = true;
+        controls.refresh.textContent = 'Refreshing…';
+        list.setAttribute('aria-busy', 'true');
+        syncStatus.textContent = 'Refreshing listings…';
+        syncStatus.dataset.state = 'loading';
         try {
           const res = await fetch('/api/marketplace/listings', { cache: 'no-store' });
           if (!res.ok) throw new Error('marketplace refresh failed');
           const data = await res.json();
           if (!Array.isArray(data?.items)) throw new Error('invalid marketplace response');
           listingCache = cloneItems(data.items);
-          try {
-            localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache)));
-          } catch {}
+          try { localStorage.setItem(sourceKey, JSON.stringify(compactForLocalCache(listingCache))); } catch {}
           render();
+          syncStatus.textContent = 'Up to date';
+          syncStatus.dataset.state = 'ready';
           if (announce) setPostStatus('Showing the latest listings from all sellers.', 'success');
         } catch {
+          syncStatus.textContent = listingCache.length ? 'Cached listings · retry refresh' : 'Unable to load · retry refresh';
+          syncStatus.dataset.state = 'offline';
           if (announce) setPostStatus('Could not refresh listings right now. Please try again.', 'error');
+        } finally {
+          refreshInFlight = false;
+          controls.refresh.disabled = false;
+          controls.refresh.textContent = 'Refresh results';
+          list.setAttribute('aria-busy', 'false');
         }
       };
       const loadLikedMap = () => {
@@ -837,45 +859,30 @@
           const safeUserRaw = sanitizeUser(m.user || 'anon') || 'anon';
           const safeUser = escapeHtml(safeUserRaw);
           const safeProfileHref = `/profile.html?user=${encodeURIComponent(safeUserRaw)}`;
-          const safeLocation = escapeHtml(l.location || '—');
-          const safeCondition = escapeHtml(l.condition || '—');
           const mediaHtml = l.media.length
             ? `<div class="media-grid">${l.media.map((item) => item.type.startsWith('video/')
               ? `<video controls preload="metadata" src="${item.url}"></video>`
               : `<img alt="Marketplace upload" loading="lazy" src="${item.url}" />`).join('')}</div>`
             : '';
+          const detailRows = entries => entries
+            .filter(([, value]) => String(value ?? '').trim())
+            .map(([label, value]) => `<div class="small"><strong>${label}:</strong> ${escapeHtml(String(value))}</div>`).join('');
           const datingDetails = l.category === 'dating'
-            ? `<div class="small">Availability: ${l.availability || '—'}</div>
-               <div class="small">Interests: ${l.interests || '—'}</div>
-               <div class="dating-profile">
-                 <div class="small">Age: ${l.age || '—'}</div>
-                 <div class="small">Gender: ${escapeHtml(l.gender || '—')}</div>
-                 <div class="small">Looking for: ${escapeHtml(l.lookingFor || '—')}</div>
-                 <div class="small">Relationship goals: ${escapeHtml(l.datingIntent || '—')}</div>
-                 <div class="small">Ideal first date: ${escapeHtml(l.firstDate || '—')}</div>
-                 <div class="small">Likes: ${escapeHtml(l.datingLikes || '—')}</div>
-                 <div class="small">Dislikes: ${escapeHtml(l.datingDislikes || '—')}</div>
-                 <div class="small">Bio: ${escapeHtml(l.datingBio || '—')}</div>
-               </div>`
+            ? detailRows([['Availability', l.availability], ['Interests', l.interests], ['Age', l.age],
+                ['Gender', l.gender], ['Looking for', l.lookingFor], ['Relationship goals', l.datingIntent],
+                ['Ideal first date', l.firstDate], ['Likes', l.datingLikes], ['Dislikes', l.datingDislikes], ['Bio', l.datingBio]])
             : '';
           const valueChip = l.category === 'dating'
             ? '<span class="chip">Dating Profile</span>'
             : `<span class="chip">Value ${valueScore(m)}</span>`;
           const boostChip = m.boostedAt ? '<span class="chip">Boosted</span>' : '';
           const boostCost = currentBoostCostForUser(activeViewer());
-          const pricingRows = l.category === 'dating'
-            ? ''
-            : `<div class="small">Price/Salary: ${escapeHtml(l.price || '—')}</div>
-               <div class="small">Location: ${safeLocation}</div>
-               <div class="small">Details: ${safeCondition}</div>
-               <div class="small">Service type: ${escapeHtml(l.serviceType || '—')}</div>
-               <div class="small">Sub-category: ${escapeHtml(l.subcategory || '—')}</div>
-               <div class="small">Job location: ${escapeHtml(l.jobLocation || '—')}</div>
-               <div class="small">Credentials: ${escapeHtml(l.credentials || '—')}</div>
-               <div class="small">Contact: ${escapeHtml(l.contactInfo || '—')}</div>`;
-          const datingLocationRow = l.category === 'dating'
-            ? `<div class="small">Location: ${safeLocation}</div>`
-            : '';
+          const pricingRows = l.category === 'dating' ? '' : detailRows([
+            ['Price / salary', l.price], ['Location', l.location], ['Details', l.condition],
+            ['Service type', l.serviceType], ['Sub-category', l.subcategory], ['Job location', l.jobLocation],
+            ['Credentials', l.credentials], ['Contact', l.contactInfo]
+          ]);
+          const datingLocationRow = l.category === 'dating' ? detailRows([['Location', l.location]]) : '';
 
           const comments = Array.isArray(m.comments) ? m.comments : [];
           const commentsHtml = comments.length
@@ -1018,6 +1025,37 @@
         }
       }
 
+      const syncQuickCategories = () => {
+        document.querySelectorAll('[data-market-category]').forEach(button => {
+          button.setAttribute('aria-pressed', String(button.dataset.marketCategory === controls.category.value));
+        });
+        controls.datingMatch.disabled = controls.category.value !== 'dating';
+        if (controls.datingMatch.disabled) controls.datingMatch.value = 'all';
+      };
+      document.querySelectorAll('[data-market-category]').forEach(button => button.addEventListener('click', () => {
+        controls.category.value = button.dataset.marketCategory;
+        syncQuickCategories();
+        render();
+      }));
+      controls.category.addEventListener('change', syncQuickCategories);
+      document.querySelectorAll('[data-market-view]').forEach(button => button.addEventListener('click', () => {
+        list.dataset.view = button.dataset.marketView;
+        document.querySelectorAll('[data-market-view]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+      }));
+      $('#clear-filters').addEventListener('click', () => {
+        controls.search.value = '';
+        controls.category.value = 'all';
+        controls.sort.value = 'value';
+        controls.datingMatch.value = 'all';
+        syncQuickCategories();
+        render();
+      });
+      $('#new-listing').addEventListener('click', () => {
+        $('#listing-composer').open = true;
+        $('#listing-composer').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+        postText.focus({ preventScroll: true });
+      });
+      syncQuickCategories();
       Object.values(controls).forEach((el) => {
         if (!el || el.tagName === 'BUTTON') return;
         el.addEventListener('input', render);
