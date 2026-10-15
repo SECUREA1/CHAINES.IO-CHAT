@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-desktop-single-row-v21';
+const CACHE_NAME = 'chaines-post-shell-cloud-links-only-v22';
 const APP_SHELL = [...new Set([
   '/',
   '/static/media-client.js',
