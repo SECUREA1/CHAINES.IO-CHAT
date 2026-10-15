@@ -1,6 +1,7 @@
-const CACHE_NAME = 'chaines-post-shell-ontario-delivery-v17';
+const CACHE_NAME = 'chaines-post-shell-persistent-media-v18';
 const APP_SHELL = [...new Set([
   '/',
+  '/static/media-client.js',
   '/static/delivery-pricing.js',
   '/index.html',
   '/marketplace.html',
@@ -52,6 +53,8 @@ self.addEventListener('fetch', (event) => {
   if(event.request.method !== 'GET') return;
   const requestUrl = new URL(event.request.url);
   if(requestUrl.origin !== self.location.origin) return;
+  // Let HTTP handle seeking and large files; CacheStorage cannot store 206 responses.
+  if(requestUrl.pathname.startsWith('/media/') || event.request.headers.has('range')) return;
 
   // Installed-app identity must refresh before cached metadata is returned.
   if(['/manifest.webmanifest', '/favicon.svg', '/favicon.ico'].includes(requestUrl.pathname) || requestUrl.pathname.startsWith('/static/brand/')){

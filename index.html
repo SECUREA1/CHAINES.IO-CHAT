@@ -2193,13 +2193,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   
 </style>
 
+<script src="/static/media-client.js"></script>
 <script src="/static/session-client.js"></script>
 <script src="/static/memory-bank.js"></script>
 <script src="/static/memory-autosave.js"></script>
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=explorer-desktop-v11" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=cloud-media-v12" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body class="chaines-index">
@@ -2734,7 +2735,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     ]);
 
     function createDownloadLink(content, filename, mime, user){
-      const link = Copywriter.createDownloadLink(content, filename, mime, user);
+      const isFile = /^(data:|blob:|\/media\/)/.test(String(content)) || (filename !== 'message' && /^https?:/.test(String(content)));
+      const link = isFile ? ChainesMedia.downloadLink(content, mime) : Copywriter.createDownloadLink(content, 'message', mime, user);
       link.className = 'download-btn';
       return link;
     }
@@ -2975,7 +2977,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     document.addEventListener('pointerdown', (event) => {
       if(form.hidden || form.classList.contains('composer--minimized')) return;
       const target = event.target;
-      if(form.contains(target) || messageBtn?.contains(target)) return;
+      if(form.contains(target) || messageBtn?.contains(target) || event.composedPath().includes(document.getElementById('popup'))) return;
       setComposerMinimized(true);
     });
     composerCloseBtn?.addEventListener('click', () => {
@@ -4561,11 +4563,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           localStorage.setItem('chaines_verified_users', JSON.stringify(safe));
         } catch {}
       },
-      pushMsg(m) {
-        const items = loadPersistentMessages();
-        items.push(m);
-        savePersistentMessages(items);
-      },
+      pushMsg(m) { upsertPersistentMessage(m); },
       removeMsg(id){
         const items = loadPersistentMessages().filter(x => x.id !== id);
         savePersistentMessages(items);
@@ -4708,7 +4706,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(summary) noteParts.push(summary);
         systemNote(noteParts.join(' '));
         postMessage({
-          text: `Mint staged for ${data.fileName}${summary ? ` — ${summary}` : ''}`,
+          text: `Media mint staged${summary ? ` — ${summary}` : ''}`,
           file: file.dataUrl,
           fileName: file.name,
           fileType: file.type,
@@ -4725,7 +4723,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const status = await fetchDropperStatus();
       const dropperReady = Boolean(status && (status.sourceDir || status.sourceDirReady));
       const actions = [
-        { label: 'Send normally', onClick: () => hidePopup() },
+        { label: 'Send normally', onClick: () => { hidePopup(); form.hidden=false; setComposerMinimized(false, {focusInput:true}); } },
         { label: 'Remove attachment', onClick: () => { pendingFile=null; input.placeholder=defaultPlaceholder; hidePopup(); } }
       ];
       if(dropperReady){
@@ -5030,7 +5028,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
     ];
     let usingFrontCamera = true;
     let mediaRecorder = null;
-    let recordedChunks = [];
+
     let recordCanvas = null;
     let recordCtx = null;
     let drawHandle = null;
@@ -7553,7 +7551,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       const signature = `\n\n— ${store.user} © ${new Date().getFullYear()}`;
       const categoryDef = MARKETPLACE_CATEGORIES[listing.category] || MARKETPLACE_CATEGORIES[NON_MARKETPLACE_CATEGORY];
       const listingFallbackText = listing.category !== NON_MARKETPLACE_CATEGORY ? `${categoryDef?.label || 'Marketplace'} listing` : '';
-      const attachmentFallbackText = pendingFile?.name ? `Attachment: ${pendingFile.name}` : '';
+      const attachmentFallbackText = pendingFile ? 'Attachment' : '';
       const baseText = raw || listingFallbackText || attachmentFallbackText || '';
       let msgText = baseText ? baseText + signature : signature;
       const msgActions = selectedComposerActions.map((action) => ({
@@ -7647,27 +7645,19 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(!cmdPanel.hidden) closeEmojiKeyboard();
     }, { passive: true });
     attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
+    fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
-      if (!file) return;
+      if(!file) return;
+      pendingFile=null;
       fileLoading = true;
       sendBtn.disabled = true;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result;
-        pendingFile = { dataUrl, name: file.name, type: file.type };
-        input.placeholder = `Comment on ${file.name}`;
+      try {
+        pendingFile = await ChainesMedia.upload(file);
+        input.placeholder = 'Add a caption. Attachment stays in the feed until deleted.';
         input.focus();
-        fileLoading = false;
-        sendBtn.disabled = false;
         maybeOfferMint();
-      };
-      reader.onerror = () => {
-        fileLoading = false;
-        sendBtn.disabled = false;
-      };
-      reader.readAsDataURL(file);
-      fileInput.value = '';
+      } catch(error) { systemNote(error.message); }
+      finally { fileLoading=false; sendBtn.disabled=false; fileInput.value=''; }
     });
 
       function postMessage({ text='', image, file, fileName, fileType, name, isAction=false, broadcast=false, video, room, listing, actions=[], xSpaceUrl='' }){
@@ -7706,7 +7696,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       };
       msg.category = normalizedListing.category;
       msg.listing = normalizedListing;
-      if(store.autoDelete) msg.selfDestruct = 5 * 60 * 1000;
+      if(store.autoDelete && !file && !video && !image) msg.selfDestruct = 5 * 60 * 1000;
 
       // Push to UI + storage immediately
         receive(msg, true);
@@ -7721,6 +7711,45 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
 
     // --- WebRTC helpers ---
+      function beginArchiveRecording(stream,audioOnly=false){
+        try {
+          if(!window.MediaRecorder) throw new Error('Recording is unavailable in this browser.');
+          const candidates=audioOnly?['audio/webm;codecs=opus','audio/mp4','audio/ogg']:['video/mp4;codecs=avc1','video/webm;codecs=vp8,opus','video/webm'];
+          const mime=candidates.find(type=>MediaRecorder.isTypeSupported(type));
+          const recorder=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),videoBitsPerSecond:1000000,audioBitsPerSecond:128000});
+          recorder.archiveChunks=[];
+          recorder.onerror=()=>systemNote('Recording was interrupted. End the broadcast to save the available recording.');
+          recorder.ondataavailable=event=>{if(event.data.size)recorder.archiveChunks.push(event.data);};
+          mediaRecorder=recorder;
+          recordMime=recorder.mimeType;
+          recorder.start(1000);
+        } catch(error) { systemNote('This browser cannot record this broadcast. Live streaming can continue.'); }
+      }
+      async function persistBroadcastArchive(blob,text,thumb){
+        const row=document.createElement('li');row.className='system-note archive-status';
+        row.textContent='Saving broadcast replay to the cloud…';feed.prepend(row);
+        let uploaded, saving=false, localUrl;
+        const save=async()=>{
+          if(saving) return;
+          saving=true;
+          try {
+            uploaded ||= await ChainesMedia.upload(blob);
+            connectionPreference='cloud';localStorage.setItem(CONNECTION_PREFERENCE_KEY,'cloud');
+            if(!await ensureCloudConnection(5000)) throw new Error('Cloud connection unavailable.');
+            postMessage({text,file:uploaded.dataUrl,fileName:uploaded.name,fileType:uploaded.type,image:thumb});
+            if(localUrl) URL.revokeObjectURL(localUrl);
+            row.remove();
+          } catch(error) {
+            row.textContent='Replay was not posted: '+error.message+' ';
+            const retry=document.createElement('button');retry.type='button';retry.textContent='Retry saving replay';retry.onclick=save;
+            localUrl ||= URL.createObjectURL(blob);
+            const local=ChainesMedia.downloadLink(localUrl,blob.type);local.textContent='Save recording on this device';
+            row.append(retry,local);
+          } finally { saving=false; }
+        };
+        await save();
+      }
+
       function startBroadcast(stream, audioOnly=false){
         if(broadcasting) return;
         overlayMessages = [];
@@ -7752,9 +7781,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           refreshGoLiveAllButton();
           removeExtraCameraPreviews();
           renderExtraCameraPreviews(activeBundle.previews);
-          recordedChunks = [];
+
           if(!audioOnly){
             recordCanvas = document.createElement('canvas');
+            recordCanvas.width=1280;recordCanvas.height=720;
             recordCtx = recordCanvas.getContext('2d');
             const draw = () => {
               const vids = streamsEl.querySelectorAll('.stream.active video, .stream.open video');
@@ -7795,13 +7825,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             try {
               const canvasStream = recordCanvas.captureStream(30);
               activeStream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
-              const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm';
-              mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
-              recordMime = mime;
-              mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
-              mediaRecorder.start();
+              beginArchiveRecording(canvasStream);
             } catch {}
           }
+          if(audioOnly) beginArchiveRecording(activeStream,true);
       updateListenerCount(clientId, 0);
       activeRooms.add(clientId);
       showStream();
@@ -7811,7 +7838,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       if(broadcastLabel) broadcastLabel.textContent = 'End';
       broadcastIcon.src = 'static/brand/v2/stop.svg';
       broadcastIcon.alt = 'End';
-      broadcastBtn.title = 'End live broadcast';
+      broadcastBtn.title = 'End broadcast and choose whether to save its replay';
       broadcastBtn.classList.add('live');
       updateHeaderButtons();
       if(!audioOnly){
@@ -8114,7 +8141,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         broadcastVideo = null;
         multiCamBroadcast = false;
         const share = forced ? true :
-          confirm('Post to chat?\nPress OK to post or Cancel to delete.');
+          confirm('Save this broadcast replay to the cloud feed?\nPress OK to save or Cancel to discard the recording.');
         const note = forced ? new Date().toLocaleString() : (share ?
           (prompt('Broadcast end comment?') || '').trim() : '');
 
@@ -8127,26 +8154,20 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       }
       const hadRecorder = !!mediaRecorder;
       if(mediaRecorder){
-          mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: recordMime });
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result;
-            if(share){
-              postMessage({
-                text: msgText,
-                video: dataUrl,
-                file: dataUrl,
-                fileName: `broadcast-${Date.now()}.${recordMime === 'video/mp4' ? 'mp4' : 'webm'}`,
-                fileType: recordMime,
-                image: broadcastThumb
-              });
-            }
-          };
-          reader.readAsDataURL(blob);
+        const recorder=mediaRecorder;
+        let finished=false;
+        const finishRecording=()=>{
+          if(finished) return;
+          finished=true;
+          const blob=new Blob(recorder.archiveChunks,{type:recorder.mimeType||recordMime});
+          if(share && blob.size) persistBroadcastArchive(blob,msgText,broadcastThumb);
+          else if(share) systemNote('The broadcast did not produce a recording.');
+          recorder.archiveChunks=[];
         };
-        try { mediaRecorder.stop(); } catch {}
-        mediaRecorder = null;
+        recorder.onstop=finishRecording;
+        if(recorder.state==='inactive') finishRecording();
+        else try { recorder.stop(); } catch { finishRecording(); }
+        mediaRecorder=null;
       }
       if(drawHandle) cancelAnimationFrame(drawHandle);
       drawHandle = null;
@@ -8511,8 +8532,13 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
 
       function receive(m, isLocal=false){
         if(!m || seen.has(m.id)) return;
+        if(m.clientMessageId && String(m.clientMessageId) !== String(m.id)){
+          document.querySelectorAll('li.msg[data-id]').forEach(row => { if(row.dataset.id === String(m.clientMessageId)) row.remove(); });
+          store.removeMsg(m.clientMessageId);
+          seen.delete(m.clientMessageId);
+        }
         seen.add(m.id);
-        const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal;
+        const shouldSuppressGlobalFeed = activeRooms.size > 0 && !m.room && !isLocal && m.user !== store.user;
         if(shouldSuppressGlobalFeed){
           store.pushMsg(m);
           return;
@@ -8543,8 +8569,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       ].find((candidate) => typeof candidate === 'string' && candidate.trim()) || '';
       const typeCandidate = payload.fileType || payload.file_type || payload.mimeType || payload.mime_type || '';
       const type = String(typeCandidate || '').trim() || ((src.match(/^data:(.*?);/) || [])[1] || '');
-      const nameCandidate = payload.fileName || payload.file_name || payload.name || payload.filename || '';
-      const name = String(nameCandidate || '').trim();
+        const name = ''; // Original attachment names are private, including legacy local history.
       return { src, type, name };
     }
 
@@ -8754,6 +8779,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           const vid = document.createElement('video');
           vid.src = fileData;
           vid.controls = true;
+          ChainesMedia.playbackFallback(vid);
           vid.playsInline = true;
           vid.setAttribute('playsinline','');
           vid.style.maxWidth = '100%';
@@ -8766,13 +8792,14 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           const aud = document.createElement('audio');
           aud.src = fileData;
           aud.controls = true;
+          ChainesMedia.playbackFallback(aud);
           aud.style.width = '100%';
           bubble.appendChild(aud);
           bubble.appendChild(createDownloadLink(fileData, filename, mime, m.user));
         } else if(isModel){
           const model = document.createElement('model-viewer');
           model.src = fileData;
-          model.alt = filename || '3D model';
+          model.alt = '3D model';
           model.style.width = '100%';
           model.style.height = '300px';
           model.style.borderRadius = '8px';
@@ -8783,7 +8810,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         } else if(mime.startsWith('image/')){
           const img = document.createElement('img');
           img.src = fileData;
-          img.alt = filename || 'image';
+          ChainesMedia.playbackFallback(img);
+          img.alt = 'Posted image';
           img.style.maxWidth = '100%';
           img.style.borderRadius = '8px';
           img.loading = 'lazy';
@@ -8806,6 +8834,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
               const vid = document.createElement('video');
               vid.src = src;
               vid.controls = true;
+          ChainesMedia.playbackFallback(vid);
               vid.playsInline = true;
               vid.setAttribute('playsinline', '');
               vid.style.maxWidth = '100%';
@@ -8816,7 +8845,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
             } else if(mime.startsWith('image/')){
               const img = document.createElement('img');
               img.src = src;
-              img.alt = filename || 'listing image';
+              ChainesMedia.playbackFallback(img);
+              img.alt = 'Listing image';
               img.style.maxWidth = '100%';
               img.style.borderRadius = '8px';
               img.loading = 'lazy';
@@ -8975,17 +9005,15 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         commentInput.placeholder = 'Add comment...';
         let pendingCommentFile = null;
         commentAttachBtn.addEventListener('click', () => commentFileInput.click());
-        commentFileInput.addEventListener('change', () => {
-          const file = commentFileInput.files && commentFileInput.files[0];
+        commentFileInput.addEventListener('change', async () => {
+          const file=commentFileInput.files?.[0];
           if(!file) return;
-          const reader = new FileReader();
-          reader.onload = () => {
-            pendingCommentFile = { dataUrl: String(reader.result || ''), name: file.name, type: file.type || '' };
-            commentInput.placeholder = `Comment on ${file.name}`;
-          };
-          reader.onerror = () => systemNote('Unable to attach this media file.');
-          reader.readAsDataURL(file);
-          commentFileInput.value = '';
+          pendingCommentFile=null;
+          commentAttachBtn.disabled=true;
+          commentInput.disabled=true;
+          try { pendingCommentFile=await ChainesMedia.upload(file);commentInput.placeholder='Add an attachment comment…'; }
+          catch(error){ systemNote(error.message); }
+          finally { commentAttachBtn.disabled=false;commentInput.disabled=false;commentFileInput.value=''; }
         });
         commentForm.appendChild(commentAttachBtn);
         commentForm.appendChild(commentInput);
@@ -9055,6 +9083,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           const vid = document.createElement('video');
           vid.src = fileData;
           vid.controls = true;
+          ChainesMedia.playbackFallback(vid);
           vid.playsInline = true;
           wrap.appendChild(vid);
           wrap.appendChild(createDownloadLink(fileData, filename, mime, c.user));
@@ -9064,6 +9093,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           const aud = document.createElement('audio');
           aud.src = fileData;
           aud.controls = true;
+          ChainesMedia.playbackFallback(aud);
           wrap.appendChild(aud);
           wrap.appendChild(createDownloadLink(fileData, filename, mime, c.user));
           return wrap;
@@ -9071,7 +9101,8 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         if(mime.startsWith('image/')){
           const img = document.createElement('img');
           img.src = fileData;
-          img.alt = filename || 'image';
+          ChainesMedia.playbackFallback(img);
+          img.alt = 'Posted image';
           wrap.appendChild(img);
           wrap.appendChild(createDownloadLink(fileData, filename, mime, c.user));
           return wrap;

@@ -1,3 +1,4 @@
+import {installMediaAssets,inferMediaType,publicMediaName,publicMediaText} from './mediaAssets.js';
 import { calculateDeliveryQuote, deliveryReceiptLines } from '../static/delivery-pricing.js';
 // server.js
 import http from "http";
@@ -241,6 +242,7 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+installMediaAssets(app,db,rateLimit);
 
 const SESSION_COOKIE = "chaines_session";
 const SESSION_DAYS = Number(process.env.SESSION_DAYS || 7);
@@ -932,7 +934,11 @@ app.post("/api/nft-dropper/mint", async (req, res) => {
     return;
   }
 
-  const { fileDataUrl, fileName, fileType, metadata } = req.body || {};
+  let { fileDataUrl, fileName, fileType, metadata } = req.body || {};
+  if(typeof fileDataUrl === 'string' && fileDataUrl.startsWith('/media/')) {
+    const stored=db.prepare('SELECT mime,bytes FROM media_assets WHERE id=?').get(fileDataUrl.slice(7));
+    if(stored) fileDataUrl=`data:${stored.mime};base64,${stored.bytes.toString('base64')}`;
+  }
   if (!fileDataUrl || !fileName) {
     res
       .status(400)
@@ -1567,7 +1573,7 @@ app.get("/profile/:username", (req, res) => {
     username: req.params.username,
     profilePic: dbUser?.profile_pic || memUser.profilePic || null,
     description: dbUser?.description || memUser.description || null,
-    posts,
+    posts: posts.map(post => ({...post,message:publicMediaText(post.message,post.file_name),file_name: post.file ? publicMediaName(inferMediaType(post.file_type,post.file_name),post.file_name) : null})),
     followers,
     following,
     isFollowing,
@@ -2010,8 +2016,8 @@ function loadHistory(room = null) {
       user: c.user,
       text: c.text,
       file: c.file,
-      fileName: c.file_name,
-      fileType: c.file_type,
+      fileName: c.file ? publicMediaName(inferMediaType(c.file_type,c.file_name),c.file_name) : null,
+      fileType: inferMediaType(c.file_type,c.file_name),
       ts: c.ts,
     });
   }
@@ -2035,11 +2041,11 @@ function loadHistory(room = null) {
       verified: !!r.verified,
       profilePic: r.profile_pic,
       room: r.room,
-      text: r.message,
+      text: publicMediaText(r.message,r.file_name),
       image: r.image,
       file: r.file,
-      fileName: r.file_name,
-      fileType: r.file_type,
+      fileName: r.file ? publicMediaName(inferMediaType(r.file_type,r.file_name),r.file_name) : null,
+      fileType: inferMediaType(r.file_type,r.file_name),
       category: listing.category,
       listing,
       ts: r.ts,
@@ -2479,8 +2485,8 @@ wss.on("connection", (ws) => {
       case "comment": {
         const text = String(msg.text || "").trim();
         const file = typeof msg.file === "string" ? msg.file : null;
-        const fileName = msg.file_name || msg.fileName || null;
-        const fileType = msg.file_type || msg.fileType || null;
+        const fileType = inferMediaType(msg.file_type || msg.fileType, msg.file_name || msg.fileName);
+        const fileName = file ? publicMediaName(fileType,msg.file_name || msg.fileName) : null;
         if (!msg.messageId || (!text && !file)) return;
         if (file && file.length > 50_000_000) return;
         const info = db
@@ -2607,10 +2613,10 @@ wss.on("connection", (ws) => {
           verified: !!ws.verified,
           profilePic: actorProfilePic,
           room: null,
-          text: source.message,
+          text: publicMediaText(source.message,source.file_name),
           image: source.image,
           file: source.file,
-          fileName: source.file_name,
+          fileName: source.file ? publicMediaName(inferMediaType(source.file_type,source.file_name),source.file_name) : null,
           fileType: source.file_type,
           category: source.category || "general",
           listing: normalizeListingPayload(
@@ -2769,7 +2775,7 @@ wss.on("connection", (ws) => {
     if (msg.image && msg.image.length > 20_000_000) return; // limit ~15MB per image
     if (msg.file && msg.file.length > 50_000_000) return; // limit ~35MB per file
     msg.ts ||= Date.now();
-    const text = msg.text ?? msg.message ?? "";
+    const text = publicMediaText(msg.text ?? msg.message ?? "",msg.file_name || msg.fileName || msg.name);
     msg.text = text;
     const normalizedRoom = (() => {
       const room = (msg.room || "").toString().trim().toLowerCase();
@@ -2780,14 +2786,11 @@ wss.on("connection", (ws) => {
       msg.file = msg.video;
     }
     const inferredFileType =
-      (typeof msg.file === "string" && (msg.file.match(/^data:([^;]+);/i) || [])[1]) ||
+      (typeof (msg.file || msg.image) === "string" && ((msg.file || msg.image).match(/^data:([^;]+);/i) || [])[1]) ||
       null;
-    const fileName = msg.file_name || msg.fileName || (msg.file ? "attachment" : null);
-    const fileType =
-      msg.file_type ||
-      msg.fileType ||
-      inferredFileType ||
-      (msg.file ? "application/octet-stream" : null);
+    const originalFileName = msg.file_name || msg.fileName || "";
+    const fileName = (msg.file || msg.image) ? publicMediaName(inferMediaType(msg.file_type || msg.fileType || inferredFileType, originalFileName),originalFileName) : null;
+    const fileType = (msg.file || msg.image) ? inferMediaType(msg.file_type || msg.fileType || inferredFileType, originalFileName) : null;
     const listing = normalizeListingPayload(msg.listing || {}, msg.category || "general");
     msg.category = listing.category;
     msg.listing = listing;
@@ -2811,8 +2814,10 @@ wss.on("connection", (ws) => {
         listing.category,
         JSON.stringify(listing)
     );
+    msg.clientMessageId = String(msg.id || "");
     msg.id = info.lastInsertRowid;
     msg.message = text;
+    if(msg.file || msg.image){ msg.name=fileName; msg.filename=fileName; delete msg.selfDestruct; }
     msg.likes = 0;
     msg.comments = [];
     if (fileName) {

@@ -169,3 +169,43 @@ test('delivery receipts use server totals, persist once, and report unavailable 
   const rejected=await fetch(srv.base+'/delivery-orders',{method:'POST',headers,body:JSON.stringify({...order,id:'DLV-over',budget:1})});
   assert.equal(rejected.status,400);
 });
+
+test('cloud media preserves original bytes and supports seeking without exposing source filenames',async(t)=>{
+  const srv=await startServer();t.after(()=>srv.child.kill());
+  const bytes=Buffer.from('0123456789abcdef');
+  const form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'private-source-name.mp4');
+  const uploaded=await json(await fetch(srv.base+'/api/media',{method:'POST',body:form,headers:{Origin:'https://www.chaines.io'}}));
+  assert.equal(uploaded.status,201);assert.equal(uploaded.headers.get('access-control-allow-origin'),'https://www.chaines.io');
+  assert.equal(uploaded.body.name,'video.mp4');assert(!JSON.stringify(uploaded.body).includes('private-source-name'));
+  const url=srv.base+uploaded.body.url;
+  const otherForm=new FormData();otherForm.append('file',new Blob(['format-specific bytes'],{type:'application/octet-stream'}),'private-design.blend');
+  const other=await json(await fetch(srv.base+'/api/media',{method:'POST',body:otherForm}));
+  assert.equal(other.body.name,'attachment.blend');
+  const otherDownload=await fetch(srv.base+other.body.url);
+  assert.match(otherDownload.headers.get('content-disposition'),/filename="attachment.blend"/);
+  assert.equal(await otherDownload.text(),'format-specific bytes');
+
+  const full=await fetch(url);assert.deepEqual(Buffer.from(await full.arrayBuffer()),bytes);
+  const ranged=await fetch(url,{headers:{Range:'bytes=2-5'}});assert.equal(ranged.status,206);assert.equal(ranged.headers.get('content-range'),'bytes 2-5/16');assert.equal(await ranged.text(),'2345');
+  assert(!ranged.headers.get('content-disposition').includes('private-source-name'));
+  assert.equal((await fetch(url,{headers:{Range:'bytes=999-'}})).status,416);
+  const suffix=await fetch(url,{headers:{Range:'bytes=-3'}});assert.equal(await suffix.text(),'def');
+  const download=await fetch(url+'?download=1');assert.match(download.headers.get('content-disposition'),/^attachment/);
+  const WebSocket=(await import('ws')).default;
+  const socket=new WebSocket(srv.base.replace('http','ws')+'/ws');t.after(()=>socket.close());
+  const events=[];socket.on('message',raw=>events.push(JSON.parse(raw)));
+  await new Promise(resolve=>socket.on('open',resolve));
+  socket.send(JSON.stringify({type:'join',user:'mediaposter'}));
+  socket.send(JSON.stringify({type:'chat',user:'mediaposter',file:uploaded.body.url,fileType:'video/mp4',fileName:'private-source-name.mp4',name:'private-source-name.mp4',text:'Attachment: private-source-name.mp4',selfDestruct:10}));
+  for(let i=0;i<80&&!events.some(e=>e.type==='chat'&&e.file===uploaded.body.url);i++)await wait(25);
+  const posted=events.find(e=>e.type==='chat'&&e.file===uploaded.body.url);assert(posted);
+  assert(!JSON.stringify(posted).includes('private-source-name'));assert.equal(posted.selfDestruct,undefined);
+  await wait(30);
+  const Database=(await import('better-sqlite3')).default;const database=new Database(srv.db);t.after(()=>database.close());
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE file=?').get(uploaded.body.url).n,1);
+  const stored=database.prepare('SELECT bytes FROM media_assets WHERE id=?').get(uploaded.body.url.split('/').pop());assert.deepEqual(stored.bytes,bytes);
+  socket.close();srv.child.kill();
+  const restarted=spawn(process.execPath,[serverFile],{cwd:path.join(root,'ws-server'),env:{...process.env,PORT:new URL(srv.base).port,DB_PATH:srv.db,RESEND_API_KEY:'',TWILIO_ACCOUNT_SID:'',TWILIO_AUTH_TOKEN:'',TWILIO_FROM_PHONE:''},stdio:'ignore'});t.after(()=>restarted.kill());
+  let recovered;for(let i=0;i<80;i++){try{const r=await fetch(url);if(r.ok){recovered=Buffer.from(await r.arrayBuffer());break;}}catch{}await wait(50);}
+  assert.deepEqual(recovered,bytes);
+});

@@ -432,3 +432,6 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 @media (max-width: 600px) {
   .marketplace-explorer .post-grid { display: grid; }
 }
+.chaines-index .media-playback-note { margin: 8px 0; padding: 10px; border: 1px solid #38578f; border-radius: 10px; color: #acb9d0; font-size: 12px; }
+.chaines-index .archive-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border: 1px solid #38578f; border-radius: 12px; background: #101d35; }
+.chaines-index .archive-status :is(button,a) { color: #76dfff; border: 1px solid #38578f; border-radius: 8px; padding: 6px 10px; background: #14203e; }
