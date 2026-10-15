@@ -2199,10 +2199,10 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=live-header-v9" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=unified-dock-posts-v10" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
-<body>
+<body class="chaines-index">
   <div id="token-gate" class="token-gate token-gate--hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="token-gate-title" data-token-chain="cardano" data-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-asset-name="CHAINeS" data-asset-name-hex="434841494e6553" data-ghost-policy-id="1d31efec7180b3a934856868d548ba205f20b8d6173a26b23a1b74e0" data-ghost-asset-name="CHAINeS" data-ghost-asset-name-hex="434841494e6553" data-native-contract="" data-ethereum-contract="0xEf74118D5fB730E9B2729c7303DC29980b4771f0" data-polygon-contract="0xF48fa5f282a358D38c5Af569eFB7338e5fcB44F0" data-solana-contract="11111111111111111111111111111111">
     <div class="token-gate__panel">
       <div class="token-gate__art" aria-hidden="true">
@@ -2455,7 +2455,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <img src="static/brand/v2/go-live.svg" alt="Go Live" />
         </button>
         <button class="chip" id="go-live-all-btn" type="button" title="Go live on all detected cameras" hidden>Go Live All Cams</button>
-        <span id="live-chip" class="chip" title="Users active"><img src="static/brand/v2/user.svg" alt="Users" /><span id="live-count">0</span></span>
+        <button id="live-chip" class="chip" type="button" title="Users active" aria-label="Show online users"><img src="static/brand/v2/user.svg" alt="Users" /><span id="live-count">0</span></button>
         <span class="footer-notif-wrap">
           <button class="chip" id="notif-bell" title="Notifications" aria-label="Notifications">🔔<span id="notif-dot"></span></button>
           <div id="notif-panel" hidden></div>
@@ -5680,6 +5680,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
       function updateLiveCount(count){
         const total = Math.max(0, Number(count) || 0);
         liveCount.textContent = total;
+        liveChip.setAttribute('aria-label', `${total} users online. Show online users`);
         const badge = el('#header-live-count');
         if(badge){
           badge.textContent = total;

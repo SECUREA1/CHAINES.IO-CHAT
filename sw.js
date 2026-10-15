@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-live-header-v14';
+const CACHE_NAME = 'chaines-post-shell-unified-dock-posts-v15';
 const APP_SHELL = [...new Set([
   '/',
   '/index.html',
