@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chaines-post-shell-desktop-one-row-v20';
+const CACHE_NAME = 'chaines-post-shell-desktop-single-row-v21';
 const APP_SHELL = [...new Set([
   '/',
   '/static/media-client.js',
@@ -56,8 +56,8 @@ self.addEventListener('fetch', (event) => {
   // Let HTTP handle seeking and large files; CacheStorage cannot store 206 responses.
   if(requestUrl.pathname.startsWith('/media/') || event.request.headers.has('range')) return;
 
-  // Installed-app identity must refresh before cached metadata is returned.
-  if(['/manifest.webmanifest', '/favicon.svg', '/favicon.ico'].includes(requestUrl.pathname) || requestUrl.pathname.startsWith('/static/brand/')){
+  // Header styles and installed-app identity refresh before cached content is returned.
+  if(['/static/brand-theme.css', '/manifest.webmanifest', '/favicon.svg', '/favicon.ico'].includes(requestUrl.pathname) || requestUrl.pathname.startsWith('/static/brand/')){
     event.respondWith((async () => {
       try {
         const response = await fetch(event.request, { cache: 'no-cache' });

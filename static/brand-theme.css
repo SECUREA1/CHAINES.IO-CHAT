@@ -365,7 +365,7 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 
 /* Desktop stays on one row; mobile retains the two-row reference layout. */
 @media (min-width: 901px) {
-  .chaines-index header { flex-direction: row; align-items: center; padding: 10px; gap: 12px; }
+  .chaines-index header { display: grid; grid-template-columns: max-content minmax(0, 1fr); grid-template-rows: auto; flex-direction: row; align-items: center; padding: 10px; gap: 12px; }
   .chaines-index header > .bar { width: auto; flex: 0 0 auto; gap: 12px; }
   .chaines-index header > #toolbar-shell { width: auto; flex: 1 1 0; min-width: 0; }
   .chaines-index header .bar > .brand { flex: 0 0 auto; gap: 8px; }

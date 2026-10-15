@@ -15,3 +15,23 @@ test('installed app leaves media and byte-range requests to native HTTP caching 
     assert.equal(intercepted,false);
   }
 });
+
+test('installed app fetches fresh header styles before using the offline fallback',async()=>{
+  for(const offline of [false,true]){
+    const listeners={};
+    let stored=false,lookedUp=false;
+    const fresh={ok:true,clone(){return this;}};
+    const cached={cached:true};
+    vm.runInNewContext(fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8'),{
+      URL,
+      self:{location:{origin:'https://chaines.io'},addEventListener:(name,fn)=>{listeners[name]=fn;}},
+      fetch:async(_request,options)=>{assert.equal(options.cache,'no-cache');if(offline)throw new Error('offline');return fresh;},
+      caches:{open:async()=>({put:async()=>{stored=true;}}),match:async()=>{lookedUp=true;return cached;}}
+    });
+    let response;
+    listeners.fetch({request:{method:'GET',url:'https://chaines.io/static/brand-theme.css?brand=desktop-single-row-v14',headers:new Headers()},respondWith:value=>{response=value;}});
+    assert.equal(await response,offline?cached:fresh);
+    assert.equal(stored,!offline);
+    assert.equal(lookedUp,offline);
+  }
+});
