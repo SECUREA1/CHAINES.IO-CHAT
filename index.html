@@ -2200,7 +2200,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=cloud-links-fit-v15" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=desktop-single-row-v14" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body class="chaines-index">
@@ -2279,8 +2279,23 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
           <div id="toolbar-panel" class="toolbar-panel">
             <div class="toolbar">
               <div id="toolbar-overflow" class="toolbar-overflow">
-                <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Toggle cloud links">☰</button>
-                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Cloud links">
+                <button id="toolbar-overflow-toggle" class="chip" type="button" aria-expanded="false" aria-controls="toolbar-overflow-panel" aria-label="Toggle additional actions">☰</button>
+                <div id="toolbar-overflow-panel" class="toolbar-overflow-panel" role="menu" aria-label="Additional quick actions">
+                  <details class="toolbar-overflow-group" open>
+                    <summary>Additional</summary>
+                    <ul class="toolbar-overflow-list">
+                      <li><button id="feed-btn" class="chip action-chip" type="button" title="Open main feed" aria-label="Open main feed"><img src="static/brand/v2/home.svg" alt="" aria-hidden="true" /><span>Main feed</span></button></li>
+
+                      <li><button id="ghost-btn" class="chip action-chip" type="button" title="Hologhost" aria-label="Hologhost"><img src="static/brand/v2/hologhost.svg" alt="" aria-hidden="true" /><span>Hologhost</span></button></li>
+                      <li><a id="marketplace-menu-btn" class="chip" href="/marketplace.html" title="Open Marketplace" aria-label="Open Marketplace"><img src="static/brand/v2/marketplace.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Marketplace</span><span class="menu-link-description">Browse CHAINeS listings and creator drops.</span></span></a></li>
+                      <li><a id="delivery-services-menu-link" class="chip" href="/delivery-services.html" title="Open Concierge Delivery" aria-label="Open Concierge Delivery"><img src="static/brand/v2/send.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Concierge Delivery</span><span class="menu-link-description">Book meals, errands, packages, and premium delivery care.</span></span></a></li>
+                      <li><button id="streams-fit-btn" class="chip" type="button" title="Expand camera tiles to fill feed area" aria-label="Flex Fit" aria-pressed="false"><img src="static/brand/v2/split.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Flex Fit</span><span class="menu-link-description">Expand camera tiles to fill the feed.</span></span></button></li>
+                      <li><button id="theme-toggle" class="chip" title="Toggle dark or light mode" aria-label="Toggle theme"><img src="static/brand/v2/sun.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Theme</span><span class="menu-link-description">Switch between dark and light modes.</span></span></button></li>
+                      <li><button id="video-toggle" class="chip" type="button" title="Show live feed" aria-label="Show Feed"><img src="static/brand/v2/screen.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Live Feed</span><span class="menu-link-description">Show or hide the live feed panel.</span></span></button></li>
+                      <li><button id="market-mode-toggle" class="chip" type="button" title="Toggle feed and marketplace view mode" aria-label="Toggle feed and marketplace view mode"><img src="static/brand/v2/wallet.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Market Mode</span><span class="menu-link-description">Toggle between posts and marketplace view.</span></span></button></li>
+                      <li><button id="rewards-menu-btn" class="chip" type="button" title="Open Ghost Coin rewards menu" aria-label="Open Ghost Coin rewards menu"><img src="static/brand/v2/hologhost.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rewards</span><span class="menu-link-description">Open Ghost Coin rewards and activity.</span></span></button></li>
+                    </ul>
+                  </details>
                   <details class="toolbar-overflow-group" open>
                     <summary>Cloud Links</summary>
                     <ul class="toolbar-overflow-list">
@@ -4409,28 +4424,12 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setToolbarOpen(next);
       });
     }
-    const positionCloudLinks = () => {
-      const panel = el('#toolbar-overflow-panel');
-      if(!panel || !toolbarOverflow?.classList.contains('is-open')) return;
-      const viewport = window.visualViewport;
-      const left = viewport?.offsetLeft || 0;
-      const top = viewport?.offsetTop || 0;
-      const width = viewport?.width || window.innerWidth;
-      const height = viewport?.height || window.innerHeight;
-      const anchor = toolbarOverflowToggle.getBoundingClientRect();
-      panel.style.left = `${Math.max(left + 8, Math.min(anchor.left, left + width - panel.offsetWidth - 8))}px`;
-      panel.style.top = `${Math.max(top + 8, Math.min(anchor.bottom + 6, top + height - panel.offsetHeight - 8))}px`;
-    };
-    window.addEventListener('resize', positionCloudLinks);
-    window.visualViewport?.addEventListener('resize', positionCloudLinks);
-    window.visualViewport?.addEventListener('scroll', positionCloudLinks);
     if(toolbarOverflowToggle && toolbarOverflow){
       toolbarOverflowToggle.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         const next = !toolbarOverflow.classList.contains('is-open');
         toolbarOverflow.classList.toggle('is-open', next);
-        if(next) positionCloudLinks();
         toolbarOverflowToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
       });
       document.addEventListener('click', (event) => {
