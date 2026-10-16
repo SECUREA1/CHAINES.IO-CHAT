@@ -2200,7 +2200,7 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
   <script src="/static/visit-notifier.js" defer></script>
   <link rel="stylesheet" href="static/gilded-framework.css" />
   <link rel="stylesheet" href="static/auth-welcome.css?brand=updated-login-v1" />
-<link rel="stylesheet" href="/static/brand-theme.css?brand=desktop-single-row-v14" />
+<link rel="stylesheet" href="/static/brand-theme.css?brand=cloud-links-fit-v15" />
 <meta name="apple-mobile-web-app-title" content="CHAINeS POST" />
 </head>
 <body class="chaines-index">
@@ -2293,8 +2293,6 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
                       <li><button id="rednode-btn" class="chip" type="button" title="Open rednode.ai"><img src="static/brand/v2/rednode.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Rednode AI</span><span class="menu-link-description">Open rednode.ai intelligence tools.</span></span></button></li>
                       <li><button id="voice3-btn" class="chip" type="button" title="Open www.voice3.xyz"><img src="static/brand/v2/voice3-mic.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Voice3 App</span><span class="menu-link-description">Open the Voice3 audio app.</span></span></button></li>
                       <li><button id="omconsole-gaming-demos-btn" class="chip" type="button" title="Play OMConsole gaming demos"><img src="static/brand/v2/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Gaming Demos</span><span class="menu-link-description">Play OMConsole gaming demos.</span></span></button></li>
-                      <li><button id="drone-engine-btn" class="chip" type="button" title="Open drone engine investor model"><img src="static/brand/v2/gaming.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">Drone Engine</span><span class="menu-link-description">Open the drone engine investor model.</span></span></button></li>
-                      <li><button id="chaines-ar-btn" class="chip" type="button" title="Open CHAINeS AR Collectibles"><img src="static/brand/v2/ar-player.svg" alt="" aria-hidden="true" /><span class="menu-link-copy"><span class="menu-link-title">CHAINeS AR Collectibles</span><span class="menu-link-description">Open AR collectibles and experiences.</span></span></button></li>
                     </ul>
                   </details>
                 </div>
@@ -4411,12 +4409,28 @@ body.streams-flex-fit #video-container[hidden] { display: none !important; }
         setToolbarOpen(next);
       });
     }
+    const positionCloudLinks = () => {
+      const panel = el('#toolbar-overflow-panel');
+      if(!panel || !toolbarOverflow?.classList.contains('is-open')) return;
+      const viewport = window.visualViewport;
+      const left = viewport?.offsetLeft || 0;
+      const top = viewport?.offsetTop || 0;
+      const width = viewport?.width || window.innerWidth;
+      const height = viewport?.height || window.innerHeight;
+      const anchor = toolbarOverflowToggle.getBoundingClientRect();
+      panel.style.left = `${Math.max(left + 8, Math.min(anchor.left, left + width - panel.offsetWidth - 8))}px`;
+      panel.style.top = `${Math.max(top + 8, Math.min(anchor.bottom + 6, top + height - panel.offsetHeight - 8))}px`;
+    };
+    window.addEventListener('resize', positionCloudLinks);
+    window.visualViewport?.addEventListener('resize', positionCloudLinks);
+    window.visualViewport?.addEventListener('scroll', positionCloudLinks);
     if(toolbarOverflowToggle && toolbarOverflow){
       toolbarOverflowToggle.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         const next = !toolbarOverflow.classList.contains('is-open');
         toolbarOverflow.classList.toggle('is-open', next);
+        if(next) positionCloudLinks();
         toolbarOverflowToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
       });
       document.addEventListener('click', (event) => {
