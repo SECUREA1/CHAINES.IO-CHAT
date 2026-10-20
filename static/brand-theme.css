@@ -453,6 +453,38 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 .chaines-index .archive-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border: 1px solid #38578f; border-radius: 12px; background: #101d35; }
 .chaines-index .archive-status :is(button,a) { color: #76dfff; border: 1px solid #38578f; border-radius: 8px; padding: 6px 10px; background: #14203e; }
 
+/* Cloud Links opens as a complete, viewport-positioned list. */
+.chaines-index header .toolbar-overflow-panel {
+  position: fixed;
+  right: auto;
+  width: min(560px, calc(100vw - 16px));
+  min-width: 0;
+  max-width: calc(100vw - 16px);
+  max-height: none;
+  margin: 0;
+  padding: 8px;
+  overflow: visible;
+  box-sizing: border-box;
+}
+.chaines-index header .toolbar-overflow-group { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; }
+.chaines-index header .toolbar-overflow-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.chaines-index header .toolbar-overflow-list li { min-width: 0; }
+.chaines-index header .toolbar-overflow-list .chip {
+  height: 100%; min-height: 48px; min-width: 0; padding: 6px;
+  white-space: normal; box-sizing: border-box;
+}
+.chaines-index header .toolbar-overflow-list .chip img { width: 24px; height: 24px; }
+.chaines-index header .toolbar-overflow-list .menu-link-description { max-width: 100%; }
+@media (max-width: 380px), (max-height: 500px) {
+  .chaines-index header .toolbar-overflow-list .menu-link-description { display: none; }
+  .chaines-index header .toolbar-overflow-list .chip { min-height: 44px; }
+  .chaines-index header .toolbar-overflow-list .menu-link-title { font-size: 11px; }
+}
+
 /* Keep the hamburger dropdown inside the visible viewport at every breakpoint. */
 .chaines-index header #toolbar-overflow-panel {
   position: fixed;
