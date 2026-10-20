@@ -452,3 +452,22 @@ header .toolbar-overflow-panel #feed-btn { display: flex; }
 .chaines-index .media-playback-note { margin: 8px 0; padding: 10px; border: 1px solid #38578f; border-radius: 10px; color: #acb9d0; font-size: 12px; }
 .chaines-index .archive-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border: 1px solid #38578f; border-radius: 12px; background: #101d35; }
 .chaines-index .archive-status :is(button,a) { color: #76dfff; border: 1px solid #38578f; border-radius: 8px; padding: 6px 10px; background: #14203e; }
+
+/* Keep the hamburger dropdown inside the visible viewport at every breakpoint. */
+.chaines-index header #toolbar-overflow-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: none;
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.chaines-index header #toolbar-overflow-panel .toolbar-overflow-group {
+  flex: 0 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
